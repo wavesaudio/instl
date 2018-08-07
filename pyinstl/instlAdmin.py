@@ -231,7 +231,7 @@ class InstlAdmin(InstlInstanceBase):
         accum += self.platform_helper.mkdir(revision_folder_path)
         accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
                                                                          config_vars.resolve_str(revision_folder_path),
-                                                                         link_dest=True, ignore=".svn", preserve_dest_files=False)
+                                                                         link_dest=True, ignore_patterns=".svn", preserve_dest_files=False)
         accum += Progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
 
         # get info from SVN for all files in revision
@@ -569,30 +569,8 @@ class InstlAdmin(InstlInstanceBase):
         else:
             self.progress("fix-symlink limited to ", "; ".join(folders_to_check))
 
-        valid_symlinks = list()
-        broken_symlinks = list()
         for folder_to_check in folders_to_check:
-            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-                for item in files + dirs:
-                    item_path = os.path.join(root, item)
-                    if os.path.islink(item_path):
-                        target_path = os.path.realpath(item_path)
-                        link_value = os.readlink(item_path)
-                        if os.path.isdir(target_path) or os.path.isfile(target_path):
-                            valid_symlinks.append((item_path, link_value))
-                        else:
-                            valid_symlinks.append((item_path, link_value))  # fix even the broken symlinks
-                            broken_symlinks.append((item_path, link_value))
-        if len(broken_symlinks) > 0:
-            self.progress("Found broken symlinks")
-            for symlink_file, link_value in broken_symlinks:
-                self.progress(symlink_file, "-?>", link_value)
-        if len(valid_symlinks) > 0:
-            for symlink_file, link_value in valid_symlinks:
-                symlink_text_path = symlink_file + ".symlink"
-                self.batch_accum += " ".join(("echo", "-n", "'" + link_value + "'", ">", "'" + symlink_text_path + "'"))
-                self.batch_accum += self.platform_helper.rmfile(symlink_file)
-                self.batch_accum += Progress(symlink_text_path)
+            self.batch_accum += CreateSymlinkFilesInFolder(folder_to_check)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -662,7 +640,7 @@ class InstlAdmin(InstlInstanceBase):
                             do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
 
                 if copy_and_add_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
+                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
                     self.batch_accum += Progress(f"copy file {left_item_path}")
                     # tell svn about new items, svn will not accept 'add' for changed items
                     self.batch_accum += self.platform_helper.svn_add_item(right_item_path)
@@ -682,7 +660,7 @@ class InstlAdmin(InstlInstanceBase):
                         if self.compiled_forbidden_folder_regex.search(item):
                             raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
 
-                self.batch_accum += CopyDirToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn", preserve_dest_files=False)
+                self.batch_accum += CopyDirToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn", preserve_dest_files=False)
                 self.batch_accum += Progress(f"copy dir {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a file, dir or symlink, an abomination!")
@@ -711,7 +689,7 @@ class InstlAdmin(InstlInstanceBase):
                         do_not_copy_items.extend([os.path.basename(split_wtar_file) for split_wtar_file in split_wtar_files])
 
                 if copy_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore=".svn")
+                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
                     self.batch_accum += Progress(f"copy {left_item_path}")
                 else:
                     self.batch_accum += Progress(f"identical {left_item_path}")
@@ -831,7 +809,7 @@ class InstlAdmin(InstlInstanceBase):
                     self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
                     self.batch_accum += Progress(f"split file {item_to_tar}.wtar")
                     if os.path.isdir(item_to_tar_full_path):
-                        self.batch_accum += self.platform_helper.rmdir(item_to_tar, recursive=True)
+                        self.batch_accum += RmDir(item_to_tar)
                         self.batch_accum += Progress(f"removed dir {item_to_tar}")
                     elif os.path.isfile(item_to_tar_full_path):
                         self.batch_accum += self.platform_helper.rmfile(item_to_tar)
@@ -872,7 +850,7 @@ class InstlAdmin(InstlInstanceBase):
             svn_checkout_command = " ".join(svn_command_parts)
             self.batch_accum += svn_checkout_command
             self.batch_accum += Progress(f"Checkout {checkout_url} to {limit_info[1]}")
-            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore=(".svn", ".DS_Store"), preserve_dest_files=False)
+            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore_patterns=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += Progress(f"rsync {limit_info[1]} to {limit_info[2]}")
 
         self.write_batch_file(self.batch_accum)
@@ -1090,15 +1068,15 @@ class InstlAdmin(InstlInstanceBase):
                     file_should_be_exec = self.should_file_be_exec(item_path)
                     if file_is_exec != file_should_be_exec:
                         if file_should_be_exec:
-                            self.batch_accum += Chmod("a+x", item_path)
+                            self.batch_accum += Chmod(item_path, "a+x")
                             self.batch_accum += Progress("chmod a+x " + item_path)
                             files_that_must_be_exec.append(item_path)
                         else:
-                            self.batch_accum += Chmod("a-x", item_path)
+                            self.batch_accum += Chmod(item_path, "a-x")
                             self.batch_accum += Progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
-            self.batch_accum += Chmod("-R a+rw,+X", folder_to_check)
+            self.batch_accum += Chmod(folder_to_check, "-R a+rw,+X")
             self.batch_accum += Progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:

@@ -304,7 +304,7 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", check_exist=True)
+        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
@@ -510,11 +510,11 @@ class InstlClient(InstlInstanceBase):
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
-            remove_action = self.platform_helper.rmdir(to_remove_path, recursive=True, check_exist=True)
+            remove_action = RmDir(to_remove_path)
             self.batch_accum += remove_action
             retVal += 1
         elif source_type == '!file':  # remove single file
-            remove_action = self.platform_helper.rmfile(to_remove_path, check_exist=True)
+            remove_action = self.platform_helper.rmfile(to_remove_path, ignore_if_not_exist=True)
             self.batch_accum += remove_action
             retVal += 1
         elif source_type == '!dir_cont':

@@ -83,3 +83,6 @@ TASKLIST_PATH: tasklist.exe
 CMD_TOOLS_TO_FIND_INTERNAL:
   - XCOPY_PATH
   - TASKLIST_PATH
+
+--- !define
+BATCH_EXT: py

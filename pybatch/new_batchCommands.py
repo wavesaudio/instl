@@ -10,7 +10,7 @@ import zlib
 from .batchCommands import *
 
 """
-class Dummy(PythonBatchCommandBase):
+class Dummy(PythonBatchCommandBase, essential=True):
     def __init__(self, identifier=None, **kwargs) -> None:
         super().__init__(**kwargs)
 
