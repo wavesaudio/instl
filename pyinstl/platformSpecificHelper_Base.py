@@ -201,7 +201,6 @@ class PlatformSpecificHelperBase(object):
         copy_tool_name = self.DefaultCopyToolName(config_vars["__CURRENT_OS__"].str()) # copy instructions are always produced for the current os
         if "COPY_TOOL" in config_vars:
             copy_tool_name = config_vars["COPY_TOOL"].str()
-        self.use_copy_tool(copy_tool_name)
 
     @abc.abstractmethod
     def get_install_instructions_prefix(self, exit_on_errors=True):

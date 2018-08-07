@@ -341,9 +341,11 @@ class InstlClient(InstlInstanceBase):
                 if os.path.isdir(output_folder):
                     break
                 output_folder = None
+        commands = []
         if output_folder is not None:
             output_file_path = pathlib.Path(output_folder, output_file_name)
-            self.batch_accum += Ls(which_folder_to_manifest, output_file_path)
+            commands += Ls(which_folder_to_manifest, output_file_path)
+        return commands
 
     def repr_require_for_yaml(self):
         translate_detail_name = {'require_version': 'version', 'require_guid': 'guid', 'require_by': 'require_by'}
