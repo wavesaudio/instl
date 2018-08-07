@@ -101,6 +101,7 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
             print(f"MakeDirs bad paths: {self.paths_to_make}")
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
+        self.own_num_progress = len(self.paths_to_make)
 
     def __repr__(self):
         paths_csl = ", ".join(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
@@ -759,6 +760,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         else:
             assert isinstance(shell_commands_list, collections.Sequence)
             self.shell_commands_list = shell_commands_list
+        self.own_num_progress = len(self.shell_commands_list)
 
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}(shell_commands_list={self.shell_commands_list})"""

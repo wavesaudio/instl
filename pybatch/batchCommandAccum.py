@@ -71,12 +71,21 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
-        oc = f"""# Creation time: {self.creation_time}
-import sys
-sys.path.append(r'{instl_folder}')
-from pybatch import *\n
-"""
-        return oc
+        opening_code_lines = list()
+        opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
+        opening_code_lines.append(f"""import sys""")
+        opening_code_lines.append(f"""sys.path.append(r'{instl_folder}')""")
+        opening_code_lines.append(f"""from pybatch import *""")
+        PythonBatchCommandBase.total_progress = 0
+        for section in self.sections.values():
+            PythonBatchCommandBase.total_progress += section.num_progress_items()
+        opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
+        opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
+
+        the_oc = "\n".join(opening_code_lines)
+        the_oc += "\n"
+
+        return the_oc
 
     def _python_closing_code(self):
         oc = f"# eof\n\n"
@@ -103,12 +112,16 @@ from pybatch import *\n
                         io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
             else:
                 io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
-        PythonBatchCommandBase.total_progress = 0
+
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())
         for section_name in PythonBatchCommandAccum.section_order:
             if section_name in self.sections:
-                _repr_helper(self.sections[section_name], io_str, 0)
+                if section_name == "assign":
+                    _repr_helper(self.sections[section_name].sub_commands(), io_str, 0)
+                else:
+                    _repr_helper(self.sections[section_name], io_str, 0)
+                io_str.write("\n")
         io_str.write(self._python_closing_code())
         return io_str.getvalue()
 
