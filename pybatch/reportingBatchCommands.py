@@ -5,33 +5,37 @@ from .baseClasses import *
 
 
 class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
-    def __init__(self, name):
+    def __init__(self, *titles):
         super().__init__()
-        self.name = name
+        self.titles = titles
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}("{self.name}")"""
+        if len(self.titles) == 1:
+            quoted_titles = utils.quoteme_double(self.titles[0])
+        else:
+            quoted_titles = ", ".join((utils.quoteme_double(title) for title in self.titles))
+        the_repr = f"""{self.__class__.__name__}({quoted_titles})"""
         return the_repr
 
     def repr_batch_win(self):
         retVal = list()
-        retVal.append(f"""echo section: {self.name}""")
+        retVal.append(f"""echo section: {self.self.titles}""")
         return retVal
 
     def repr_batch_mac(self):
         retVal = list()
-        retVal.append(f"""echo section: {self.name}""")
+        retVal.append(f"""echo section: {self.self.titles}""")
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"{self.name} ..."
+        the_progress_msg = f'''{", ".join((utils.quoteme_double(title) for title in self.titles))} ...'''
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
         pass
 
 
-class Progress(PythonBatchCommandBase, essential=False):
+class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
     """
         just issue a progress message
     """
@@ -59,7 +63,7 @@ class Progress(PythonBatchCommandBase, essential=False):
         pass
 
 
-class Echo(PythonBatchCommandBase, essential=False):
+class Echo(PythonBatchCommandBase, essential=False, empty__call__=True):
     """
         just issue a (non progress) message
     """
@@ -87,7 +91,7 @@ class Echo(PythonBatchCommandBase, essential=False):
         pass
 
 
-class Remark(PythonBatchCommandBase, essential=False):
+class Remark(PythonBatchCommandBase, essential=False, empty__call__=True):
     """
         write a remark in code
     """
@@ -115,9 +119,9 @@ class Remark(PythonBatchCommandBase, essential=False):
         pass
 
 
-class VarAssign(PythonBatchCommandBase, essential=False):
+class VarAssign(PythonBatchCommandBase, essential=False, empty__call__=True):
     """
-        write a remark in code
+        configVar assignment as python variable
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:
         kwargs['is_context_manager'] = False
@@ -139,7 +143,7 @@ class VarAssign(PythonBatchCommandBase, essential=False):
             if len(adjusted_values) == 1:
                 the_repr = f'''{self.var_name} = {adjusted_values[0]}'''
             else:
-                values = "".join(('[', ", ".join(str(adj) for adj in adjusted_values), ']'))
+                values = "".join(('(', ", ".join(str(adj) for adj in adjusted_values), ')'))
                 the_repr = f'''{self.var_name} = {values}'''
         else:
             the_repr = f'''{self.var_name} = ""'''

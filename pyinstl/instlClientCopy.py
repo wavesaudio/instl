@@ -168,13 +168,10 @@ class InstlClientCopy(InstlClient):
             # patterns_copy_should_ignore is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
             retVal += CopyFileToDir(source_file_full_path, ".", link_dest=True, ignore_patterns=self.patterns_copy_should_ignore)
 
-            retVal += Echo(f"copy {source_file_full_path}")
-
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
                     retVal += Chown("$(__USER_ID__)", "", source_file.leaf, recursive=False)
-                    retVal += Chmod(source_file.chmod_spec(), source_file.name())
-                    retVal += Echo(f"chmod {source_file.chmod_spec()} {source_file.name()}")
+                    retVal += Chmod(source_file.name(), source_file.chmod_spec())
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
@@ -215,9 +212,9 @@ class InstlClientCopy(InstlClient):
                     if source_item.wtarFlag == 0:
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
                         retVal += Chown("$(__USER_ID__)", "", ".", recursive=True)
-                        retVal += Chmod("-R -f a+rw", source_path_relative_to_current_dir)  # all copied files and folders should be rw
+                        retVal += Chmod(source_path_relative_to_current_dir, "a+rw", recursive=True, ignore_all_errors=True)  # all copied files and folders should be rw
                         if source_item.isExecutable():
-                            retVal += Chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                            retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec(), recursive=True, ignore_all_errors=True)
 
         if len(wtar_items) > 0:
             retVal += Unwtar(source_path_abs, ".")
@@ -227,7 +224,7 @@ class InstlClientCopy(InstlClient):
             # fix permissions for any items that were unwtarred
             # unwtar moved be done with "command-list"
             # if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-            #    retVal += Chmod("-R -f a+rwX", ".")
+            #    retVal += Chmod(".", "-R -f a+rwX")
         return retVal
 
     def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]) -> bool:
@@ -262,12 +259,12 @@ class InstlClientCopy(InstlClient):
 
             if  self.mac_current_and_target:
                 retVal += Chown("$(__USER_ID__)", "", source_path_name, recursive=True)
-                retVal += Chmod("-R -f a+rw", source_path_name)  # all copied files should be rw
+                retVal += Chmod(source_path_name,"a+rw", recursive=True, ignore_all_errors=True)  # all copied files should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
-                        retVal += Chmod(source_item.chmod_spec(), source_path_relative_to_current_dir)
+                        retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
 
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, source_path_name)
@@ -277,7 +274,7 @@ class InstlClientCopy(InstlClient):
                 # fix permissions for any items that were unwtarred
                 # unwtar moved be done with "command-list"
                 # if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-                #    retVal += Chmod("-R -f a+rwX", source_path_name)
+                #    retVal += Chmod(source_path_name, "-R -f a+rwX")
         else:
             # it might be a dir that was wtarred
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
@@ -301,7 +298,7 @@ class InstlClientCopy(InstlClient):
     def pre_copy_mac_handling(self) -> None:
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
-            with self.batch_accum.sub_accum(Cd("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
+            with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
                 have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
                 self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
                 self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
@@ -317,54 +314,44 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
-        with self.batch_accum.sub_accum(Section(f"create_copy_instructions_for_target_folder-{target_folder_path}")) as folder_accum_transaction:
+        with self.batch_accum.sub_accum(CdSection(target_folder_path, "create_copy_instructions_for_target_folder")) as copy_to_folder_accum:
             self.current_destination_folder = target_folder_path
-            #self.unwtar_instructions: List = list()
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
-            folder_accum_transaction += Remark(f"- Begin folder {target_folder_path}")
-            folder_accum_transaction += Progress(f"copy to {target_folder_path} ...")
-            folder_accum_transaction += Cd(target_folder_path)
 
             # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
+            copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             num_symlink_items: int = 0
-            folder_accum_transaction += self.platform_helper.copy_tool.begin_copy_folder()
+            copy_to_folder_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
-                with folder_accum_transaction.sub_accum(Section(f"create_copy_instructions_for_IID_{IID}")) as iid_accum_transaction:
+                with copy_to_folder_accum.sub_accum(Section("create_copy_instructions_for_IID", IID)) as iid_accum:
                     self.current_iid = IID
-                    iid_accum_transaction += Remark(f"-- Begin iid {IID}")
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     name_and_version = self.name_and_version_for_iid(iid=IID)
                     for source in resolved_sources_for_iid:
-                        with iid_accum_transaction.sub_accum(Section(f"create_copy_instructions_for_source_{source[0]}")) as source_accum_transaction:
-                            source_accum_transaction += Remark(f"--- Begin source {source[0]}")
+                        with iid_accum.sub_accum(Section("create_copy_instructions_for_source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
-                            source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
-                            source_accum_transaction += self.create_copy_instructions_for_source(source, name_and_version)
-                            source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
-                            source_accum_transaction += Remark(f"--- End source {source[0]}")
+                            source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
+                            source_accum += self.create_copy_instructions_for_source(source, name_and_version)
+                            source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
                             if  self.mac_current_and_target:
                                 num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
-                    iid_accum_transaction += Remark(f"-- End iid {IID}")
             self.current_iid = None
 
             target_folder_path_parent, target_folder_name = os.path.split(config_vars.resolve_str(target_folder_path))
             #self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
             #self.unwtar_instructions = None
-            folder_accum_transaction += self.platform_helper.copy_tool.end_copy_folder()
+            copy_to_folder_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if  self.mac_current_and_target:
                 if num_items_copied_to_folder > 0 and num_symlink_items > 0:
-                    folder_accum_transaction += Progress("Resolve symlinks ...")
-                    folder_accum_transaction += ResolveSymlinkFilesInFolder(target_folder_path)
+                    copy_to_folder_accum += ResolveSymlinkFilesInFolder(target_folder_path)
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-            folder_accum_transaction += Remark(f"- End folder {target_folder_path}")
+            copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.current_destination_folder = None
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name) -> PythonBatchCommandBase:
@@ -372,10 +359,8 @@ class InstlClientCopy(InstlClient):
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
-        retVal = Section(f"create_copy_instructions_for_no_copy_folder_{sync_folder_name}")
-
+        retVal = CdSection(sync_folder_name, "create_copy_instructions_for_no_copy_folder")
         items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
-        retVal += Cd(sync_folder_name)
         retVal += Progress(f"Actions in {sync_folder_name} ...")
 
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates

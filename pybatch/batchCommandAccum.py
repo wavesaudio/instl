@@ -69,15 +69,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         self.sections[self.current_section].add(child_commands)
 
-    @contextmanager
-    def sub_accum(self, context):
-        assert not self.in_sub_accum, "PythonBatchCommandAccum.sub_accum: should not be called while another sub_accum is in context"
-        self.in_sub_accum = True
-        yield context
-        self.in_sub_accum = False
-        if context.is_essential():
-            self.add(context)
-
     def _python_opening_code(self):
         instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
         oc = f"""# Creation time: {self.creation_time}

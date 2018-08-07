@@ -91,7 +91,8 @@ class PythonBatchCommandBase(abc.ABC):
         self.in_sub_accum = True
         yield context
         self.in_sub_accum = False
-        self.add(context)
+        if context.is_essential():
+            self.add(context)
 
     @abc.abstractmethod
     def __repr__(self):
@@ -130,12 +131,12 @@ class PythonBatchCommandBase(abc.ABC):
     def warning_msg_self(self):
         """ classes overriding PythonBatchCommandBase can add their own warning message
         """
-        return ""
+        return f"{self.__class__.__name__}"
 
     def error_msg_self(self):
         """ classes overriding PythonBatchCommandBase can add their own error message
         """
-        return ""
+        return f"{self.__class__.__name__}"
 
     def enter_self(self):
         """ classes overriding PythonBatchCommandBase can add code here without

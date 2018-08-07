@@ -1068,15 +1068,15 @@ class InstlAdmin(InstlInstanceBase):
                     file_should_be_exec = self.should_file_be_exec(item_path)
                     if file_is_exec != file_should_be_exec:
                         if file_should_be_exec:
-                            self.batch_accum += Chmod("a+x", item_path)
+                            self.batch_accum += Chmod(item_path, "a+x")
                             self.batch_accum += Progress("chmod a+x " + item_path)
                             files_that_must_be_exec.append(item_path)
                         else:
-                            self.batch_accum += Chmod("a-x", item_path)
+                            self.batch_accum += Chmod(item_path, "a-x")
                             self.batch_accum += Progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
-            self.batch_accum += Chmod("-R a+rw,+X", folder_to_check)
+            self.batch_accum += Chmod(folder_to_check, "-R a+rw,+X")
             self.batch_accum += Progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:

@@ -60,7 +60,7 @@ class InstlClientRemove(InstlClient):
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
-                            with iid_accum_transaction.sub_accum(Section("")) as source_accum_transaction:
+                            with iid_accum_transaction.sub_accum(Section(source)) as source_accum_transaction:
                                 _, source_leaf = os.path.split(source[0])
                                 source_accum_transaction += Progress(f"Remove {source_leaf}")
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")

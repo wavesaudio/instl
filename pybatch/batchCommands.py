@@ -228,6 +228,55 @@ class Cd(PythonBatchCommandBase, essential=True):
         os.chdir(self.old_path)
 
 
+class CdSection(Cd, essential=False):
+    def __init__(self, path: os.PathLike, *titles) -> None:
+        super().__init__(path)
+        self.new_path: os.PathLike = path
+        self.old_path: os.PathLike = None
+        self.titles = titles
+
+    def __repr__(self):
+        if len(self.titles) == 1:
+            quoted_titles = utils.quoteme_double(self.titles[0])
+        else:
+            quoted_titles = ", ".join((utils.quoteme_double(title) for title in self.titles))
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.new_path))}"""
+        if quoted_titles:
+            the_repr += f""", {quoted_titles}"""
+        the_repr += ")"
+        return the_repr
+
+    def repr_batch_win(self):
+        retVal = list()
+        norm_directory = utils.quoteme_double(os.path.normpath(self.new_path))
+        is_exists_command = " ".join(("if not exist", norm_directory,
+                                    "(", "echo directory does not exists", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
+        cd_command = " ".join(("cd", '/d', norm_directory))
+        check_cd_command = " ".join(("if /I not", norm_directory, "==", utils.quoteme_double("%CD%"),
+                                    "(", "echo Error: failed to cd to", norm_directory, "1>&2",
+                                    "&", "GOTO", "EXIT_ON_ERROR", ")"))
+        retVal.extend((is_exists_command, cd_command, check_cd_command))
+        return retVal
+
+    def repr_batch_mac(self):
+        retVal = list()
+        retVal.append(" ".join(("cd", utils.quoteme_double(self.new_path))))
+        return retVal
+
+    def progress_msg_self(self):
+        the_progress_msg = f"cd to {self.new_path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        self.old_path = os.getcwd()
+        os.chdir(self.new_path)
+        return None
+
+    def exit_self(self, exit_return):
+        os.chdir(self.old_path)
+
+
 class ChFlags(RunProcessBase, essential=True):
     """ Mac specific to change system flags on files or dirs.
         These flags are different from permissions.
@@ -511,8 +560,8 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
 class Chown(RunProcessBase, essential=True):
     def __init__(self, user_id: int, group_id: int, path: os.PathLike, recursive: bool=False):
         super().__init__()
-        self.user_id = user_id
-        self.group_id = group_id
+        self.user_id  = user_id   if user_id  else -1
+        self.group_id = group_id  if group_id else -1
         self.path = path
         self.recursive = recursive
         self.exceptions_to_ignore.append(FileNotFoundError)
@@ -545,8 +594,13 @@ class Chown(RunProcessBase, essential=True):
         run_args.append("-f")
         if self.recursive:
             run_args.append("-R")
-        run_args.append("".join((self.user_id, ":", self.group_id)))
-        run_args.append(utils.quoteme_double(self.path))
+        user_and_group = ""
+        if self.user_id != -1:
+            user_and_group += f"{self.user_id}"
+        if self.group_id != -1:
+            user_and_group += f":{self.group_id}"
+        run_args.append(user_and_group)
+        run_args.append(self.path)
         return run_args
 
     def progress_msg_self(self):
@@ -585,7 +639,7 @@ class Chmod(RunProcessBase, essential=True):
             the_mode = utils.quoteme_double(the_mode)
         the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
         if self.ignore_all_errors:
-            the_repr += f"ignore_all_errors={self.ignore_all_errors})"
+            the_repr += f", ignore_all_errors={self.ignore_all_errors})"
         else:
             the_repr += ")"
         return the_repr
@@ -678,7 +732,7 @@ class SingleShellCommand(RunProcessBase, essential=True):
         self.shell_command = shell_command
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}(shell_command={utils.quoteme_raw_string(self.shell_command)})'''
+        the_repr = f"""{self.__class__.__name__}(shell_command=r'''{self.shell_command}''')"""
         return the_repr
 
     def repr_batch_win(self):
@@ -744,38 +798,6 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         for shell_command in self.shell_commands_list:
             with SingleShellCommand(shell_command) as shelli:
                 shelli()
-
-
-class VarAssign(PythonBatchCommandBase, essential=True):
-    def __init__(self, var_name: str, var_value: Any):
-        super().__init__(is_context_manager=False)
-        self.var_name = var_name
-        self.var_value = var_value
-
-    def __repr__(self):
-        the_repr = f'{self.var_name} = {repr(self.var_value)}\n'
-        return the_repr
-
-    def repr_batch_mac(self):
-        quoter = '"'
-        if '"' in self.var_value:
-            quoter = "'"
-            if "'" in self.var_value:
-                print(self.var_value, """has both ' and " quote chars;""", "identifier:", self.var_name)
-                return ()
-
-        retVal = "".join((self.var_name, '=', quoter, self.var_value, quoter))
-        return retVal
-
-    def repr_batch_win(self):
-        retVal = "SET " + self.var_name + '=' + dos_escape(self.var_value)
-        return retVal
-
-    def progress_msg_self(self):
-        return ""
-
-    def __call__(self, *args, **kwargs):
-        pass
 
 
 class ParallelRun(PythonBatchCommandBase, essential=True):
