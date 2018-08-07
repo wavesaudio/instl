@@ -45,7 +45,7 @@ class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
         self.message = message
 
     def __repr__(self) -> str:
-        the_repr = f'''print("progress: x of y: {self.message}")'''
+        the_repr = f'''print(r"progress: x of y: {self.message}")'''
         return the_repr
 
     def repr_batch_win(self) -> str:

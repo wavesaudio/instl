@@ -189,7 +189,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress("create sync instructions ...")
         before_sync_accum_transaction = Section("before_sync")
         before_sync_accum_transaction += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
-        sections += before_sync_accum_transaction
+        sections.append(before_sync_accum_transaction)
 
         sync_accum_transaction = Section("sync")
         sync_accum_transaction += Progress("Start sync")
@@ -198,25 +198,25 @@ class InstlInstanceSync_url(InstlInstanceSync):
         sync_accum_transaction += Progress("Starting sync from $(SYNC_BASE_URL)")
         sync_accum_transaction += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
 
-        cd_local_repo_sync_dir_accum_transaction = sync_accum_transaction.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)"))
-        cd_local_repo_sync_dir_accum_transaction += self.create_instructions_to_remove_redundant_files_in_sync_folder()
-        cd_local_repo_sync_dir_accum_transaction += self.create_download_instructions()
+        with sync_accum_transaction.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as cd_local_repo_sync_dir_accum_transaction:
+            cd_local_repo_sync_dir_accum_transaction += self.create_instructions_to_remove_redundant_files_in_sync_folder()
+            cd_local_repo_sync_dir_accum_transaction += self.create_download_instructions()
 
-        post_sync_accum_transaction = cd_local_repo_sync_dir_accum_transaction.sub_accum(Section("post_sync"))
-        self.chown_for_synced_folders()
-        post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+            with cd_local_repo_sync_dir_accum_transaction.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
+                self.chown_for_synced_folders()
+                post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.progress("create sync instructions done")
         sync_accum_transaction += Progress("Done sync")
-        sections += sync_accum_transaction
+        sections.append(sync_accum_transaction)
         return sections
 
     def create_no_sync_instructions(self):
         """ in case no files needed syncing """
-        self.instlObj.batch_accum.set_current_section('post-sync')
-        self.instlObj.batch_accum += self.instlObj.platform_helper.copy_file_to_file("$(NEW_HAVE_INFO_MAP_PATH)",
-                                                                                     "$(HAVE_INFO_MAP_PATH)")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Done sync")
+        no_sync_instructions_accum_transacion = Section('post_sync')
+        no_sync_instructions_accum_transacion += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+        no_sync_instructions_accum_transacion += Progress("Done sync")
+        return no_sync_instructions_accum_transacion
 
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root

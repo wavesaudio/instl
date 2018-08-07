@@ -967,19 +967,19 @@ class TestPythonBatch(unittest.TestCase):
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.which_test} : file_to_stay was not removed {file_to_stay}")
 
     def test_Ls_repr(self):
-        with self.assertRaises(TypeError):
-            ref_obj = Ls()
+        with self.assertRaises(AssertionError):
+            ref_obj = Ls([])
 
-        ls_obj = Ls([], "empty.txt")
+        ls_obj = Ls('', out_file="empty.txt")
         ls_obj_recreated = eval(repr(ls_obj))
         self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
-        ls_obj = Ls(["/per/pen/di/cular"], "perpendicular_ls.txt",ls_format='abc')
-        ls_obj_recreated =eval(repr(ls_obj))
+        ls_obj = Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')
+        ls_obj_recreated = eval(repr(ls_obj))
         self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
-        ls_obj = Ls(["/Gina/Lollobrigida", "/Francesca/Gioberti"], "Lollobrigida.txt")
-        ls_obj_recreated =eval(repr(ls_obj))
+        ls_obj = Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")
+        ls_obj_recreated = eval(repr(ls_obj))
         self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
     def test_Ls(self):

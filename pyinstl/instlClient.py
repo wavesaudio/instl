@@ -344,7 +344,7 @@ class InstlClient(InstlInstanceBase):
         commands = []
         if output_folder is not None:
             output_file_path = pathlib.Path(output_folder, output_file_name)
-            commands += Ls(which_folder_to_manifest, output_file_path)
+            commands.append(Ls(which_folder_to_manifest, out_file=output_file_path))
         return commands
 
     def repr_require_for_yaml(self):

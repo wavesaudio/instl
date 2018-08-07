@@ -142,30 +142,3 @@ class PlatformSpecificHelperLinux(PlatformSpecificHelperBase):
         return append_command
 
 
-class DownloadTool_linux_curl(DownloadToolBase):
-    def __init__(self, platform_helper) -> None:
-        super().__init__(platform_helper)
-
-    def download_url_to_file(self, src_url, trg_file):
-        """ Create command to download a single file.
-            src_url is expected to be already escaped (spaces as %20...)
-        """
-        download_command_parts = list()
-        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
-        download_command_parts.append("--insecure")
-        download_command_parts.append("--fail")
-        download_command_parts.append("--raw")
-        download_command_parts.append("--silent")
-        download_command_parts.append("--connect-timeout")
-        download_command_parts.append("3")
-        download_command_parts.append("--max-time")
-        download_command_parts.append("60")
-        # download_command_parts.append(" --write-out")
-        #download_command_parts.append(utils.quoteme_double("%{http_code}"))
-        download_command_parts.append("-o")
-        download_command_parts.append(utils.quoteme_double(trg_file))
-        download_command_parts.append(utils.quoteme_double(src_url))
-        return " ".join(download_command_parts)
-
-    def download_from_config_files(self, parallel_run_config_file_path, config_files):
-        pass

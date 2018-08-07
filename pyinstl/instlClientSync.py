@@ -38,4 +38,4 @@ class InstlClientSync(InstlClient):
             main_sync_accum_transaction += syncer.create_sync_instructions()
 
         if main_sync_accum_transaction.essential_action_counter == 0:
-            syncer.create_no_sync_instructions()
+            main_sync_accum_transaction += syncer.create_no_sync_instructions()

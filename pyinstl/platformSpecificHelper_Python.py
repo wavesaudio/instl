@@ -385,49 +385,4 @@ split_file()
         return progress_command
 
 
-class DownloadTool_mac_curl(DownloadToolBase):
-    def __init__(self, platform_helper):
-        super().__init__(platform_helper)
-
-    def download_url_to_file(self, src_url, trg_file):
-        """ Create command to download a single file.
-            src_url is expected to be already escaped (spaces as %20...)
-        """
-        connect_time_out = str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16"))
-        max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
-        retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
-        retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
-
-        download_command_parts = list()
-        download_command_parts.append("$(DOWNLOAD_TOOL_PATH)")
-        download_command_parts.append("--insecure")
-        download_command_parts.append("--fail")
-        download_command_parts.append("--raw")
-        download_command_parts.append("--silent")
-        download_command_parts.append("--show-error")
-        download_command_parts.append("--compressed")
-        download_command_parts.append("--connect-timeout")
-        download_command_parts.append(connect_time_out)
-        download_command_parts.append("--max-time")
-        download_command_parts.append(max_time)
-        download_command_parts.append("--retry")
-        download_command_parts.append(retries)
-        download_command_parts.append("--retry-delay")
-        download_command_parts.append(retry_delay)
-        download_command_parts.append("write-out")
-        download_command_parts.append(DownloadToolBase.curl_write_out_str)
-        download_command_parts.append("-o")
-        download_command_parts.append(utils.quoteme_double(trg_file))
-        download_command_parts.append(utils.quoteme_double(src_url))
-        return " ".join(download_command_parts)
-
-    def download_from_config_files(self, parallel_run_config_file_path, config_files):
-
-        with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
-            for config_file in config_files:
-                wfd.write(config_vars.resolve_str(f'"$(DOWNLOAD_TOOL_PATH)" --config "{config_file}"\n'))
-
-        download_command = " ".join((self.platform_helper.run_instl(),  "parallel-run", "--in", utils.quoteme_double(parallel_run_config_file_path)))
-        return download_command
 

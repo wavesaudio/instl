@@ -51,6 +51,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.is_context_manager = kwargs.get('is_context_manager', True)
 
         self.progress = 0
+        self.essential_action_counter = 0
         if self.report_own_progress:
             PythonBatchCommandBase.total_progress += 1
             self.progress = PythonBatchCommandBase.total_progress

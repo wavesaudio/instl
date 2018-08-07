@@ -355,7 +355,7 @@ class ConfigVarStack:
         else:
             # windows environ variables are not case sensitive, but instl vars are
             if 'Win' in list(self["__CURRENT_OS_NAMES__"]):
-                lower_case_environ = dict(zip(map(lambda z:z.lower(), os.environ.keys()), os.environ.values()))
+                lower_case_environ = dict(zip(map(lambda z: z.lower().replace('(', '').replace(')', ''), os.environ.keys()), os.environ.values()))
                 for env_key_to_read in vars_to_read_from_environ:
                     if env_key_to_read.lower() in lower_case_environ:
                         self[env_key_to_read] = lower_case_environ[env_key_to_read.lower()]

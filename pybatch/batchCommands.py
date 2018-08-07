@@ -884,19 +884,20 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
 
 
 class Ls(PythonBatchCommandBase, essential=True):
-    def __init__(self, folders_to_list, out_file, ls_format='*', **kwargs) -> None:
+    def __init__(self, *folders_to_list, out_file=None, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
         self.out_file = out_file
+        assert self.out_file is not None
         self.folders_to_list = list()
-        if isinstance(folders_to_list, (os.PathLike, str)):
-            self.folders_to_list.append(os.fspath(folders_to_list))
-        elif isinstance(folders_to_list, collections.Sequence):
-            for a_folder in folders_to_list:
-                self.folders_to_list.append(os.fspath(a_folder))
+        for a_folder in folders_to_list:
+            self.folders_to_list.append(os.fspath(a_folder))
 
     def __repr__(self) -> str:
-        the_repr = f'''Ls({self.folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
+        folders_to_list = self.folders_to_list
+        if len(folders_to_list) > 0:
+            folders_to_list = ', '.join(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
+        the_repr = f'''Ls({folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
         return the_repr
 
     def repr_batch_win(self) -> str:

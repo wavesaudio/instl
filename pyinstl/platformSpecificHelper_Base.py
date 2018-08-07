@@ -173,7 +173,7 @@ class PlatformSpecificHelperBase(object):
     def __init__(self, instlObj) -> None:
         self.instlObj = instlObj
         self.copy_tool = None
-        self.dl_tool = None
+        self.dl_tool = DownloadToolBase(self)
         self.num_items_for_progress_report = 0
         self.progress_staccato_period = config_vars.get("PROGRESS_STACCATO_PERIOD", "128").int()
         self.progress_staccato_count = 0
@@ -469,10 +469,6 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         self.urls_to_download = list()
         self.short_win_paths_cache = dict()
 
-    @abc.abstractmethod
-    def download_url_to_file(self, src_url, trg_file):
-        pass
-
     def add_download_url(self, url, path, verbatim=False, size=0):
         if verbatim:
             translated_url = url
@@ -484,10 +480,6 @@ class DownloadToolBase(object, metaclass=abc.ABCMeta):
         return len(self.urls_to_download)
 
     def download_from_config_file(self, config_file):
-        pass
-
-    @abc.abstractmethod
-    def download_from_config_files(self, parallel_run_config_file_path, config_files):
         pass
 
     def create_config_files(self, curl_config_file_path, num_config_files):
