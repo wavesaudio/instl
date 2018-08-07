@@ -24,11 +24,11 @@ class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
 
     def repr_batch_mac(self):
         retVal = list()
-        retVal.append(f"""echo section: {self.self.titles}""")
+        retVal.append(f"""echo section: {self.titles}""")
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f'''{", ".join((utils.quoteme_double(title) for title in self.titles))} ...'''
+        the_progress_msg = f'''{", ".join(self.titles)} ...'''
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -43,6 +43,7 @@ class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
         kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.message = message
+        self.own_num_progress = 0
 
     def __repr__(self) -> str:
         the_repr = f'''print("progress: x of y: {self.message}")'''
@@ -71,6 +72,7 @@ class Echo(PythonBatchCommandBase, essential=False, empty__call__=True):
         kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.message = message
+        self.own_num_progress = 0
 
     def __repr__(self) -> str:
         the_repr = f'''print("{self.message}")'''
@@ -99,6 +101,7 @@ class Remark(PythonBatchCommandBase, essential=False, empty__call__=True):
         kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.remark = remark
+        self.own_num_progress = 0
 
     def __repr__(self) -> str:
         the_repr = f'''# {self.remark}'''
@@ -130,6 +133,7 @@ class VarAssign(PythonBatchCommandBase, essential=False, empty__call__=True):
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
         self.var_name = var_name
         self.var_values = var_values
+        self.own_num_progress = 0
 
     def __repr__(self) -> str:
         the_repr = ""

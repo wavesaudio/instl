@@ -4,7 +4,7 @@ import abc
 import re
 import time
 from contextlib import contextmanager
-
+from typing import List
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
@@ -31,6 +31,7 @@ class PythonBatchCommandBase(abc.ABC):
     """
     instance_counter: int = 0
     total_progress: int = 0
+    running_progress: int = 0
     essential = True
     empty__call__ = False
 
@@ -50,28 +51,34 @@ class PythonBatchCommandBase(abc.ABC):
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
         self.is_context_manager = kwargs.get('is_context_manager', True)
 
-        self.progress = 0
-        if self.report_own_progress:
-            PythonBatchCommandBase.total_progress += 1
-            self.progress = PythonBatchCommandBase.total_progress
         self.exceptions_to_ignore = []
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
         self.in_sub_accum = False
+        self.own_num_progress = 1
 
-    def is_essential(self):
+    def num_progress_items(self) -> int:
+        retVal = self.own_num_progress
+        for sub in self.child_batch_commands:
+            retVal += sub.num_progress_items()
+        return retVal
+
+    def is_essential(self) -> bool:
         retVal = self.essential
         if not retVal:
             retVal = any([child.is_essential() for child in self.child_batch_commands])
         return retVal
 
-    def num_sub_batch_commands(self):
+    def num_sub_batch_commands(self) -> int:
         counter = 0
         for batch_command in self.child_batch_commands:
             counter += batch_command.num_sub_batch_commands()
             counter += 1
         return counter
+
+    def sub_commands(self) -> List:
+        return self.child_batch_commands
 
     def __iadd__(self, child_commands):
         self.add(child_commands)
@@ -95,19 +102,19 @@ class PythonBatchCommandBase(abc.ABC):
             self.add(context)
 
     @abc.abstractmethod
-    def __repr__(self):
+    def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
         return the_repr
 
     @abc.abstractmethod
-    def repr_batch_win(self):
+    def repr_batch_win(self) -> str:
         return ""
 
     @abc.abstractmethod
-    def repr_batch_mac(self):
+    def repr_batch_mac(self) -> str:
         return ""
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         do_not_compare_keys = ('progress', 'obj_name')
         dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
         dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
@@ -118,27 +125,28 @@ class PythonBatchCommandBase(abc.ABC):
         the_hash = hash(tuple(sorted(self.__dict__.items())))
         return the_hash
 
-    def progress_msg(self):
-        the_progress_msg = f"Progress {self.progress} of {PythonBatchCommandBase.total_progress};"
+    def progress_msg(self) -> str:
+        PythonBatchCommandBase.running_progress += self.own_num_progress
+        the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
 
     @abc.abstractmethod
-    def progress_msg_self(self):
+    def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message
         """
         return ""
 
-    def warning_msg_self(self):
+    def warning_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own warning message
         """
         return f"{self.__class__.__name__}"
 
-    def error_msg_self(self):
+    def error_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own error message
         """
         return f"{self.__class__.__name__}"
 
-    def enter_self(self):
+    def enter_self(self) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
             repeating __enter__, bit not do any actual work!
         """
@@ -156,7 +164,7 @@ class PythonBatchCommandBase(abc.ABC):
                 raise
         return self
 
-    def exit_self(self, exit_return):
+    def exit_self(self, exit_return) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
             repeating __exit__.
             exit_self will be called regardless of exceptions
