@@ -162,7 +162,7 @@ class InstlClientCopy(InstlClient):
             source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
 
             # patterns_copy_should_ignore is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
-            retVal += CopyFileToDir(source_file_full_path, ".", link_dest=True, ignore_patterns=self.patterns_copy_should_ignore)
+            retVal += CopyFileToDir(source_file_full_path, os.curdir, link_dest=True, ignore_patterns=self.patterns_copy_should_ignore)
 
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
@@ -179,7 +179,7 @@ class InstlClientCopy(InstlClient):
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
-            self.unwtar_instructions.append((first_wtar_full_path, '.'))
+            self.unwtar_instructions.append((first_wtar_full_path, os.curdir))
         return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
@@ -196,7 +196,7 @@ class InstlClientCopy(InstlClient):
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             retVal += CopyDirContentsToDir(
                                                         source_path_abs,
-                                                        ".",
+                                                        os.curdir,
                                                         link_dest=True,
                                                         ignore_patterns=ignores,
                                                         preserve_dest_files=True)  # preserve files already in destination
@@ -207,20 +207,20 @@ class InstlClientCopy(InstlClient):
                 for source_item in source_items:
                     if source_item.wtarFlag == 0:
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                        retVal += Chown("$(__USER_ID__)", "", ".", recursive=True)
+                        retVal += Chown("$(__USER_ID__)", "", os.curdir, recursive=True)
                         retVal += Chmod(source_path_relative_to_current_dir, "a+rw", recursive=True, ignore_all_errors=True)  # all copied files and folders should be rw
                         if source_item.isExecutable():
                             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec(), recursive=True, ignore_all_errors=True)
 
         if len(wtar_items) > 0:
-            retVal += Unwtar(source_path_abs, ".")
+            retVal += Unwtar(source_path_abs, os.curdir)
             #self.unwtar_instructions.append((source_path_abs, '.'))
-            retVal += Unlock('.', recursive=True)
+            retVal += Unlock(os.curdir, recursive=True)
 
             # fix permissions for any items that were unwtarred
             # unwtar moved be done with "command-list"
             # if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-            #    retVal += Chmod(".", "-R -f a+rwX")
+            #    retVal += Chmod(os.curdir, "-R -f a+rwX")
         return retVal
 
     def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]) -> bool:
@@ -246,7 +246,7 @@ class InstlClientCopy(InstlClient):
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            retVal += CopyDirToDir(source_path_abs, ".",
+            retVal += CopyDirToDir(source_path_abs, os.curdir,
                                                                                link_dest=True,
                                                                                ignore_patterns=ignores)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
@@ -265,7 +265,7 @@ class InstlClientCopy(InstlClient):
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, source_path_name)
                 #self.unwtar_instructions.append((source_path_abs, source_path_name))
-                retVal += Unlock(".", recursive=True)
+                retVal += Unlock(os.curdir, recursive=True)
 
                 # fix permissions for any items that were unwtarred
                 # unwtar moved be done with "command-list"
@@ -371,7 +371,7 @@ class InstlClientCopy(InstlClient):
             retVal.extend(post_copy_item_from_db)
 
         if num_wtars > 0:
-            retVal.append(self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar='.'))
+            retVal.append(self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar=os.curdir))
 
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         post_copy_to_folder_from_db = self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)

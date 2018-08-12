@@ -108,7 +108,7 @@ class CopyToolRsync(CopyToolBase):
         else:
             delete_spec = ""
         if link_dest:
-            the_link_dest = os.path.join(src_dir, "..")
+            the_link_dest = os.path.join(src_dir, os.pardir)
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{src_dir}" "{trg_dir}" """
         else:
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{src_dir}" "{trg_dir}" """
@@ -382,7 +382,7 @@ class PlatformSpecificHelperBase(object):
         return unwtar_command
 
     def unwtar_current_folder(self, no_artifacts=False, where_to_unwtar=None):
-        unwtar_command = self.unwtar_something(".", no_artifacts, where_to_unwtar)
+        unwtar_command = self.unwtar_something(os.curdir, no_artifacts, where_to_unwtar)
         return unwtar_command
 
     def run_instl_command_list(self, command_file_path, parallel=False):

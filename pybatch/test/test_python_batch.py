@@ -123,7 +123,7 @@ class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name, self.which_test)
+        self.test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
 
@@ -720,7 +720,7 @@ class TestPythonBatch(unittest.TestCase):
                         ]
 
         self.batch_accum.clear()
-        self.batch_accum += VarAssign("geronimo", geronimo)
+        self.batch_accum += VarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
         self.batch_accum += ShellCommands(dir=batches_dir, shell_commands_var_name="geronimo")
 
@@ -992,7 +992,7 @@ class TestPythonBatch(unittest.TestCase):
              cd1_accum += MakeDirs(folder_to_list)
              with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
                 cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
-             cd1_accum += Ls(folder_to_list, "list-output")
+             cd1_accum += Ls(folder_to_list, out_file="list-output")
         self.exec_and_capture_output("ls folder")
         self.assertTrue(os.path.isdir(folder_to_list), f"{self.which_test} : folder to list was not created {folder_to_list}")
         self.assertTrue(os.path.isfile(list_out_file), f"{self.which_test} : list_out_file was not created {list_out_file}")
@@ -1244,7 +1244,7 @@ class TestPythonBatch(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    test_folder = pathlib.Path(__file__).joinpath("..", "..", "..").resolve().joinpath(main_test_folder_name)
+    test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
     shutil.rmtree(test_folder)
 
     unittest.main()

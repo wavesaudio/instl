@@ -8,7 +8,7 @@ import unittest
 from utils import misc_utils
 
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 
 
 class TestUtils(unittest.TestCase):
