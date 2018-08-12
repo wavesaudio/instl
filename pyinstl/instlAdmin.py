@@ -846,7 +846,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_info_quoted = utils.quoteme_double(limit_info[1])
             svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
             svn_checkout_command = " ".join(svn_command_parts)
-            self.batch_accum += svn_checkout_command
+            self.batch_accum += SingleShellCommand(svn_checkout_command)
             self.batch_accum += Progress(f"Checkout {checkout_url} to {limit_info[1]}")
             self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore_patterns=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += Progress(f"rsync {limit_info[1]} to {limit_info[2]}")
@@ -1073,7 +1073,7 @@ class InstlAdmin(InstlInstanceBase):
                             self.batch_accum += Progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
-            self.batch_accum += Chmod(folder_to_check, "-R a+rw,+X")
+            self.batch_accum += Chmod(folder_to_check, mode="a+rw,+X", recursive=True)  # "-R a+rw,+X"
             self.batch_accum += Progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
