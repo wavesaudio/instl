@@ -9,6 +9,7 @@ __CLIENT_GUI_CMD_LIST__:
   - sync
   - copy
   - synccopy
+  - uninstall
   - remove
 
 __ADMIN_GUI_CMD_LIST__:

@@ -32,7 +32,7 @@ class InstlClientRemove(InstlClient):
         have_info_path = config_vars["HAVE_INFO_MAP_PATH"].str()
         if not os.path.isfile(have_info_path):
             have_info_path = config_vars["SITE_HAVE_INFO_MAP_PATH"].str()
-        self.info_map_table.read_from_file(have_info_path)
+        self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
@@ -53,19 +53,17 @@ class InstlClientRemove(InstlClient):
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
 
                 for IID in items_in_folder:
-                    with folder_accum_transaction(Section(IID)) as iid_accum_transaction:
+                    with folder_accum_transaction.sub_accum(Section(IID)) as iid_accum_transaction:
                         name_for_iid = self.name_for_iid(iid=IID)
                         iid_accum_transaction += Progress(f"Remove {name_for_iid}")
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
-                            with iid_accum_transaction.sub_accum(Section(source)) as source_accum_transaction:
+                            with iid_accum_transaction.sub_accum(Section(source[0])) as source_accum_transaction:
                                 _, source_leaf = os.path.split(source[0])
                                 source_accum_transaction += Progress(f"Remove {source_leaf}")
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
-                                iid_accum_transaction += source_accum_transaction.essential_action_counter
-                                folder_accum_transaction += source_accum_transaction.essential_action_counter
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
@@ -82,7 +80,7 @@ class InstlClientRemove(InstlClient):
     def create_remove_instructions_for_source(self, IID, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
-        retVal = 0  # return the number of essential actions preformed e.g. not including progress, echo, etc
+        retVal = []
         source_path, source_type = source[0], source[1]
         base_, leaf = os.path.split(source_path)
         to_remove_path = os.path.normpath(os.path.join(folder, leaf))
@@ -91,27 +89,21 @@ class InstlClientRemove(InstlClient):
 
         if len(specific_remove_actions) == 0:  # no specific actions were specified, so just remove the files
             if source_type == '!dir':  # remove whole folder
-                remove_action = RmDir(to_remove_path)
-                self.batch_accum += remove_action
-                retVal += 1
+                retVal.append(RmDir(to_remove_path))
             elif source_type == '!file':  # remove single file
-                remove_action = self.platform_helper.rmfile(to_remove_path)
-                self.batch_accum += remove_action
-                retVal += 1
+                retVal.append(RmFile(to_remove_path))
             elif source_type == '!dir_cont':  # remove all source's files and folders from a folder
                 remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, immediate_children_only=True)
                 remove_paths = utils.original_names_from_wtars_names(item.path for item in remove_items)
                 for remove_path in remove_paths:
                     base_, leaf = os.path.split(remove_path)
                     full_path_to_remove = os.path.normpath(os.path.join(folder, leaf))
-                    self.batch_accum += self.platform_helper.rm_file_or_dir(full_path_to_remove)
-                    retVal += 1
+                    retVal.append(RmFileOrDir(full_path_to_remove))
         else:
             # when an item should not be removed it will get such a detail:
             # remove_item: ~
             # this will cause specific_remove_actions list to be [None].
             # after filtering None values the list will be empty and remove actions will not be created
-            specific_remove_actions = [_f for _f in specific_remove_actions if _f]  # filter out None values
-            self.batch_accum += specific_remove_actions
-            retVal += len(specific_remove_actions)
+            specific_remove_actions = [SingleShellCommand(_f) for _f in specific_remove_actions if _f]  # filter out None values
+            retVal.extend(specific_remove_actions)
         return retVal
