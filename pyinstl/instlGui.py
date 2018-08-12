@@ -277,7 +277,7 @@ class InstlGui(InstlInstanceBase):
         self.admin_stage_index_var.set(config_vars["__STAGING_INDEX_FILE__"].str())
         self.admin_svn_repo_var.set(config_vars.resolve_str("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
 
-        sync_url = config_vars["SYNC_BASE_URL"].str()
+        sync_url = config_vars.get("SYNC_BASE_URL", "").str()
         self.admin_sync_url_var.set(sync_url)
 
         if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
