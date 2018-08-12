@@ -169,7 +169,7 @@ class CopyDirToDir(CopyClass):
         else:
             delete_spec = ""
         if self.link_dest:
-            the_link_dest = os.path.join(self.src, "..")
+            the_link_dest = os.path.join(self.src, os.pardir)
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{self.src}" "{self.trg}" """
         else:
             sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """

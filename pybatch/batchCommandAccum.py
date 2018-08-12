@@ -1,4 +1,5 @@
 import sys
+import os
 import io
 import pathlib
 from contextlib import contextmanager
@@ -70,7 +71,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.sections[self.current_section].add(child_commands)
 
     def _python_opening_code(self):
-        instl_folder = pathlib.Path(__file__).joinpath("..", "..").resolve()
+        instl_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir).resolve()
         opening_code_lines = list()
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
         opening_code_lines.append(f"""import sys""")

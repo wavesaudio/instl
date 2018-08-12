@@ -77,7 +77,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
-        what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", '.'))
+        what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", os.curdir))
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
         if "__MAIN_OUT_FILE__" in config_vars:

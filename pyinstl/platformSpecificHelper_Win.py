@@ -145,7 +145,7 @@ class CopyTool_win_xcopy(CopyToolBase):
         """ xcopy's /EXCLUDE option cannot except a file with spaces in it's path or quoted path.
             So here we are coping the excludes file for each directory...
         """
-        return self.copy_file_to_dir("$(XCOPY_EXCLUDE_FILE_PATH)", ".")
+        return self.copy_file_to_dir("$(XCOPY_EXCLUDE_FILE_PATH)", os.curdir)
 
     def end_copy_folder(self):
         """ .... And here we dispose of it.

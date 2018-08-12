@@ -128,7 +128,7 @@ class InstlAdmin(InstlInstanceBase):
         revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
         repo_url = config_vars["SVN_REPO_URL"].str()
         if os.path.isdir(repo_url):
-            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", "."]
+            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", os.curdir]
         else:
             svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", repo_url]
         with utils.ChangeDirIfExists(repo_url):
@@ -374,16 +374,16 @@ class InstlAdmin(InstlInstanceBase):
             #    accum += Progress("rmfile " + unrequired_item +" & 999 more")
 
         # now remove all empty folders, the files that are left should be uploaded
-        remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", "."]
+        remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", os.curdir]
         accum += Progress("remove-empty-folders ...")
         accum += " ".join(remove_empty_folders_command_parts)
         accum += Progress("remove-empty-folders done")
 
         # remove broken links, aws cannot handle them
-        accum += " ".join( ("find", ".", "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
+        accum += " ".join( ("find", os.curdir, "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
 
         accum += " ".join(["aws", "s3", "sync",
-                           ".", "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)",
+                           os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)",
                            "--exclude", '"*.DS_Store"',
                            "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
                            "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
@@ -399,7 +399,7 @@ class InstlAdmin(InstlInstanceBase):
 
         accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
         accum += Progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-        accum += " ".join(("echo", "find", ".", "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
+        accum += " ".join(("echo", "find", os.curdir, "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
         accum += Echo("done up2s3 revision $(__CURR_REPO_REV__)")
 
     def do_create_repo_rev_file(self):

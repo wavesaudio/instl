@@ -6,8 +6,8 @@ import sys
 import unittest
 import filecmp
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 from svnTree import *
 
 

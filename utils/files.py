@@ -428,7 +428,7 @@ def find_split_files(first_file):
         if norm_first_file.endswith(".aa"):
             base_folder, base_name = os.path.split(norm_first_file)
             if not base_folder:
-                base_folder = "."
+                base_folder = os.curdir
             filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
             matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
             for a_file in matching_files:

@@ -5,9 +5,9 @@ import os
 import unittest
 import pathlib
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir)))
 
 import utils  # do not remove, prevents cyclic import problems
 import aYaml

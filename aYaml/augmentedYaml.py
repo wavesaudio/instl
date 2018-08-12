@@ -34,7 +34,7 @@ from typing import Any, List
 
 if __name__ == "__main__":
     pass
-    # sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+    # sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 
 yaml.Node.isNone = lambda self: self.tag.endswith(":null")
 

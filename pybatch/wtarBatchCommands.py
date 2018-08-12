@@ -148,7 +148,7 @@ class Wtar(PythonBatchCommandBase):
         if where_to_put_wtar is None:
             where_to_put_wtar = what_to_work_on_dir
             if not where_to_put_wtar:
-                where_to_put_wtar = "."
+                where_to_put_wtar = os.curdir
 
         if os.path.isfile(where_to_put_wtar):
             target_wtar_file = where_to_put_wtar
@@ -316,7 +316,7 @@ class Wzip(PythonBatchCommandBase):
         if not target_wzip_file:
             target_wzip_file = what_to_work_on_dir
             if not target_wzip_file:  # os.path.split might return empty string
-                target_wzip_file = "."
+                target_wzip_file = os.curdir
         if not os.path.isfile(target_wzip_file):
             # assuming it's a folder
             os.makedirs(target_wzip_file, exist_ok=True)
@@ -357,7 +357,7 @@ class Unwzip(PythonBatchCommandBase):
         if not target_unwzip_file:
             target_unwzip_file = what_to_work_on_dir
             if not target_unwzip_file:  # os.path.split might return empty string
-                target_unwzip_file = "."
+                target_unwzip_file = os.curdir
         if not os.path.isfile(target_unwzip_file):
             # assuming it's a folder
             os.makedirs(target_unwzip_file, exist_ok=True)
