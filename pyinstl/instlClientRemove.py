@@ -32,7 +32,7 @@ class InstlClientRemove(InstlClient):
         have_info_path = config_vars["HAVE_INFO_MAP_PATH"].str()
         if not os.path.isfile(have_info_path):
             have_info_path = config_vars["SITE_HAVE_INFO_MAP_PATH"].str()
-        self.read_info_map_from_file(have_info_path, disable_indexes=True)
+        self.info_map_table.read_from_file(have_info_path)
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')

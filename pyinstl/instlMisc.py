@@ -94,15 +94,12 @@ class InstlMisc(InstlInstanceBase):
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
-        for file_item_path in self.info_map_table.get_exec_file_paths():
-            if os.path.isfile(file_item_path):
-                Chmod(file_item_path, "a+x")()
-            self.dynamic_progress(f"Set exec {file_item_path}")
+        info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        SetDownloadFolderExec(info_map_file)
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
         dir_items = self.info_map_table.get_items(what="dir")
         MakeDirs(*dir_items)
         self.dynamic_progress(f"Create folder {dir_item.path}")

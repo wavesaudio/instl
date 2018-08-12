@@ -11,6 +11,7 @@ import zlib
 
 from .baseClasses import PythonBatchCommandBase
 from db import DBManager
+from .batchCommands import Chmod
 
 """
     batch commands that need access to the db and the info_map table
@@ -79,7 +80,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()
+        super().__call__()  # read the info map file
         for file_item in self.info_map_table.get_items(what="file"):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
@@ -110,3 +111,32 @@ class CheckDownloadFolderChecksum(InfoMapBase):
             self.missing_files_exception_message = f"Missing {len(self.missing_files_list)} files"
             report_lines.append(self.missing_files_exception_message)
         return report_lines
+
+
+class SetDownloadFolderExec(InfoMapBase):
+    def __init__(self, info_map_file, **kwargs) -> None:
+        super().__init__(info_map_file, **kwargs)
+
+    def __repr__(self) -> str:
+        the_repr = f'''SetDownloadFolderExec('''
+        if self.info_map_file is not None:
+            the_repr += f'''info_map_file=r"{self.info_map_file}"'''
+        the_repr += ")"
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        super().__call__()  # read the info map file
+        for file_item_path in self.info_map_table.get_exec_file_paths():
+            if os.path.isfile(file_item_path):
+                Chmod(file_item_path, "a+x")()

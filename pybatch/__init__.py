@@ -36,6 +36,7 @@ from .batchCommands import Unlock
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
 from .info_mapBatchCommands import CheckDownloadFolderChecksum
+from .info_mapBatchCommands import SetDownloadFolderExec
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

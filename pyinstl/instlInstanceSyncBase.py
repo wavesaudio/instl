@@ -64,7 +64,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 cache_folder=self.instlObj.get_default_sync_dir(continue_dir="cache", make_dir=True),
                                                 expected_checksum=info_map_file_expected_checksum)
                 #assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
-                self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
+                self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out)
                 self.instlObj.progress(f"read info_map {info_map_file_url}")
 
                 additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
@@ -88,7 +88,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 cache_folder=self.instlObj.get_default_sync_dir("cache", make_dir=True),
                                                 expected_checksum=checksum)
                     #assert local_copy_of_info_map_in == local_copy_of_info_map_out, local_copy_of_info_map_in +" != "+ local_copy_of_info_map_out
-                    self.instlObj.read_info_map_from_file(local_copy_of_info_map_out)
+                    self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out)
                     self.instlObj.progress(f"read info_map {info_map_file_url}")
 
                 new_have_info_map_path = config_vars["NEW_HAVE_INFO_MAP_PATH"].str()

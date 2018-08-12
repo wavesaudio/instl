@@ -88,7 +88,7 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = config_vars["HAVE_INFO_MAP_FOR_COPY"].str()
-            self.read_info_map_from_file(have_info_path, disable_indexes=True)
+            self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -296,7 +296,7 @@ class InstlClientCopy(InstlClient):
         if num_files_to_set_exec > 0:
             with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
                 have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
-                sub_bc += self.platform_helper.set_exec_for_folder(have_info_path)
+                sub_bc += SetDownloadFolderExec(have_info_path)
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:

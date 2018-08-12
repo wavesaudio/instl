@@ -456,9 +456,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             print("Could not load installItemGraph")
             return None
 
-    def read_info_map_from_file(self, info_map_from_file_path):
-        self.info_map_table.read_from_file(info_map_from_file_path, a_format="text")
-
     def repo_rev_to_folder_hierarchy(self, repo_rev):
         retVal = str(repo_rev)
         try:
