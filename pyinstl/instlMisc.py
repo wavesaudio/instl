@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
 
-import re
-import os
-import stat
-import sys
-import shlex
-import tarfile
-import time
-import filecmp
-import zlib
-
-import utils
-from collections import OrderedDict
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from . import connectionBase
@@ -73,8 +61,7 @@ class InstlMisc(InstlInstanceBase):
     def do_parallel_run(self):
         processes_list_file = config_vars["__MAIN_INPUT_FILE__"].str()
 
-        with ParallelRun(processes_list_file, shell=False)as para_runner:
-            para_runner()
+        ParallelRun(processes_list_file, shell=False)()
 
     def do_wtar(self):
         what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
@@ -86,8 +73,7 @@ class InstlMisc(InstlInstanceBase):
         if "__MAIN_OUT_FILE__" in config_vars:
             where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].str()
 
-        with Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar) as wtarrer:
-            wtarrer()
+        Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
     def do_unwtar(self):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
@@ -97,31 +83,29 @@ class InstlMisc(InstlInstanceBase):
         if "__MAIN_OUT_FILE__" in config_vars:
             where_to_unwtar = config_vars["__MAIN_OUT_FILE__"].str()
 
-        with Unwtar(what_to_work_on, where_to_unwtar, self.no_artifacts) as uwtarrer:
-            uwtarrer()
+        Unwtar(what_to_work_on, where_to_unwtar, self.no_artifacts)()
+
         self.dynamic_progress(f"unwtar {utils.original_name_from_wtar_name(what_to_work_on_leaf)}")
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
         info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
-        with CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True) as checksum_checker:
-            checksum_checker()
+        CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()
 
     def do_set_exec(self):
         self.progress_staccato_command = True
         self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
         for file_item_path in self.info_map_table.get_exec_file_paths():
             if os.path.isfile(file_item_path):
-                file_stat = os.stat(file_item_path)
-                os.chmod(file_item_path, file_stat.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                Chmod(file_item_path, "a+x")()
             self.dynamic_progress(f"Set exec {file_item_path}")
 
     def do_create_folders(self):
         self.progress_staccato_command = True
         self.read_info_map_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
-        for dir_item in self.info_map_table.get_items(what="dir"):
-            os.makedirs(dir_item.path, exist_ok=True)
-            self.dynamic_progress(f"Create folder {dir_item.path}")
+        dir_items = self.info_map_table.get_items(what="dir")
+        MakeDirs(*dir_items)
+        self.dynamic_progress(f"Create folder {dir_item.path}")
 
     def do_test_import(self):
         import importlib
@@ -140,15 +124,13 @@ class InstlMisc(InstlInstanceBase):
         folder_to_remove = config_vars["__MAIN_INPUT_FILE__"].str()
         files_to_ignore = list(config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []))
 
-        with RemoveEmptyFolders(folder_to_remove, files_to_ignore=files_to_ignore) as remover:
-            remover()
+        RemoveEmptyFolders(folder_to_remove, files_to_ignore=files_to_ignore)()
 
     def do_win_shortcut(self):
         shortcut_path = config_vars["__SHORTCUT_PATH__"].str()
         target_path = config_vars["__SHORTCUT_TARGET_PATH__"].str()
         run_as_admin =  bool(config_vars.get("__RUN_AS_ADMIN__", "False"))
-        with WinShortcut(shortcut_path, target_path, run_as_admin) as short_cutter:
-            short_cutter()
+        WinShortcut(shortcut_path, target_path, run_as_admin)()
 
     def do_translate_url(self):
         url_to_translate = config_vars["__MAIN_INPUT_FILE__"].str()
@@ -161,8 +143,7 @@ class InstlMisc(InstlInstanceBase):
         restart_the_doc = bool(config_vars["__RESTART_THE_DOCK__"])
         remove = bool(config_vars["__REMOVE_FROM_DOCK__"])
 
-        with MacDock(path_to_item, label_for_item, restart_the_doc, remove) as mac_docker:
-            mac_docker()
+        MacDock(path_to_item, label_for_item, restart_the_doc, remove)()
 
     def do_ls(self):
         main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].str()
@@ -178,8 +159,7 @@ class InstlMisc(InstlInstanceBase):
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
         out_file = config_vars["__MAIN_OUT_FILE__"].str()
 
-        with Ls(folders_to_list, out_file, ls_format) as lister:
-            lister()
+        Ls(folders_to_list, out_file, ls_format)()
 
     def do_fail(self):
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
@@ -238,5 +218,4 @@ class InstlMisc(InstlInstanceBase):
         if "__MAIN_OUT_FILE__" in config_vars:
             where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].str()
 
-        with Wzip(what_to_work_on, where_to_put_wzip) as wzipper:
-            wzipper()
+        Wzip(what_to_work_on, where_to_put_wzip)()
