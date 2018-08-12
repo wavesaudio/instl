@@ -98,7 +98,8 @@ class InstlGui(InstlInstanceBase):
 
     def read_history(self):
         try:
-            self.read_yaml_file(config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str())
+            instl_gui_config_file_name = config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str()
+            self.read_yaml_file(instl_gui_config_file_name)
         except Exception:
             pass
 
@@ -107,7 +108,7 @@ class InstlGui(InstlInstanceBase):
         config_vars["SELECTED_TAB"] = selected_tab
 
         which_vars_for_yaml = list(config_vars.get("__GUI_CONFIG_FILE_VARS__", []))
-        the_list_yaml_ready= config_vars.repr_for_yaml(which_vars=which_vars_for_yaml, include_comments=False, resolve=False, ignore_unknown_vars=True)
+        the_list_yaml_ready= config_vars.repr_for_yaml(which_vars=which_vars_for_yaml, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with utils.utf8_open(config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str(), "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd)

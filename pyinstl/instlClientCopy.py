@@ -76,11 +76,9 @@ class InstlClientCopy(InstlClient):
             pass  # if it did not work - forget it
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
-        if len(folder_list) > 0:
-            self.batch_accum += Progress("Create folders ...")
+        with self.batch_accum.sub_accum(Section("create folders")) as create_folders_section:
             for target_folder_path in folder_list:
-                #progress_num = self.platform_helper.increment_progress(1)
-                self.batch_accum += MakeDirs(target_folder_path)
+                create_folders_section += MakeDirs(target_folder_path)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
@@ -90,8 +88,7 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = config_vars["HAVE_INFO_MAP_FOR_COPY"].str()
-            with self.info_map_table.reading_files_context():
-                self.read_info_map_from_file(have_info_path)
+            self.read_info_map_from_file(have_info_path, disable_indexes=True)
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -106,7 +103,7 @@ class InstlClientCopy(InstlClient):
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         self.create_create_folders_instructions(sorted_target_folder_list)
 
-        if  self.mac_current_and_target:
+        if self.mac_current_and_target:
             self.pre_copy_mac_handling()
 
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
@@ -299,8 +296,7 @@ class InstlClientCopy(InstlClient):
         if num_files_to_set_exec > 0:
             with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
                 have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
-                self.batch_accum += self.platform_helper.set_exec_for_folder(have_info_path)
-                self.platform_helper.num_items_for_progress_report += num_files_to_set_exec
+                sub_bc += self.platform_helper.set_exec_for_folder(have_info_path)
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:

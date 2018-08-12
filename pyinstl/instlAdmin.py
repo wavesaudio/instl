@@ -51,8 +51,7 @@ class InstlAdmin(InstlInstanceBase):
         do_command_func()
 
     def do_trans(self):
-        with self.info_map_table.reading_files_context():  # this will create an index on svn_item_t.path and make reading the props and file sizes faster
-            self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str(), a_format="info")
+        self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str(), a_format="info", disable_indexes_during_read=True)
 
         if "__PROPS_FILE__" in config_vars:
             self.info_map_table.read_from_file(config_vars["__PROPS_FILE__"].str(), a_format="props")
@@ -351,8 +350,7 @@ class InstlAdmin(InstlInstanceBase):
         info_map_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
         repo_rev = int(config_vars["__CURR_REPO_REV__"])
         self.info_map_table.clear_all()
-        with self.info_map_table.reading_files_context():
-            self.info_map_table.read_from_file(info_map_path)
+        self.info_map_table.read_from_file(info_map_path, disable_indexes_during_read=True)
 
         accum += Cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
@@ -908,8 +906,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_index(self):
         self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
-        with self.info_map_table.reading_files_context():
-            self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str())
+        self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str(), disable_indexes_during_read=True)
 
         self.verify_index_to_repo()
 
@@ -1180,8 +1177,7 @@ class InstlAdmin(InstlInstanceBase):
         # read the index
         self.read_yaml_file(index_yaml_path)
         # read the full info map
-        with self.info_map_table.reading_files_context():
-            self.info_map_table.read_from_file(full_info_map_file_path, a_format="text")
+        self.info_map_table.read_from_file(full_info_map_file_path, a_format="text", disable_indexes_during_read=True)
         # fill the iid_to_svn_item_t table
         self.info_map_table.populate_IIDToSVNItem()
 

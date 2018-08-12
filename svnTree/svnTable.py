@@ -298,12 +298,7 @@ class SVNTable(object):
         """ returns a list of file formats that can be read by SVNTree """
         return list(self.read_func_by_format.keys())
 
-    @contextmanager
-    def reading_files_context(self):
-        self.db.curs.execute(self.drop_path_index_q)
-        self.db.curs.execute(self.drop_parent_id_index_q)
-        self.db.curs.execute(self.drop_unwtarred_id_index_q)
-        yield
+    def create_indexes(self):
         with self.db.transaction() as curs:
             curs.execute(self.create_path_index_q)
             curs.execute(self.update_parent_ids_q)
@@ -313,19 +308,38 @@ class SVNTable(object):
             config_vars["MIN_REPO_REV"] = min_revision
             config_vars["MAX_REPO_REV"] = max_revision
 
-    def read_from_file(self, in_file, a_format="guess") -> None:
+    def drop_indexes(self):
+        self.db.curs.execute(self.drop_path_index_q)
+        self.db.curs.execute(self.drop_parent_id_index_q)
+        self.db.curs.execute(self.drop_unwtarred_id_index_q)
+
+    @contextmanager
+    def reading_files_context(self):
+        self.drop_indexes()
+        yield
+        self.create_indexes()
+
+    def read_from_file(self, in_file, a_format="guess", disable_indexes_during_read=False) -> None:
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
             the properties are added to existing sub items.
             raises ValueError is a_format is not supported.
         """
+        if in_file in self.files_read_list:
+            print(f"skipping '{in_file}': file was already read")
+            return
+
         if a_format == "guess":
             _, extension = os.path.splitext(in_file)
             a_format = map_info_extension_to_format[extension[1:]]
         self.comments.append(f"Original file {in_file}")
         if a_format in list(self.read_func_by_format.keys()):
             with utils.open_for_read_file_or_url(in_file) as open_file:
+                if disable_indexes_during_read:
+                    self.drop_indexes()
                 self.read_func_by_format[a_format](open_file.fd)
+                if disable_indexes_during_read:
+                    self.create_indexes()
                 self.files_read_list.append(in_file)
         else:
             raise ValueError(f"Unknown read a_format {a_format}")
@@ -564,6 +578,7 @@ class SVNTable(object):
         with self.db.transaction() as curs:
             curs.execute("DELETE FROM svn_item_t")
         self.comments = list()
+        self.files_read_list = list()
 
     def set_base_revision(self, base_revision) -> None:
         with self.db.transaction() as curs:

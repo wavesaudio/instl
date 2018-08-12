@@ -41,8 +41,7 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        if self.info_map_file is not None:
-            self.info_map_table.read_from_file(self.info_map_file, a_format="text")
+        self.info_map_table.read_from_file(self.info_map_file, a_format="text", disable_indexes_during_read=True)
 
 
 class CheckDownloadFolderChecksum(InfoMapBase):
