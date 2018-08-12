@@ -134,8 +134,6 @@ class InstlClientCopy(InstlClient):
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
             self.batch_accum += Progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
-        self.platform_helper.copy_tool.finalize()
-
         self.create_require_file_instructions()
 
         # messages about orphan iids
@@ -324,7 +322,6 @@ class InstlClientCopy(InstlClient):
             copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
             num_symlink_items: int = 0
-            copy_to_folder_accum += self.platform_helper.copy_tool.begin_copy_folder()
             for IID in items_in_folder:
                 with copy_to_folder_accum.sub_accum(Section("create_copy_instructions_for_IID", IID)) as iid_accum:
                     self.current_iid = IID
@@ -344,7 +341,6 @@ class InstlClientCopy(InstlClient):
             target_folder_path_parent, target_folder_name = os.path.split(config_vars.resolve_str(target_folder_path))
             #self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
             #self.unwtar_instructions = None
-            copy_to_folder_accum += self.platform_helper.copy_tool.end_copy_folder()
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if  self.mac_current_and_target:

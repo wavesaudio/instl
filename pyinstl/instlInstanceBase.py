@@ -354,8 +354,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         #    if type(line) != str:
         #        raise TypeError(f"Not a string {type(line)} {line}")
 
-        final_repr = config_vars.resolve_str(repr(in_batch_accum))
-        output_text = value_ref_re.sub(self.platform_helper.var_replacement_pattern, final_repr)
+        final_repr = repr(in_batch_accum)
+        resolved_repr = config_vars.resolve_str(final_repr)
+        output_text = value_ref_re.sub(self.platform_helper.var_replacement_pattern, resolved_repr)
         # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
         #lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
         #output_text = "\n".join(lines_after_var_replacement)
@@ -384,13 +385,19 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         print(msg)
 
     def run_batch_file(self):
-        from subprocess import Popen
+        if self.out_file_realpath.endswith(".py"):
+            with utils.utf8_open(self.out_file_realpath, 'r') as rfd:
+                py_text = rfd.read()
+                exec(py_text, globals())
 
-        p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
-        unused_stdout, unused_stderr = p.communicate()
-        return_code = p.returncode
-        if return_code != 0:
-            raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
+        else:
+            from subprocess import Popen
+
+            p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
+            unused_stdout, unused_stderr = p.communicate()
+            return_code = p.returncode
+            if return_code != 0:
+                raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
