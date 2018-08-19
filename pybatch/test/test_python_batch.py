@@ -730,8 +730,12 @@ class TestPythonBatch(unittest.TestCase):
             geronimo = [f"""ls /Users/shai/Desktop >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
                         f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
-            geronimo = [r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
-                        ]
+
+            geronimo = [r"SET",]
+            #geronimo = [r"dir '%appdata%' >> '%appdata%\geronimo.txt'",]
+            #geronimo = [r"dir '%userprofile%\desktop' >> '%userprofile%\desktop\geronimo.txt'",]
+            #geronimo = [r"cmd /C dir C:\Users\shai\desktop >> C:\Users\shai\desktop\geronimo.txt",]
+            #geronimo = [r"cmd /C dir C:\Users\shai\desktop",]
 
         self.batch_accum.clear()
         #self.batch_accum += VarAssign("geronimo", *geronimo)

@@ -747,7 +747,8 @@ class SingleShellCommand(RunProcessBase, essential=True):
         return prog_mess
 
     def create_run_args(self):
-        the_lines = [self.shell_command]
+        expanded_shell_command = "CMD /C " + os.path.expandvars(self.shell_command)
+        the_lines = [expanded_shell_command]
         return the_lines
 
 
@@ -763,7 +764,9 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         self.own_num_progress = len(self.shell_commands_list)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(shell_commands_list={self.shell_commands_list})"""
+        quoted_shell_commands_list = ", ".join(utils.quoteme_raw_list(self.shell_commands_list))
+
+        the_repr = f"""{self.__class__.__name__}(shell_commands_list=[{quoted_shell_commands_list}])"""
         return the_repr
 
     def repr_batch_win(self):
