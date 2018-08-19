@@ -4,7 +4,7 @@ import utils
 from .baseClasses import *
 
 
-class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
+class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     def __init__(self, *titles):
         super().__init__()
         self.titles = titles
@@ -35,12 +35,11 @@ class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
         pass
 
 
-class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
+class Progress(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
         just issue a progress message
     """
     def __init__(self, message, **kwargs) -> None:
-        kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.message = message
         self.own_num_progress = 0
@@ -64,12 +63,11 @@ class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
         pass
 
 
-class Echo(PythonBatchCommandBase, essential=False, empty__call__=True):
+class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
         just issue a (non progress) message
     """
     def __init__(self, message, **kwargs) -> None:
-        kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.message = message
         self.own_num_progress = 0
@@ -93,12 +91,11 @@ class Echo(PythonBatchCommandBase, essential=False, empty__call__=True):
         pass
 
 
-class Remark(PythonBatchCommandBase, essential=False, empty__call__=True):
+class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False):
     """
         write a remark in code
     """
     def __init__(self, remark, **kwargs) -> None:
-        kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         self.remark = remark
         self.own_num_progress = 0
@@ -122,12 +119,11 @@ class Remark(PythonBatchCommandBase, essential=False, empty__call__=True):
         pass
 
 
-class VarAssign(PythonBatchCommandBase, essential=False, empty__call__=True):
+class VarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
         configVar assignment as python variable
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:
-        kwargs['is_context_manager'] = False
         super().__init__(**kwargs)
         assert var_name.isidentifier(), f"{var_name} is not a valid identifier"
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"

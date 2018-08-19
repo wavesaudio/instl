@@ -957,7 +957,7 @@ class CUrl(RunProcessBase):
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(DownloadToolBase.curl_write_out_str)
-        return run_args
+        return
 
 
 # todo:
