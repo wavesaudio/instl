@@ -18,6 +18,7 @@ from collections import namedtuple
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
+from pybatch.copyBatchCommands import RsyncClone
 
 
 @contextlib.contextmanager
