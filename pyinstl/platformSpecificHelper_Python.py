@@ -381,7 +381,7 @@ split_file()
 
     def progress(self, msg, num_items=0):
         """ do we need separate progress command for python-batch?"""
-        progress_command = Progress(msg, num_items)
+        progress_command = Progress(msg)
         return progress_command
 
 

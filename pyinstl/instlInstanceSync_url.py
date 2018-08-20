@@ -113,6 +113,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 if sys.platform == 'win32':
                     # curl on windows has problem with path to config files that have unicode characters
                     normalized_path = win32api.GetShortPathName(config_file)
+                else:
+                    normalized_path = config_file
                 wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
 
     def create_check_checksum_instructions(self, num_files):
@@ -203,7 +205,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             cd_local_repo_sync_dir_accum_transaction += self.create_download_instructions()
 
             with cd_local_repo_sync_dir_accum_transaction.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
-                self.chown_for_synced_folders()
+                post_sync_accum_transaction += self.chown_for_synced_folders()
                 post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.progress("create sync instructions done")
@@ -226,13 +228,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if config_vars["__CURRENT_OS__"].str() != "Mac":
             return  # owner issue only relevant on Mac
         download_roots = self.instlObj.info_map_table.get_download_roots()
+        chown_accum_transacion = Section('chown')
         if download_roots:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions ...")
+            chown_accum_transacion += self.instlObj.platform_helper.progress("Adjust ownership and permissions ...")
             for dr in download_roots:
-                self.instlObj.batch_accum += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
-                self.instlObj.batch_accum += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions done")
-            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+                chown_accum_transacion += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
+                chown_accum_transacion += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
+            chown_accum_transacion += self.instlObj.platform_helper.progress("Adjust ownership and permissions done")
+            chown_accum_transacion += self.instlObj.platform_helper.new_line()
+        return chown_accum_transacion
 
 
 def total_sizes_by_mount_point(file_list):
