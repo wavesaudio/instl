@@ -6,6 +6,7 @@ from collections import defaultdict
 
 
 from .batchCommands import *
+log = logging.getLogger(__name__)
 
 
 class RsyncClone(PythonBatchCommandBase, essential=True):
@@ -84,7 +85,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def print_if_level(self, message_level, *messages):
         if message_level <= self.verbose:
-            print(*messages)
+            log.info(' '.join(messages))
 
     def get_ignored_files(self, root, names_in_root):
         ignored_names = []
@@ -219,7 +220,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return dst
 
     def exit_self(self, exit_return):
-        print("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
+        log.info("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
 
 
 class CopyDirToDir(RsyncClone):
