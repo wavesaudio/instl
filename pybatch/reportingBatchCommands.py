@@ -39,13 +39,16 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
     """
         just issue a progress message
     """
-    def __init__(self, message, **kwargs) -> None:
+    def __init__(self, message, inc_progress_by: int=1, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = message
-        self.own_num_progress = 1
+        self.own_num_progress = inc_progress_by
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)}'''
+        if self.own_num_progress > 1:
+            the_repr += f", inc_progress_by={self.own_num_progress}"
+        the_repr += ')'
         return the_repr
 
     def repr_batch_win(self) -> str:

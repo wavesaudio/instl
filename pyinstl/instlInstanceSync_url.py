@@ -120,9 +120,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         create_check_checksum_instructions_accum_transaction = Section('create_check_checksum_instructions')
 
-        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...")
+        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...", num_files)
         create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += num_files
         create_check_checksum_instructions_accum_transaction += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return create_check_checksum_instructions_accum_transaction

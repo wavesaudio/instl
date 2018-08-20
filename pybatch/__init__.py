@@ -4,10 +4,10 @@ from .batchCommands import PythonBatchCommandBase
 from .batchCommandAccum import batch_repr
 from .batchCommandAccum import PythonBatchCommandAccum
 
-from .rsyncClone import CopyDirContentsToDir
-from .rsyncClone import CopyDirToDir
-from .rsyncClone import CopyFileToDir
-from .rsyncClone import CopyFileToFile
+from .copyBatchCommands import CopyDirContentsToDir
+from .copyBatchCommands import CopyDirToDir
+from .copyBatchCommands import CopyFileToDir
+from .copyBatchCommands import CopyFileToFile
 
 from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
@@ -50,5 +50,4 @@ if sys.platform == "darwin":
     from .batchCommandsMacOnly import SymlinkFileToSymlink
     from .batchCommandsMacOnly import SymlinkToSymlinkFile
 
-from .rsyncClone import RsyncClone
 from .new_batchCommands import *
