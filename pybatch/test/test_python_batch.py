@@ -722,7 +722,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         self.batch_accum += VarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
-        self.batch_accum += ShellCommands(dir=batches_dir, shell_commands_var_name="geronimo")
+        self.batch_accum += ShellCommands(shell_commands_list=geronimo, dir=batches_dir)
 
         self.exec_and_capture_output()
 
