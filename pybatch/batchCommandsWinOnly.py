@@ -13,7 +13,7 @@ class WinShortcut(PythonBatchCommandBase):
         self.run_as_admin = run_as_admin
 
     def __repr__(self) -> str:
-        the_repr = f'''WinShortcut(r"{self.shortcut_path}", r"{self.target_path}"'''
+        the_repr = f'''{self.__class__.__name__}(r"{self.shortcut_path}", r"{self.target_path}"'''
         if self.run_as_admin:
             the_repr += ''', run_as_admin=True'''
         the_repr += ")"

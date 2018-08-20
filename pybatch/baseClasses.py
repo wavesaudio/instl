@@ -5,6 +5,7 @@ import re
 import time
 from contextlib import contextmanager
 from typing import List
+from enum import Enum, auto
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
@@ -27,18 +28,20 @@ class PythonBatchCommandBase(abc.ABC):
         Derived classes must implement some additional methods:
         __repr__: must be implemented correctly so the returned string can be passed to eval to recreate the object
         __init__: must record all parameters needed to implement __repr__ and must not do any actual work!
-        __call__: here the real
+        __call__: here the real work is done (if any)
     """
     instance_counter: int = 0
     total_progress: int = 0
     running_progress: int = 0
     essential = True
-    empty__call__ = False
+    call__call__: bool = True         # when false no need to call
+    is_context_manager: bool = True   # when true need to be created as context manager
 
-    def __init_subclass__(cls, essential=True, empty__call__=False, **kwargs):
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
-        cls.empty__call__ = empty__call__
+        cls.call__call__ = call__call__
+        cls.is_context_manager = is_context_manager
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):
@@ -49,7 +52,6 @@ class PythonBatchCommandBase(abc.ABC):
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
-        self.is_context_manager = kwargs.get('is_context_manager', True)
 
         self.exceptions_to_ignore = []
         self.child_batch_commands = []

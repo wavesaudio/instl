@@ -15,7 +15,7 @@ class Dummy(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:
-        the_repr = f''''''
+        the_repr = f'''{self.__class__.__name__}()'''
         return the_repr
 
     def repr_batch_win(self) -> str:

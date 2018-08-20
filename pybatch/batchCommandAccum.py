@@ -77,6 +77,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""import sys""")
         opening_code_lines.append(f"""sys.path.append(r'{instl_folder}')""")
         opening_code_lines.append(f"""from pybatch import *""")
+        opening_code_lines.append(f"""from configVar import config_vars""")
         PythonBatchCommandBase.total_progress = 0
         for section in self.sections.values():
             PythonBatchCommandBase.total_progress += section.num_progress_items()
@@ -84,7 +85,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
 
         the_oc = "\n".join(opening_code_lines)
-        the_oc += "\n"
+        the_oc += "\n\n"
 
         return the_oc
 
@@ -98,21 +99,20 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             if isinstance(batch_items, list):
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
-            elif batch_items.is_context_manager:
-                if batch_items.child_batch_commands:
-                    if batch_items.empty__call__:
-                        io_str.write(f"""{indent_str}with {repr(batch_items)}:\n""")
-                    else:
-                        io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
-                        io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
-                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
-                else:
-                    if batch_items.empty__call__:
-                        io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
-                    else:
-                        io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
             else:
-                io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
+                if batch_items.call__call__ is False and batch_items.is_context_manager is False:
+                    io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
+                    _repr_helper(batch_items.child_batch_commands, io_str, indent)
+                elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
+                    io_str.write(f"""{indent_str}with {repr(batch_items)}:\n""")
+                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
+                    io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
+                    _repr_helper(batch_items.child_batch_commands, io_str, indent)
+                elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
+                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
+                    io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())

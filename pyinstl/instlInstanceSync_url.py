@@ -28,7 +28,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_accum_transaction += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
-        create_sync_folders_accum_transaction += MakeDirs("$(TO_SYNC_INFO_MAP_PATH)")
+        create_sync_folders_accum_transaction += CreateSyncFolders(info_map_file="$(TO_SYNC_INFO_MAP_PATH)")
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         create_sync_folders_accum_transaction += Progress("Create folders done")
@@ -113,14 +113,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 if sys.platform == 'win32':
                     # curl on windows has problem with path to config files that have unicode characters
                     normalized_path = win32api.GetShortPathName(config_file)
+                else:
+                    normalized_path = config_file
                 wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
 
     def create_check_checksum_instructions(self, num_files):
         create_check_checksum_instructions_accum_transaction = Section('create_check_checksum_instructions')
 
-        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...")
+        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...", num_files)
         create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += num_files
         create_check_checksum_instructions_accum_transaction += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return create_check_checksum_instructions_accum_transaction
@@ -203,7 +204,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             cd_local_repo_sync_dir_accum_transaction += self.create_download_instructions()
 
             with cd_local_repo_sync_dir_accum_transaction.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
-                self.chown_for_synced_folders()
+                post_sync_accum_transaction += self.chown_for_synced_folders()
                 post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
 
         self.instlObj.progress("create sync instructions done")
@@ -223,16 +224,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
             chown_for_synced_folders will change owner to the user that created the batch file.
             Currently this was found to be relevant for Mac only.
         """
-        if config_vars["__CURRENT_OS__"].str() != "Mac":
-            return  # owner issue only relevant on Mac
-        download_roots = self.instlObj.info_map_table.get_download_roots()
-        if download_roots:
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions ...")
-            for dr in download_roots:
-                self.instlObj.batch_accum += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
-                self.instlObj.batch_accum += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
-            self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Adjust ownership and permissions done")
-            self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
+        retVal = list()
+        if config_vars["__CURRENT_OS__"].str() == "Mac":  # owner issue only relevant on Mac
+            download_roots = self.instlObj.info_map_table.get_download_roots()
+            if download_roots:
+                retVal.append(Progress("Adjust ownership and permissions ..."))
+                for dr in download_roots:
+                    retVal.append(Chown(user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", path=dr, recursive=True))
+                    retVal.append(Chmod(path=dr, mode="a+rwX", recursive=True, ignore_all_errors=True))
+        return retVal
 
 
 def total_sizes_by_mount_point(file_list):
