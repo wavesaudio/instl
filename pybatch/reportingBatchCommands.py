@@ -1,7 +1,9 @@
 import keyword
 
 import utils
+
 from .baseClasses import *
+log = logging.getLogger(__name__)
 
 
 class Section(PythonBatchCommandBase, essential=False, empty__call__=True):
@@ -46,7 +48,7 @@ class Progress(PythonBatchCommandBase, essential=False, empty__call__=True):
         self.own_num_progress = 0
 
     def __repr__(self) -> str:
-        the_repr = f'''print(r"progress: x of y: {self.message}")'''
+        the_repr = f'''log.info(r"progress: x of y: {self.message}")'''
         return the_repr
 
     def repr_batch_win(self) -> str:

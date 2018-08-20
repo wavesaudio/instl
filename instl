@@ -7,8 +7,8 @@ import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
-
-import re
+import logging
+from logging import config
 import tempfile
 import appdirs
 import datetime
@@ -67,6 +67,38 @@ def get_data_folder():
     return data_folder
 
 
+def config_logger():
+    d = {
+        'version': 1,
+        'formatters': {
+            'detailed': {
+                'class': 'logging.Formatter',
+                'format': '%(asctime)s %(name)-15s %(levelname)-8s %(processName)-10s %(message)s'
+            }
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'level': 'INFO',
+                'formatter': 'detailed',
+                'stream': sys.stdout
+            },
+            'errors': {
+                'class': 'logging.StreamHandler',
+                'level': 'ERROR',
+                'formatter': 'detailed',
+                'stream': sys.stderr
+            },
+        },
+        'root': {
+            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
+            'handlers': ['console', 'errors']
+        },
+    }
+
+    config.dictConfig(d)
+
+
 def main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
@@ -102,6 +134,7 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
+    config_logger()
     instance = None
     if options.__MAIN_COMMAND__ == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file

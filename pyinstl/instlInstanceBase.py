@@ -24,6 +24,8 @@ from configVar import ConfigVarYamlReader
 from . import connectionBase
 from db import DBManager
 from pybatch import *
+log = logging.getLogger(__name__)
+
 
 value_ref_re = re.compile("""
                             (?P<varref_pattern>
@@ -99,8 +101,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
                 self.total_self_progress += 1000
-            print(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""",
-                flush=True)
+            log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
@@ -382,7 +383,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             self.out_file_realpath = "stdout"
         msg = " ".join(
             (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
-        print(msg)
+        log.info(msg)
 
     def run_batch_file(self):
         if self.out_file_realpath.endswith(".py"):

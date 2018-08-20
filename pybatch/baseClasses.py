@@ -5,6 +5,9 @@ import re
 import time
 from contextlib import contextmanager
 from typing import List
+import logging
+
+log = logging.getLogger(__name__)
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
@@ -157,7 +160,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.enter_time = time.perf_counter()
         try:
             if self.report_own_progress:
-                print(f"{self.progress_msg()} {self.progress_msg_self()}")
+                log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.enter_self()
         except Exception as ex:
             suppress_exception = self.__exit__(*sys.exc_info())
@@ -178,15 +181,19 @@ class PythonBatchCommandBase(abc.ABC):
         if self.ignore_all_errors or exc_type is None:
             suppress_exception = True
         elif exc_type in self.exceptions_to_ignore:
-            print(f"{self.progress_msg()} WARNING; {self.warning_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
+            self.log_result(logging.WARNING, self.warning_msg_self(), exc_val)
+
             suppress_exception = True
         else:
-            print(f"{self.progress_msg()} ERROR; {self.error_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
+            self.log_result(logging.ERROR, self.error_msg_self(), exc_val)
         self.exit_self(exit_return=suppress_exception)
         self.exit_time = time.perf_counter()
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        print(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
+        log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
+
+    def log_result(self, log_lvl, message, exc_val):
+        log.log(log_lvl, f"{self.progress_msg()}; {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
@@ -199,6 +206,8 @@ class RunProcessBase(PythonBatchCommandBase):
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
         self.shell = kwargs.get('shell', False)
+        self.stdout = ''
+        self.stderr = ''
 
     @abc.abstractmethod
     def create_run_args(self):
@@ -206,9 +215,17 @@ class RunProcessBase(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         run_args = list(map(str, self.create_run_args()))
-        print(" ".join(run_args))
-        completed_process = subprocess.run(run_args, check=True, stdout=subprocess.PIPE, shell=self.shell)
+        log.debug(f'{self.__class__.__name__}: ' + " ".join(run_args))
+        completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
+        self.stdout = completed_process.stdout
+        self.stderr = completed_process.stderr
+        completed_process.check_returncode()
         return None  # what to return here?
+
+    def log_result(self, log_lvl, message, exc_val):
+        if self.stderr:
+            message += f'; STDERR: {self.stderr.decode()}'
+        super().log_result(log_lvl, message, exc_val)
 
     def __repr__(self):
         raise NotImplementedError
