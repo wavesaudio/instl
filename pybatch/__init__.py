@@ -37,6 +37,7 @@ from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
 from .info_mapBatchCommands import CheckDownloadFolderChecksum
 from .info_mapBatchCommands import SetDownloadFolderExec
+from .info_mapBatchCommands import CreateSyncFolders
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

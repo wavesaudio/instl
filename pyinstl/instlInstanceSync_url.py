@@ -28,7 +28,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_accum_transaction += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
-        create_sync_folders_accum_transaction += MakeDirs("$(TO_SYNC_INFO_MAP_PATH)")
+        create_sync_folders_accum_transaction += CreateSyncFolders(info_map_file="$(TO_SYNC_INFO_MAP_PATH)")
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         create_sync_folders_accum_transaction += Progress("Create folders done")
@@ -120,9 +120,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         create_check_checksum_instructions_accum_transaction = Section('create_check_checksum_instructions')
 
-        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...")
+        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...", num_files)
         create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum("$(TO_SYNC_INFO_MAP_PATH)")
-        self.instlObj.platform_helper.num_items_for_progress_report += num_files
         create_check_checksum_instructions_accum_transaction += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return create_check_checksum_instructions_accum_transaction
@@ -225,17 +224,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             chown_for_synced_folders will change owner to the user that created the batch file.
             Currently this was found to be relevant for Mac only.
         """
-        if config_vars["__CURRENT_OS__"].str() != "Mac":
-            return  # owner issue only relevant on Mac
-        download_roots = self.instlObj.info_map_table.get_download_roots()
         chown_accum_transacion = Section('chown')
-        if download_roots:
-            chown_accum_transacion += self.instlObj.platform_helper.progress("Adjust ownership and permissions ...")
-            for dr in download_roots:
-                chown_accum_transacion += self.instlObj.platform_helper.chown("$(__USER_ID__)", "$(__GROUP_ID__)", dr, recursive=True)
-                chown_accum_transacion += self.instlObj.platform_helper.chmod("-R -f a+rwX", dr)
-            chown_accum_transacion += self.instlObj.platform_helper.progress("Adjust ownership and permissions done")
-            chown_accum_transacion += self.instlObj.platform_helper.new_line()
+        if config_vars["__CURRENT_OS__"].str() == "Mac":  # owner issue only relevant on Mac
+            download_roots = self.instlObj.info_map_table.get_download_roots()
+            if download_roots:
+                chown_accum_transacion += Progress("Adjust ownership and permissions ...")
+                for dr in download_roots:
+                    chown_accum_transacion += Chown(user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", path=dr, recursive=True)
+                    chown_accum_transacion += Chmod(path=dr, mode="a+rwX", recursive=True, ignore_all_errors=True)
         return chown_accum_transacion
 
 

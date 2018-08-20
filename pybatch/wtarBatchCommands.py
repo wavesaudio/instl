@@ -75,7 +75,7 @@ class Wtar(PythonBatchCommandBase):
         self.where_to_put_wtar = os.fspath(where_to_put_wtar) if where_to_put_wtar else None
 
     def __repr__(self) -> str:
-        the_repr = f'''Wtar(what_to_wtar=r"{self.what_to_wtar}"'''
+        the_repr = f'''{self.__class__.__name__}(what_to_wtar=r"{self.what_to_wtar}"'''
         if self.where_to_put_wtar:
             the_repr += f''', where_to_put_wtar=r"{self.where_to_put_wtar}"'''
         the_repr += ")"
@@ -200,7 +200,7 @@ class Unwtar(PythonBatchCommandBase):
         self.no_artifacts = no_artifacts
 
     def __repr__(self) -> str:
-        the_repr = f'''Unwtar(what_to_unwtar=r"{self.what_to_unwtar}"'''
+        the_repr = f'''{self.__class__.__name__}(what_to_unwtar=r"{self.what_to_unwtar}"'''
         if self.where_to_unwtar:
             the_repr += f''', where_to_unwtar=r"{self.where_to_unwtar}"'''
         if self.no_artifacts:
@@ -293,7 +293,7 @@ class Wzip(PythonBatchCommandBase):
         self.where_to_put_wzip = os.fspath(where_to_put_wzip) if where_to_put_wzip else None
 
     def __repr__(self) -> str:
-        the_repr = f'''Wzip(r"{self.what_to_wzip}"'''
+        the_repr = f'''{self.__class__.__name__}(r"{self.what_to_wzip}"'''
         if self.where_to_put_wzip:
             the_repr += f''', r"{self.where_to_put_wzip}"'''
         the_repr += ")"
@@ -334,7 +334,7 @@ class Unwzip(PythonBatchCommandBase):
         self.where_to_put_unwzip = os.fspath(where_to_put_unwzip) if where_to_put_unwzip else None
 
     def __repr__(self) -> str:
-        the_repr = f'''Unwzip(r"{self.what_to_unwzip}"'''
+        the_repr = f'''{self.__class__.__name__}(r"{self.what_to_unwzip}"'''
         if self.where_to_put_unwzip:
             the_repr += f''', r"{self.where_to_put_unwzip}"'''
         the_repr += ")"

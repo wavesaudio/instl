@@ -414,6 +414,19 @@ def quoteme_raw_string(simple_string):
     return retVal
 
 
+def quoteme_raw_if_string(some_thing):
+    if isinstance(some_thing, str):
+        return quoteme_raw_string(some_thing)
+    else:
+        return str(some_thing)
+    return retVal
+
+
+def quoteme_raw_list(list_of_things):
+    retVal = [quoteme_raw_if_string(something) for something in list_of_things]
+    return retVal
+
+
 def quote_path_properly(path_to_quote):
     quote_char = "'"
     if "'" in path_to_quote or "${" in path_to_quote:
