@@ -1,7 +1,9 @@
 import keyword
 
 import utils
+
 from .baseClasses import *
+log = logging.getLogger(__name__)
 
 
 class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
