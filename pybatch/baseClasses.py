@@ -52,7 +52,6 @@ class PythonBatchCommandBase(abc.ABC):
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
-        self.is_context_manager = kwargs.get('is_context_manager', True)
 
         self.exceptions_to_ignore = []
         self.child_batch_commands = []

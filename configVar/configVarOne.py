@@ -45,7 +45,7 @@ class ConfigVar:
 
     def __repr__(self) -> str:
         """ :return: string that can be eval()'ed to recreate the ConfigVar """
-        repr_str = f"""ConfigVar("{self.name}", *{self.values})"""
+        repr_str = f"""{self.__class__.__name__}("{self.name}", *{self.values})"""
         return repr_str
 
     def __bool__(self):

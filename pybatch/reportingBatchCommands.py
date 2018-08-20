@@ -35,17 +35,17 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
         pass
 
 
-class Progress(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
+class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
     """
         just issue a progress message
     """
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = message
-        self.own_num_progress = 0
+        self.own_num_progress = 1
 
     def __repr__(self) -> str:
-        the_repr = f'''print(r"progress: x of y: {self.message}")'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -57,10 +57,10 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=False, is_c
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return self.message
 
     def __call__(self, *args, **kwargs) -> None:
-        pass
+        print(f"{self.progress_msg()} {self.progress_msg_self()}")
 
 
 class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
@@ -132,6 +132,24 @@ class VarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_
         self.own_num_progress = 0
 
     def __repr__(self) -> str:
+        the_repr = ""
+        if any(self.var_values):
+            adjusted_values = list()
+            for val in self.var_values:
+                try:
+                    adjusted_values.append(int(val))
+                except:
+                    adjusted_values.append(utils.quoteme_raw_string(val))
+            if len(adjusted_values) == 1:
+                the_repr = f'''config_vars['{self.var_name}'] = {adjusted_values[0]}'''
+            else:
+                values = "".join(('(', ", ".join(str(adj) for adj in adjusted_values), ')'))
+                the_repr = f'''config_vars['{self.var_name}'] = {values}'''
+        else:
+            the_repr = f'''config_vars['{self.var_name}'] = ""'''
+        return the_repr
+
+    def __repr__python(self) -> str:
         the_repr = ""
         if any(self.var_values):
             adjusted_values = list()

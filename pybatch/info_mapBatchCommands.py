@@ -10,6 +10,8 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
+from .batchCommands import MakeDirs
+
 from db import DBManager
 from .batchCommands import Chmod
 
@@ -24,7 +26,7 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         self.info_map_file = info_map_file
 
     def __repr__(self) -> str:
-        the_repr = f'''InfoMapBase('''
+        the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
             the_repr += f'''info_map_file=r"{self.info_map_file}"'''
         the_repr += ")"
@@ -58,7 +60,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         self.missing_files_exception_message = ""
 
     def __repr__(self) -> str:
-        the_repr = f'''CheckDownloadFolderChecksum('''
+        the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
             the_repr += f'''info_map_file=r"{self.info_map_file}"'''
         if self.print_report:
@@ -118,7 +120,7 @@ class SetDownloadFolderExec(InfoMapBase):
         super().__init__(info_map_file, **kwargs)
 
     def __repr__(self) -> str:
-        the_repr = f'''SetDownloadFolderExec('''
+        the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
             the_repr += f'''info_map_file=r"{self.info_map_file}"'''
         the_repr += ")"
@@ -140,3 +142,32 @@ class SetDownloadFolderExec(InfoMapBase):
         for file_item_path in self.info_map_table.get_exec_file_paths():
             if os.path.isfile(file_item_path):
                 Chmod(file_item_path, "a+x")()
+
+
+class CreateSyncFolders(InfoMapBase):
+    def __init__(self, info_map_file, **kwargs) -> None:
+        super().__init__(info_map_file, **kwargs)
+
+    def __repr__(self) -> str:
+        the_repr = f'''{self.__class__.__name__}('''
+        if self.info_map_file is not None:
+            the_repr += f'''info_map_file=r"{self.info_map_file}"'''
+        the_repr += ")"
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        super().__call__()  # read the info map file
+        dir_items = self.info_map_table.get_items(what="dir")
+        for dir in dir_items:
+            MakeDirs(dir)()

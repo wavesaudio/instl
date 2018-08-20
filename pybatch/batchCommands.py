@@ -6,7 +6,7 @@ import shutil
 import pathlib
 import shlex
 import collections
-from typing import List, Any
+from typing import List, Any, Optional, Union
 import keyword
 
 import utils
@@ -559,10 +559,10 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
 
 
 class Chown(RunProcessBase, essential=True):
-    def __init__(self, user_id: int, group_id: int, path: os.PathLike, recursive: bool=False):
+    def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, recursive: bool=False):
         super().__init__()
-        self.user_id  = user_id   if user_id  else -1
-        self.group_id = group_id  if group_id else -1
+        self.user_id: Union[int, str]  = user_id   if user_id  else -1
+        self.group_id: Union[int, str] = group_id  if group_id else -1
         self.path = path
         self.recursive = recursive
         self.exceptions_to_ignore.append(FileNotFoundError)
@@ -613,7 +613,7 @@ class Chown(RunProcessBase, essential=True):
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
-            os.chown(self.path, uid=self.user_id, gid=self.group_id)
+            os.chown(self.path, uid=int(self.user_id), gid=int(self.group_id))
             return None
 
 
@@ -812,7 +812,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def __repr__(self):
-        the_repr = f'''ParallelRun({utils.quoteme_raw_string(os.fspath(self.config_file))}, {self.shell})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, {self.shell})'''
         return the_repr
 
     def repr_batch_win(self):
@@ -848,7 +848,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         self.files_to_ignore = list(files_to_ignore)
 
     def __repr__(self) -> str:
-        the_repr = f'''RemoveEmptyFolders(folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}, files_to_ignore={self.files_to_ignore})'''
+        the_repr = f'''{self.__class__.__name__}(folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}, files_to_ignore={self.files_to_ignore})'''
         return the_repr
 
     def repr_batch_win(self) -> str:
@@ -902,7 +902,7 @@ class Ls(PythonBatchCommandBase, essential=True):
         folders_to_list = self.folders_to_list
         if len(folders_to_list) > 0:
             folders_to_list = ', '.join(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
-        the_repr = f'''Ls({folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
+        the_repr = f'''{self.__class__.__name__}({folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
         return the_repr
 
     def repr_batch_win(self) -> str:
