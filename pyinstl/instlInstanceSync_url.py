@@ -28,7 +28,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_accum_transaction += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
-        create_sync_folders_accum_transaction += CreateSyncFolders(info_map_file="$(TO_SYNC_INFO_MAP_PATH)")
+        create_sync_folders_accum_transaction += CreateSyncFolders()
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         create_sync_folders_accum_transaction += Progress("Create folders done")
@@ -121,7 +121,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         create_check_checksum_instructions_accum_transaction = Section('create_check_checksum_instructions')
 
         create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...", num_files)
-        create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum("$(TO_SYNC_INFO_MAP_PATH)")
+        create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum()
         create_check_checksum_instructions_accum_transaction += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return create_check_checksum_instructions_accum_transaction
