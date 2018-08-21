@@ -28,7 +28,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
 
     # Overridden by InstlInstanceSync_url, or parallel sync classes
     def create_sync_instructions(self):
-        self.instlObj.batch_accum.set_current_section('sync')
         return 0
 
     def create_no_sync_instructions(self):

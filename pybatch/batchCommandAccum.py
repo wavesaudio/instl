@@ -2,14 +2,25 @@ import sys
 import os
 import io
 import pathlib
-from contextlib import contextmanager
+import re
 import logging
 import time
-from collections import defaultdict
 
 from .baseClasses import PythonBatchCommandBase
 from .reportingBatchCommands import Section
+from configVar import config_vars
+
 python_batch_log_level = logging.WARNING
+
+
+first_cap_re = re.compile('(.)([A-Z][a-z]+)')
+all_cap_re = re.compile('([a-z0-9])([A-Z])')
+
+
+def camel_to_snake_case(identifier):
+    identifier1 = first_cap_re.sub(r'\1_\2', identifier)
+    identifier2 = all_cap_re.sub(r'\1_\2', identifier1).lower()
+    return identifier2
 
 
 def batch_repr(batch_obj):
@@ -54,7 +65,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def finalize_list_of_lines(self):
         lines = list()
-        for section in BatchAccumulator.section_order:
+        for section in PythonBatchCommandAccum.section_order:
             # config_vars["CURRENT_PHASE"] = section
             section_lines = self.instruction_lines[section]
             if section_lines:
@@ -95,6 +106,14 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def __repr__(self):
         single_indent = "    "
+        def create_unique_obj_name(obj):
+            try:
+                create_unique_obj_name.instance_counter += 1
+            except AttributeError:
+                create_unique_obj_name.instance_counter = 1
+            obj_name = camel_to_snake_case(f"{obj.__class__.__name__}_{create_unique_obj_name.instance_counter:05}")
+            return obj_name
+
         def _repr_helper(batch_items, io_str, indent):
             indent_str = single_indent*indent
             if isinstance(batch_items, list):
@@ -114,8 +133,9 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                     io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
-                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
-                    io_str.write(f"""{indent_str}{single_indent}{batch_items.obj_name}()\n""")
+                    obj_name = create_unique_obj_name(batch_items)
+                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n""")
+                    io_str.write(f"""{indent_str}{single_indent}{obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
         io_str = io.StringIO()
