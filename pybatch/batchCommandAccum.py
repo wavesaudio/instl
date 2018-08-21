@@ -94,8 +94,9 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return oc
 
     def __repr__(self):
+        single_indent = "    "
         def _repr_helper(batch_items, io_str, indent):
-            indent_str = "    "*indent
+            indent_str = single_indent*indent
             if isinstance(batch_items, list):
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
@@ -105,13 +106,16 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
                     io_str.write(f"""{indent_str}with {repr(batch_items)}:\n""")
-                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                    if batch_items.child_batch_commands:
+                        _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                    else:
+                        io_str.write(f"""{indent_str}{single_indent}pass\n""")
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
                     io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
                     io_str.write(f"""{indent_str}with {repr(batch_items)} as {batch_items.obj_name}:\n""")
-                    io_str.write(f"""{indent_str}    {batch_items.obj_name}()\n""")
+                    io_str.write(f"""{indent_str}{single_indent}{batch_items.obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
         io_str = io.StringIO()

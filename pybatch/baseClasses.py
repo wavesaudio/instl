@@ -202,7 +202,7 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
 
-class RunProcessBase(PythonBatchCommandBase):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:

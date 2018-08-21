@@ -45,7 +45,7 @@ class CommandLineOptions(object):
     __BASE_URL__ = OptionToConfigVar()
     __CONFIG_FILE__ = OptionToConfigVar()
     __CREDENTIALS__ = OptionToConfigVar()
-    __DB_INPUT_FILE__ = OptionToConfigVar()
+    __MAIN_DB_FILE__ = OptionToConfigVar()
     __DOCK_ITEM_LABEL__ = OptionToConfigVar()
     __DOCK_ITEM_PATH__ = OptionToConfigVar()
     __FAIL_EXIT_CODE__ = OptionToConfigVar()
@@ -298,7 +298,7 @@ def prepare_args_parser(in_command):
                                     required=False,
                                     nargs=1,
                                     metavar='path-to-db-file',
-                                    dest='__DB_INPUT_FILE__',
+                                    dest='__MAIN_DB_FILE__',
                                     help="database file")
 
     # the following option groups each belong only to a single command
