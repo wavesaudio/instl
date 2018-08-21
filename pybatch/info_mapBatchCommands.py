@@ -44,11 +44,12 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        self.info_map_table.read_from_file(self.info_map_file, a_format="text", disable_indexes_during_read=True)
+        if self.info_map_file:
+            self.info_map_table.read_from_file(self.info_map_file, a_format="text", disable_indexes_during_read=True)
 
 
 class CheckDownloadFolderChecksum(InfoMapBase):
-    def __init__(self, info_map_file, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
+    def __init__(self, info_map_file=None, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
         super().__init__(info_map_file, **kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
@@ -82,8 +83,12 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file
-        for file_item in self.info_map_table.get_items(what="file"):
+        super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
+        if self.info_map_file is None:
+            dl_file_items = self.info_map_table.get_download_items(what="file")
+        else:
+            dl_file_items = self.info_map_table.get_items(what="file")
+        for file_item in dl_file_items:
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
@@ -116,7 +121,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
 
 
 class SetDownloadFolderExec(InfoMapBase):
-    def __init__(self, info_map_file, **kwargs) -> None:
+    def __init__(self, info_map_file=None, **kwargs) -> None:
         super().__init__(info_map_file, **kwargs)
 
     def __repr__(self) -> str:
@@ -138,14 +143,22 @@ class SetDownloadFolderExec(InfoMapBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file
-        for file_item_path in self.info_map_table.get_exec_file_paths():
+        super().__call__()  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
+        if self.info_map_file is not None:
+            # REQUIRED_INFO_MAP_PATH contains only the required files so get the paths
+            # of the executable files
+            exec_file_paths = self.info_map_table.get_exec_file_paths()
+        else:
+            # info_map_file already read, and contains all files, so get the paths
+            # of the *required* executable files
+            exec_file_paths = self.info_map_table.get_required_exec_file_paths()
+        for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
                 Chmod(file_item_path, "a+x")()
 
 
 class CreateSyncFolders(InfoMapBase):
-    def __init__(self, info_map_file, **kwargs) -> None:
+    def __init__(self, info_map_file=None, **kwargs) -> None:
         super().__init__(info_map_file, **kwargs)
 
     def __repr__(self) -> str:
@@ -167,7 +180,10 @@ class CreateSyncFolders(InfoMapBase):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file
-        dir_items = self.info_map_table.get_items(what="dir")
-        for dir in dir_items:
-            MakeDirs(dir)()
+        super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
+        if self.info_map_file is None:
+            dl_dir_items = self.info_map_table.get_download_items(what="dir")
+        else:
+            dl_dir_items = self.info_map_table.get_items(what="dir")
+        for dl_dir in dl_dir_items:
+            MakeDirs(dl_dir.path)()
