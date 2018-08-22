@@ -861,16 +861,15 @@ class JsonExtraTypesDecoder(json.JSONDecoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_invocations_file_path():
-    # if Desktop/Logs exists put the file there, otherwise in the user's folder
-    folder_to_write_in = os.path.expanduser("~")
+def get_system_log_file_path():
+    '''if Desktop/Logs exists put the file there, otherwise in the user's folder'''
     logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
         folder_to_write_in = appdirs.user_log_dir("")
-    invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
-    return invocations_file_path
+    system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
+    return system_log_file_path
 
 
 def iter_complete_to_longest(*list_of_lists):
