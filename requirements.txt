@@ -6,6 +6,7 @@ future>=0.16.0
 networkx>=2.1
 packaging>=17.1
 psutil>=5.4.7
+PyInstaller>=3.3.1
 PyYAML>=3.13
 requests>=2.19.1
 rsa>=3.4.2
