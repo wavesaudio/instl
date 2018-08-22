@@ -70,7 +70,7 @@ def get_data_folder():
 
 def config_logger():
     if sys.platform == 'darwin':
-        system_log_path = os.path.join(os.path.expanduser('~/Library/Logs'), 'instl.log')
+        system_log_path = os.path.join(os.path.expanduser('~/Library/Logs/instl'), 'instl.log')
     else:
         system_log_path = ''
     d = {
