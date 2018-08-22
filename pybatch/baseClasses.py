@@ -10,15 +10,6 @@ import logging
 log = logging.getLogger(__name__)
 from enum import Enum, auto
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
-
-
-def camel_to_snake_case(identifier):
-    identifier1 = first_cap_re.sub(r'\1_\2', identifier)
-    identifier2 = all_cap_re.sub(r'\1_\2', identifier1).lower()
-    return identifier2
-
 
 class PythonBatchCommandBase(abc.ABC):
     """ PythonBatchCommandBase is the base class for all classes implementing batch commands.
@@ -39,19 +30,19 @@ class PythonBatchCommandBase(abc.ABC):
     essential = True
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
-
-    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, **kwargs):
+    is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
+        cls.is_anonymous = is_anonymous
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
         if not isinstance(identifier, str) or not identifier.isidentifier():
             self.identifier = "obj"
-        self.obj_name = camel_to_snake_case(f"{self.__class__.__name__}_{PythonBatchCommandBase.instance_counter:05}")
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
@@ -93,7 +84,10 @@ class PythonBatchCommandBase(abc.ABC):
     def add(self, instructions):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         if isinstance(instructions, PythonBatchCommandBase):
-            self.child_batch_commands.append(instructions)
+            if instructions.is_anonymous:  # no need for the parent, just the children
+                self.child_batch_commands.extend(instructions.child_batch_commands)
+            else:
+                self.child_batch_commands.append(instructions)
         else:
             for instruction in instructions:
                 self.add(instruction)
@@ -121,7 +115,7 @@ class PythonBatchCommandBase(abc.ABC):
         return ""
 
     def __eq__(self, other) -> bool:
-        do_not_compare_keys = ('progress', 'obj_name')
+        do_not_compare_keys = ('progress', )
         dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
         dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
         is_eq = dict_self == dict_other
@@ -202,7 +196,7 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
 
-class RunProcessBase(PythonBatchCommandBase):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:

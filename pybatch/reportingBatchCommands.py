@@ -6,6 +6,32 @@ from .baseClasses import *
 log = logging.getLogger(__name__)
 
 
+class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, is_anonymous=True):
+
+    """ AnonymousAccum a container for other PythonBatchCommands,
+        it is not meant to be written to python-batch file or executed.
+    """
+
+    def __init__(self, identifier=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.i_am_anonymous=True
+
+    def __repr__(self) -> str:
+        raise NotImplementedError("AnonymousAccum.__repr__ should not be called")
+
+    def repr_batch_win(self) -> str:
+        raise NotImplementedError("AnonymousAccum.repr_batch_win should not be called")
+
+    def repr_batch_mac(self) -> str:
+        raise NotImplementedError("AnonymousAccum.repr_batch_mac should not be called")
+
+    def progress_msg_self(self) -> str:
+        raise NotImplementedError("AnonymousAccum.progress_msg_self should not be called")
+
+    def __call__(self, *args, **kwargs) -> None:
+        raise NotImplementedError("AnonymousAccum.__call__ should not be called")
+
+
 class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     def __init__(self, *titles):
         super().__init__()

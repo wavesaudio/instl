@@ -86,3 +86,4 @@ CMD_TOOLS_TO_FIND_INTERNAL:
 
 --- !define
 BATCH_EXT: py
+DB_FILE_EXT: sqlite

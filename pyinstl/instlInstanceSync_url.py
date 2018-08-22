@@ -24,16 +24,17 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.local_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
 
     def create_sync_folders(self):
-        create_sync_folders_accum_transaction = Section('create_sync_folders')
 
-        create_sync_folders_accum_transaction += Progress("Create folders ...")
+        create_sync_folders_commands = AnonymousAccum()
+
+        create_sync_folders_commands += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
-        create_sync_folders_accum_transaction += CreateSyncFolders(info_map_file="$(TO_SYNC_INFO_MAP_PATH)")
+        create_sync_folders_commands += CreateSyncFolders()
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
-        create_sync_folders_accum_transaction += Progress("Create folders done")
+        create_sync_folders_commands += Progress("Create folders done")
         self.instlObj.progress(f"{need_download_dirs_num} folders to create")
-        return create_sync_folders_accum_transaction
+        return create_sync_folders_commands
 
     def get_cookie_for_sync_urls(self, sync_base_url):
         """ get the cookie for sync_base_url and set config var
@@ -75,7 +76,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
-        create_curl_download_instructions_accum_transaction = Section('create_curl_download_instructions')
+        dl_commands = AnonymousAccum()
 
         main_out_file_dir, main_out_file_leaf = os.path.split(config_vars["__MAIN_OUT_FILE__"].str())
         curl_config_folder = os.path.join(main_out_file_dir, "curl")
@@ -91,20 +92,20 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 dl_start_message = f"Downloading with {actual_num_config_files} processes in parallel"
             else:
                 dl_start_message = "Downloading with 1 process"
-            create_curl_download_instructions_accum_transaction += Progress(dl_start_message)
+            dl_commands += Progress(dl_start_message)
 
             parallel_run_config_file_path = config_vars.resolve_str(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            create_curl_download_instructions_accum_transaction += ParallelRun(parallel_run_config_file_path, True)
+            dl_commands += ParallelRun(parallel_run_config_file_path, True)
 
             num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             if num_files_to_download > 1:
                 dl_end_message = f"Downloading {num_files_to_download} files done"
             else:
                 dl_end_message = "Downloading 1 file done"
-            create_curl_download_instructions_accum_transaction += Progress(dl_end_message)
-            return create_curl_download_instructions_accum_transaction
+            dl_commands += Progress(dl_end_message)
+            return dl_commands
 
     def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
@@ -118,13 +119,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
 
     def create_check_checksum_instructions(self, num_files):
-        create_check_checksum_instructions_accum_transaction = Section('create_check_checksum_instructions')
+        check_checksum_instructions_accum = AnonymousAccum()
 
-        create_check_checksum_instructions_accum_transaction += Progress("Check checksum ...", num_files)
-        create_check_checksum_instructions_accum_transaction += CheckDownloadFolderChecksum("$(TO_SYNC_INFO_MAP_PATH)")
-        create_check_checksum_instructions_accum_transaction += Progress("Check checksum done")
+        check_checksum_instructions_accum += Progress("Check checksum ...", num_files)
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum()
+        check_checksum_instructions_accum += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
-        return create_check_checksum_instructions_accum_transaction
+        return check_checksum_instructions_accum
 
     def create_instructions_to_remove_redundant_files_in_sync_folder(self):
         """ Remove files in the sync folder that are not in info_map
@@ -145,15 +146,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
                 files_to_check.append((item_partial_path, item_full_path))
         redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
-        rm_commands = Section('rm_commands')
+        rm_commands = AnonymousAccum()
         for i in redundant_files_indexes:
             rm_commands += RmFile(str(files_to_check[i][1]))
             rm_commands += Progress(f"Removed redundant file {files_to_check[i][1]}")
         return rm_commands
 
     def create_download_instructions(self):
-        download_instructions_accum_transaction = Section('download_instructions')
-
+        dl_commands = AnonymousAccum()
         already_synced_num_files, already_synced_num_bytes = self.instlObj.info_map_table.get_not_to_download_num_files_and_size()
         to_sync_num_files, bytes_to_sync = self.instlObj.info_map_table.get_to_download_num_files_and_size()
         config_vars["__NUM_FILES_TO_DOWNLOAD__"] = to_sync_num_files
@@ -164,10 +164,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress(f"{bytes_to_sync} of {bytes_to_sync+already_synced_num_bytes} bytes to sync")
 
         if already_synced_num_files > 0:
-            download_instructions_accum_transaction += Progress(f"{already_synced_num_files} files already in cache")
+            dl_commands += Progress(f"{already_synced_num_files} files already in cache")
 
         if to_sync_num_files == 0:
-            return download_instructions_accum_transaction
+            return dl_commands
 
         file_list = self.instlObj.info_map_table.get_download_items_sync_info()
         if False:   # need to rethink how to calc mount point sizes efficiently
@@ -177,62 +177,59 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 free_bytes = shutil.disk_usage(m_p).free
                 print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
 
-        download_instructions_accum_transaction += self.create_sync_folders()
+        dl_commands += self.create_sync_folders()
         self.create_sync_urls(file_list)
-        download_instructions_accum_transaction += self.create_curl_download_instructions()
+        dl_commands += self.create_curl_download_instructions()
 
-        download_instructions_accum_transaction += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
-        download_instructions_accum_transaction += self.create_check_checksum_instructions(to_sync_num_files)
-        return download_instructions_accum_transaction
+        dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
+        dl_commands += self.create_check_checksum_instructions(to_sync_num_files)
+        return dl_commands
 
-    def create_sync_instructions(self):
-        sections = []
+    def create_sync_instructions(self) -> int:
+        super().create_sync_instructions()
+
         self.instlObj.progress("create sync instructions ...")
-        before_sync_accum_transaction = Section("before_sync")
-        before_sync_accum_transaction += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
-        sections.append(before_sync_accum_transaction)
 
-        sync_accum_transaction = Section("sync")
-        sync_accum_transaction += Progress("Start sync")
-        self.prepare_list_of_sync_items()
+        with self.instlObj.batch_accum.sub_accum(Section("before_sync")) as before_sync_accum:
+            before_sync_accum += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
 
-        sync_accum_transaction += Progress("Starting sync from $(SYNC_BASE_URL)")
-        sync_accum_transaction += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
+        with self.instlObj.batch_accum.sub_accum(Section("sync")) as sync_accum:
+            sync_accum += Progress("Start sync")
+            self.prepare_list_of_sync_items()
 
-        with sync_accum_transaction.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as cd_local_repo_sync_dir_accum_transaction:
-            cd_local_repo_sync_dir_accum_transaction += self.create_instructions_to_remove_redundant_files_in_sync_folder()
-            cd_local_repo_sync_dir_accum_transaction += self.create_download_instructions()
+            sync_accum += Progress("Starting sync from $(SYNC_BASE_URL)")
+            sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
 
-            with cd_local_repo_sync_dir_accum_transaction.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
-                post_sync_accum_transaction += self.chown_for_synced_folders()
-                post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+            with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
+                with local_repo_sync_dir_accum.sub_accum(Section("remove_redundant_files_in_sync_folder")) as rrfisf:
+                    rrfisf += self.create_instructions_to_remove_redundant_files_in_sync_folder()
 
-        self.instlObj.progress("create sync instructions done")
-        sync_accum_transaction += Progress("Done sync")
-        sections.append(sync_accum_transaction)
-        return sections
+                with local_repo_sync_dir_accum.sub_accum(Section("download")) as cdi:
+                    cdi += self.create_download_instructions()
 
-    def create_no_sync_instructions(self):
-        """ in case no files needed syncing """
-        no_sync_instructions_accum_transacion = Section('post_sync')
-        no_sync_instructions_accum_transacion += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
-        no_sync_instructions_accum_transacion += Progress("Done sync")
-        return no_sync_instructions_accum_transacion
+                with local_repo_sync_dir_accum.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
+
+                    if int(config_vars["__NUM_FILES_TO_DOWNLOAD__"]) > 0:
+                        post_sync_accum_transaction += self.chown_for_synced_folders()
+                        self.instlObj.progress("create sync instructions done")
+                    post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+
+        sync_accum += Progress("Done sync")
 
     def chown_for_synced_folders(self):
         """ if sync is done under admin permissions owner of files and folders will be root
             chown_for_synced_folders will change owner to the user that created the batch file.
             Currently this was found to be relevant for Mac only.
         """
-        chown_accum_transacion = Section('chown')
+        chown_accum = AnonymousAccum()
         if config_vars["__CURRENT_OS__"].str() == "Mac":  # owner issue only relevant on Mac
             download_roots = self.instlObj.info_map_table.get_download_roots()
             if download_roots:
-                chown_accum_transacion += Progress("Adjust ownership and permissions ...")
+                chown_accum += Progress("Adjust ownership and permissions ...")
                 for dr in download_roots:
-                    chown_accum_transacion += Chown(user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", path=dr, recursive=True)
-                    chown_accum_transacion += Chmod(path=dr, mode="a+rwX", recursive=True, ignore_all_errors=True)
-        return chown_accum_transacion
+                    chown_accum += Chown(user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", path=dr, recursive=True)
+                    chown_accum += Chmod(path=dr, mode="a+rwX", recursive=True, ignore_all_errors=True)
+        return chown_accum
 
 
 def total_sizes_by_mount_point(file_list):

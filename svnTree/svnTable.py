@@ -845,6 +845,19 @@ class SVNTable(object):
             retVal = self.SVNRowListToObjects(retVal)
         return retVal
 
+    def get_required_exec_file_paths(self) -> List[str]:
+        """
+        :return: paths of all file items marked as executable
+        """
+        query_text = """
+          SELECT path
+          FROM svn_item_t
+          WHERE required == 1
+          AND flags == 'fx'
+        """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
+
     def get_download_items_sync_info(self):
         """ get just the fields required to calc urls"""
         query_text = """

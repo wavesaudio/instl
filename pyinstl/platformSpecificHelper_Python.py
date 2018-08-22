@@ -34,7 +34,7 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
         retVal = (
             "#!/usr/bin/env bash",
@@ -67,7 +67,7 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
 
     def get_install_instructions_mkdir_with_owner_func(self):
@@ -212,7 +212,7 @@ report_invocation_end() {{
         return retVal
 
     def setup_echo(self):
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
 
     def echo(self, message):

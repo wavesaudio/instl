@@ -558,7 +558,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return None
 
 
-class Chown(RunProcessBase, essential=True):
+class Chown(RunProcessBase, call__call__=True, essential=True):
     def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, recursive: bool=False):
         super().__init__()
         self.user_id: Union[int, str]  = user_id   if user_id  else -1
@@ -747,7 +747,7 @@ class SingleShellCommand(RunProcessBase, essential=True):
         return prog_mess
 
     def create_run_args(self):
-        expanded_shell_command = "CMD /C " + os.path.expandvars(self.shell_command)
+        expanded_shell_command = os.path.expandvars(self.shell_command)
         the_lines = [expanded_shell_command]
         return the_lines
 

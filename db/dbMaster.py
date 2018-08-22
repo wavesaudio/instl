@@ -27,22 +27,19 @@ unique_name_to_disk_db = False
 
 
 def get_db_url(name_extra=None, db_file=None):
-    if getattr(sys, 'frozen', False) and not force_disk_db and not db_file:
-        db_url = ":memory:"
+    if db_file:
+        db_url = db_file
     else:
-        if db_file:
-            db_url = db_file
-        else:
-            logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-            os.makedirs(logs_dir, exist_ok=True)
-            db_file_name = "instl.sqlite"
-            if name_extra:
-                db_file_name = name_extra+"."+db_file_name
-            if unique_name_to_disk_db:
-                db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
-            db_file_in_logs = os.path.join(logs_dir, db_file_name)
-            #print("db_file:", db_file)
-            db_url = db_file_in_logs
+        logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        db_file_name = "instl.sqlite"
+        if name_extra:
+            db_file_name = name_extra+"."+db_file_name
+        if unique_name_to_disk_db:
+            db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
+        db_file_in_logs = os.path.join(logs_dir, db_file_name)
+        #print("db_file:", db_file)
+        db_url = db_file_in_logs
     return db_url
 
 
@@ -351,12 +348,7 @@ class DBAccess(object):
 
     def __get__(self, instance, owner):
         if self._db is None:
-            the_command = getattr(instance, 'the_command', None)
-            db_file = getattr(instance, 'db_file', None)
-            db_url = get_db_url(the_command, db_file)
-            if db_url != ":memory:" and not db_file:
-                # erase the db only if it's default created no given
-                utils.safe_remove_file(db_url)
+            db_url = str(config_vars["__MAIN_DB_FILE__"])
             ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
             self._db = DBMaster(db_url, ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url

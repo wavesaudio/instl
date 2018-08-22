@@ -9,6 +9,7 @@ from .copyBatchCommands import CopyDirToDir
 from .copyBatchCommands import CopyFileToDir
 from .copyBatchCommands import CopyFileToFile
 
+from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
