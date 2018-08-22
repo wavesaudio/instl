@@ -77,7 +77,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        os.symlink(self.path_to_target, self.path_to_symlink)
+        os.symlink(os.path.expandvars(self.path_to_target), os.path.expandvars(self.path_to_symlink))
 
 
 class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
@@ -87,7 +87,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
     """
     def __init__(self, symlink_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.symlink_to_convert = pathlib.Path(symlink_to_convert)
+        self.symlink_to_convert = symlink_to_convert
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_to_convert))})'''
@@ -105,13 +105,14 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-         if self.symlink_to_convert.is_symlink():
-            target_path = self.symlink_to_convert.resolve()
-            link_value = os.readlink(self.symlink_to_convert)
+        symlink_to_convert = pathlib.Path(os.path.expandvars(self.symlink_to_convert))
+        if symlink_to_convert.is_symlink():
+            target_path = symlink_to_convert.resolve()
+            link_value = os.readlink(symlink_to_convert)
             if target_path.is_dir() or target_path.is_file():
-                symlink_text_path = self.symlink_to_convert.with_name(f"{self.symlink_to_convert.name}.symlink")
+                symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
                 symlink_text_path.write_text(link_value)
-                self.symlink_to_convert.unlink()
+                symlink_to_convert.unlink()
 
 
 class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
@@ -139,10 +140,11 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        symlink_target = self.symlink_file_to_convert.read_text()
-        symlink = pathlib.Path(self.symlink_file_to_convert.parent, self.symlink_file_to_convert.stem)
+        symlink_file_to_convert = pathlib.Path(os.path.expandvars(self.symlink_file_to_convert))
+        symlink_target = symlink_file_to_convert.read_text()
+        symlink = pathlib.Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
         symlink.symlink_to(symlink_target)
-        os.unlink(self.symlink_file_to_convert)
+        symlink_file_to_convert.unlink()
 
 
 class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
@@ -172,7 +174,8 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         valid_symlinks = list()
         broken_symlinks = list()
-        for root, dirs, files in os.walk(self.folder_to_convert, followlinks=False):
+        expanded_folder_to_convert = os.path.expandvars(self.folder_to_convert)
+        for root, dirs, files in os.walk(expanded_folder_to_convert, followlinks=False):
             for item in files + dirs:
                 item_path = os.path.join(root, item)
                 if os.path.islink(item_path):
@@ -215,7 +218,8 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-       for root, dirs, files in os.walk(self.folder_to_convert, followlinks=False):
+        expanded_folder_to_convert = os.path.expandvars(self.folder_to_convert)
+        for root, dirs, files in os.walk(expanded_folder_to_convert, followlinks=False):
             for item in files:
                 item_path = pathlib.Path(root, item)
                 if item_path.suffix == ".symlink":

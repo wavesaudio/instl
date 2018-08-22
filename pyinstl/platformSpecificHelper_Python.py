@@ -208,7 +208,7 @@ report_invocation_end() {{
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value):
-        retVal = VarAssign(identifier, value)
+        retVal = ConfigVarAssign(identifier, value)
         return retVal
 
     def setup_echo(self):
@@ -361,7 +361,7 @@ split_file()
                 if true_shell_commands:  # wrap up the true shell commands up till now
                     PlatformSpecificHelperPython.var_name_counter += 1
                     var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
-                    var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+                    var = ConfigVarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
                     retVal.append(var)
                     batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
                     retVal.append(batch)
@@ -373,7 +373,7 @@ split_file()
         if true_shell_commands:
             PlatformSpecificHelperPython.var_name_counter += 1
             var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
-            var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+            var = ConfigVarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
             retVal.append(var)
             batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
             retVal.append(batch)

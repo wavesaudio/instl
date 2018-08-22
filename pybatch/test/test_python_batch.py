@@ -739,7 +739,7 @@ class TestPythonBatch(unittest.TestCase):
                         r"cmd /C dir %userprofile%\desktop",]
 
         self.batch_accum.clear()
-        #self.batch_accum += VarAssign("geronimo", *geronimo)
+        #self.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
         self.batch_accum += ShellCommands(shell_commands_list=geronimo)
 

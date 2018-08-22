@@ -138,10 +138,11 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         retVal = 0
         for self.cur_path in self.paths_to_make:
+            expanded_path_to_make = os.path.expandvars(self.cur_path)
             if self.remove_obstacles:
-                if os.path.isfile(self.cur_path):
-                    os.unlink(self.cur_path)
-            os.makedirs(self.cur_path, mode=0o777, exist_ok=True)
+                if os.path.isfile(expanded_path_to_make):
+                    os.unlink(expanded_path_to_make)
+            os.makedirs(expanded_path_to_make, mode=0o777, exist_ok=True)
             retVal += 1
         return retVal
 
@@ -222,7 +223,7 @@ class Cd(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
-        os.chdir(self.new_path)
+        os.chdir(os.path.expandvars(self.new_path))
         return None
 
     def exit_self(self, exit_return):
@@ -271,7 +272,7 @@ class CdSection(Cd, essential=False):
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
-        os.chdir(self.new_path)
+        os.chdir(os.path.expandvars(self.new_path))
         return None
 
     def exit_self(self, exit_return):
@@ -613,7 +614,8 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
-            os.chown(self.path, uid=int(self.user_id), gid=int(self.group_id))
+            expanded_path = os.path.expandvars(self.path)
+            os.chown(expanded_path, uid=int(self.user_id), gid=int(self.group_id))
             return None
 
 
@@ -711,16 +713,17 @@ class Chmod(RunProcessBase, essential=True):
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
+            expanded_path = os.path.expandvars(self.path)
             flags, op = self.parse_symbolic_mode(self.mode)
             mode_to_set = flags
             if op == '+':
-                current_mode = stat.S_IMODE(os.stat(self.path)[stat.ST_MODE])
+                current_mode = stat.S_IMODE(os.stat(expanded_path)[stat.ST_MODE])
                 mode_to_set |= current_mode
             elif op == '-':
-                current_mode = stat.S_IMODE(os.stat(self.path)[stat.ST_MODE])
+                current_mode = stat.S_IMODE(os.stat(expanded_path)[stat.ST_MODE])
                 mode_to_set = current_mode & ~flags
 
-            os.chmod(self.path, mode_to_set)
+            os.chmod(expanded_path, mode_to_set)
         return None
 
 
@@ -901,7 +904,7 @@ class Ls(PythonBatchCommandBase, essential=True):
     def __repr__(self) -> str:
         folders_to_list = self.folders_to_list
         if len(folders_to_list) > 0:
-            folders_to_list = ', '.join(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
+            folders_to_list = ', '.join(utils.quoteme_raw_string(path) for path in self.folders_to_list)
         the_repr = f'''{self.__class__.__name__}({folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
         return the_repr
 
@@ -917,7 +920,8 @@ class Ls(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        the_listing = utils.disk_item_listing(*self.folders_to_list, ls_format=self.ls_format)
+        expanded_folder_list = [os.path.expandvars(folder_path) for folder_path in self.folders_to_list]
+        the_listing = utils.disk_item_listing(*expanded_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             print(os.path.realpath(wfd.name))
             wfd.write(the_listing)

@@ -288,7 +288,7 @@ class ChangeDirIfExists(object):
     def __enter__(self):
         if self.newPath:
             self.savedPath = os.getcwd()
-            os.chdir(self.newPath)
+            os.chdir(os.path.expandvars(self.newPath))
 
     def __exit__(self, etype, value, traceback):
         if self.newPath:

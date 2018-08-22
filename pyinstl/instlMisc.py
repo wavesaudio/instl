@@ -95,7 +95,7 @@ class InstlMisc(InstlInstanceBase):
     def do_set_exec(self):
         self.progress_staccato_command = True
         info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
-        SetDownloadFolderExec(info_map_file)
+        SetExecPermissionsInSyncFolder(info_map_file)
 
     def do_create_folders(self):
         self.progress_staccato_command = True

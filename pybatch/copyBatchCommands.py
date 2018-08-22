@@ -81,7 +81,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        self.copy_tree(self.src, self.dst)
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        self.copy_tree(expanded_src, expanded_dst)
 
     def print_if_level(self, message_level, *messages):
         if message_level <= self.verbose:
@@ -228,8 +230,10 @@ class CopyDirToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
+        expanded_src = os.path.expandvars(self.src)
         dst = os.path.join(self.dst, os.path.basename(self.src))
-        self.copy_tree(self.src, dst)
+        expanded_dst = os.path.expandvars(dst)
+        self.copy_tree(expanded_src, expanded_dst)
 
 
 class CopyDirContentsToDir(RsyncClone):
@@ -242,7 +246,9 @@ class CopyFileToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        self.copy_file_to_dir(self.src, self.dst)
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        self.copy_file_to_dir(expanded_src, expanded_dst)
 
 
 class CopyFileToFile(RsyncClone):
@@ -250,5 +256,7 @@ class CopyFileToFile(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
-        os.makedirs(os.path.dirname(self.dst), exist_ok=True)
-        self.copy_file_to_file(self.src, self.dst)
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        os.makedirs(os.path.dirname(expanded_dst), exist_ok=True)
+        self.copy_file_to_file(expanded_src, expanded_dst)

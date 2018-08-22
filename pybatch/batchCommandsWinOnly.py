@@ -13,7 +13,7 @@ class WinShortcut(PythonBatchCommandBase):
         self.run_as_admin = run_as_admin
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}(r"{self.shortcut_path}", r"{self.target_path}"'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.shortcut_path)}, {utils.quoteme_raw_string(self.target_path)}'''
         if self.run_as_admin:
             the_repr += ''', run_as_admin=True'''
         the_repr += ")"
@@ -32,9 +32,11 @@ class WinShortcut(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")
-        shortcut = shell.CreateShortCut(self.shortcut_path)
-        shortcut.Targetpath = self.target_path
-        working_directory, target_name = os.path.split(self.target_path)
+        expanded_shortcut_path = os.path.expandvars(self.shortcut_path)
+        shortcut = shell.CreateShortCut(expanded_shortcut_path)
+        expanded_target_path = os.path.expandvars(self.target_path)
+        shortcut.Targetpath = expanded_target_path
+        working_directory, target_name = os.path.split(expanded_target_path)
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
         if self.run_as_admin:
@@ -46,8 +48,8 @@ class WinShortcut(PythonBatchCommandBase):
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
-            file.Load(self.shortcut_path)
+            file.Load(expanded_shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
-                file.Save(self.shortcut_path, 0)
+                file.Save(expanded_shortcut_path, 0)

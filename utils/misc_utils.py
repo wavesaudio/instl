@@ -405,7 +405,11 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
+no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+]+$')
+
+
 def quoteme_raw_string(simple_string):
+    simple_string = os.fspath(simple_string)
     quote_mark = '"'
     if quote_mark in simple_string:
         quote_mark = "'"
@@ -413,7 +417,10 @@ def quoteme_raw_string(simple_string):
             quote_mark = quote_mark * 3
             if quote_mark in simple_string:
                 raise Exception("Oy Vey, how to quote this awful string ->{simple_string}<-")
-    retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+
+    retVal = "".join((quote_mark, simple_string, quote_mark))
+    if not no_need_for_raw_re.match(simple_string):
+        retVal = "".join(('r', retVal))
     return retVal
 
 

@@ -31,6 +31,7 @@ class PythonBatchCommandBase(abc.ABC):
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
+
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
@@ -182,8 +183,8 @@ class PythonBatchCommandBase(abc.ABC):
             suppress_exception = True
         else:
             self.log_result(logging.ERROR, self.error_msg_self(), exc_val)
-        self.exit_self(exit_return=suppress_exception)
         self.exit_time = time.perf_counter()
+        self.exit_self(exit_return=suppress_exception)
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
         log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
