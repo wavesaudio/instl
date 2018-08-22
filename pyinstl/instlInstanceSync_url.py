@@ -145,7 +145,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
                 files_to_check.append((item_partial_path, item_full_path))
         redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
-        rm_commands = []
+        rm_commands = Section('rm_commands')
         for i in redundant_files_indexes:
             rm_commands += RmFile(str(files_to_check[i][1]))
             rm_commands += Progress(f"Removed redundant file {files_to_check[i][1]}")
