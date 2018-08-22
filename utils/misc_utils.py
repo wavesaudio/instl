@@ -405,7 +405,7 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
-no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+]+$')
+no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
 
 
 def quoteme_raw_string(simple_string):
