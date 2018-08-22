@@ -71,6 +71,10 @@ def config_logger():
     d = {
         'version': 1,
         'formatters': {
+            'simple': {
+                'class': 'logging.Formatter',
+                'format': '%(message)s'
+            },
             'detailed': {
                 'class': 'logging.Formatter',
                 'format': '%(asctime)s %(name)-15s %(levelname)-8s %(processName)-10s %(message)s'
@@ -80,13 +84,13 @@ def config_logger():
             'console': {
                 'class': 'logging.StreamHandler',
                 'level': 'INFO',
-                'formatter': 'detailed',
+                'formatter': 'simple',
                 'stream': sys.stdout
             },
             'errors': {
                 'class': 'logging.StreamHandler',
                 'level': 'ERROR',
-                'formatter': 'detailed',
+                'formatter': 'simple',
                 'stream': sys.stderr
             },
         },
