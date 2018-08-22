@@ -14,7 +14,8 @@ import pathlib
 from timeit import default_timer
 from decimal import Decimal
 import rsa
-from functools import reduce
+import logging
+from functools import reduce, wraps
 from itertools import repeat
 import tarfile
 import types
@@ -27,6 +28,8 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Set, Tuple
 
 import utils
+
+log = logging.getLogger(__name__)
 
 
 def Is64Windows():
@@ -861,16 +864,15 @@ class JsonExtraTypesDecoder(json.JSONDecoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_invocations_file_path():
-    # if Desktop/Logs exists put the file there, otherwise in the user's folder
-    folder_to_write_in = os.path.expanduser("~")
+def get_system_log_file_path():
+    '''if Desktop/Logs exists put the file there, otherwise in the user's folder'''
     logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
         folder_to_write_in = appdirs.user_log_dir("")
-    invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
-    return invocations_file_path
+    system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
+    return system_log_file_path
 
 
 def iter_complete_to_longest(*list_of_lists):
@@ -882,3 +884,34 @@ def iter_complete_to_longest(*list_of_lists):
     for a_list in list_of_lists:
         yield from a_list[start_from:]
         start_from = max(len(a_list), start_from)
+
+
+def clock(func):
+    '''A decorator that measures the time it takes to run the original function that was decorated.
+       The decorator will print a debug log msg with 8 decimal points, and will work even if an exception was raised.'''
+    @wraps(func)
+    def clocked(*args, **kwargs):
+        name = func.__name__
+        arg_lst = []
+        if args:
+            arg_lst.extend(repr(arg) for arg in args)
+        if kwargs:
+            arg_lst.extend('%s=%r' % (k, w) for k, w in sorted(kwargs.items()))
+        args_str = ', '.join(arg_lst)
+
+        caught_exception = False
+        result = None
+        t0 = time.perf_counter()
+        try:
+            result = func(*args, **kwargs)
+        except:
+            caught_exception = True
+            raise
+        finally:
+            elapsed = time.perf_counter() - t0
+            msg = '[{elapsed:0.8f}s] {name}({args_str})'.format(**locals())
+            if not caught_exception:
+                msg += ' -> {}' .format(result)
+            log.debug(msg)
+        return result
+    return clocked

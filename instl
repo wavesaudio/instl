@@ -7,8 +7,10 @@ import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
+import re
+import inspect
 import logging
-from logging import config
+from logging.config import dictConfig
 import tempfile
 import appdirs
 import datetime
@@ -19,6 +21,7 @@ import sqlite3
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
 import utils
+log = logging.getLogger(__name__)
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
@@ -68,8 +71,10 @@ def get_data_folder():
 
 
 def config_logger():
+    system_log_file_path = utils.get_system_log_file_path()
     d = {
         'version': 1,
+        'disable_existing_loggers': False,
         'formatters': {
             'simple': {
                 'class': 'logging.Formatter',
@@ -77,7 +82,13 @@ def config_logger():
             },
             'detailed': {
                 'class': 'logging.Formatter',
-                'format': '%(asctime)s %(name)-15s %(levelname)-8s %(processName)-10s %(message)s'
+                'datefmt': '%d-%m-%y %H:%M:%S',
+                'format': '%(asctime)s.%(msecs)03d | %(levelname)-7s| %(message)-150s| {%(stack_lvl)s %(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | %(name)s.%(funcName)s|%(lineno)-3s}',
+            }
+        },
+        'filters': {
+            'parent': {
+                '()': ParentFilter,
             }
         },
         'handlers': {
@@ -93,14 +104,42 @@ def config_logger():
                 'formatter': 'simple',
                 'stream': sys.stderr
             },
+            'system_log': {
+                'class': 'logging.handlers.RotatingFileHandler',
+                'level': 'DEBUG',
+                'formatter': 'detailed',
+                'filename': system_log_file_path,
+                'mode': 'a',
+                'maxBytes': 10000000,
+                'backupCount': 10,
+                'filters': ['parent']
+            },
         },
         'root': {
             'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
-            'handlers': ['console', 'errors']
+            'handlers': ['console', 'errors', 'system_log'],
         },
     }
+    os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
+    dictConfig(d)
 
-    config.dictConfig(d)
+
+class ParentFilter(logging.Filter):
+    '''Adds additional info to the log message - stack level, parent info: module, function name, line number.'''
+    def filter(self, record):
+        record.name = re.sub('.*\.', '', record.name)
+        try:
+            stack = inspect.stack()
+            record.stack_lvl = '.' * (len(stack) - 9)
+            record.parent_mod = inspect.getmodulename(stack[8][1])
+            record.parent_func_name = stack[8][3]
+            record.parent_line_no = stack[8][2]
+        except IndexError:
+            record.stack_lvl = ''
+            record.parent_mod = ''
+            record.parent_func_name = ''
+            record.parent_line_no = ''
+        return True
 
 
 def main():
@@ -129,7 +168,7 @@ def main():
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__PATH_SEP__": os.path.sep,
-                    "__INVOCATIONS_FILE_PATH__": utils.get_invocations_file_path(),
+                    "__SYSTEM_LOG_FILE_PATH__": utils.get_system_log_file_path(),
                     "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
                     }
 
@@ -138,7 +177,7 @@ def main():
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
 
-    config_logger()
+    # config_logger()
     instance = None
     if options.__MAIN_COMMAND__ == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file
@@ -196,42 +235,29 @@ def main():
 
 class InvocationReporter(object):
     def __init__(self) -> None:
-        self.invocations_file_path = None
         self.start_time = datetime.datetime.now()
-        self.max_file_size = 400000
         self.random_invocation_name = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
 
     def __enter__(self):
         try:
-            self.invocations_file_path = utils.get_invocations_file_path()
-            os.makedirs(os.path.dirname(self.invocations_file_path), exist_ok=True)
-
-            # if file too big rename it to ".1" - only one back copy is kept
-            if os.path.isfile(self.invocations_file_path) and os.path.getsize(self.invocations_file_path) > self.max_file_size:
-                backup_file_path = self.invocations_file_path + ".1"
-                os.rename(self.invocations_file_path, backup_file_path)
-
-            with utils.utf8_open(self.invocations_file_path, "a") as wfd:
-                print("===", self.random_invocation_name, file=wfd, flush=True)
-                print("start:", self.start_time, file=wfd, flush=True)
-                print("instl:", sys.argv[0], file=wfd, flush=True)
-                print("argv:", " ".join(sys.argv[1:]), file=wfd, flush=True)
-        except:
-            # this is a report so if something went wrong just forget it
-            pass
+            config_logger()
+            log.info(f"===== {self.random_invocation_name} =====")
+            log.info(f"Start: {self.start_time}")
+            log.info(f"instl: {sys.argv[0]}")
+            log.info('argv: {}'.format(" ".join(sys.argv[1:])))
+        except Exception as e:
+            log.warning(f'instl log file report start failed - {e}')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
-            with utils.utf8_open(self.invocations_file_path, "a") as wfd:
-                end_time = datetime.datetime.now()
-                if exc_val:
-                    print("exception:", exc_val, file=wfd, flush=True)
-                print("run time:", end_time-self.start_time, file=wfd, flush=True)
-                print("end:", end_time, file=wfd, flush=True)
-                print("===", self.random_invocation_name, file=wfd, flush=True)
+            end_time = datetime.datetime.now()
+            if exc_val:
+                log.exception(exc_val)
+            log.info(f"Run time: {end_time-self.start_time}")
+            log.info(f"End: {end_time}")
+            log.info(f"===== {self.random_invocation_name} =====")
         except:
-            # this is a report so if something went wrong just forget it
-            pass
+            log.warning(f'instl log file report finalize failed - {e}')
 
 
 if __name__ == "__main__":
