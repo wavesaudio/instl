@@ -295,8 +295,7 @@ class InstlClientCopy(InstlClient):
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
-                have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
-                sub_bc += SetDownloadFolderExec(have_info_path)
+                sub_bc += SetDownloadFolderExec()
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:
