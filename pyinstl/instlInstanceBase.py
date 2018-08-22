@@ -300,7 +300,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += MakeDirs(destination_folder)
-                            self.batch_accum += CopyFileToFile(file_path, destination_path, link_dest=True)
+                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False)
                             self.batch_accum += Progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
@@ -308,7 +308,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         for identifier in config_vars.keys():
             if identifier not in do_not_write_vars:
-                in_batch_accum += VarAssign(identifier, *list(config_vars[identifier]))
+                in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:

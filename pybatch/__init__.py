@@ -14,7 +14,9 @@ from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
 from .reportingBatchCommands import Section
-from .reportingBatchCommands import VarAssign
+from .reportingBatchCommands import ConfigVarAssign
+from .reportingBatchCommands import PythonVarAssign
+from .reportingBatchCommands import PythonBatchRuntime
 
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd
@@ -37,7 +39,7 @@ from .batchCommands import Unlock
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
 from .info_mapBatchCommands import CheckDownloadFolderChecksum
-from .info_mapBatchCommands import SetDownloadFolderExec
+from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
 from .info_mapBatchCommands import CreateSyncFolders
 
 if sys.platform == "win32":

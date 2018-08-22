@@ -128,7 +128,7 @@ class InstlClientCopy(InstlClient):
         if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
             progress_num = self.platform_helper.increment_progress(1)
             self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
-            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
+            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False)
             self.batch_accum += Progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
         self.create_require_file_instructions()
@@ -296,7 +296,7 @@ class InstlClientCopy(InstlClient):
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
-                sub_bc += SetDownloadFolderExec()
+                sub_bc += SetExecPermissionsInSyncFolder()
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:

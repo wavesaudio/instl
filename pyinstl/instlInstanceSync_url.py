@@ -212,7 +212,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     if int(config_vars["__NUM_FILES_TO_DOWNLOAD__"]) > 0:
                         post_sync_accum_transaction += self.chown_for_synced_folders()
                         self.instlObj.progress("create sync instructions done")
-                    post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)")
+                    post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False)
 
         sync_accum += Progress("Done sync")
 

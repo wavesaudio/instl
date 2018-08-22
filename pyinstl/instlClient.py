@@ -304,13 +304,13 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True)
+        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
             self.batch_accum += Progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
-            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False)
         else:   # remove previous require.yaml since the new one does not contain anything
             self.batch_accum += Progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
             self.batch_accum += self.platform_helper.rmfile("$(SITE_REQUIRE_FILE_PATH)")

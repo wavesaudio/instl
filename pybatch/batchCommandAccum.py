@@ -5,10 +5,12 @@ import pathlib
 import re
 import logging
 import time
+import datetime
 
 from .baseClasses import PythonBatchCommandBase
-from .reportingBatchCommands import Section
+from .reportingBatchCommands import Section, PythonBatchRuntime
 from configVar import config_vars
+import utils
 
 python_batch_log_level = logging.WARNING
 
@@ -86,7 +88,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines = list()
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
         opening_code_lines.append(f"""import sys""")
-        opening_code_lines.append(f"""sys.path.append(r'{instl_folder}')""")
+        opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_string(instl_folder)})""")
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""from configVar import config_vars""")
         PythonBatchCommandBase.total_progress = 0
@@ -101,8 +103,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return the_oc
 
     def _python_closing_code(self):
-        oc = f"# eof\n\n"
-        return oc
+        cc = f"\n# eof\n\n"
+        return cc
 
     def __repr__(self):
         single_indent = "    "
@@ -140,13 +142,14 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
         io_str = io.StringIO()
         io_str.write(self._python_opening_code())
+        the_command = config_vars.get("__MAIN_COMMAND__", "woolly mammoth")
+        runtimer = PythonBatchRuntime(the_command)
         for section_name in PythonBatchCommandAccum.section_order:
             if section_name in self.sections:
-                if section_name == "assign":
-                    _repr_helper(self.sections[section_name].sub_commands(), io_str, 0)
-                else:
-                    _repr_helper(self.sections[section_name], io_str, 0)
-                io_str.write("\n")
+                runtimer += self.sections[section_name]
+        io_str.write("\n")
+        _repr_helper(runtimer, io_str, 0)
+        io_str.write("\n")
         io_str.write(self._python_closing_code())
         return io_str.getvalue()
 
