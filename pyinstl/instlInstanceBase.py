@@ -305,9 +305,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
-        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
+        do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
         for identifier in config_vars.keys():
-            if identifier not in do_not_write_vars:
+            if identifier.lower() not in do_not_write_vars:
                 in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def calc_user_cache_dir_var(self, make_dir=True):

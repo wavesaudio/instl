@@ -97,7 +97,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             parallel_run_config_file_path = config_vars.resolve_str(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, True)
+            dl_commands += ParallelRun(parallel_run_config_file_path, False)
 
             num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             if num_files_to_download > 1:
