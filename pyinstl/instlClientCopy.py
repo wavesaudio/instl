@@ -192,7 +192,6 @@ class InstlClientCopy(InstlClient):
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
         if no_wtar_items:
-            retVal += 1
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in wtar_items}
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             retVal += CopyDirContentsToDir(
