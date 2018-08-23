@@ -17,6 +17,19 @@ import aYaml
 from .configVarOne import ConfigVar
 from .configVarParser import var_parse_imp
 
+# regex to identify $(...) references
+value_ref_re = re.compile("""
+                            (?P<varref_pattern>
+                                (?P<varref_marker>[$])      # $
+                                \(                          # (
+                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
+                                    (?P<varref_array>\[
+                                        (?P<array_index>\d+)
+                                    \])?
+                                \)
+                            )                         # )
+                            """, re.X)
+
 
 class ConfigVarStack:
     """
@@ -363,6 +376,17 @@ class ConfigVarStack:
                 for env_key_to_read in vars_to_read_from_environ:
                     if env_key_to_read in os.environ:
                         self[env_key_to_read] = os.environ[env_key_to_read]
+
+    def replace_unresolved_with_native_var_pattern(self, str_to_replace: str, which_os: str) -> str:
+        pattern = "$(\g<var_name>)"  # default is configVar style
+        if which_os == 'Win':
+            pattern = "%\g<var_name>%"
+        elif which_os == 'Mac':
+            pattern = "${\g<var_name>}"
+
+        retVal = value_ref_re.sub(pattern, str_to_replace)
+        return retVal
+
 
     def print_statistics(self):
         if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
