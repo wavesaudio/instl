@@ -8,6 +8,7 @@ import sys
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
 import re
+import json
 import inspect
 import logging
 from logging.config import dictConfig
@@ -82,8 +83,12 @@ def config_logger():
             },
             'detailed': {
                 'class': 'logging.Formatter',
-                'datefmt': '%d-%m-%y %H:%M:%S',
+                'datefmt': '%Y-%m-%d_%H:%M:%S',
                 'format': '%(asctime)s.%(msecs)03d | %(levelname)-7s| %(message)-150s| {%(stack_lvl)s %(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | %(name)s.%(funcName)s|%(lineno)-3s}',
+            },
+            'json': {
+                '()': JsonFormatter,
+                'format': '%(message)s'
             }
         },
         'filters': {
@@ -113,7 +118,7 @@ def config_logger():
                 'maxBytes': 10000000,
                 'backupCount': 10,
                 'filters': ['parent']
-            },
+            }
         },
         'root': {
             'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
@@ -140,6 +145,18 @@ class ParentFilter(logging.Filter):
             record.parent_func_name = ''
             record.parent_line_no = ''
         return True
+
+
+class JsonFormatter(object):
+    ATTR_TO_JSON = ['created', 'filename', 'funcName', 'levelname', 'lineno', 'module', 'msecs', 'msg', 'name', 'pathname', 'process', 'processName', 'relativeCreated', 'thread', 'threadName']
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+    def format(self, record):
+        obj = {attr: getattr(record, attr)
+               for attr in self.ATTR_TO_JSON}
+        return json.dumps(obj, indent=4)
 
 
 def main():
@@ -241,10 +258,10 @@ class InvocationReporter(object):
     def __enter__(self):
         try:
             config_logger()
-            log.info(f"===== {self.random_invocation_name} =====")
-            log.info(f"Start: {self.start_time}")
-            log.info(f"instl: {sys.argv[0]}")
-            log.info('argv: {}'.format(" ".join(sys.argv[1:])))
+            log.debug(f"===== {self.random_invocation_name} =====")
+            log.debug(f"Start: {self.start_time}")
+            log.debug(f"instl: {sys.argv[0]}")
+            log.debug('argv: {}'.format(" ".join(sys.argv[1:])))
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
@@ -253,9 +270,9 @@ class InvocationReporter(object):
             end_time = datetime.datetime.now()
             if exc_val:
                 log.exception(exc_val)
-            log.info(f"Run time: {end_time-self.start_time}")
-            log.info(f"End: {end_time}")
-            log.info(f"===== {self.random_invocation_name} =====")
+            log.debug(f"Run time: {end_time-self.start_time}")
+            log.debug(f"End: {end_time}")
+            log.debug(f"===== {self.random_invocation_name} =====")
         except:
             log.warning(f'instl log file report finalize failed - {e}')
 
