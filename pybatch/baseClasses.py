@@ -210,7 +210,12 @@ class RunProcessBase(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         run_args = list(map(str, self.create_run_args()))
         print(" ".join(run_args))
-        completed_process = subprocess.run(run_args, check=True, stdout=subprocess.PIPE, shell=self.shell)
+        try:
+            completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
+            #print("stdout:", completed_process.stdout)
+            #print("stderr:", completed_process.stderr)
+        except Exception as ex:
+            print("subprocess.run exception:", ex)
         return None  # what to return here?
 
     def __repr__(self):
