@@ -4,16 +4,19 @@ from .batchCommands import PythonBatchCommandBase
 from .batchCommandAccum import batch_repr
 from .batchCommandAccum import PythonBatchCommandAccum
 
-from .rsyncClone import CopyDirContentsToDir
-from .rsyncClone import CopyDirToDir
-from .rsyncClone import CopyFileToDir
-from .rsyncClone import CopyFileToFile
+from .copyBatchCommands import CopyDirContentsToDir
+from .copyBatchCommands import CopyDirToDir
+from .copyBatchCommands import CopyFileToDir
+from .copyBatchCommands import CopyFileToFile
 
+from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
 from .reportingBatchCommands import Section
-from .reportingBatchCommands import VarAssign
+from .reportingBatchCommands import ConfigVarAssign
+from .reportingBatchCommands import PythonVarAssign
+from .reportingBatchCommands import PythonBatchRuntime
 
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd
@@ -36,7 +39,8 @@ from .batchCommands import Unlock
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
 from .info_mapBatchCommands import CheckDownloadFolderChecksum
-from .info_mapBatchCommands import SetDownloadFolderExec
+from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
+from .info_mapBatchCommands import CreateSyncFolders
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut
@@ -49,5 +53,4 @@ if sys.platform == "darwin":
     from .batchCommandsMacOnly import SymlinkFileToSymlink
     from .batchCommandsMacOnly import SymlinkToSymlinkFile
 
-from .rsyncClone import RsyncClone
 from .new_batchCommands import *

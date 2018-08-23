@@ -18,6 +18,7 @@ from collections import namedtuple
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
+from pybatch.copyBatchCommands import RsyncClone
 
 
 @contextlib.contextmanager
@@ -731,19 +732,16 @@ class TestPythonBatch(unittest.TestCase):
                         f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
 
-            #geronimo = [r"SET",]
-            geronimo1 = r"dir '%HOMEPATH%' >> '%HOMEPATH%\geronimo.txt'"
-            geronimo2 = r"print '%HOMEPATH%\geronimo.txt'"
-            #geronimo = [r"dir '%userprofile%\desktop' >> '%userprofile%\desktop\geronimo.txt'",]
-            #geronimo = [r"cmd /C dir C:\Users\shai\desktop >> C:\Users\shai\desktop\geronimo.txt",]
-            #geronimo = [r"cmd /C dir C:\Users\shai\desktop",]
+            # geronimo = [r"SET",]
+            geronimo = [r"dir %appdata% >> %appdata%\geronimo.txt",
+                        r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
+                        r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
+                        r"cmd /C dir %userprofile%\desktop",]
 
         self.batch_accum.clear()
-        #self.batch_accum += VarAssign("geronimo", *geronimo)
+        #self.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
-        #self.batch_accum += ShellCommands(shell_commands_list=geronimo)
-        self.batch_accum += SingleShellCommand(shell_command=geronimo1)
-        self.batch_accum += SingleShellCommand(shell_command=geronimo2)
+        self.batch_accum += ShellCommands(shell_commands_list=geronimo)
 
         self.exec_and_capture_output()
 

@@ -95,7 +95,7 @@ class InstlMisc(InstlInstanceBase):
     def do_set_exec(self):
         self.progress_staccato_command = True
         info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
-        SetDownloadFolderExec(info_map_file)
+        SetExecPermissionsInSyncFolder(info_map_file)
 
     def do_create_folders(self):
         self.progress_staccato_command = True
@@ -196,12 +196,13 @@ class InstlMisc(InstlInstanceBase):
         py_file_path = "unknown file"
         try:
             self.read_yaml_file("InstlClient.yaml")  # temp hack, which additional config file to read should come from command line options
-            config_file = config_vars["__CONFIG_FILE__"].str()
+            config_file = config_vars.get("__CONFIG_FILE__").str()
             self.read_yaml_file(config_file, ignore_if_not_exist=True)
             py_file_path = config_vars["__MAIN_INPUT_FILE__"].str()
             with utils.utf8_open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
-                exec(py_text, globals())
+                py_compiled = compile(py_text, py_file_path, mode='exec', flags=0, dont_inherit=False, optimize=2)
+                exec(py_compiled, globals())
         except Exception as ex:
             print("Exception while exec ", py_file_path, ex)
 

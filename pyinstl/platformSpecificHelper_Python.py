@@ -34,7 +34,7 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         """ exec 2>&1 within a batch file will redirect stderr to stdout.
             .sync.sh >& out.txt on the command line will redirect stderr to stdout from without.
         """
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
         retVal = (
             "#!/usr/bin/env bash",
@@ -67,7 +67,7 @@ class PlatformSpecificHelperPython(PlatformSpecificHelperBase):
         return retVal
 
     def get_install_instructions_postfix(self):
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
 
     def get_install_instructions_mkdir_with_owner_func(self):
@@ -208,11 +208,11 @@ report_invocation_end() {{
         return 'find . -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 "$(SVN_CLIENT_PATH)" cleanup --non-interactive'
 
     def var_assign(self, identifier, value):
-        retVal = VarAssign(identifier, value)
+        retVal = ConfigVarAssign(identifier, value)
         return retVal
 
     def setup_echo(self):
-        retVal = NoOp()
+        retVal = AnonymousAccum()
         return retVal
 
     def echo(self, message):
@@ -361,7 +361,7 @@ split_file()
                 if true_shell_commands:  # wrap up the true shell commands up till now
                     PlatformSpecificHelperPython.var_name_counter += 1
                     var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
-                    var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+                    var = ConfigVarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
                     retVal.append(var)
                     batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
                     retVal.append(batch)
@@ -373,7 +373,7 @@ split_file()
         if true_shell_commands:
             PlatformSpecificHelperPython.var_name_counter += 1
             var_name = f"var_{PlatformSpecificHelperPython.var_name_counter:04}"
-            var = VarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
+            var = ConfigVarAssign(var_name, var_stack.ResolveListToList(true_shell_commands))
             retVal.append(var)
             batch = ShellCommands(dir="$(__MAIN_OUT_FILE_DIR__)", shell_commands_var_name=var_name)
             retVal.append(batch)
@@ -381,7 +381,7 @@ split_file()
 
     def progress(self, msg, num_items=0):
         """ do we need separate progress command for python-batch?"""
-        progress_command = Progress(msg, num_items)
+        progress_command = Progress(msg)
         return progress_command
 
 

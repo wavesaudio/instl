@@ -96,8 +96,8 @@ class BatchAccumulator(object):
             self.cancel_transaction()
 
 
-def BatchAccumulatorFactory(use_python_batch: bool) -> BatchAccumulator:
+def BatchAccumulatorFactory(use_python_batch: bool, **kwargs) -> BatchAccumulator:
     if use_python_batch:
-        return PythonBatchCommandAccum()
+        return PythonBatchCommandAccum(**kwargs)
     else:
         return BatchAccumulator()

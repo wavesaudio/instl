@@ -34,8 +34,6 @@ class InstlClientSync(InstlClient):
 
         self.read_defaults_file(type(syncer).__name__)
         syncer.init_sync_vars()
-        with self.batch_accum.sub_accum(Section("sync_instructions")) as main_sync_accum_transaction:
-            main_sync_accum_transaction += syncer.create_sync_instructions()
+        self.batch_accum.set_current_section('sync')
 
-        if main_sync_accum_transaction.essential_action_counter == 0:
-            main_sync_accum_transaction += syncer.create_no_sync_instructions()
+        syncer.create_sync_instructions()

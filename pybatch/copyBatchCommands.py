@@ -1,281 +1,262 @@
 import os
+import shutil
+from collections import defaultdict
 
-import utils
-from .baseClasses import *
+# ToDo: add unwtar ?
 
 
-class CopyBase(RunProcessBase, essential=True):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,         ignore_if_not_exist = False, copy_file=False, copy_dir=False) -> None:
-        super().__init__()
-        self.src: os.PathLike = src
-        self.trg: os.PathLike = trg
-        self.link_dest = link_dest
-        self.ignore_patterns = ignore_patterns
-        self.preserve_dest_files = preserve_dest_files
-        self.ignore_if_not_exist = ignore_if_not_exist
-        self.copy_file = copy_file
-        self.copy_dir = copy_dir
+from .batchCommands import *
+log = logging.getLogger(__name__)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(os.fspath(self.src))}, trg={utils.quoteme_raw_string(os.fspath(self.trg))}, link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
+
+class RsyncClone(PythonBatchCommandBase, essential=True):
+    def __init__(self,
+                 src,
+                 dst,
+                 symlinks_as_symlinks=True,
+                 patterns_to_ignore=[],
+                 hard_links=True,
+                 ignore_dangling_symlinks=False,
+                 delete_extraneous_files=False,
+                 verbose=0,
+                 dry_run=False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self.src = src
+        self.dst = dst
+        self.symlinks_as_symlinks = symlinks_as_symlinks
+        self.patterns_to_ignore = patterns_to_ignore
+        self.hard_links = hard_links
+        self.ignore_dangling_symlinks = ignore_dangling_symlinks
+        self.delete_extraneous_files = delete_extraneous_files
+        self.verbose = verbose
+        self.dry_run = dry_run
+
+        self._get_ignored_files_func = None
+        self.statistics = defaultdict(int)
+
+    def unnamed__init__param(self, value):
+        value_str = utils.quoteme_raw_if_string(value)
+        return value_str
+
+    def named__init__param(self, name, value):
+        value_str = utils.quoteme_raw_if_string(value)
+        param_repr = f"{name}={value_str}"
+        return param_repr
+
+    def optional_named__init__param(self, name, value, default=None):
+        param_repr = None
+        if value != default:
+            value_str = utils.quoteme_raw_if_string(value)
+            param_repr = f"{name}={value_str}"
+        return param_repr
+
+    def __repr__(self) -> str:
+        the_repr = f'''{self.__class__.__name__}('''
+        params = []
+        params.append(self.unnamed__init__param(os.fspath(self.src)))
+        params.append(self.unnamed__init__param(os.fspath(self.dst)))
+        params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
+        params.append(self.optional_named__init__param("patterns_to_ignore", self.patterns_to_ignore, []))
+        params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
+        params.append(self.optional_named__init__param("ignore_dangling_symlinks", self.ignore_dangling_symlinks, False))
+        params.append(self.optional_named__init__param("delete_extraneous_files", self.delete_extraneous_files, False))
+        params.append(self.optional_named__init__param("verbose", self.verbose, 0))
+        params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
+        params_text = ", ".join(filter(None, params))
+        if params_text:
+            the_repr += params_text
+        the_repr += ")"
         return the_repr
 
-    def progress_msg_self(self):
-        the_progress_msg = f"{self}"
-        return the_progress_msg
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
 
-    @abc.abstractmethod
-    def create_run_args(self):
-        raise NotImplemented()
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
 
-    @abc.abstractmethod
-    def create_ignore_spec(self, ignore_patterns: bool):
-        raise NotImplemented()
+    def progress_msg_self(self) -> str:
+        return f''''''
 
+    def __call__(self, *args, **kwargs) -> None:
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        self.copy_tree(expanded_src, expanded_dst)
 
-class RsyncCopyBase(CopyBase):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, *args, **kwargs) -> None:
-        # not correct in case of a file
-        #if not os.fspath(trg).endswith("/"):
-        #    trg = os.fspath(trg) + "/"
-        super().__init__(src, trg, *args, **kwargs)
+    def print_if_level(self, message_level, *messages):
+        if message_level <= self.verbose:
+            log.info(' '.join(messages))
 
-    def create_run_args(self):
-        run_args = list()
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
+    def get_ignored_files(self, root, names_in_root):
+        ignored_names = []
+        if self.patterns_to_ignore:
+            if self._get_ignored_files_func is None:
+                self._get_ignored_files_func = shutil.ignore_patterns(*self.patterns_to_ignore)
+            ignored_names.extend(self._get_ignored_files_func(root, names_in_root))
+        return ignored_names
+
+    def remove_extraneous_files(self, dst, src_names):
+        """ remove files in destination that are not in source.
+            files in the ignore list are not removed even if they do not
+            appear in the source.
+        """
+        dst_names = os.listdir(dst)
+        dst_ignored_names = self.get_ignored_files(dst, dst_names)
+
+        for dst_name in dst_names:
+            if dst_name not in src_names and dst_name not in dst_ignored_names:
+                dst_path = os.path.join(dst, dst_name)
+                self.print_if_level(1, f"delete {dst_path}")
+                if os.path.islink(dst_path) or os.path.isfile(dst_path):
+                    self.dry_run or os.unlink(dst_path)
+                else:
+                    self.dry_run or shutil.rmtree(dst_path)
+
+    def copy_symlink(self, src_path, dst_path):
+        link_to = os.readlink(src_path)
+        if self.symlinks_as_symlinks:
+            self.dry_run or os.symlink(link_to, dst_path)
+            self.dry_run or shutil.copystat(src_path, dst_path, follow_symlinks=False)
+            self.print_if_level(1, f"create symlink '{dst_path}'")
         else:
-            delete_spec = ""
+            # ignore dangling symlink if the flag is on
+            if not os.path.exists(link_to) and self.ignore_dangling_symlinks:
+                return
+            # otherwise let the copy occur. copy_file_to_file will raise an error
+            self.print_if_level(2, f"copy symlink contents '{src_path}' to '{dst_path}'")
+            if os.path.isdir(src_path):
+                self.copy_tree(src_path, dst_path)
+            else:
+                self.copy_file_to_file(src_path, dst_path)
 
-        run_args.extend(["rsync", "--owner", "--group", "-l", "-r", "-E", "--hard-links", delete_spec, *ignore_spec])
-        if self.link_dest:
-            src_base, src_leaf = os.path.split(self.src)
-            target_relative_to_source = os.path.relpath(src_base, self.trg)  # rsync expect --link-dest to be relative to target
-            the_link_dest_arg = f'''--link-dest="{target_relative_to_source}"'''
-            run_args.append(the_link_dest_arg)
-        run_args.extend([self.src, self.trg])
-        if self.ignore_if_not_exist:
-            run_args.extend(["||", "true"])
-        return run_args
-
-    def create_ignore_spec(self, ignore_patterns: bool) -> None:
-        retVal = []
-        if self.ignore_patterns:
-            if isinstance(self.ignore_patterns, str):
-                self.ignore_patterns = (self.ignore_patterns,)
-            retVal.extend(["--exclude=" + utils.quoteme_single(ignoree) for ignoree in self.ignore_patterns])
+    def should_copy_file(self, src, dst):
+        retVal = True
+        if os.path.isfile(dst):
+            src_stats = os.stat(src)
+            dst_stats = os.stat(dst)
+            if src_stats.st_ino == dst_stats.st_ino:
+                retVal = False
+                self.print_if_level(2, f"same inode, skip copy file '{src}' to '{dst}'")
+            elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
+                retVal = False
+                self.print_if_level(2, f"same time and size, skip copy file '{src}' to '{dst}'")
+        if retVal:
+            self.print_if_level(3, f"no skip copy file '{src}' to '{dst}'")
+        else:
+            self.print_if_level(1, f"skip copy file '{src}' to '{dst}'")
         return retVal
 
+    def copy_file_to_file(self, src, dst, follow_symlinks=True):
+        """ copy the file src to the file dst. dst should either be an existing file
+            or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
+            is assumed to exist
+        """
+        if self.should_copy_file(src, dst):
+            if not self.hard_links or os.path.islink(src):
+                self.print_if_level(1, f"copy file '{src}' to '{dst}'")
+                self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
+            else:  # try to create hard link
+                try:
+                    self.dry_run or os.link(src, dst)
+                    self.print_if_level(1, f"hard link file '{src}' to '{dst}'")
+                    self.statistics['hard_links'] += 1
+                except OSError as ose:
+                    self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
+                    self.print_if_level(1, f"copy file '{src}' to '{dst}'")
+        else:
+            self.statistics['skipped_files'] += 1
+        return dst
 
-class RoboCopyBase(CopyBase):
-    RETURN_CODES = {0:  '''
-                            No errors occurred, and no copying was done.
-                            The source and destination directory trees are completely synchronized.''',
-                    1: '''One or more files were copied successfully (that is, new files have arrived).''',
-                    2: '''
-                            Some Extra files or directories were detected. No files were copied
-                            Examine the output log for details.''',
-                    # (2 + 1)
-                    3: '''Some files were copied.Additional files were present.No failure was encountered.''',
-                    4: '''
-                            Some Mismatched files or directories were detected.
-                            Examine the output log. Housekeeping might be required.''',
-                    # (4 + 1)
-                    5: '''Some files were copied. Some files were mismatched. No failure was encountered.''',
-                    # (4 + 2)
-                    6: '''
-                            Additional files and mismatched files exist. No files were copied and no failures were encountered.
-                            This means that the files already exist in the destination directory''',
-                    # (4 + 1 + 2)
-                    7: '''Files were copied, a file mismatch was present, and additional files were present.''',
+    def copy_file_to_dir(self, src, dst, follow_symlinks=True):
+        os.makedirs(dst, exist_ok=True)
+        dst = os.path.join(dst, os.path.basename(src))
+        retVal = self.copy_file_to_file(src, dst, follow_symlinks)
+        return retVal
 
-                    # Any value greater than 7 indicates that there was at least one failure during the copy operation.
-                    8: '''
-                            Some files or directories could not be copied
-                            (copy errors occurred and the retry limit was exceeded).
-                            Check these errors further.''',
-                    16: '''
-                            Serious error. Robocopy did not copy any files.
-                            Either a usage error or an error due to insufficient access privileges
-                            on the source or destination directories.'''}
+    def copy_tree(self, src, dst):
+        """ based on shutil.copytree
+        """
+        self.statistics['dirs'] += 1
+        self.print_if_level(2, f"copy folder '{src}' to '{dst}'")
+        src_names = os.listdir(src)
+        os.makedirs(dst, exist_ok=True)
+
+        if self.delete_extraneous_files:
+            self.remove_extraneous_files(dst, src_names)
+
+        src_ignored_names = self.get_ignored_files(src, src_names)
+        errors = []
+        for src_name in src_names:
+            src_path = os.path.join(src, src_name)
+            if src_name in src_ignored_names:
+                self.statistics['ignored'] += 1
+                self.print_if_level(1, f"ignoring '{src_path}'")
+                continue
+            dst_path = os.path.join(dst, src_name)
+            try:
+                if os.path.islink(src_path):
+                    self.statistics['symlinks'] += 1
+                    self.copy_symlink(src_path, dst_path)
+                elif os.path.isdir(src_path):
+                    self.copy_tree(src_path, dst_path)
+                else:
+                    self.statistics['files'] += 1
+                    # Will raise a SpecialFileError for unsupported file types
+                    self.copy_file_to_file(src_path, dst_path)
+            # catch the Error from the recursive copytree so that we can
+            # continue with other files
+            except shutil.Error as err:
+                errors.append(err.args[0])
+            except OSError as why:
+                errors.append((src_path, dst_path, str(why)))
+        try:
+            shutil.copystat(src, dst)
+        except OSError as why:
+            # Copying file access times may fail on Windows
+            if getattr(why, 'winerror', None) is None:
+                errors.append((src, dst, str(why)))
+        if errors:
+            raise shutil.Error(errors)
+        return dst
+
+    def exit_self(self, exit_return):
+        log.info("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
+
+
+class CopyDirToDir(RsyncClone):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+
+    def __call__(self, *args, **kwargs) -> None:
+        expanded_src = os.path.expandvars(self.src)
+        dst = os.path.join(self.dst, os.path.basename(self.src))
+        expanded_dst = os.path.expandvars(dst)
+        self.copy_tree(expanded_src, expanded_dst)
+
+
+class CopyDirContentsToDir(RsyncClone):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+
+
+class CopyFileToDir(RsyncClone):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        try:
-            super().__call__(*args, **kwargs)
-        except subprocess.CalledProcessError as e:
-            if e.returncode > 7 and not self.ignore_if_not_exist:
-                raise e
-            #     pass  # One or more files were copied successfully (that is, new files have arrived).
-            # else:
-            #     raise subprocess.SubprocessError(f'{self.RETURN_CODES[e.returncode]}') from e
-
-    def create_run_args(self):
-        run_args = ['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS', '/256']
-        if not self.preserve_dest_files:
-            run_args.append('/purge')
-        if self.copy_file:
-            run_args.extend((os.path.dirname(self.src), self.trg, os.path.basename(self.src)))
-        elif self.copy_dir:
-            run_args.extend((self.src, os.path.join(self.trg, os.path.basename(self.src))))
-        else:
-            run_args.extend((self.src, self.trg))
-        run_args.extend(self.create_ignore_spec(self.ignore_patterns))
-        return run_args
-
-    def create_ignore_spec(self, ignore_patterns: bool):
-        try:
-            ignore_patterns = [os.path.abspath(os.path.join(self.src, path)) for path in ignore_patterns]
-        except TypeError:
-            retVal = []
-        else:
-            retVal = ['/XF'] + ignore_patterns + ['/XD'] + ignore_patterns
-        return retVal
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        self.copy_file_to_dir(expanded_src, expanded_dst)
 
 
-if sys.platform == 'darwin':
-    CopyClass = RsyncCopyBase
-elif sys.platform == 'win32':
-    CopyClass = RoboCopyBase
+class CopyFileToFile(RsyncClone):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
 
-
-class CopyDirToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
-        src = os.fspath(src).rstrip("/")
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_dir=True)
-
-    def repr_batch_win(self):
-        retVal = list()
-        _, dir_to_copy = os.path.split(self.src)
-        self.trg = "/".join((self.trg, dir_to_copy))
-        ignore_spec = self._create_ignore_spec_batch_win(self.ignore_patterns)
-        norm_src_dir = os.path.normpath(self.src)
-        norm_trg_dir = os.path.normpath(self.trg)
-        if not self.preserve_dest_files:
-            delete_spec = "/PURGE"
-        else:
-            delete_spec = ""
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec}"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        if self.src.endswith("/"):
-            self.src.rstrip("/")
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
-        else:
-            delete_spec = ""
-        if self.link_dest:
-            the_link_dest = os.path.join(self.src, os.pardir)
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
-
-
-class CopyDirContentsToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
-        if not os.fspath(src).endswith("/"):
-            src = os.fspath(src)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files)
-
-    def repr_batch_win(self):
-        retVal = list()
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        delete_spec = ""
-        if not self.preserve_dest_files:
-            delete_spec = "/PURGE"
-        else:
-            delete_spec = ""
-        norm_src_dir = os.path.normpath(self.src)
-        norm_trg_dir = os.path.normpath(self.trg)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        if not self.src.endswith("/"):
-            self.src += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        delete_spec = ""
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
-        else:
-            delete_spec = ""
-        if self.link_dest:
-            relative_link_dest = os.path.relpath(self.src, self.trg)
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
-
-
-class CopyFileToDir(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, ignore_if_not_exist=False) -> None:
-        src = os.fspath(src).rstrip("/")
-        if not os.fspath(trg).endswith("/"):
-            trg = os.fspath(trg)+"/"
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, ignore_if_not_exist=ignore_if_not_exist, copy_file=True)
-
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)}, trg={utils.quoteme_raw_string(self.trg)}, link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns})"""
-        return the_repr
-
-    def repr_batch_win(self):
-        retVal = list()
-        norm_src_dir, norm_src_file = os.path.split(os.path.normpath(self.src))
-        norm_trg_dir = os.path.normpath(self.trg)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        assert not self.src.endswith("/")
-        if not self.trg.endswith("/"):
-            self.trg += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
-        if self.link_dest:
-            the_link_dest, src_file_name = os.path.split(self.src)
-            relative_link_dest = os.path.relpath(the_link_dest, self.trg)
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
-
-
-class CopyFileToFile(CopyClass):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False, **kwargs) -> None:
-        src = os.fspath(src).rstrip("/")
-        trg = os.fspath(trg).rstrip("/")
-        super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True, **kwargs)
-
-    def repr_batch_win(self):
-        retVal = list()
-        norm_src_file = os.path.normpath(self.src)
-        norm_trg_file = os.path.normpath(self.trg)
-        copy_command = f"""copy "{norm_src_file}" "{norm_trg_file}" """
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error())
-        return retVal
-
-    def repr_batch_mac(self):
-        assert not self.src.endswith("/")
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        if self.link_dest:
-            src_folder_name, src_file_name = os.path.split(self.src)
-            trg_folder_name, trg_file_name = os.path.split(self.trg)
-            relative_link_dest = os.path.relpath(src_folder_name, trg_folder_name)
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
+    def __call__(self, *args, **kwargs) -> None:
+        expanded_src = os.path.expandvars(self.src)
+        expanded_dst = os.path.expandvars(self.dst)
+        os.makedirs(os.path.dirname(expanded_dst), exist_ok=True)
+        self.copy_file_to_file(expanded_src, expanded_dst)

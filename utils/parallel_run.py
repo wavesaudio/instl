@@ -6,6 +6,9 @@ import time
 import sys
 import os
 import signal
+import logging
+
+log = logging.getLogger(__name__)
 
 exit_val = 0
 process_list = list()
@@ -36,7 +39,7 @@ def run_parallels(commands, shell=False):
                 a_process = subprocess.Popen(command, executable=command[0], shell=True, bufsize=1)  # Windows
             process_list.append(a_process)
         except Exception:
-            print("failed to start", command, file=sys.stderr)
+            log.error("failed to start", command, file=sys.stderr)
             sys.stdout.flush()
             exit_val = 31
             killall_and_exit()

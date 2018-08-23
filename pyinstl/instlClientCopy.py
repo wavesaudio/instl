@@ -128,7 +128,7 @@ class InstlClientCopy(InstlClient):
         if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
             progress_num = self.platform_helper.increment_progress(1)
             self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
-            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)")
+            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False)
             self.batch_accum += Progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
         self.create_require_file_instructions()
@@ -149,7 +149,7 @@ class InstlClientCopy(InstlClient):
         return item_size
 
     def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
-        retVal = Section(name_for_progress_message)
+        retVal = AnonymousAccum(name_for_progress_message)
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
             print("no source files for "+source_path)
@@ -179,7 +179,8 @@ class InstlClientCopy(InstlClient):
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
-            self.unwtar_instructions.append((first_wtar_full_path, os.curdir))
+            retVal += Unwtar(first_wtar_full_path, os.curdir)
+            #self.unwtar_instructions.append((first_wtar_full_path, os.curdir))
         return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
@@ -191,7 +192,6 @@ class InstlClientCopy(InstlClient):
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
         if no_wtar_items:
-            retVal += 1
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in wtar_items}
             ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
             retVal += CopyDirContentsToDir(
@@ -295,8 +295,7 @@ class InstlClientCopy(InstlClient):
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
             with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
-                have_info_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
-                sub_bc += SetDownloadFolderExec(have_info_path)
+                sub_bc += SetExecPermissionsInSyncFolder()
 
     # Todo: move function to a better location
     def pre_resolve_path(self, path_to_resolve) -> str:

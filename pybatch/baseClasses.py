@@ -5,16 +5,10 @@ import re
 import time
 from contextlib import contextmanager
 from typing import List
+import logging
+
+log = logging.getLogger(__name__)
 from enum import Enum, auto
-
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
-
-
-def camel_to_snake_case(identifier):
-    identifier1 = first_cap_re.sub(r'\1_\2', identifier)
-    identifier2 = all_cap_re.sub(r'\1_\2', identifier1).lower()
-    return identifier2
 
 
 class PythonBatchCommandBase(abc.ABC):
@@ -36,23 +30,23 @@ class PythonBatchCommandBase(abc.ABC):
     essential = True
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
+    is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
 
-    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, **kwargs):
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
+        cls.is_anonymous = is_anonymous
 
     @abc.abstractmethod
     def __init__(self, identifier=None, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
         if not isinstance(identifier, str) or not identifier.isidentifier():
             self.identifier = "obj"
-        self.obj_name = camel_to_snake_case(f"{self.__class__.__name__}_{PythonBatchCommandBase.instance_counter:05}")
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
-        self.is_context_manager = kwargs.get('is_context_manager', True)
 
         self.exceptions_to_ignore = []
         self.child_batch_commands = []
@@ -91,7 +85,10 @@ class PythonBatchCommandBase(abc.ABC):
     def add(self, instructions):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         if isinstance(instructions, PythonBatchCommandBase):
-            self.child_batch_commands.append(instructions)
+            if instructions.is_anonymous:  # no need for the parent, just the children
+                self.child_batch_commands.extend(instructions.child_batch_commands)
+            else:
+                self.child_batch_commands.append(instructions)
         else:
             for instruction in instructions:
                 self.add(instruction)
@@ -119,7 +116,7 @@ class PythonBatchCommandBase(abc.ABC):
         return ""
 
     def __eq__(self, other) -> bool:
-        do_not_compare_keys = ('progress', 'obj_name')
+        do_not_compare_keys = ('progress', )
         dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
         dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
         is_eq = dict_self == dict_other
@@ -160,7 +157,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.enter_time = time.perf_counter()
         try:
             if self.report_own_progress:
-                print(f"{self.progress_msg()} {self.progress_msg_self()}")
+                log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.enter_self()
         except Exception as ex:
             suppress_exception = self.__exit__(*sys.exc_info())
@@ -181,27 +178,33 @@ class PythonBatchCommandBase(abc.ABC):
         if self.ignore_all_errors or exc_type is None:
             suppress_exception = True
         elif exc_type in self.exceptions_to_ignore:
-            print(f"{self.progress_msg()} WARNING; {self.warning_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
+            self.log_result(logging.WARNING, self.warning_msg_self(), exc_val)
+
             suppress_exception = True
         else:
-            print(f"{self.progress_msg()} ERROR; {self.error_msg_self()}; {exc_val.__class__.__name__}: {exc_val}")
-        self.exit_self(exit_return=suppress_exception)
+            self.log_result(logging.ERROR, self.error_msg_self(), exc_val)
         self.exit_time = time.perf_counter()
+        self.exit_self(exit_return=suppress_exception)
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        print(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
+        log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
+
+    def log_result(self, log_lvl, message, exc_val):
+        log.log(log_lvl, f"{self.progress_msg()}; {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
         pass
 
 
-class RunProcessBase(PythonBatchCommandBase):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
         self.shell = kwargs.get('shell', False)
+        self.stdout = ''
+        self.stderr = ''
 
     @abc.abstractmethod
     def create_run_args(self):
@@ -217,6 +220,11 @@ class RunProcessBase(PythonBatchCommandBase):
         except Exception as ex:
             print("subprocess.run exception:", ex)
         return None  # what to return here?
+
+    def log_result(self, log_lvl, message, exc_val):
+        if self.stderr:
+            message += f'; STDERR: {self.stderr.decode()}'
+        super().log_result(log_lvl, message, exc_val)
 
     def __repr__(self):
         raise NotImplementedError

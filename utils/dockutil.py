@@ -19,10 +19,12 @@
 # Possible future enhancements
 # tie in with application identifier codes for locating apps and replacing them in the dock with newer versions?
 
-import sys, plistlib, subprocess, os, getopt, re, pipes, tempfile, pwd
+import sys, plistlib, subprocess, os, getopt, re, pipes, tempfile, pwd, logging
 import platform
 
 import utils
+
+log = logging.getLogger(__name__)
 
 # default verbose printing to off
 verbose = False
@@ -115,7 +117,7 @@ def verboseOutput(*args):
     """Used by verbose option (-v) to send more output to stdout"""
     if verbose:
         try:
-            print("verbose:", args)
+            log.debug("verbose:", args)
         except Exception:
             pass
 

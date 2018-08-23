@@ -24,6 +24,8 @@ from configVar import ConfigVarYamlReader
 from . import connectionBase
 from db import DBManager
 from pybatch import *
+log = logging.getLogger(__name__)
+
 
 value_ref_re = re.compile("""
                             (?P<varref_pattern>
@@ -57,11 +59,13 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         must be inherited by platform specific implementations, such as InstlInstance_mac
         or InstlInstance_win.
     """
+    # some commands need a fresh db file, so existing one will be erased,
+    # other commands rely on the db file to exist. default is to not refresh
+    commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove','doit', 'report-versions']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
 
-        self.db_file = None
         self.the_command = None
         self.fixed_command = None
 
@@ -99,8 +103,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
                 self.total_self_progress += 1000
-            print(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""",
-                flush=True)
+            log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
@@ -187,13 +190,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 name, value = definition.split("=")
                 config_vars[name] = value
 
-        if "__MAIN_OUT_FILE__" not in config_vars:
-            default_out_file = self.get_default_out_file()
-            if default_out_file:
-                config_vars["__MAIN_OUT_FILE__"] = default_out_file
-
-        self.db_file = str(config_vars.get("__DB_INPUT_FILE__", None))
-        self.progress("")  # so database at... message will not remain visible
+        self.get_default_out_file()
+        self.get_default_db_file()
 
     def close(self):
         del self.info_map_table
@@ -202,10 +200,35 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         config_vars.print_statistics()
 
     def get_default_out_file(self):
-        retVal = None
-        if "__MAIN_INPUT_FILE__" in config_vars:
-            retVal = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-        return retVal
+        if "__MAIN_OUT_FILE__" not in config_vars:
+            if "__MAIN_INPUT_FILE__" in config_vars:
+                default_out_file = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+                config_vars["__MAIN_OUT_FILE__"] = default_out_file
+
+    def get_default_db_file(self):
+        if "__MAIN_DB_FILE__" not in config_vars:
+            db_base_path = None
+            if "__MAIN_OUT_FILE__" in config_vars:
+                # try to set the db file next to the output file
+                db_base_path = str(config_vars["__MAIN_OUT_FILE__"])
+            elif "__MAIN_INPUT_FILE__" in config_vars:
+                # if no output file try next to the input file
+                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
+            else:
+                # as last resort try the Logs folder on desktop if one exists
+                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+                if os.path.isdir(logs_dir):
+                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
+
+            if db_base_path:
+                # set the proper extension
+                db_base_path, ext = os.path.splitext(db_base_path)
+                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
+                config_vars["__MAIN_DB_FILE__"] = db_base_path
+                if self.the_command in self.commands_that_need_to_refresh_db_file:
+                    if os.path.isfile(db_base_path):
+                        utils.safe_remove_file(db_base_path)
+                        self.progress("removed db file", db_base_path)
 
     def read_require(self, a_node, *args, **kwargs):
         del args
@@ -277,7 +300,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += MakeDirs(destination_folder)
-                            self.batch_accum += CopyFileToFile(file_path, destination_path, link_dest=True)
+                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False)
                             self.batch_accum += Progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
@@ -285,7 +308,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         for identifier in config_vars.keys():
             if identifier not in do_not_write_vars:
-                in_batch_accum += VarAssign(identifier, *list(config_vars[identifier]))
+                in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:
@@ -382,7 +405,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             self.out_file_realpath = "stdout"
         msg = " ".join(
             (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
-        print(msg)
+        log.info(msg)
 
     def run_batch_file(self):
         if self.out_file_realpath.endswith(".py"):
