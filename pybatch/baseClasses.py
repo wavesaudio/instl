@@ -212,13 +212,12 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def __call__(self, *args, **kwargs):
         run_args = list(map(str, self.create_run_args()))
-        print(" ".join(run_args))
-        try:
-            completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-            #print("stdout:", completed_process.stdout)
-            #print("stderr:", completed_process.stderr)
-        except Exception as ex:
-            print("subprocess.run exception:", ex)
+        log.debug(" ".join(run_args))
+        completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
+        self.stdout = completed_process.stdout
+        self.stderr = completed_process.stderr
+        log.debug(completed_process.stdout)
+        completed_process.check_returncode()
         return None  # what to return here?
 
     def log_result(self, log_lvl, message, exc_val):
