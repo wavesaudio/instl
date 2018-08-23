@@ -379,10 +379,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         final_repr = repr(in_batch_accum)
         resolved_repr = config_vars.resolve_str(final_repr)
-        output_text = value_ref_re.sub(self.platform_helper.var_replacement_pattern, resolved_repr)
-        # replace unresolved var references to native OS var references, e.g. $(HOME) would be %HOME% on Windows and ${HOME} one Mac
-        #lines_after_var_replacement = [value_ref_re.sub(self.platform_helper.var_replacement_pattern, line) for line in lines]
-        #output_text = "\n".join(lines_after_var_replacement)
+        output_text = config_vars.replace_unresolved_with_native_var_pattern(resolved_repr, list(config_vars["__CURRENT_OS_NAMES__"])[0])
 
         out_file = config_vars["__MAIN_OUT_FILE__"].str()
         out_file += file_name_post_fix
