@@ -140,18 +140,28 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                     io_str.write(f"""{indent_str}{single_indent}{obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
-        io_str = io.StringIO()
-        io_str.write(self._python_opening_code())
+        prolog_str = io.StringIO()
+        prolog_str.write(self._python_opening_code())
+        if 'assign' in self.sections:
+            _repr_helper(self.sections['assign'], prolog_str, 0)
+
+        main_str = io.StringIO()
         the_command = config_vars.get("__MAIN_COMMAND__", "woolly mammoth")
         runtimer = PythonBatchRuntime(the_command)
         for section_name in PythonBatchCommandAccum.section_order:
             if section_name in self.sections:
-                runtimer += self.sections[section_name]
-        io_str.write("\n")
-        _repr_helper(runtimer, io_str, 0)
-        io_str.write("\n")
-        io_str.write(self._python_closing_code())
-        return io_str.getvalue()
+                if section_name != 'assign':
+                    runtimer += self.sections[section_name]
+        main_str.write("\n")
+        _repr_helper(runtimer, main_str, 0)
+        main_str.write("\n")
+        main_str.write(self._python_closing_code())
+
+        main_str_resolved = config_vars.resolve_str(main_str.getvalue())
+        main_str_resolved = config_vars.replace_unresolved_with_native_var_pattern(main_str_resolved, list(config_vars["__CURRENT_OS_NAMES__"])[0])
+
+        the_whole_repr = prolog_str.getvalue()+main_str_resolved
+        return the_whole_repr
 
     def repr_batch_win(self):
         def _repr_helper(batch_items, io_str):

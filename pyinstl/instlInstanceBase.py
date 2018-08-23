@@ -367,19 +367,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.create_variables_assignment(in_batch_accum)
 
-        #in_batch_accum.set_current_section('pre')
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
-        #in_batch_accum += self.platform_helper.get_install_instructions_prefix(exit_on_errors=exit_on_errors)
-        #.set_current_section('post')
-        #in_batch_accum += self.platform_helper.get_install_instructions_postfix()
-        #lines = in_batch_accum.finalize_list_of_lines()
-        #for line in lines:
-        #    if type(line) != str:
-        #        raise TypeError(f"Not a string {type(line)} {line}")
 
         final_repr = repr(in_batch_accum)
-        resolved_repr = config_vars.resolve_str(final_repr)
-        output_text = config_vars.replace_unresolved_with_native_var_pattern(resolved_repr, list(config_vars["__CURRENT_OS_NAMES__"])[0])
 
         out_file = config_vars["__MAIN_OUT_FILE__"].str()
         out_file += file_name_post_fix
@@ -387,7 +377,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         d_path, f_name = os.path.split(out_file)
         os.makedirs(d_path, exist_ok=True)
         with utils.write_to_file_or_stdout(out_file) as fd:
-            fd.write(output_text)
+            fd.write(final_repr)
             fd.write('\n')
 
         if out_file != "stdout":
