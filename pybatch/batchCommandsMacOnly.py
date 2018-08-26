@@ -26,7 +26,7 @@ class MacDock(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{path_to_item}' as '{self.label_for_item}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         dock_util_command = list()
@@ -54,6 +54,13 @@ class MacDock(PythonBatchCommandBase):
             dock_util_command.append("--no-restart")
         utils.dock_util(dock_util_command)
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'path_to_item': self.path_to_item,
+            'label_for_item': self.label_for_item,
+        })
+
 
 class CreateSymlink(PythonBatchCommandBase, essential=True):
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
@@ -74,10 +81,17 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         os.symlink(os.path.expandvars(self.path_to_target), os.path.expandvars(self.path_to_symlink))
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'path_to_symlink': self.path_to_symlink,
+            'path_to_target': self.path_to_target,
+        })
 
 
 class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
@@ -102,7 +116,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.symlink_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         symlink_to_convert = pathlib.Path(os.path.expandvars(self.symlink_to_convert))
@@ -114,6 +128,12 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
                 symlink_text_path.write_text(link_value)
                 symlink_to_convert.unlink()
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'symlink_to_convert': self.symlink_to_convert,
+        })
+
 
 class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
     """ replace a file with extension '.symlink' to a real symlink.
@@ -122,7 +142,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
     """
     def __init__(self, symlink_file_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.symlink_file_to_convert = pathlib.Path(symlink_file_to_convert)
+        self.symlink_file_to_convert = os.fspath(symlink_file_to_convert)
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_file_to_convert))})'''
@@ -137,14 +157,21 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.symlink_file_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         symlink_file_to_convert = pathlib.Path(os.path.expandvars(self.symlink_file_to_convert))
         symlink_target = symlink_file_to_convert.read_text()
         symlink = pathlib.Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
+        symlink.unlink()
         symlink.symlink_to(symlink_target)
         symlink_file_to_convert.unlink()
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'symlink_file_to_convert': self.symlink_file_to_convert,
+        })
 
 
 class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
@@ -155,6 +182,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __init__(self, folder_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_convert = pathlib.Path(folder_to_convert)
+        self.last_symlink_file = None
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.folder_to_convert)})'''
@@ -169,7 +197,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         valid_symlinks = list()
@@ -181,6 +209,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                 if os.path.islink(item_path):
                     link_value = os.readlink(item_path)
                     target_path = os.path.realpath(item_path)
+                    self.last_symlink_file = item_path
                     with SymlinkToSymlinkFile(item_path) as symlink_converter:
                         symlink_converter()
                     if os.path.isdir(target_path) or os.path.isfile(target_path):
@@ -192,6 +221,13 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
             for symlink_file, link_value in broken_symlinks:
                 print(symlink_file, "-?>", link_value)
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'folder_to_convert': self.folder_to_convert,
+            'last_symlink_file': self.last_symlink_file
+        })
+
 
 class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     """ replace a symlink with a file with te same name + the extension '.symlink'
@@ -201,6 +237,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __init__(self, folder_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_convert = pathlib.Path(folder_to_convert)
+        self.last_symlink_file = None
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.folder_to_convert))})'''
@@ -215,7 +252,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_folder_to_convert = os.path.expandvars(self.folder_to_convert)
@@ -223,6 +260,15 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
             for item in files:
                 item_path = pathlib.Path(root, item)
                 if item_path.suffix == ".symlink":
+                    self.last_symlink_file = os.fspath(item_path)
                     with SymlinkFileToSymlink(item_path) as symlink_converter:
                         symlink_converter()
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'folder_to_convert': self.folder_to_convert,
+            'target_path': self.target_path,
+            'last_symlink_file': self.last_symlink_file
+        })
 

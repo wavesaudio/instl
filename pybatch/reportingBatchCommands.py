@@ -1,5 +1,5 @@
 import keyword
-import datetime
+import json
 
 import utils
 
@@ -9,8 +9,9 @@ log = logging.getLogger(__name__)
 
 class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, is_anonymous=True):
 
-    """ AnonymousAccum a container for other PythonBatchCommands,
-        it is not meant to be written to python-batch file or executed.
+    """ AnonymousAccum: a container for other PythonBatchCommands,
+        AnonymousAccum is not meant to be written to python-batch file or executed - only the
+        contained commands will be.
     """
 
     def __init__(self, identifier=None, **kwargs) -> None:
@@ -32,8 +33,15 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         raise NotImplementedError("AnonymousAccum.__call__ should not be called")
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
+    """ Section: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
+        Section itself preforms no action only the contained commands will be preformed
+    """
     def __init__(self, *titles):
         super().__init__()
         self.titles = titles
@@ -57,11 +65,15 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f'''{", ".join(self.titles)} ...'''
+        the_progress_msg = f'''{", ".join(self.titles)}'''
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
         pass
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
@@ -94,6 +106,10 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
     def __call__(self, *args, **kwargs) -> None:
         log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
@@ -121,6 +137,10 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
 
     def __call__(self, *args, **kwargs) -> None:
         pass
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False):
@@ -150,10 +170,15 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
     def __call__(self, *args, **kwargs) -> None:
         pass
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
     """
-        configVar assignment as python variable
+        creates a python variable assignment, e.g.
+        x = y
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -195,10 +220,15 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         pass
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
-        configVar assignment as python variable
+        creates a configVar assignment, e.g.
+        config_vars["x"] = y
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -240,6 +270,10 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
     def __call__(self, *args, **kwargs) -> None:
         pass
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
@@ -247,15 +281,25 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        suppress_exception = False
-        if exc_type:
-            print("exception!", exc_val)
         self.exit_time = time.perf_counter()
+        suppress_exception = False
+        if exc_val:
+            self.log_error(exc_val, exc_tb)
+            log.info("The Comedy of Errors")
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)
-        print(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
+        log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
         return suppress_exception
+
+    def log_error(self, exc_val, exc_tb):
+        error_dict = exc_val.raising_obj.error_dict(exc_val)
+        error_dict.update({
+            "file": exc_tb.tb_frame.f_code.co_filename,
+            "line": exc_tb.tb_lineno
+        })
+        error_json = json.dumps(error_dict)
+        log.error(f"{error_json}")
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}("{self.name}")'''
@@ -274,3 +318,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
 
     def __call__(self, *args, **kwargs) -> None:
         pass
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})

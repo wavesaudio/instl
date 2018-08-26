@@ -13,6 +13,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     def __init__(self,
                  src,
                  dst,
+                 ignore_if_not_exist=False,
                  symlinks_as_symlinks=True,
                  patterns_to_ignore=[],
                  hard_links=True,
@@ -24,6 +25,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.src = src
         self.dst = dst
+        self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
         self.patterns_to_ignore = patterns_to_ignore
         self.hard_links = hard_links
@@ -34,6 +36,12 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
         self._get_ignored_files_func = None
         self.statistics = defaultdict(int)
+        self.last_step = None
+        self.last_src = None
+        self.last_dst = None
+
+        if self.ignore_if_not_exist:
+            self.exceptions_to_ignore.append(FileNotFoundError)
 
     def unnamed__init__param(self, value):
         value_str = utils.quoteme_raw_if_string(value)
@@ -56,6 +64,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params = []
         params.append(self.unnamed__init__param(os.fspath(self.src)))
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
+        params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
         params.append(self.optional_named__init__param("patterns_to_ignore", self.patterns_to_ignore, []))
         params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
@@ -78,16 +87,12 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.src}' to '{self.dst}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_src = os.path.expandvars(self.src)
         expanded_dst = os.path.expandvars(self.dst)
         self.copy_tree(expanded_src, expanded_dst)
-
-    def print_if_level(self, message_level, *messages):
-        if message_level <= self.verbose:
-            log.info(' '.join(messages))
 
     def get_ignored_files(self, root, names_in_root):
         ignored_names = []
@@ -108,24 +113,26 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         for dst_name in dst_names:
             if dst_name not in src_names and dst_name not in dst_ignored_names:
                 dst_path = os.path.join(dst, dst_name)
-                self.print_if_level(1, f"delete {dst_path}")
+                self.last_step, self.last_src, self.last_dst = "remove_extraneous_files", "", dst_path
+                log.info(f"delete {dst_path}")
                 if os.path.islink(dst_path) or os.path.isfile(dst_path):
                     self.dry_run or os.unlink(dst_path)
                 else:
                     self.dry_run or shutil.rmtree(dst_path)
 
     def copy_symlink(self, src_path, dst_path):
+        self.last_step, self.last_src, self.last_dst = "copy_symlink", src_path, dst_path
         link_to = os.readlink(src_path)
         if self.symlinks_as_symlinks:
             self.dry_run or os.symlink(link_to, dst_path)
             self.dry_run or shutil.copystat(src_path, dst_path, follow_symlinks=False)
-            self.print_if_level(1, f"create symlink '{dst_path}'")
+            log.info(f"create symlink '{dst_path}'")
         else:
             # ignore dangling symlink if the flag is on
             if not os.path.exists(link_to) and self.ignore_dangling_symlinks:
                 return
             # otherwise let the copy occur. copy_file_to_file will raise an error
-            self.print_if_level(2, f"copy symlink contents '{src_path}' to '{dst_path}'")
+            log.debug(f"copy symlink contents '{src_path}' to '{dst_path}'")
             if os.path.isdir(src_path):
                 self.copy_tree(src_path, dst_path)
             else:
@@ -138,14 +145,12 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             dst_stats = os.stat(dst)
             if src_stats.st_ino == dst_stats.st_ino:
                 retVal = False
-                self.print_if_level(2, f"same inode, skip copy file '{src}' to '{dst}'")
+                log.info(f"{self.progress_msg()} skip copy file, same inode '{src}' to '{dst}'")
             elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                 retVal = False
-                self.print_if_level(2, f"same time and size, skip copy file '{src}' to '{dst}'")
+                log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
         if retVal:
-            self.print_if_level(3, f"no skip copy file '{src}' to '{dst}'")
-        else:
-            self.print_if_level(1, f"skip copy file '{src}' to '{dst}'")
+            log.debug(f"no skip copy file '{src}' to '{dst}'")
         return retVal
 
     def copy_file_to_file(self, src, dst, follow_symlinks=True):
@@ -153,23 +158,26 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
             is assumed to exist
         """
+        self.last_step, self.last_src, self.last_dst = "copy_file_to_file", src, dst
         if self.should_copy_file(src, dst):
             if not self.hard_links or os.path.islink(src):
-                self.print_if_level(1, f"copy file '{src}' to '{dst}'")
+                log.info(f"copy file '{src}' to '{dst}'")
                 self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
             else:  # try to create hard link
                 try:
                     self.dry_run or os.link(src, dst)
-                    self.print_if_level(1, f"hard link file '{src}' to '{dst}'")
+                    log.info(f"hard link file '{src}' to '{dst}'")
                     self.statistics['hard_links'] += 1
                 except OSError as ose:
                     self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
-                    self.print_if_level(1, f"copy file '{src}' to '{dst}'")
+                    log.info(f"copy file '{src}' to '{dst}'")
         else:
             self.statistics['skipped_files'] += 1
         return dst
 
     def copy_file_to_dir(self, src, dst, follow_symlinks=True):
+        self.last_step, self.last_src, self.last_dst = "copy_file_to_dir", src, dst
+
         os.makedirs(dst, exist_ok=True)
         dst = os.path.join(dst, os.path.basename(src))
         retVal = self.copy_file_to_file(src, dst, follow_symlinks)
@@ -178,8 +186,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     def copy_tree(self, src, dst):
         """ based on shutil.copytree
         """
+        self.last_step, self.last_src, self.last_dst = "copy_tree", src, dst
+
         self.statistics['dirs'] += 1
-        self.print_if_level(2, f"copy folder '{src}' to '{dst}'")
+        log.debug(f"copy folder '{src}' to '{dst}'")
         src_names = os.listdir(src)
         os.makedirs(dst, exist_ok=True)
 
@@ -192,7 +202,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             src_path = os.path.join(src, src_name)
             if src_name in src_ignored_names:
                 self.statistics['ignored'] += 1
-                self.print_if_level(1, f"ignoring '{src_path}'")
+                log.info(f"ignoring '{src_path}'")
                 continue
             dst_path = os.path.join(dst, src_name)
             try:
@@ -222,7 +232,18 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return dst
 
     def exit_self(self, exit_return):
-        log.info("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
+        log.debug("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update(
+            {'copy_from': os.fspath(self.src),
+             'copy_to': os.fspath(self.dst),
+             'last_step': self.last_step,
+             'last_src': os.fspath(self.last_src),
+             'last_dst': os.fspath(self.last_dst),
+             'errno': getattr(exc_val, 'errno', "unknown"),
+             'strerror': getattr(exc_val, 'strerror', "unknown")})
 
 
 class CopyDirToDir(RsyncClone):
@@ -235,10 +256,18 @@ class CopyDirToDir(RsyncClone):
         expanded_dst = os.path.expandvars(dst)
         self.copy_tree(expanded_src, expanded_dst)
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class CopyDirContentsToDir(RsyncClone):
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class CopyFileToDir(RsyncClone):
@@ -250,6 +279,10 @@ class CopyFileToDir(RsyncClone):
         expanded_dst = os.path.expandvars(self.dst)
         self.copy_file_to_dir(expanded_src, expanded_dst)
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class CopyFileToFile(RsyncClone):
     def __init__(self, src, dst, **kwargs):
@@ -257,6 +290,12 @@ class CopyFileToFile(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_src = os.path.expandvars(self.src)
+        #if self.ignore_if_not_exist and not os.path.isfile():
+
         expanded_dst = os.path.expandvars(self.dst)
         os.makedirs(os.path.dirname(expanded_dst), exist_ok=True)
         self.copy_file_to_file(expanded_src, expanded_dst)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})

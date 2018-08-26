@@ -294,9 +294,10 @@ class InstlClient(InstlInstanceBase):
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
-                retVal.append(Progress(f"{name_and_version} {action_description}"))
                 previous_iid = IID
-            retVal.append(SingleShellCommand(an_action))
+            actions = config_vars.resolve_str_to_list(an_action)
+            for action in actions:
+                retVal.append(SingleShellCommand(action, f"{name_and_version} {action_description}"))
         return retVal
 
     def create_require_file_instructions(self):
@@ -514,7 +515,7 @@ class InstlClient(InstlInstanceBase):
             self.batch_accum += remove_action
             retVal += 1
         elif source_type == '!file':  # remove single file
-            remove_action = self.platform_helper.rmfile(to_remove_path, ignore_if_not_exist=True)
+            remove_action = RmFile(to_remove_path)
             self.batch_accum += remove_action
             retVal += 1
         elif source_type == '!dir_cont':
