@@ -41,11 +41,15 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         if self.info_map_file:
             self.info_map_table.read_from_file(self.info_map_file, a_format="text", disable_indexes_during_read=True)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class CheckDownloadFolderChecksum(InfoMapBase):
@@ -80,7 +84,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
@@ -119,6 +123,10 @@ class CheckDownloadFolderChecksum(InfoMapBase):
             report_lines.append(self.missing_files_exception_message)
         return report_lines
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class SetExecPermissionsInSyncFolder(InfoMapBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
@@ -140,7 +148,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
@@ -155,6 +163,10 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
                 Chmod(file_item_path, "a+x")()
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class CreateSyncFolders(InfoMapBase):
@@ -177,7 +189,7 @@ class CreateSyncFolders(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
@@ -187,3 +199,7 @@ class CreateSyncFolders(InfoMapBase):
             dl_dir_items = self.info_map_table.get_items(what="dir")
         for dl_dir in dl_dir_items:
             MakeDirs(dl_dir.path)()
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})

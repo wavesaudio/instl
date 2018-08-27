@@ -19,6 +19,15 @@ import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
 from pybatch.copyBatchCommands import RsyncClone
+from configVar import config_vars
+
+current_os_names = utils.get_current_os_names()
+os_family_name = current_os_names[0]
+os_second_name = current_os_names[0]
+if len(current_os_names) > 1:
+    os_second_name = current_os_names[1]
+
+config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
 @contextlib.contextmanager
@@ -741,7 +750,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         #self.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
-        self.batch_accum += ShellCommands(shell_commands_list=geronimo)
+        self.batch_accum += ShellCommands(shell_commands_list=geronimo, message="testing ShellCommands")
 
         self.exec_and_capture_output()
 

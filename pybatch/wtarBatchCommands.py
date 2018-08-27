@@ -90,7 +90,7 @@ class Wtar(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return ""
+        return f"""{self.__class__.__name__} '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         """ Create a new wtar archive for a file or folder provided in self.what_to_wtar
@@ -192,6 +192,12 @@ class Wtar(PythonBatchCommandBase):
             else:
                 print(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update(
+            {'what_to_wtar': os.fspath(self.what_to_wtar),
+             'where_to_put_wtar': os.fspath(self.where_to_put_wtar)})
+
 
 class Unwtar(PythonBatchCommandBase):
     def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False, **kwargs) -> None:
@@ -218,7 +224,7 @@ class Unwtar(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return ""
+        return f"""{self.__class__.__name__} '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
 
     def __call__(self, *args, **kwargs) -> None:
 
@@ -251,6 +257,12 @@ class Unwtar(PythonBatchCommandBase):
 
         else:
             raise FileNotFoundError(expanded_what_to_unwtar)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update(
+            {'what_to_unwtar': os.fspath(self.what_to_unwtar),
+             'where_to_unwtar': os.fspath(self.where_to_unwtar)})
 
 
 class Wzip(PythonBatchCommandBase):
@@ -310,7 +322,7 @@ class Wzip(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_what_to_zip = os.path.expandvars(self.what_to_wzip)
@@ -329,6 +341,12 @@ class Wzip(PythonBatchCommandBase):
         zlib_compression_level = int(config_vars.get("ZLIB_COMPRESSION_LEVEL", "8"))
         with open(target_wzip_file, "wb") as wfd, open(expanded_what_to_zip, "rb") as rfd:
             wfd.write(zlib.compress(rfd.read(), zlib_compression_level))
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update(
+            {'what_to_wzip': os.fspath(self.what_to_wzip),
+             'where_to_put_wzip': os.fspath(self.where_to_put_wzip)})
 
 
 class Unwzip(PythonBatchCommandBase):
@@ -353,7 +371,7 @@ class Unwzip(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_what_to_unwzip = os.path.expandvars(self.what_to_unwzip)
@@ -373,3 +391,9 @@ class Unwzip(PythonBatchCommandBase):
         with open(expanded_what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
             decompressed = zlib.decompress(rfd.read())
             wfd.write(decompressed)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update(
+            {'what_to_unwzip': os.fspath(self.what_to_unwzip),
+             'where_to_put_unwzip': os.fspath(self.where_to_put_unwzip)})

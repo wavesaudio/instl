@@ -7,8 +7,8 @@ from contextlib import contextmanager
 from typing import List
 import logging
 
-log = logging.getLogger(__name__)
-from enum import Enum, auto
+log = logging.getLogger()
+import utils
 
 
 class PythonBatchCommandBase(abc.ABC):
@@ -55,6 +55,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.in_sub_accum = False
         self.own_num_progress = 1
         self.essential_action_counter = 0
+        self._error_dict = None
 
     def num_progress_items(self) -> int:
         retVal = self.own_num_progress
@@ -127,7 +128,6 @@ class PythonBatchCommandBase(abc.ABC):
         return the_hash
 
     def progress_msg(self) -> str:
-        PythonBatchCommandBase.running_progress += self.own_num_progress
         the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
 
@@ -135,7 +135,7 @@ class PythonBatchCommandBase(abc.ABC):
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message
         """
-        return ""
+        return f"{self.__class__.__name__.progress_msg_self()}"
 
     def warning_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own warning message
@@ -153,9 +153,26 @@ class PythonBatchCommandBase(abc.ABC):
         """
         pass
 
+    def error_dict(self, exc_val):
+        if self._error_dict is None:
+            self._error_dict = dict()
+        self._error_dict['exception_type'] = type(exc_val).__name__
+        self._error_dict['exception_str'] = str(exc_val)
+        self.error_dict_self(exc_val)
+        return self._error_dict
+
+    @abc.abstractmethod
+    def error_dict_self(self, exc_val):
+        self._error_dict.update({
+            'class': self.__class__.__name__,
+            'time': self.enter_time,
+            'progress': PythonBatchCommandBase.running_progress
+            })
+
     def __enter__(self):
         self.enter_time = time.perf_counter()
         try:
+            PythonBatchCommandBase.running_progress += self.own_num_progress
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.enter_self()
@@ -174,16 +191,16 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.exit_time = time.perf_counter()
         suppress_exception = False
-        if self.ignore_all_errors or exc_type is None:
+        if exc_type is None or self.ignore_all_errors:
             suppress_exception = True
         elif exc_type in self.exceptions_to_ignore:
             self.log_result(logging.WARNING, self.warning_msg_self(), exc_val)
-
             suppress_exception = True
         else:
-            self.log_result(logging.ERROR, self.error_msg_self(), exc_val)
-        self.exit_time = time.perf_counter()
+            if not hasattr(exc_val, "raising_obj"):
+                setattr(exc_val, "raising_obj", self)
         self.exit_self(exit_return=suppress_exception)
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
         log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
@@ -213,11 +230,15 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
     def __call__(self, *args, **kwargs):
         run_args = list(map(str, self.create_run_args()))
         log.debug(" ".join(run_args))
+        #if run_args[0].startswith('['):
+        #    return
+        #import shlex
+        #shlex.split()
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = completed_process.stdout
         self.stderr = completed_process.stderr
         log.debug(completed_process.stdout)
-        completed_process.check_returncode()
+        #completed_process.check_returncode()
         return None  # what to return here?
 
     def log_result(self, log_lvl, message, exc_val):
@@ -227,3 +248,6 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def __repr__(self):
         raise NotImplementedError
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)

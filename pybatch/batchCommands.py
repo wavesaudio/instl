@@ -84,6 +84,10 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         self.make_random_dirs_recursive(self.num_levels)
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
+
 
 class MakeDirs(PythonBatchCommandBase, essential=True):
     """ Create one or more dirs
@@ -132,7 +136,8 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"mkdir {self.paths_to_make}"
+        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
+        the_progress_msg = f"{self.__class__.__name__} {paths}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -148,6 +153,10 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
 
     def error_msg_self(self):
         return f"creating {self.cur_path}"
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class MakeDirsWithOwner(MakeDirs, essential=True):
@@ -181,12 +190,15 @@ class Touch(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"Touch {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} to '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         with open(self.path, 'a') as tfd:
             os.utime(self.path, None)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Cd(PythonBatchCommandBase, essential=True):
@@ -218,8 +230,7 @@ class Cd(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"cd to {self.new_path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
@@ -228,6 +239,10 @@ class Cd(PythonBatchCommandBase, essential=True):
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class CdSection(Cd, essential=False):
@@ -267,8 +282,7 @@ class CdSection(Cd, essential=False):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"cd to {self.new_path}"
-        return the_progress_msg
+        return f"""Cd to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
@@ -277,6 +291,10 @@ class CdSection(Cd, essential=False):
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class ChFlags(RunProcessBase, essential=True):
@@ -315,8 +333,7 @@ class ChFlags(RunProcessBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"change flag {self.flag} on file {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} {self.flag} '{self.path}'"""
 
     def create_run_args(self):
         flag = self.flags_dict[sys.platform][self.flag]
@@ -344,6 +361,10 @@ class ChFlags(RunProcessBase, essential=True):
         run_args.append(flag)
         run_args.append(self.path)
         return run_args
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Unlock(ChFlags, essential=True):
@@ -381,8 +402,11 @@ class Unlock(ChFlags, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"unlocking file {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class RmFile(PythonBatchCommandBase, essential=True):
@@ -420,8 +444,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"remove file {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
     def error_msg_self(self):
         if os.path.isdir(self.path):
@@ -433,6 +456,10 @@ class RmFile(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         os.remove(self.path)
         return None
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
@@ -473,12 +500,15 @@ class RmDir(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"remove file {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         shutil.rmtree(self.path)
         return None
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
@@ -515,8 +545,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"remove file {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         if os.path.isfile(self.path):
@@ -524,6 +553,10 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         elif os.path.isdir(self.path):
             shutil.rmtree(self.path)
         return None
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
@@ -549,7 +582,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"appending {self.source_file} to {self.target_file}"
+        the_progress_msg = f"{self.__class__.__name__} {self.source_file} to {self.target_file}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -557,6 +590,10 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
             with open(self.source_file, "r") as rfd:
                 wfd.write(rfd.read())
         return None
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Chown(RunProcessBase, call__call__=True, essential=True):
@@ -606,8 +643,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         return run_args
 
     def progress_msg_self(self):
-        the_progress_msg = f"Change owner {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         # os.chown is not recursive so call the system's chown
@@ -617,6 +653,10 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
             expanded_path = os.path.expandvars(self.path)
             os.chown(expanded_path, uid=int(self.user_id), gid=int(self.group_id))
             return None
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({})
 
 
 class Chmod(RunProcessBase, essential=True):
@@ -671,8 +711,7 @@ class Chmod(RunProcessBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"Change mode {self.path}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
     def parse_symbolic_mode(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
@@ -726,17 +765,21 @@ class Chmod(RunProcessBase, essential=True):
             os.chmod(expanded_path, mode_to_set)
         return None
 
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+
 
 class SingleShellCommand(RunProcessBase, essential=True):
     """ run a single command in a shell """
 
-    def __init__(self, shell_command, **kwargs):
+    def __init__(self, shell_command, message, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
         self.shell_command = shell_command
+        self.message = message
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(shell_command=r'''{self.shell_command}''')"""
+        the_repr = f"""{self.__class__.__name__}(shell_command={utils.quoteme_raw_string(self.shell_command)}, message={utils.quoteme_raw_string(self.message)})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -746,8 +789,10 @@ class SingleShellCommand(RunProcessBase, essential=True):
         return self.shell_command
 
     def progress_msg_self(self):
-        prog_mess = ""
-        return prog_mess
+        return f"""{self.message}"""
+
+    def error_msg_self(self) -> str:
+        return f"error running shell command"
 
     def create_run_args(self):
         expanded_shell_command = os.path.expandvars(self.shell_command)
@@ -756,7 +801,7 @@ class SingleShellCommand(RunProcessBase, essential=True):
 
 
 class ShellCommands(PythonBatchCommandBase, essential=True):
-    def __init__(self, shell_commands_list=None, **kwargs):
+    def __init__(self, shell_commands_list, message, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
         if shell_commands_list is None:
@@ -765,11 +810,12 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
             assert isinstance(shell_commands_list, collections.Sequence)
             self.shell_commands_list = shell_commands_list
         self.own_num_progress = len(self.shell_commands_list)
+        self.message = message
 
     def __repr__(self):
         quoted_shell_commands_list = ", ".join(utils.quoteme_raw_list(self.shell_commands_list))
 
-        the_repr = f"""{self.__class__.__name__}(shell_commands_list=[{quoted_shell_commands_list}])"""
+        the_repr = f"""{self.__class__.__name__}(shell_commands_list=[{quoted_shell_commands_list}], message={utils.quoteme_raw_string(self.message)})"""
         return the_repr
 
     def repr_batch_win(self):
@@ -779,8 +825,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         return self.shell_commands_list
 
     def progress_msg_self(self):
-        prog_mess = ""
-        return prog_mess
+        return f"""{self.__class__.__name__}"""
 
     def create_run_args(self):
         the_lines = self.shell_commands_list
@@ -803,9 +848,15 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
-        for shell_command in self.shell_commands_list:
-            with SingleShellCommand(shell_command) as shelli:
+        for i, shell_command in enumerate(self.shell_commands_list):
+            with SingleShellCommand(shell_command, f"""{self.message} #{i+1}""") as shelli:
                 shelli()
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'shell_commands_list': self.shell_commands_list,
+        })
 
 
 class ParallelRun(PythonBatchCommandBase, essential=True):
@@ -827,7 +878,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self):
-        return ""
+        return f"""{self.__class__.__name__} '{self.config_file}'"""
 
     def __call__(self, *args, **kwargs):
         commands = list()
@@ -842,6 +893,12 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'config_file': self.config_file,
+        })
 
 
 class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
@@ -863,7 +920,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.folder_to_remove}'"""
 
     def __call__(self, *args, **kwargs) -> None:
        for root_path, dir_names, file_names in os.walk(self.folder_to_remove, topdown=False, onerror=None, followlinks=False):
@@ -889,6 +946,12 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
                         os.rmdir(root_path)
                     except Exception as ex:
                         print("failed to remove", root_path, ex)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'folder_to_remove': self.folder_to_remove,
+        })
 
 
 class Ls(PythonBatchCommandBase, essential=True):
@@ -917,7 +980,7 @@ class Ls(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.folders_to_list}' to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_folder_list = [os.path.expandvars(folder_path) for folder_path in self.folders_to_list]
@@ -925,6 +988,13 @@ class Ls(PythonBatchCommandBase, essential=True):
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             print(os.path.realpath(wfd.name))
             wfd.write(the_listing)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'folders_to_list': self.folders_to_list,
+            'out_file': self.out_file,
+        })
 
 
 class CUrl(RunProcessBase):
@@ -947,8 +1017,7 @@ class CUrl(RunProcessBase):
         return the_repr
 
     def progress_msg_self(self):
-        the_progress_msg = f"curl {self.src} > {self.trg}"
-        return the_progress_msg
+        return f"""{self.__class__.__name__} '{src}' to '{self.trg}'"""
 
     def repr_batch_win(self):
         return ' '.join(self.create_run_args())
@@ -965,6 +1034,14 @@ class CUrl(RunProcessBase):
         # download_command_parts.append("write-out")
         # download_command_parts.append(DownloadToolBase.curl_write_out_str)
         return
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'src': self.src,
+            'trg': self.trg,
+            'curl_path': self.curl_path,
+        })
 
 
 # todo:

@@ -28,7 +28,7 @@ class WinShortcut(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""{self.__class__.__name__} '{self.shortcut_path}' shortcut to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")
@@ -53,3 +53,10 @@ class WinShortcut(PythonBatchCommandBase):
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
                 file.Save(expanded_shortcut_path, 0)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({
+            'shortcut_path': self.shortcut_path,
+            'target_path': self.target_path,
+        })

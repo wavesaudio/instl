@@ -12,7 +12,7 @@ from .reportingBatchCommands import Section, PythonBatchRuntime
 from configVar import config_vars
 import utils
 
-python_batch_log_level = logging.WARNING
+#python_batch_log_level = logging.WARNING
 
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
@@ -103,7 +103,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return the_oc
 
     def _python_closing_code(self):
-        cc = f"\n# eof\n\n"
+        cc = f"""\nprint('''All's Well That Ends Well''')\n# eof\n\n"""
         return cc
 
     def __repr__(self):
@@ -187,3 +187,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         pass
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)

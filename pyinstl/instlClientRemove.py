@@ -104,6 +104,6 @@ class InstlClientRemove(InstlClient):
             # remove_item: ~
             # this will cause specific_remove_actions list to be [None].
             # after filtering None values the list will be empty and remove actions will not be created
-            specific_remove_actions = [SingleShellCommand(_f) for _f in specific_remove_actions if _f]  # filter out None values
+            specific_remove_actions = [SingleShellCommand(_f, f"""'{to_remove_path}' remove action""") for _f in specific_remove_actions if _f]  # filter out None values
             retVal.extend(specific_remove_actions)
         return retVal
