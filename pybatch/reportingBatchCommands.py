@@ -285,7 +285,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         suppress_exception = False
         if exc_val:
             self.log_error(exc_val, exc_tb)
-            log.info("The Comedy of Errors")
+            log.info("Shakespeare says: The Comedy of Errors")
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)

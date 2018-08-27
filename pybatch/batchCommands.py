@@ -282,7 +282,7 @@ class CdSection(Cd, essential=False):
         return retVal
 
     def progress_msg_self(self):
-        return f"""Cd to '{self.new_path}'"""
+        return f"""Cd to '{os.path.expandvars(self.new_path)}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()

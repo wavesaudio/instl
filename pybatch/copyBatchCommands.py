@@ -161,16 +161,16 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.last_step, self.last_src, self.last_dst = "copy_file_to_file", src, dst
         if self.should_copy_file(src, dst):
             if not self.hard_links or os.path.islink(src):
-                log.info(f"copy file '{src}' to '{dst}'")
+                log.debug(f"copy file '{src}' to '{dst}'")
                 self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
             else:  # try to create hard link
                 try:
                     self.dry_run or os.link(src, dst)
-                    log.info(f"hard link file '{src}' to '{dst}'")
+                    log.debug(f"hard link file '{src}' to '{dst}'")
                     self.statistics['hard_links'] += 1
                 except OSError as ose:
                     self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
-                    log.info(f"copy file '{src}' to '{dst}'")
+                    log.debug(f"copy file '{src}' to '{dst}'")
         else:
             self.statistics['skipped_files'] += 1
         return dst
