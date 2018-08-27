@@ -105,7 +105,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return the_oc
 
     def _python_closing_code(self):
-        cc = f"""\nlog.info("Shakespeare says: All's Well That Ends Well''')\n# eof\n\n"""
+        cc = f"""\nlog.info("Shakespeare says: All's Well That Ends Well")\n# eof\n\n"""
         return cc
 
     def __repr__(self):
