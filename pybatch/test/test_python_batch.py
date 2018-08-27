@@ -1279,7 +1279,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(cdtd_obj, cdtd_obj_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
 
         cdtd_obj = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
-                 patterns_to_ignore=['*.a', 'b.*'],
+                 ignore_patterns=['*.a', 'b.*'],
                  hard_links=False,
                  ignore_dangling_symlinks=True,
                  delete_extraneous_files=True,
@@ -1327,7 +1327,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
         file_names_to_ignore = ["hootenanny"]
-        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_ignore, patterns_to_ignore=file_names_to_ignore)
+        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=file_names_to_ignore)
 
         self.exec_and_capture_output()
 

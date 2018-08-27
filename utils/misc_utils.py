@@ -437,6 +437,16 @@ def quoteme_raw_list(list_of_things):
     return retVal
 
 
+def quoteme_raw_if_list(list_of_things):
+    if isinstance(list_of_things, str):
+        retVal = quoteme_raw_if_string(list_of_things)
+    elif isinstance(list_of_things, collections.Sequence):
+        retVal = quoteme_raw_list(list_of_things)
+    else:
+        retVal = quoteme_raw_if_string(list_of_things)
+    return retVal
+
+
 def quote_path_properly(path_to_quote):
     quote_char = "'"
     if "'" in path_to_quote or "${" in path_to_quote:

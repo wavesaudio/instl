@@ -15,7 +15,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  dst,
                  ignore_if_not_exist=False,
                  symlinks_as_symlinks=True,
-                 patterns_to_ignore=[],
+                 ignore_patterns=[],
                  hard_links=True,
                  ignore_dangling_symlinks=False,
                  delete_extraneous_files=False,
@@ -27,7 +27,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
-        self.patterns_to_ignore = patterns_to_ignore
+        self.ignore_patterns = ignore_patterns
         self.hard_links = hard_links
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
         self.delete_extraneous_files = delete_extraneous_files
@@ -43,22 +43,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def unnamed__init__param(self, value):
-        value_str = utils.quoteme_raw_if_string(value)
-        return value_str
-
-    def named__init__param(self, name, value):
-        value_str = utils.quoteme_raw_if_string(value)
-        param_repr = f"{name}={value_str}"
-        return param_repr
-
-    def optional_named__init__param(self, name, value, default=None):
-        param_repr = None
-        if value != default:
-            value_str = utils.quoteme_raw_if_string(value)
-            param_repr = f"{name}={value_str}"
-        return param_repr
-
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         params = []
@@ -66,7 +50,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
         params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
-        params.append(self.optional_named__init__param("patterns_to_ignore", self.patterns_to_ignore, []))
+        params.append(self.optional_named__init__param("ignore_patterns", self.ignore_patterns, []))
         params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
         params.append(self.optional_named__init__param("ignore_dangling_symlinks", self.ignore_dangling_symlinks, False))
         params.append(self.optional_named__init__param("delete_extraneous_files", self.delete_extraneous_files, False))
@@ -96,9 +80,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def get_ignored_files(self, root, names_in_root):
         ignored_names = []
-        if self.patterns_to_ignore:
+        if self.ignore_patterns:
             if self._get_ignored_files_func is None:
-                self._get_ignored_files_func = shutil.ignore_patterns(*self.patterns_to_ignore)
+                self._get_ignored_files_func = shutil.ignore_patterns(*self.ignore_patterns)
             ignored_names.extend(self._get_ignored_files_func(root, names_in_root))
         return ignored_names
 
@@ -202,7 +186,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             src_path = os.path.join(src, src_name)
             if src_name in src_ignored_names:
                 self.statistics['ignored'] += 1
-                log.info(f"ignoring '{src_path}'")
+                log.debug(f"ignoring '{src_path}'")
                 continue
             dst_path = os.path.join(dst, src_name)
             try:

@@ -14,7 +14,7 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
         contained commands will be.
     """
 
-    def __init__(self, identifier=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.i_am_anonymous=True
 
