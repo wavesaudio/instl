@@ -2,12 +2,12 @@
 
 
 import subprocess
-import time
 import sys
 import os
 import signal
 import logging
-from threading import Thread
+from itertools import repeat
+from concurrent import futures
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ def run_processes_in_parallel(commands, shell=False):
     global exit_val
     try:
         install_signal_handlers()
-        run_parallels(commands, shell)
+        with futures.ThreadPoolExecutor(len(commands)) as executor:
+            list(executor.map(run_process, commands, repeat(shell), repeat(process_list)))
         exit_val = 0
         killall_and_exit()
     except Exception as e:
@@ -27,29 +28,9 @@ def run_processes_in_parallel(commands, shell=False):
         killall_and_exit()
 
 
-def run_parallels(commands, shell=False):
+def run_process(command, shell, process_list):
     global exit_val
-    thread_list = list()
-    for i, command in enumerate(commands):
-        try:
-            t = Thread(target=launch_process, args=(command, shell, process_list))
-            t.daemon = True
-            t.start()
-            thread_list.append(t)
-        except Exception as e:
-            log.error(f"failed to start {command} - {e}")
-            exit_val = 31
-            killall_and_exit()
-
-    while True:
-        for t in thread_list:
-            t.join()
-        break
-
-
-def launch_process(command, shell, process_list):
-    global exit_val
-    a_process = run_process(command, shell)
+    a_process = launch_process(command, shell)
     process_list.append(a_process)
     while True:
         enqueue_output(a_process.stdout)
@@ -58,11 +39,12 @@ def launch_process(command, shell, process_list):
             log.debug(f'Process finished - {command}')
             if status != 0:
                 exit_val = status
-                killall_and_exit()
+                raise RuntimeError(f'Command failed {command}')
             break
 
 
-def run_process(command, shell):
+def launch_process(command, shell):
+    global exit_val
     if shell:
         full_command = " ".join(command)
         kwargs = {}
@@ -71,7 +53,12 @@ def run_process(command, shell):
         kwargs = {'executable': command[0]}
     if getattr(os, "setsid", None):  # UNIX
         kwargs['preexec_fn'] = os.setsid
-    a_process = subprocess.Popen(full_command, shell=shell, bufsize=1, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    try:
+        a_process = subprocess.Popen(full_command, shell=shell, bufsize=1,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    except Exception as e:
+        exit_val = 31
+        raise RuntimeError(f"failed to start {command}") from e
     return a_process
 
 
