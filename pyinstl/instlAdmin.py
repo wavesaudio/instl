@@ -30,11 +30,9 @@ class InstlAdmin(InstlInstanceBase):
         self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
-    def get_default_out_file(self):
-        retVal = None
+    def get_default_out_file(self) -> None:
         if "__MAIN_INPUT_FILE__" in config_vars:
-            retVal = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-        return retVal
+            config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in config_vars:

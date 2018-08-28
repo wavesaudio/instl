@@ -369,7 +369,7 @@ class InstlClient(InstlInstanceBase):
             or if update of installed items was requested
         """
         explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in config_vars
-        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in config_vars["MAIN_INSTALL_TARGETS"]
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in config_vars.get("MAIN_INSTALL_TARGETS", []).list()
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 

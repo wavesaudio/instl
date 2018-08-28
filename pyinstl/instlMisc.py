@@ -19,10 +19,9 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
 
     def get_default_out_file(self):
-        retVal = None
         if self.fixed_command in ("ls", "resolve"):
-            retVal = "stdout"
-        return retVal
+            if "__MAIN_OUT_FILE__" not in config_vars:
+                config_vars["__MAIN_OUT_FILE__"] = "stdout"
 
     def do_command(self):
         self.no_numbers_progress =  bool(config_vars.get("__NO_NUMBERS_PROGRESS__", "False"))

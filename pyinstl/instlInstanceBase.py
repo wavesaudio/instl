@@ -199,11 +199,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         del self.db
         config_vars.print_statistics()
 
-    def get_default_out_file(self):
+    def get_default_out_file(self) -> None:
         if "__MAIN_OUT_FILE__" not in config_vars:
             if "__MAIN_INPUT_FILE__" in config_vars:
-                default_out_file = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-                config_vars["__MAIN_OUT_FILE__"] = default_out_file
+                config_vars["__MAIN_OUT_FILE__"] = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def get_default_db_file(self):
         if "__MAIN_DB_FILE__" not in config_vars:
