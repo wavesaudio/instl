@@ -149,7 +149,7 @@ class InstlClientCopy(InstlClient):
         return item_size
 
     def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
-        retVal = AnonymousAccum(name_for_progress_message)
+        retVal = AnonymousAccum()
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
             print("no source files for "+source_path)

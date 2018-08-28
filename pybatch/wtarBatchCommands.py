@@ -3,13 +3,15 @@ import os
 import stat
 import tarfile
 from collections import OrderedDict
-import pathlib
+import logging
 
 from configVar import config_vars
 import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
+
+log = logging.getLogger()
 
 
 def can_skip_unwtar(what_to_work_on: os.PathLike, where_to_unwtar: os.PathLike):
@@ -30,7 +32,7 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
 
         if destination_folder is None:
             destination_folder, _ = os.path.split(wtar_file_paths[0])
-        print("unwtar", wtar_file_path, " to ", destination_folder)
+        log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
         if ignore is None:
             ignore = ()
 
@@ -50,7 +52,7 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
 
                         if disk_total_checksum == tar_total_checksum:
                             do_the_unwtarring = False
-                            print(wtar_file_paths[0], "skipping unwtarring because item exists and is identical to archive")
+                            log.debug(f"{wtar_file_paths[0]} skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
                     utils.safe_remove_file_system_object(destination_path)
                     tar.extractall(destination_folder)
@@ -60,11 +62,11 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 os.remove(wtar_file)
 
     except OSError as e:
-        print(f"Invalid stream on split file with {wtar_file_paths[0]}")
+        log.debug(f"Invalid stream on split file with {wtar_file_paths[0]}")
         raise e
 
     except tarfile.TarError:
-        print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
+        log.debug(f"tarfile error while opening file {os.path.abspath(wtar_file_paths[0])}")
         raise
 
 
@@ -190,7 +192,7 @@ class Wtar(PythonBatchCommandBase):
                 with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(what_to_work_on_leaf, filter=check_tarinfo)
             else:
-                print(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
+                log.debug(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
 
     def error_dict_self(self, exc_val):
         super().error_dict_self(exc_val)
@@ -242,7 +244,7 @@ class Unwtar(PythonBatchCommandBase):
                     # to the top level of the sync folder.
                     if "bookkeeping" in dirs:
                         dirs[:] = []
-                        print("skipping", root, "because bookkeeping folder was found")
+                        log.debug(f"skipping {root} because bookkeeping folder was found")
                         continue
 
                     tail_folder = root[len(expanded_what_to_unwtar):].strip("\\/")
@@ -253,7 +255,7 @@ class Unwtar(PythonBatchCommandBase):
                         if utils.is_first_wtar_file(a_file_path):
                             unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
-                print(f"unwtar {expanded_what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
+                log.debug(f"unwtar {expanded_what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
             raise FileNotFoundError(expanded_what_to_unwtar)

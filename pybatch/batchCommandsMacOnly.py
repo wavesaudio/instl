@@ -163,7 +163,10 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink_file_to_convert = pathlib.Path(os.path.expandvars(self.symlink_file_to_convert))
         symlink_target = symlink_file_to_convert.read_text()
         symlink = pathlib.Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
-        symlink.unlink()
+        if symlink.is_symlink() or symlink.is_file():
+            symlink.unlink()
+        elif symlink.is_dir():
+            raise IsADirectoryError(f"a directory was found where a symlink was expected {symlink}")
         symlink.symlink_to(symlink_target)
         symlink_file_to_convert.unlink()
 

@@ -89,6 +89,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
         opening_code_lines.append(f"""import sys""")
         opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_string(instl_folder)})""")
+        opening_code_lines.append(f"""import logging""")
+        opening_code_lines.append(f"""log = logging.getLogger()""")
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""from configVar import config_vars""")
         PythonBatchCommandBase.total_progress = 0
@@ -103,7 +105,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         return the_oc
 
     def _python_closing_code(self):
-        cc = f"""\nprint('''All's Well That Ends Well''')\n# eof\n\n"""
+        cc = f"""\nlog.info("Shakespeare says: All's Well That Ends Well")\n# eof\n\n"""
         return cc
 
     def __repr__(self):

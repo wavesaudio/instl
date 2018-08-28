@@ -282,7 +282,7 @@ class CdSection(Cd, essential=False):
         return retVal
 
     def progress_msg_self(self):
-        return f"""Cd to '{self.new_path}'"""
+        return f"""Cd to '{os.path.expandvars(self.new_path)}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
@@ -980,13 +980,12 @@ class Ls(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.folders_to_list}' to '{self.out_file}'"""
+        return f"""{self.__class__.__name__} '{utils.quoteme_raw_if_list(self.folders_to_list)}' to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_folder_list = [os.path.expandvars(folder_path) for folder_path in self.folders_to_list]
         the_listing = utils.disk_item_listing(*expanded_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
-            print(os.path.realpath(wfd.name))
             wfd.write(the_listing)
 
     def error_dict_self(self, exc_val):

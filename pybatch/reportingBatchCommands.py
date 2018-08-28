@@ -14,7 +14,7 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
         contained commands will be.
     """
 
-    def __init__(self, identifier=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.i_am_anonymous=True
 
@@ -285,7 +285,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         suppress_exception = False
         if exc_val:
             self.log_error(exc_val, exc_tb)
-            log.info("The Comedy of Errors")
+            log.info("Shakespeare says: The Comedy of Errors")
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)

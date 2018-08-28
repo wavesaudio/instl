@@ -40,10 +40,8 @@ class PythonBatchCommandBase(abc.ABC):
         cls.is_anonymous = is_anonymous
 
     @abc.abstractmethod
-    def __init__(self, identifier=None, **kwargs):
+    def __init__(self, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
-        if not isinstance(identifier, str) or not identifier.isidentifier():
-            self.identifier = "obj"
 
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
@@ -56,6 +54,22 @@ class PythonBatchCommandBase(abc.ABC):
         self.own_num_progress = 1
         self.essential_action_counter = 0
         self._error_dict = None
+
+    def unnamed__init__param(self, value):
+        value_str = utils.quoteme_raw_if_string(value)
+        return value_str
+
+    def named__init__param(self, name, value):
+        value_str = utils.quoteme_raw_if_string(value)
+        param_repr = f"{name}={value_str}"
+        return param_repr
+
+    def optional_named__init__param(self, name, value, default=None):
+        param_repr = None
+        if value != default:
+            value_str = utils.quoteme_raw_if_string(value)
+            param_repr = f"{name}={value_str}"
+        return param_repr
 
     def num_progress_items(self) -> int:
         retVal = self.own_num_progress
