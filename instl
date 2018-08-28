@@ -115,7 +115,7 @@ def config_logger():
                 'formatter': 'detailed',
                 'filename': system_log_file_path,
                 'mode': 'a',
-                'maxBytes': 10000000,
+                'maxBytes': 5000000,
                 'backupCount': 10,
                 'filters': ['parent']
             }
