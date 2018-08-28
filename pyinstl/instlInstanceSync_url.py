@@ -148,8 +148,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
         rm_commands = AnonymousAccum()
         for i in redundant_files_indexes:
-            rm_commands += RmFile(str(files_to_check[i][1]))
             rm_commands += Progress(f"Removed redundant file {files_to_check[i][1]}")
+            rm_commands += RmFile(str(files_to_check[i][1]))
         return rm_commands
 
     def create_download_instructions(self):
