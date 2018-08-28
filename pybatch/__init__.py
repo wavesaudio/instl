@@ -17,6 +17,7 @@ from .reportingBatchCommands import Section
 from .reportingBatchCommands import ConfigVarAssign
 from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
+from .reportingBatchCommands import RaiseException
 
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd

@@ -38,6 +38,35 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
         self._error_dict.update({})
 
 
+class RaiseException(PythonBatchCommandBase, essential=True):
+    def __init__(self, exception_type, exception_message, identifier=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.exception_type = exception_type
+        self.exception_message = exception_message
+
+    def __repr__(self) -> str:
+        the_repr = f'''{self.__class__.__name__}({self.exception_type.__name__}, "{self.exception_message}")'''
+        return the_repr
+
+    def repr_batch_win(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def repr_batch_mac(self) -> str:
+        the_repr = f''''''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        raise self.exception_type(self.exception_message)
+
+    def error_dict_self(self, exc_val):
+        super().error_dict_self(exc_val)
+        self._error_dict.update({"dummy_exception": self.exception_message})
+
+
 class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     """ Section: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
         Section itself preforms no action only the contained commands will be preformed

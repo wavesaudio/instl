@@ -1270,7 +1270,6 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
         self.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
-
     def test_RsyncClone_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
@@ -1339,6 +1338,18 @@ class TestPythonBatch(unittest.TestCase):
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
+
+    def test_RaiseException_repr(self):
+        the_exception = ValueError
+        the_message = "just a dummy exception"
+        re_obj = RaiseException(the_exception, the_message)
+        re_obj_recreated = eval(repr(re_obj))
+        self.assertEqual(re_obj, re_obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
+
+    def test_RaiseException(self):
+        self.batch_accum.clear()
+        self.batch_accum += RaiseException(ValueError, "la la la")
+        self.exec_and_capture_output(expected_exception=ValueError)
 
 
 if __name__ == '__main__':
