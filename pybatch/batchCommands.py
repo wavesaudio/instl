@@ -1031,7 +1031,7 @@ class CUrl(RunProcessBase):
                     "-o", self.trg, self.src]
         # TODO
         # download_command_parts.append("write-out")
-        # download_command_parts.append(DownloadToolBase.curl_write_out_str)
+        # download_command_parts.append(CUrlHelper.curl_write_out_str)
         return
 
     def error_dict_self(self, exc_val):

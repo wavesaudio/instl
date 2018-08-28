@@ -64,7 +64,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if source_url is None:
                 repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
-            self.instlObj.platform_helper.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
+            self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
         self.instlObj.progress(f"created sync urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
@@ -84,7 +84,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(config_vars["PARALLEL_SYNC"])
         # TODO: Move class someplace else
-        config_file_list = self.instlObj.platform_helper.dl_tool.create_config_files(curl_config_file_path, num_config_files)
+        config_file_list = self.instlObj.dl_tool.create_config_files(curl_config_file_path, num_config_files)
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:

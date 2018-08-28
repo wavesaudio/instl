@@ -15,8 +15,6 @@ import time
 
 import aYaml
 import utils
-from .batchAccumulator import BatchAccumulatorFactory
-from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
@@ -24,6 +22,9 @@ from configVar import ConfigVarYamlReader
 from . import connectionBase
 from db import DBManager
 from pybatch import *
+
+from .curlHelper import CUrlHelper
+
 log = logging.getLogger(__name__)
 
 
@@ -82,21 +83,13 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
 
-        self.platform_helper = None
-        self.batch_accum = None
-        self.init_platform_helpers()
+        self.batch_accum = PythonBatchCommandAccum()
+        self.dl_tool = CUrlHelper()
 
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
-
-    def init_platform_helpers(self):
-        use_python_batch = bool(config_vars.get("USE_PYTHON_BATCH", "False"))
-        self.platform_helper = PlatformSpecificHelperFactory(str(config_vars["__CURRENT_OS__"]), self, use_python_batch=use_python_batch)
-        self.batch_accum = BatchAccumulatorFactory(use_python_batch=use_python_batch)
-        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
-        self.platform_helper.init_copy_tool()
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -362,7 +355,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
         assert "__MAIN_OUT_FILE__" in config_vars
 
-        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = str(self.platform_helper.num_items_for_progress_report)
+        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.num_batch_commands()
 
         self.create_variables_assignment(in_batch_accum)
 
@@ -390,7 +383,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         else:
             self.out_file_realpath = "stdout"
         msg = " ".join(
-            (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
+            (self.out_file_realpath, str(in_batch_accum.num_batch_commands()), "progress items"))
         log.info(msg)
 
     def run_batch_file(self):

@@ -59,22 +59,6 @@ class InstlClientCopy(InstlClient):
         except Exception:
             pass  # if it did not work - forget it
 
-    def write_copy_to_folder_debug_info(self, folder_path: str) -> None:
-        try:
-            if config_vars.defined('ECHO_LOG_FILE'):
-                log_file_path = config_vars["ECHO_LOG_FILE"].str()
-                log_folder, log_file = os.path.split(log_file_path)
-                manifests_log_folder = os.path.join(log_folder, "manifests")
-                os.makedirs(manifests_log_folder, exist_ok=True)
-                folder_path_parent, folder_name = os.path.split(config_vars.resolve_str(folder_path))
-                ls_output_file = os.path.join(manifests_log_folder, folder_name+"-folder-manifest.txt")
-                create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
-                                              "--in", '"."',
-                                              "--out", utils.quoteme_double(ls_output_file)]
-                self.batch_accum += " ".join(create_folder_ls_command_parts)
-        except Exception:
-            pass  # if it did not work - forget it
-
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
         with self.batch_accum.sub_accum(Section("create folders")) as create_folders_section:
             for target_folder_path in folder_list:
@@ -82,7 +66,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
-        self.create_sync_folder_manifest_command("before-copy", back_ground=True)
+        self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to NEW_HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created but before it was executed
@@ -109,7 +93,8 @@ class InstlClientCopy(InstlClient):
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
         for target_folder_path in sorted_target_folder_list:
             if remove_previous_sources:
-                self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
+                with self.batch_accum.sub_accum(Section("create_remove_previous_sources_instructions_for_target_folder", target_folder_path)) as seb_sec:
+                    seb_sec += self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
             self.create_copy_instructions_for_target_folder(target_folder_path)
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
@@ -126,10 +111,8 @@ class InstlClientCopy(InstlClient):
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
         if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
-            progress_num = self.platform_helper.increment_progress(1)
             self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False)
-            self.batch_accum += Progress("Copied $(HAVE_INFO_MAP_PATH) to $(SITE_HAVE_INFO_MAP_PATH)")
 
         self.create_require_file_instructions()
 
@@ -333,10 +316,6 @@ class InstlClientCopy(InstlClient):
                                 num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
             self.current_iid = None
 
-            target_folder_path_parent, target_folder_name = os.path.split(config_vars.resolve_str(target_folder_path))
-            #self.create_unwtar_batch_file(self.unwtar_instructions, target_folder_name)
-            #self.unwtar_instructions = None
-
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if  self.mac_current_and_target:
                 if num_items_copied_to_folder > 0 and num_symlink_items > 0:
@@ -351,12 +330,12 @@ class InstlClientCopy(InstlClient):
             These are sources that do not have 'install_folder' section OR those with os_is_active
             'direct_sync' section.
         """
-        retVal = list()
+        retVal = AnonymousAccum()
         items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
-        retVal.append(Progress(f"Actions in {sync_folder_name} ..."))
+        retVal += Progress(f"Actions in {sync_folder_name} ...")
 
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
-        retVal.extend(self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder))
+        retVal += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)
 
         num_wtars: int = 0
         for IID in sorted(items_in_folder):
@@ -365,30 +344,14 @@ class InstlClientCopy(InstlClient):
                 source = source_from_db[0]
                 num_wtars += self.info_map_table.count_wtar_items_of_dir(source[0])
             pre_copy_item_from_db = config_vars.resolve_list_to_list(self.items_table.get_resolved_details_for_active_iid(IID, "pre_copy_item"))
-            retVal.extend(pre_copy_item_from_db)
+            retVal += pre_copy_item_from_db
             post_copy_item_from_db = config_vars.resolve_list_to_list(self.items_table.get_resolved_details_for_active_iid(IID, "post_copy_item"))
-            retVal.extend(post_copy_item_from_db)
+            retVal += post_copy_item_from_db
 
         if num_wtars > 0:
-            retVal.append(self.platform_helper.unwtar_something(sync_folder_name, no_artifacts=False, where_to_unwtar=os.curdir))
+            retVal += Unwtar(sync_folder_name, os.curdir, no_artifacts=False)
 
         # accumulate post_copy_to_folder actions from all items, eliminating duplicates
         post_copy_to_folder_from_db = self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
-        retVal.extend(post_copy_to_folder_from_db)
+        retVal += post_copy_to_folder_from_db
         return retVal
-
-    def create_unwtar_batch_file(self, wtar_instructions, name_for_progress) -> None:
-        if wtar_instructions:
-            main_out_file_dir, main_out_file_leaf = os.path.split(config_vars["__MAIN_OUT_FILE__"].str())
-            unwtar_batch_files_dir = os.path.join(main_out_file_dir, "unwtar")
-            os.makedirs(unwtar_batch_files_dir, exist_ok=True)
-            batch_file_path = os.path.join(unwtar_batch_files_dir, name_for_progress+"_"+str(self.unwtar_batch_file_counter)+".unwtar")
-            self.unwtar_batch_file_counter += 1
-            batch_file_path = config_vars.resolve_str(batch_file_path)
-            with utils.utf8_open(batch_file_path, "w") as wfd:
-                for wtar_inst in self.unwtar_instructions:
-                    unwtar_line = config_vars.resolve_str(f"""unwtar --in "{wtar_inst[0]}" --out "{wtar_inst[1]}" --no-numbers-progress\n""")
-                    self.platform_helper.increment_progress()
-                    wfd.write(unwtar_line)
-            self.batch_accum += Progress(f"Verify {name_for_progress}")
-            self.batch_accum += self.platform_helper.run_instl_command_list(batch_file_path, parallel=True)
