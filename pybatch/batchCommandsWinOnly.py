@@ -28,7 +28,7 @@ class WinShortcut(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.shortcut_path}' shortcut to '{self.target_path}'"""
+        return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")

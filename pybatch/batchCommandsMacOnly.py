@@ -81,7 +81,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.path_to_symlink}' to '{self.path_to_target}'"""
+        return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         os.symlink(os.path.expandvars(self.path_to_target), os.path.expandvars(self.path_to_symlink))
@@ -116,7 +116,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.symlink_to_convert}'"""
+        return f"""Create symlink file '{self.symlink_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         symlink_to_convert = pathlib.Path(os.path.expandvars(self.symlink_to_convert))
@@ -157,7 +157,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.symlink_file_to_convert}'"""
+        return f"""Resolve symlink '{self.symlink_file_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         symlink_file_to_convert = pathlib.Path(os.path.expandvars(self.symlink_file_to_convert))
@@ -200,7 +200,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} in '{self.folder_to_convert}'"""
+        return f"""Create symlinks files in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         valid_symlinks = list()
@@ -255,7 +255,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} in '{self.folder_to_convert}'"""
+        return f"""Resolve symlinks in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_folder_to_convert = os.path.expandvars(self.folder_to_convert)

@@ -71,7 +71,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.src}' to '{self.dst}'"""
+        return f"""Copy '{self.src}' to '{self.dst}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_src = os.path.expandvars(self.src)
@@ -214,9 +214,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if errors:
             raise shutil.Error(errors)
         return dst
-
-    def exit_self(self, exit_return):
-        log.debug("\n".join([os.fspath(self.src), os.fspath(self.dst)]+[f"{stat}={num}" for stat, num in sorted(self.statistics.items())]))
 
     def error_dict_self(self, exc_val):
         super().error_dict_self(exc_val)

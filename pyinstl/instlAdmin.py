@@ -844,7 +844,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_info_quoted = utils.quoteme_double(limit_info[1])
             svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
             svn_checkout_command = " ".join(svn_command_parts)
-            self.batch_accum += SingleShellCommand(svn_checkout_command, "svn checkout")
+            self.batch_accum += ShellCommand(svn_checkout_command, "svn checkout")
             self.batch_accum += Progress(f"Checkout {checkout_url} to {limit_info[1]}")
             self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore_patterns=(".svn", ".DS_Store"), preserve_dest_files=False)
             self.batch_accum += Progress(f"rsync {limit_info[1]} to {limit_info[2]}")

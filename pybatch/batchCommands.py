@@ -7,7 +7,7 @@ import pathlib
 import shlex
 import collections
 from typing import List, Any, Optional, Union
-import keyword
+import re
 
 import utils
 from .baseClasses import *
@@ -137,7 +137,8 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
 
     def progress_msg_self(self):
         paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
-        the_progress_msg = f"{self.__class__.__name__} {paths}"
+        titula = "directory" if len(self.paths_to_make) == 1 else "directories"
+        the_progress_msg = f"Create {titula} {paths}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -402,7 +403,8 @@ class Unlock(ChFlags, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        resolved_path = pathlib.Path(self.path).resolve()
+        return f"""{self.__class__.__name__} '{resolved_path}'"""
 
     def error_dict_self(self, exc_val):
         super().error_dict_self(exc_val)
@@ -444,7 +446,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        return f"""Remove file '{self.path}'"""
 
     def error_msg_self(self):
         if os.path.isdir(self.path):
@@ -500,7 +502,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        return f"""Remove directory '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         shutil.rmtree(self.path)
@@ -545,7 +547,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         if os.path.isfile(self.path):
@@ -582,7 +584,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        the_progress_msg = f"{self.__class__.__name__} {self.source_file} to {self.target_file}"
+        the_progress_msg = f"Append {self.source_file} to {self.target_file}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -643,7 +645,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         return run_args
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         # os.chown is not recursive so call the system's chown
@@ -711,7 +713,7 @@ class Chmod(RunProcessBase, essential=True):
         return retVal
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.path}'"""
+        return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
 
     def parse_symbolic_mode(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
@@ -769,7 +771,7 @@ class Chmod(RunProcessBase, essential=True):
         super().error_dict_self(exc_val)
 
 
-class SingleShellCommand(RunProcessBase, essential=True):
+class ShellCommand(RunProcessBase, essential=True):
     """ run a single command in a shell """
 
     def __init__(self, shell_command, message, **kwargs):
@@ -849,7 +851,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_commands_list):
-            with SingleShellCommand(shell_command, f"""{self.message} #{i+1}""") as shelli:
+            with ShellCommand(shell_command, f"""{self.message} #{i+1}""") as shelli:
                 shelli()
 
     def error_dict_self(self, exc_val):
@@ -920,7 +922,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.folder_to_remove}'"""
+        return f"""Remove empty directory '{self.folder_to_remove}'"""
 
     def __call__(self, *args, **kwargs) -> None:
        for root_path, dir_names, file_names in os.walk(self.folder_to_remove, topdown=False, onerror=None, followlinks=False):
@@ -980,7 +982,7 @@ class Ls(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{utils.quoteme_raw_if_list(self.folders_to_list)}' to '{self.out_file}'"""
+        return f"""List '{utils.quoteme_raw_if_list(self.folders_to_list)}' to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_folder_list = [os.path.expandvars(folder_path) for folder_path in self.folders_to_list]
@@ -1016,7 +1018,7 @@ class CUrl(RunProcessBase):
         return the_repr
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{src}' to '{self.trg}'"""
+        return f"""Download '{src}' to '{self.trg}'"""
 
     def repr_batch_win(self):
         return ' '.join(self.create_run_args())

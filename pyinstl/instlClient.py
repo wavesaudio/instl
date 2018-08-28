@@ -290,12 +290,14 @@ class InstlClient(InstlInstanceBase):
         previous_iid = ""
         for IID, an_action in iid_and_action:
             if IID != previous_iid:  # avoid multiple progress messages for same iid
+                actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
                 previous_iid = IID
             actions = config_vars.resolve_str_to_list(an_action)
             for action in actions:
-                retVal += SingleShellCommand(action, f"{name_and_version} {action_description}")
+                actions_of_iid_count += 1
+                retVal += ShellCommand(action, f"{name_and_version} {action_description} {actions_of_iid_count}")
         return retVal
 
     def create_require_file_instructions(self):

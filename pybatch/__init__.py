@@ -32,7 +32,7 @@ from .batchCommands import RmFile
 from .batchCommands import RmFileOrDir
 from .batchCommands import RunProcessBase
 from .batchCommands import ShellCommands
-from .batchCommands import SingleShellCommand
+from .batchCommands import ShellCommand
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock

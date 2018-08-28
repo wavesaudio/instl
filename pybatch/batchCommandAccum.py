@@ -87,6 +87,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         instl_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir).resolve()
         opening_code_lines = list()
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
+        opening_code_lines.append(f"""import os""")
         opening_code_lines.append(f"""import sys""")
         opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_string(instl_folder)})""")
         opening_code_lines.append(f"""import logging""")

@@ -84,7 +84,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f'''{self.__class__.__name__}'''
+        return f'''Check download folder checksum'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
@@ -148,7 +148,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f'''{self.__class__.__name__}'''
+        return f'''Set exec permissions in download folder'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
@@ -189,7 +189,7 @@ class CreateSyncFolders(InfoMapBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f'''{self.__class__.__name__}'''
+        return f'''Create download directories'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided

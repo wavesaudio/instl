@@ -1,7 +1,8 @@
+import os
 import sys
 import subprocess
 import abc
-import re
+from typing import Dict
 import time
 from contextlib import contextmanager
 from typing import List
@@ -167,21 +168,23 @@ class PythonBatchCommandBase(abc.ABC):
         """
         pass
 
-    def error_dict(self, exc_val):
+    def error_dict(self, exc_val) -> Dict:
         if self._error_dict is None:
             self._error_dict = dict()
-        self._error_dict['exception_type'] = type(exc_val).__name__
-        self._error_dict['exception_str'] = str(exc_val)
+        self._error_dict.update({
+            'exception_type': str(type(exc_val).__name__),
+            'exception_str': str(exc_val),
+            'instl_class': self.__class__.__name__,
+            'local_time': time.strftime("%Y-%m-%d_%H.%M.%S"),
+            'progress_counter': PythonBatchCommandBase.running_progress,
+            'current_working_dir': os.getcwd(),
+             })
         self.error_dict_self(exc_val)
         return self._error_dict
 
     @abc.abstractmethod
     def error_dict_self(self, exc_val):
-        self._error_dict.update({
-            'class': self.__class__.__name__,
-            'time': self.enter_time,
-            'progress': PythonBatchCommandBase.running_progress
-            })
+        pass
 
     def __enter__(self):
         self.enter_time = time.perf_counter()

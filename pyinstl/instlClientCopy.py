@@ -167,7 +167,7 @@ class InstlClientCopy(InstlClient):
         return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
-        retVal = Section(name_for_progress_message)
+        retVal = AnonymousAccum()
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
 
@@ -221,7 +221,7 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
-            retVal = Section(name_for_progress_message)
+            retVal = AnonymousAccum()
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             if self.can_copy_be_avoided(dir_item, source_items):
                 self.progress(f"avoid copy of {name_for_progress_message}, Info.xml has not changed")
@@ -291,7 +291,7 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
-        with self.batch_accum.sub_accum(CdSection(target_folder_path, "create_copy_instructions_for_target_folder")) as copy_to_folder_accum:
+        with self.batch_accum.sub_accum(CdSection(target_folder_path, "copy to folder")) as copy_to_folder_accum:
             self.current_destination_folder = target_folder_path
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
@@ -301,13 +301,13 @@ class InstlClientCopy(InstlClient):
 
             num_symlink_items: int = 0
             for IID in items_in_folder:
-                with copy_to_folder_accum.sub_accum(Section("create_copy_instructions_for_IID", IID)) as iid_accum:
+                name_and_version = self.name_and_version_for_iid(iid=IID)
+                with copy_to_folder_accum.sub_accum(Section("copy", name_and_version)) as iid_accum:
                     self.current_iid = IID
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
-                    name_and_version = self.name_and_version_for_iid(iid=IID)
                     for source in resolved_sources_for_iid:
-                        with iid_accum.sub_accum(Section("create_copy_instructions_for_source", source[0])) as source_accum:
+                        with iid_accum.sub_accum(Section("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
                             source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
                             source_accum += self.create_copy_instructions_for_source(source, name_and_version)

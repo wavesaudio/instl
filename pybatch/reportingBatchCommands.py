@@ -57,7 +57,7 @@ class RaiseException(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''Raising exception {self.exception_type.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         raise self.exception_type(self.exception_message)
@@ -324,8 +324,8 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
     def log_error(self, exc_val, exc_tb):
         error_dict = exc_val.raising_obj.error_dict(exc_val)
         error_dict.update({
-            "file": exc_tb.tb_frame.f_code.co_filename,
-            "line": exc_tb.tb_lineno
+            "batch_file": exc_tb.tb_frame.f_code.co_filename,
+            "batch_line": exc_tb.tb_lineno
         })
         error_json = json.dumps(error_dict)
         log.error(f"{error_json}")

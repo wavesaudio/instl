@@ -92,7 +92,7 @@ class Wtar(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
+        return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         """ Create a new wtar archive for a file or folder provided in self.what_to_wtar
@@ -226,7 +226,7 @@ class Unwtar(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
+        return f"""Expand '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
 
     def __call__(self, *args, **kwargs) -> None:
 
@@ -324,7 +324,7 @@ class Wzip(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
+        return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_what_to_zip = os.path.expandvars(self.what_to_wzip)
@@ -373,7 +373,7 @@ class Unwzip(PythonBatchCommandBase):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
+        return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         expanded_what_to_unwzip = os.path.expandvars(self.what_to_unwzip)
