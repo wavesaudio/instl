@@ -44,6 +44,7 @@ class PythonBatchCommandBase(abc.ABC):
     def __init__(self, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
 
+        self.own_progress_count = kwargs.get('progress_count', 1)
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
 
@@ -52,7 +53,6 @@ class PythonBatchCommandBase(abc.ABC):
         self.enter_time = None
         self.exit_time = None
         self.in_sub_accum = False
-        self.own_num_progress = 1
         self.essential_action_counter = 0
         self._error_dict = None
 
@@ -72,10 +72,10 @@ class PythonBatchCommandBase(abc.ABC):
             param_repr = f"{name}={value_str}"
         return param_repr
 
-    def num_progress_items(self) -> int:
-        retVal = self.own_num_progress
+    def total_progress_count(self) -> int:
+        retVal = self.own_progress_count
         for sub in self.child_batch_commands:
-            retVal += sub.num_progress_items()
+            retVal += sub.total_progress_count()
         return retVal
 
     def is_essential(self) -> bool:
@@ -189,7 +189,7 @@ class PythonBatchCommandBase(abc.ABC):
     def __enter__(self):
         self.enter_time = time.perf_counter()
         try:
-            PythonBatchCommandBase.running_progress += self.own_num_progress
+            PythonBatchCommandBase.running_progress += self.own_progress_count
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.enter_self()

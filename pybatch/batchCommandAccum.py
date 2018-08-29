@@ -12,8 +12,6 @@ from .reportingBatchCommands import Section, PythonBatchRuntime
 from configVar import config_vars
 import utils
 
-#python_batch_log_level = logging.WARNING
-
 
 first_cap_re = re.compile('(.)([A-Z][a-z]+)')
 all_cap_re = re.compile('([a-z0-9])([A-Z])')
@@ -42,7 +40,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.current_section: str = None
         self.sections = dict()
-        #self.context_stack = [list()]
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
 
     def clear(self):
@@ -58,7 +55,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         else:
             raise ValueError(f"{section_name} is not a known section_name name")
 
-    def num_batch_commands(self):
+    def total_progress_count(self):
         """ count recursively the number of batch commands - not including the top sections """
         counter = 0
         for a_section in self.sections.values():
@@ -96,7 +93,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""from configVar import config_vars""")
         PythonBatchCommandBase.total_progress = 0
         for section in self.sections.values():
-            PythonBatchCommandBase.total_progress += section.num_progress_items()
+            PythonBatchCommandBase.total_progress += section.total_progress_count()
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
         opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
 
@@ -111,34 +108,38 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def __repr__(self):
         single_indent = "    "
-        def create_unique_obj_name(obj):
+        progress_count = 0
+
+        def _create_unique_obj_name(obj, prog_count):
             try:
-                create_unique_obj_name.instance_counter += 1
+                _create_unique_obj_name.instance_counter += 1
             except AttributeError:
-                create_unique_obj_name.instance_counter = 1
-            obj_name = camel_to_snake_case(f"{obj.__class__.__name__}_{create_unique_obj_name.instance_counter:05}")
+                _create_unique_obj_name.instance_counter = 1
+            obj_name = camel_to_snake_case(f"{obj.__class__.__name__}_{_create_unique_obj_name.instance_counter:03}_{prog_count}")
             return obj_name
 
         def _repr_helper(batch_items, io_str, indent):
+            nonlocal progress_count
             indent_str = single_indent*indent
             if isinstance(batch_items, list):
                 for item in batch_items:
                     _repr_helper(item, io_str, indent)
             else:
+                progress_count += batch_items.own_progress_count
                 if batch_items.call__call__ is False and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}\n""")
+                    io_str.write(f"""{indent_str}{repr(batch_items)}  # {progress_count}\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
-                    io_str.write(f"""{indent_str}with {repr(batch_items)}:\n""")
+                    io_str.write(f"""{indent_str}with {repr(batch_items)}:  # {progress_count}\n""")
                     if batch_items.child_batch_commands:
                         _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
                     else:
                         io_str.write(f"""{indent_str}{single_indent}pass\n""")
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}()\n""")
+                    io_str.write(f"""{indent_str}{repr(batch_items)}()  # {progress_count}\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
-                    obj_name = create_unique_obj_name(batch_items)
+                    obj_name = _create_unique_obj_name(batch_items, progress_count)
                     io_str.write(f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n""")
                     io_str.write(f"""{indent_str}{single_indent}{obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
@@ -176,9 +177,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                 io_str.write(batch_repr(batch_items))
         PythonBatchCommandBase.total_progress = 0
         io_str = io.StringIO()
-        #io_str.write(self._python_opening_code())
-        #_repr_helper(self.context_stack[0], io_str)
-        #io_str.write(self._python_closing_code())
         return io_str.getvalue()
 
     def repr_batch_mac(self):

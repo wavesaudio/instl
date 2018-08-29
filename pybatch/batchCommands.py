@@ -105,7 +105,7 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
             print(f"MakeDirs bad paths: {self.paths_to_make}")
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
-        self.own_num_progress = len(self.paths_to_make)
+        self.own_progress_count = len(self.paths_to_make)
 
     def __repr__(self):
         paths_csl = ", ".join(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
@@ -811,7 +811,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         else:
             assert isinstance(shell_commands_list, collections.Sequence)
             self.shell_commands_list = shell_commands_list
-        self.own_num_progress = len(self.shell_commands_list)
+        self.own_progress_count = len(self.shell_commands_list)
         self.message = message
 
     def __repr__(self):
@@ -851,7 +851,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_commands_list):
-            with ShellCommand(shell_command, f"""{self.message} #{i+1}""") as shelli:
+            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", progress_count=0) as shelli:
                 shelli()
 
     def error_dict_self(self, exc_val):
@@ -868,7 +868,13 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, {self.shell})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, shell={self.shell}'''
+        if self.own_progress_count > 1:
+            the_repr += f''', progress_count={self.own_progress_count}'''
+        if not self.report_own_progress:
+            the_repr += f''', report_own_progress={self.report_own_progress}'''
+
+        the_repr += ''')'''
         return the_repr
 
     def repr_batch_win(self):

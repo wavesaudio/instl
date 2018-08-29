@@ -3,11 +3,13 @@ import os
 import stat
 import tarfile
 from collections import OrderedDict
-import pathlib
+import logging
+
+log = logging.getLogger()
 
 from configVar import config_vars
 import utils
-import zlib
+
 
 from .baseClasses import PythonBatchCommandBase
 from .batchCommands import MakeDirs
@@ -162,7 +164,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
             exec_file_paths = self.info_map_table.get_required_exec_file_paths()
         for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
-                Chmod(file_item_path, "a+x")()
+                Chmod(file_item_path, "a+x", progress_count=0)()
 
     def error_dict_self(self, exc_val):
         super().error_dict_self(exc_val)

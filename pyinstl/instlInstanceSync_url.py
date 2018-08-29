@@ -32,7 +32,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         create_sync_folders_commands += CreateSyncFolders()
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
-        create_sync_folders_commands += Progress("Create folders done")
         self.instlObj.progress(f"{need_download_dirs_num} folders to create")
         return create_sync_folders_commands
 
@@ -65,7 +64,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
             self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
-        self.instlObj.progress(f"created sync urls for {len(in_file_list)} files")
+        self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
         """ Download is done be creating files with instructions for curl - curl config files.
@@ -94,12 +93,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 dl_start_message = "Downloading with 1 process"
             dl_commands += Progress(dl_start_message)
 
+            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
+
             parallel_run_config_file_path = config_vars.resolve_str(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, False)
+            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, progress_count=num_files_to_download, report_own_progress=False)
 
-            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             if num_files_to_download > 1:
                 dl_end_message = f"Downloading {num_files_to_download} files done"
             else:
@@ -121,9 +121,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
-        check_checksum_instructions_accum += Progress("Check checksum ...", num_files)
+        check_checksum_instructions_accum += Progress("Check checksum ...", progress_count=num_files)
         check_checksum_instructions_accum += CheckDownloadFolderChecksum()
-        check_checksum_instructions_accum += Progress("Check checksum done")
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 
@@ -159,12 +158,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         config_vars["__NUM_FILES_TO_DOWNLOAD__"] = to_sync_num_files
         config_vars["__NUM_BYTES_TO_DOWNLOAD__"] = bytes_to_sync
 
-        # notify user how many files and bytes to sync
-        self.instlObj.progress(f"{to_sync_num_files} of {to_sync_num_files+already_synced_num_files} files to sync")
-        self.instlObj.progress(f"{bytes_to_sync} of {bytes_to_sync+already_synced_num_bytes} bytes to sync")
+        # notify user how many files and bytes to download
+        self.instlObj.progress(f"{to_sync_num_files} of {to_sync_num_files+already_synced_num_files} files to download")
+        self.instlObj.progress(f"{bytes_to_sync} of {bytes_to_sync+already_synced_num_bytes} bytes to download")
 
         if already_synced_num_files > 0:
-            dl_commands += Progress(f"{already_synced_num_files} files already in cache")
+            dl_commands += Progress(f"{already_synced_num_files} files already in cache", progress_count=already_synced_num_files)
 
         if to_sync_num_files == 0:
             return dl_commands
@@ -175,7 +174,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
             for m_p in sorted(mount_points_to_size):
                 free_bytes = shutil.disk_usage(m_p).free
-                print(mount_points_to_size[m_p], "bytes to sync to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
+                print(mount_points_to_size[m_p], "bytes to download to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
 
         dl_commands += self.create_sync_folders()
         self.create_sync_urls(file_list)
@@ -188,30 +187,27 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_sync_instructions(self) -> int:
         super().create_sync_instructions()
 
-        self.instlObj.progress("create sync instructions ...")
+        self.instlObj.progress("create download instructions ...")
 
         with self.instlObj.batch_accum.sub_accum(Section("before_sync")) as before_sync_accum:
             before_sync_accum += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
 
-        with self.instlObj.batch_accum.sub_accum(Section("sync")) as sync_accum:
-            sync_accum += Progress("Start sync")
+        with self.instlObj.batch_accum.sub_accum(Section("Starting download from $(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
-            sync_accum += Progress("Starting sync from $(SYNC_BASE_URL)")
             sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
 
             with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
                 with local_repo_sync_dir_accum.sub_accum(Section("remove_redundant_files_in_sync_folder")) as rrfisf:
                     rrfisf += self.create_instructions_to_remove_redundant_files_in_sync_folder()
 
-                with local_repo_sync_dir_accum.sub_accum(Section("download")) as cdi:
-                    cdi += self.create_download_instructions()
+                local_repo_sync_dir_accum += self.create_download_instructions()
 
                 with local_repo_sync_dir_accum.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
 
                     if int(config_vars["__NUM_FILES_TO_DOWNLOAD__"]) > 0:
                         post_sync_accum_transaction += self.chown_for_synced_folders()
-                        self.instlObj.progress("create sync instructions done")
+                        self.instlObj.progress("create download instructions done")
                     post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False)
 
         sync_accum += Progress("Done sync")

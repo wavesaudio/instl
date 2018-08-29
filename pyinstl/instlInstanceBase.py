@@ -355,7 +355,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
         assert "__MAIN_OUT_FILE__" in config_vars
 
-        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.num_batch_commands()
+        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
 
         self.create_variables_assignment(in_batch_accum)
 
@@ -383,7 +383,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         else:
             self.out_file_realpath = "stdout"
         msg = " ".join(
-            (self.out_file_realpath, str(in_batch_accum.num_batch_commands()), "progress items"))
+            (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)
 
     def run_batch_file(self):

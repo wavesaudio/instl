@@ -1111,10 +1111,10 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
             redundant_accum += Echo("redundant echo")
-        self.assertEqual(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with only echo should discarded")
+        self.assertEqual(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with only echo should discarded")
         with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
             redundant_accum += Wzip("dummy no real path")
-        self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
+        self.assertGreater(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with essential command should not discarded")
 
     def test_CreateSymlink_repr(self):
 

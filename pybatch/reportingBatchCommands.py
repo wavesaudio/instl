@@ -74,6 +74,7 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
     def __init__(self, *titles):
         super().__init__()
         self.titles = titles
+        self.own_progress_count = 0
 
     def __repr__(self):
         if len(self.titles) == 1:
@@ -109,15 +110,14 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
     """
         just issue a progress message
     """
-    def __init__(self, message, inc_progress_by: int=1, **kwargs) -> None:
+    def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = message
-        self.own_num_progress = inc_progress_by
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)}'''
-        if self.own_num_progress > 1:
-            the_repr += f", inc_progress_by={self.own_num_progress}"
+        if self.own_progress_count > 1:
+            the_repr += f", progress_count={self.own_progress_count}"
         the_repr += ')'
         return the_repr
 
@@ -133,6 +133,7 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         return self.message
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.running_progress += self.own_progress_count
         log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
     def error_dict_self(self, exc_val):
@@ -147,7 +148,7 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = message
-        self.own_num_progress = 0
+        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = f'''print("{self.message}")'''
@@ -179,7 +180,7 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
     def __init__(self, remark, **kwargs) -> None:
         super().__init__(**kwargs)
         self.remark = remark
-        self.own_num_progress = 0
+        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = f'''# {self.remark}'''
@@ -215,7 +216,7 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
         self.var_name = var_name
         self.var_values = var_values
-        self.own_num_progress = 0
+        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = ""
@@ -265,7 +266,7 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
         self.var_name = var_name
         self.var_values = var_values
-        self.own_num_progress = 0
+        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = ""
@@ -307,6 +308,7 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
 class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
+        self.own_progress_count = 0
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
