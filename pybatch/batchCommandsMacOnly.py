@@ -17,14 +17,6 @@ class MacDock(PythonBatchCommandBase):
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.path_to_item)}, {utils.quoteme_raw_string(self.label_for_item)}, restart_the_doc={self.restart_the_doc}, remove={self.remove})'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""{self.__class__.__name__} '{path_to_item}' as '{self.label_for_item}'"""
 
@@ -72,14 +64,6 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_symlink))}, {utils.quoteme_raw_string(os.fspath(self.path_to_target))})'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
@@ -105,14 +89,6 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_to_convert))})'''
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -148,14 +124,6 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_file_to_convert))})'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""Resolve symlink '{self.symlink_file_to_convert}'"""
 
@@ -189,14 +157,6 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.folder_to_convert)})'''
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -248,14 +208,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         if self.own_progress_count > 1:
             the_repr += f''', progress_count={self.own_progress_count}'''
         the_repr += ')'
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:

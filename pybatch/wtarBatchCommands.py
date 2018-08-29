@@ -62,11 +62,11 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 os.remove(wtar_file)
 
     except OSError as e:
-        log.debug(f"Invalid stream on split file with {wtar_file_paths[0]}")
+        log.warning(f"Invalid stream on split file with {wtar_file_paths[0]}")
         raise e
 
     except tarfile.TarError:
-        log.debug(f"tarfile error while opening file {os.path.abspath(wtar_file_paths[0])}")
+        log.warning(f"tarfile error while opening file {os.path.abspath(wtar_file_paths[0])}")
         raise
 
 
@@ -81,14 +81,6 @@ class Wtar(PythonBatchCommandBase):
         if self.where_to_put_wtar:
             the_repr += f''', where_to_put_wtar={utils.quoteme_raw_string(self.where_to_put_wtar)}'''
         the_repr += ")"
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f""
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f""
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -217,14 +209,6 @@ class Unwtar(PythonBatchCommandBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f""
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f""
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""Expand '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
 
@@ -315,14 +299,6 @@ class Wzip(PythonBatchCommandBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
 
@@ -362,14 +338,6 @@ class Unwzip(PythonBatchCommandBase):
         if self.where_to_put_unwzip:
             the_repr += f''', {utils.quoteme_raw_string(self.where_to_put_unwzip)}'''
         the_repr += ")"
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:

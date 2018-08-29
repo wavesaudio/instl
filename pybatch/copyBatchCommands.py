@@ -62,14 +62,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f"""Copy '{self.src}' to '{self.dst}'"""
 

@@ -21,12 +21,6 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
     def __repr__(self) -> str:
         raise NotImplementedError("AnonymousAccum.__repr__ should not be called")
 
-    def repr_batch_win(self) -> str:
-        raise NotImplementedError("AnonymousAccum.repr_batch_win should not be called")
-
-    def repr_batch_mac(self) -> str:
-        raise NotImplementedError("AnonymousAccum.repr_batch_mac should not be called")
-
     def progress_msg_self(self) -> str:
         raise NotImplementedError("AnonymousAccum.progress_msg_self should not be called")
 
@@ -46,14 +40,6 @@ class RaiseException(PythonBatchCommandBase, essential=True):
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({self.exception_type.__name__}, "{self.exception_message}")'''
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -84,16 +70,6 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
         the_repr = f"""{self.__class__.__name__}({quoted_titles})"""
         return the_repr
 
-    def repr_batch_win(self):
-        retVal = list()
-        retVal.append(f"""echo section: {self.self.titles}""")
-        return retVal
-
-    def repr_batch_mac(self):
-        retVal = list()
-        retVal.append(f"""echo section: {self.titles}""")
-        return retVal
-
     def progress_msg_self(self):
         the_progress_msg = f'''{", ".join(self.titles)}'''
         return the_progress_msg
@@ -121,14 +97,6 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         the_repr += ')'
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return self.message
 
@@ -154,14 +122,6 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
         the_repr = f'''print("{self.message}")'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f''''''
 
@@ -184,14 +144,6 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
 
     def __repr__(self) -> str:
         the_repr = f'''# {self.remark}'''
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -236,14 +188,6 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
             the_repr = f'''{self.var_name} = ""'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f''''''
 
@@ -286,14 +230,6 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
             the_repr = f'''config_vars['{self.var_name}'] = ""'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f''''''
 
@@ -334,14 +270,6 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}("{self.name}")'''
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:

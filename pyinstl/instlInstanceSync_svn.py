@@ -27,7 +27,7 @@ class InstlInstanceSync_svn(InstlInstanceSync):
         retVal = super().create_sync_instructions()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Start sync")
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Start sync from $(SYNC_BASE_URL)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.mkdir("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += self.instlObj.platform_helper.cd("$(LOCAL_SYNC_DIR)")
         self.instlObj.batch_accum += " ".join(('"$(SVN_CLIENT_PATH)"', "co", '"$(BOOKKEEPING_DIR_URL)"', '"$(REL_BOOKKEEPING_PATH)"', "--revision", "$(REPO_REV)", "--depth", "infinity"))

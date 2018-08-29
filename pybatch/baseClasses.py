@@ -56,6 +56,25 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
 
+    @abc.abstractmethod
+    def __repr__(self) -> str:
+        the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
+        return the_repr
+
+    @abc.abstractmethod
+    def progress_msg_self(self) -> str:
+        """ classes overriding PythonBatchCommandBase should add their own progress message
+        """
+        return f"{self.__class__.__name__.progress_msg_self()}"
+
+    @abc.abstractmethod
+    def error_dict_self(self, exc_val):
+        pass
+
+    @abc.abstractmethod
+    def __call__(self, *args, **kwargs):
+        pass
+
     def unnamed__init__param(self, value):
         value_str = utils.quoteme_raw_if_string(value)
         return value_str
@@ -84,13 +103,6 @@ class PythonBatchCommandBase(abc.ABC):
             retVal = any([child.is_essential() for child in self.child_batch_commands])
         return retVal
 
-    def num_sub_batch_commands(self) -> int:
-        counter = 0
-        for batch_command in self.child_batch_commands:
-            counter += batch_command.num_sub_batch_commands()
-            counter += 1
-        return counter
-
     def sub_commands(self) -> List:
         return self.child_batch_commands
 
@@ -118,19 +130,6 @@ class PythonBatchCommandBase(abc.ABC):
         if context.is_essential():
             self.add(context)
 
-    @abc.abstractmethod
-    def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
-        return the_repr
-
-    @abc.abstractmethod
-    def repr_batch_win(self) -> str:
-        return ""
-
-    @abc.abstractmethod
-    def repr_batch_mac(self) -> str:
-        return ""
-
     def __eq__(self, other) -> bool:
         do_not_compare_keys = ('progress', )
         dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
@@ -145,12 +144,6 @@ class PythonBatchCommandBase(abc.ABC):
     def progress_msg(self) -> str:
         the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
-
-    @abc.abstractmethod
-    def progress_msg_self(self) -> str:
-        """ classes overriding PythonBatchCommandBase should add their own progress message
-        """
-        return f"{self.__class__.__name__.progress_msg_self()}"
 
     def warning_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own warning message
@@ -181,10 +174,6 @@ class PythonBatchCommandBase(abc.ABC):
              })
         self.error_dict_self(exc_val)
         return self._error_dict
-
-    @abc.abstractmethod
-    def error_dict_self(self, exc_val):
-        pass
 
     def __enter__(self):
         self.enter_time = time.perf_counter()
@@ -220,15 +209,11 @@ class PythonBatchCommandBase(abc.ABC):
                 setattr(exc_val, "raising_obj", self)
         self.exit_self(exit_return=suppress_exception)
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
+        #log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
 
     def log_result(self, log_lvl, message, exc_val):
         log.log(log_lvl, f"{self.progress_msg()}; {message}; {exc_val.__class__.__name__}: {exc_val}")
-
-    @abc.abstractmethod
-    def __call__(self, *args, **kwargs):
-        pass
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
@@ -246,7 +231,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def __call__(self, *args, **kwargs):
         run_args = list(map(str, self.create_run_args()))
-        log.debug(" ".join(run_args))
+        #log.debug(" ".join(run_args))
         #if run_args[0].startswith('['):
         #    return
         #import shlex
@@ -254,7 +239,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = completed_process.stdout
         self.stderr = completed_process.stderr
-        log.debug(completed_process.stdout)
+        #log.debug(completed_process.stdout)
         #completed_process.check_returncode()
         return None  # what to return here?
 

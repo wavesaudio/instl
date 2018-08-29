@@ -183,14 +183,6 @@ class TestPythonBatch(unittest.TestCase):
 
         self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
 
-    def write_as_batch(self, test_name=None):
-        if test_name is None:
-            test_name = self.which_test
-        test_name = f"{self.sub_test_counter}_{test_name}"
-
-        bc_repr = batch_repr(str(self.batch_accum))
-        self.write_file_in_test_folder(test_name+".sh", bc_repr)
-
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
             reconstruct the object
@@ -211,7 +203,6 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += MakeDirs(dir_to_make_1, remove_obstacles=False)  # MakeDirs twice should be OK
 
         self.exec_and_capture_output()
-        # self.write_as_batch()
 
         self.assertTrue(dir_to_make_1.exists(), f"{self.which_test}: {dir_to_make_1} should exist")
         self.assertTrue(dir_to_make_2.exists(), f"{self.which_test}: {dir_to_make_2} should exist")

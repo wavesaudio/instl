@@ -18,14 +18,6 @@ class Dummy(PythonBatchCommandBase, essential=True):
         the_repr = f'''{self.__class__.__name__}()'''
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f''''''
 

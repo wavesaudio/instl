@@ -293,7 +293,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += MakeDirs(destination_folder)
                             self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False)
-                            self.batch_accum += Progress(f"copy cached file to {destination_path}")
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

@@ -310,10 +310,8 @@ class InstlClient(InstlInstanceBase):
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
-            self.batch_accum += Progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
             self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False)
         else:   # remove previous require.yaml since the new one does not contain anything
-            self.batch_accum += Progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
             self.batch_accum += RmFile("$(SITE_REQUIRE_FILE_PATH)")
 
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix: str, back_ground: bool=False):
@@ -478,7 +476,6 @@ class InstlClient(InstlInstanceBase):
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                retVal += Remark(f"- Begin folder {target_folder_path}")
                 retVal += Cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions
                 retVal += Progress(f"remove previous versions {target_folder_path} ...")

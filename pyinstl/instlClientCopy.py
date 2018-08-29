@@ -76,8 +76,7 @@ class InstlClientCopy(InstlClient):
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
-        self.batch_accum += Progress("Start copy")
-        self.batch_accum += Progress("Starting copy from $(COPY_SOURCES_ROOT_DIR)")
+        self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions_for_active_iids('pre_copy')
 
@@ -149,8 +148,7 @@ class InstlClientCopy(InstlClient):
 
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
-                    retVal += Chown("$(__USER_ID__)", "", source_file.leaf, recursive=False)
-                    retVal += Chmod(source_file.name(), source_file.chmod_spec())
+                    retVal += ChmodAndChown(path=source_file.name(), mode=source_file.chmod_spec(), user_id="$(__USER_ID__)", group_id="", recursive=False)
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
@@ -190,8 +188,7 @@ class InstlClientCopy(InstlClient):
                 for source_item in source_items:
                     if source_item.wtarFlag == 0:
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                        retVal += Chown("$(__USER_ID__)", "", os.curdir, recursive=True)
-                        retVal += Chmod(source_path_relative_to_current_dir, "a+rw", recursive=True, ignore_all_errors=True)  # all copied files and folders should be rw
+                        retVal += ChmodAndChown(path=source_path_relative_to_current_dir, mode="a+rw", user_id="$(__USER_ID__)", group_id="", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                         if source_item.isExecutable():
                             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec(), recursive=True, ignore_all_errors=True)
 
@@ -236,9 +233,8 @@ class InstlClientCopy(InstlClient):
 
             source_path_dir, source_path_name = os.path.split(source_path)
 
-            if  self.mac_current_and_target:
-                retVal += Chown("$(__USER_ID__)", "", source_path_name, recursive=True)
-                retVal += Chmod(source_path_name,"a+rw", recursive=True, ignore_all_errors=True)  # all copied files should be rw
+            if self.mac_current_and_target:
+                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id="$(__USER_ID__)", group_id="", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
@@ -332,7 +328,6 @@ class InstlClientCopy(InstlClient):
         """
         retVal = AnonymousAccum()
         items_in_folder = self.no_copy_iids_by_sync_folder[sync_folder_name]
-        retVal += Progress(f"Actions in {sync_folder_name} ...")
 
         # accumulate pre_copy_to_folder actions from all items, eliminating duplicates
         retVal += self.accumulate_unique_actions_for_active_iids('pre_copy_to_folder', items_in_folder)

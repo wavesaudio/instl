@@ -147,7 +147,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
         redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
         rm_commands = AnonymousAccum()
         for i in redundant_files_indexes:
-            rm_commands += Progress(f"Removed redundant file {files_to_check[i][1]}")
             rm_commands += RmFile(str(files_to_check[i][1]))
         return rm_commands
 
@@ -192,7 +191,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         with self.instlObj.batch_accum.sub_accum(Section("before_sync")) as before_sync_accum:
             before_sync_accum += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
 
-        with self.instlObj.batch_accum.sub_accum(Section("Starting download from $(SYNC_BASE_URL)")) as sync_accum:
+        with self.instlObj.batch_accum.sub_accum(Section("Start download from $(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
             sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
@@ -223,8 +222,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if download_roots:
                 chown_accum += Progress("Adjust ownership and permissions ...")
                 for dr in download_roots:
-                    chown_accum += Chown(user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", path=dr, recursive=True)
-                    chown_accum += Chmod(path=dr, mode="a+rwX", recursive=True, ignore_all_errors=True)
+                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
         return chown_accum
 
 

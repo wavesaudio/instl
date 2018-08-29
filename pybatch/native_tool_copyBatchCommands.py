@@ -144,76 +144,12 @@ class CopyDirToDir(CopyClass):
         src = os.fspath(src).rstrip("/")
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_dir=True)
 
-    def repr_batch_win(self):
-        retVal = list()
-        _, dir_to_copy = os.path.split(self.src)
-        self.trg = "/".join((self.trg, dir_to_copy))
-        ignore_spec = self._create_ignore_spec_batch_win(self.ignore_patterns)
-        norm_src_dir = os.path.normpath(self.src)
-        norm_trg_dir = os.path.normpath(self.trg)
-        if not self.preserve_dest_files:
-            delete_spec = "/PURGE"
-        else:
-            delete_spec = ""
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" {ignore_spec} /E /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS {delete_spec}"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        if self.src.endswith("/"):
-            self.src.rstrip("/")
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
-        else:
-            delete_spec = ""
-        if self.link_dest:
-            the_link_dest = os.path.join(self.src, os.pardir)
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{the_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
-
 
 class CopyDirContentsToDir(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False) -> None:
         if not os.fspath(src).endswith("/"):
             src = os.fspath(src)+"/"
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files)
-
-    def repr_batch_win(self):
-        retVal = list()
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        delete_spec = ""
-        if not self.preserve_dest_files:
-            delete_spec = "/PURGE"
-        else:
-            delete_spec = ""
-        norm_src_dir = os.path.normpath(self.src)
-        norm_trg_dir = os.path.normpath(self.trg)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" /E {delete_spec} {ignore_spec} /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        if not self.src.endswith("/"):
-            self.src += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        delete_spec = ""
-        if not self.preserve_dest_files:
-            delete_spec = "--delete"
-        else:
-            delete_spec = ""
-        if self.link_dest:
-            relative_link_dest = os.path.relpath(self.src, self.trg)
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {delete_spec} {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
 
 
 class CopyFileToDir(CopyClass):
@@ -227,55 +163,9 @@ class CopyFileToDir(CopyClass):
         the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)}, trg={utils.quoteme_raw_string(self.trg)}, link_dest={self.link_dest}, ignore_patterns={self.ignore_patterns})"""
         return the_repr
 
-    def repr_batch_win(self):
-        retVal = list()
-        norm_src_dir, norm_src_file = os.path.split(os.path.normpath(self.src))
-        norm_trg_dir = os.path.normpath(self.trg)
-        copy_command = f""""$(ROBOCOPY_PATH)" "{norm_src_dir}" "{norm_trg_dir}" "{norm_src_file}" /R:9 /W:1 /NS /NC /NFL /NDL /NP /NJS"""
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error(self.robocopy_error_threshold))
-        return retVal
-
-    def repr_batch_mac(self):
-        assert not self.src.endswith("/")
-        if not self.trg.endswith("/"):
-            self.trg += "/"
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        permissions_spec = str(config_vars.get("RSYNC_PERM_OPTIONS", ""))
-        if self.link_dest:
-            the_link_dest, src_file_name = os.path.split(self.src)
-            relative_link_dest = os.path.relpath(the_link_dest, self.trg)
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command
-
 
 class CopyFileToFile(CopyClass):
     def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False, **kwargs) -> None:
         src = os.fspath(src).rstrip("/")
         trg = os.fspath(trg).rstrip("/")
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, preserve_dest_files=preserve_dest_files, copy_file=True, **kwargs)
-
-    def repr_batch_win(self):
-        retVal = list()
-        norm_src_file = os.path.normpath(self.src)
-        norm_trg_file = os.path.normpath(self.trg)
-        copy_command = f"""copy "{norm_src_file}" "{norm_trg_file}" """
-        retVal.append(copy_command)
-        retVal.append(self.platform_helper.exit_if_error())
-        return retVal
-
-    def repr_batch_mac(self):
-        assert not self.src.endswith("/")
-        ignore_spec = self.create_ignore_spec(self.ignore_patterns)
-        if self.link_dest:
-            src_folder_name, src_file_name = os.path.split(self.src)
-            trg_folder_name, trg_file_name = os.path.split(self.trg)
-            relative_link_dest = os.path.relpath(src_folder_name, trg_folder_name)
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} --link-dest="{relative_link_dest}" "{self.src}" "{self.trg}" """
-        else:
-            sync_command = f"""rsync --owner --group -l -r -E {ignore_spec} "{self.src}" "{self.trg}" """
-
-        return sync_command

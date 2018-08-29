@@ -34,14 +34,6 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f'''{self.__class__.__name__}'''
 
@@ -75,14 +67,6 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         if self.raise_on_bad_checksum:
             the_repr += f''', raise_on_bad_checksum={self.raise_on_bad_checksum}'''
         the_repr += ")"
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -141,14 +125,6 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
         return f'''Set exec permissions in download folder'''
 
@@ -180,14 +156,6 @@ class CreateSyncFolders(InfoMapBase):
         if self.info_map_file is not None:
             the_repr += f'''info_map_file={utils.quoteme_raw_string(self.info_map_file)}'''
         the_repr += ")"
-        return the_repr
-
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
         return the_repr
 
     def progress_msg_self(self) -> str:

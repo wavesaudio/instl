@@ -24,7 +24,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def create_download_instructions(self):
         retVal = 0
         self.instlObj.batch_accum.set_current_section('sync')
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Start sync from $(SYNC_BASE_URL)")
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()

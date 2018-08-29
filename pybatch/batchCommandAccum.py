@@ -23,15 +23,6 @@ def camel_to_snake_case(identifier):
     return identifier2
 
 
-def batch_repr(batch_obj):
-    assert isinstance(batch_obj, (PythonBatchCommandBase, PythonBatchCommandAccum))
-    if sys.platform == "darwin":
-        return batch_obj.repr_batch_mac()
-
-    elif sys.platform == "win32":
-        return batch_obj.repr_batch_win()
-
-
 class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     section_order = ("pre", "assign", "begin", "links", "upload", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
@@ -59,7 +50,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         """ count recursively the number of batch commands - not including the top sections """
         counter = 0
         for a_section in self.sections.values():
-            counter += a_section.num_sub_batch_commands()
+            counter += a_section.total_progress_count()
         return counter
 
     def finalize_list_of_lines(self):
@@ -166,21 +157,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
         the_whole_repr = prolog_str.getvalue()+main_str_resolved
         return the_whole_repr
-
-    def repr_batch_win(self):
-        def _repr_helper(batch_items, io_str):
-            if isinstance(batch_items, list):
-                for item in batch_items:
-                    _repr_helper(item, io_str)
-                    _repr_helper(item.child_batch_commands, io_str)
-            else:
-                io_str.write(batch_repr(batch_items))
-        PythonBatchCommandBase.total_progress = 0
-        io_str = io.StringIO()
-        return io_str.getvalue()
-
-    def repr_batch_mac(self):
-        return ""
 
     def progress_msg_self(self):
         """ """

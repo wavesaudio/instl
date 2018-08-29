@@ -36,7 +36,7 @@ class InstlClientRemove(InstlClient):
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
-        self.batch_accum += Progress("Starting remove")
+        self.batch_accum += Progress("Start remove")
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold),
                                            reverse=True)

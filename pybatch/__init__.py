@@ -1,7 +1,6 @@
 import sys
 
 from .batchCommands import PythonBatchCommandBase
-from .batchCommandAccum import batch_repr
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .copyBatchCommands import CopyDirContentsToDir
@@ -26,16 +25,17 @@ from .batchCommands import Chmod
 from .batchCommands import Chown
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
-from .batchCommands import ParallelRun
 from .batchCommands import RmDir
 from .batchCommands import RmFile
 from .batchCommands import RmFileOrDir
 from .batchCommands import RunProcessBase
-from .batchCommands import ShellCommands
-from .batchCommands import ShellCommand
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
+
+from .subprocessBatchCommands import ParallelRun
+from .subprocessBatchCommands import ShellCommands
+from .subprocessBatchCommands import ShellCommand
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
