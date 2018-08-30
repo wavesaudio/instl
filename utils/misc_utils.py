@@ -745,14 +745,14 @@ wtar_file_re = re.compile("""
 
 
 def is_wtar_file(in_possible_wtar) -> bool:
-    match = wtar_file_re.match(in_possible_wtar)
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
     retVal: bool = match is not None
     return retVal
 
 
 def is_first_wtar_file(in_possible_wtar):
     retVal = False
-    match = wtar_file_re.match(in_possible_wtar)
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
     if match:
         split_numerator = match['split_numerator']
         retVal = split_numerator is None or split_numerator == ".aa"

@@ -230,12 +230,14 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
-        run_args = list(map(str, self.create_run_args()))
+        run_args = self.create_run_args()
+        run_args = list(map(str, run_args))
         #log.debug(" ".join(run_args))
         #if run_args[0].startswith('['):
         #    return
-        #import shlex
-        #shlex.split()
+        #if len(run_args) == 1:
+        #    import shlex
+        #    run_args = shlex.split(run_args[0])  # does not work...subprocess.run will nor accept the split command
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = completed_process.stdout
         self.stderr = completed_process.stderr

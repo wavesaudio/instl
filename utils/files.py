@@ -9,6 +9,8 @@ import stat
 import fnmatch
 from contextlib import contextmanager
 import ssl
+from pathlib import Path
+
 import pyinstl.connectionBase
 #from pyinstl import connection_factory
 import zlib
@@ -432,21 +434,19 @@ def smart_copy_file(source_path, destination_path):
             pass
 
 
-def find_split_files(first_file):
+def find_split_files(first_file: Path):
     try:
         retVal = list()
-        norm_first_file = os.path.normpath(first_file)  # remove trailing . if any
 
-        if norm_first_file.endswith(".aa"):
-            base_folder, base_name = os.path.split(norm_first_file)
-            if not base_folder:
-                base_folder = os.curdir
-            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
+        first_file_name = first_file.name
+        first_file_dir = first_file.parent
+        if first_file_name.endswith(".aa"):
+            filter_pattern = first_file_name[:-2] + "??"  # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(first_file_dir)), filter_pattern))
             for a_file in matching_files:
-                retVal.append(os.path.join(base_folder, a_file))
+                retVal.append(first_file_dir.joinpath(a_file))
         else:
-            retVal.append(norm_first_file)
+            retVal.append(first_file)
         return retVal
 
     except Exception as es:

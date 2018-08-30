@@ -4,6 +4,8 @@ import stat
 import tarfile
 from collections import OrderedDict
 import logging
+from pathlib import Path
+import filecmp
 
 from configVar import config_vars
 import utils
@@ -14,24 +16,21 @@ from .baseClasses import PythonBatchCommandBase
 log = logging.getLogger()
 
 
-def can_skip_unwtar(what_to_work_on: os.PathLike, where_to_unwtar: os.PathLike):
-    return False
-    # disabled for now because Info.xml is copied before unwtarring take place
+def can_skip_unwtar(what_to_work_on: Path, where_to_unwtar: Path):
     try:
-        what_to_work_on_info_xml = os.path.join(what_to_work_on, "Contents", "Info.xml")
-        where_to_unwtar_info_xml = os.path.join(where_to_unwtar, "Contents", "Info.xml")
+        what_to_work_on_info_xml = what_to_work_on.joinpath("Contents", "Info.xml")
+        where_to_unwtar_info_xml = where_to_unwtar.joinpath("Contents", "Info.xml")
         retVal = filecmp.cmp(what_to_work_on_info_xml, where_to_unwtar_info_xml, shallow=True)
+        retVal = False  # disabled for now because Info.xml is copied before unwtarring take place
     except:
         retVal = False
     return retVal
 
 
-def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None, copy_owner=True):
+def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=True):
     try:
         wtar_file_paths = utils.find_split_files(wtar_file_path)
 
-        if destination_folder is None:
-            destination_folder, _ = os.path.split(wtar_file_paths[0])
         log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
         if ignore is None:
             ignore = ()
@@ -221,14 +220,16 @@ class Unwtar(PythonBatchCommandBase):
 
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        expanded_what_to_unwtar = os.path.expandvars(self.what_to_unwtar)
-        if os.path.isfile(expanded_what_to_unwtar):
-            if utils.is_first_wtar_file(expanded_what_to_unwtar):
-                unwtar_a_file(expanded_what_to_unwtar, self.where_to_unwtar, no_artifacts=self.no_artifacts, ignore=ignore_files)
-        elif os.path.isdir(expanded_what_to_unwtar):
-            if not can_skip_unwtar(expanded_what_to_unwtar, self.where_to_unwtar):
-                where_to_unwtar_the_file = None
-                for root, dirs, files in os.walk(expanded_what_to_unwtar, followlinks=False):
+        what_to_unwtar: Path = Path(os.path.expandvars(self.what_to_unwtar)).resolve()
+        destination_folder: Path = Path(os.path.expandvars(self.where_to_unwtar) if self.where_to_unwtar else what_to_unwtar.parent).resolve()
+
+        if what_to_unwtar.is_file():
+            if utils.is_first_wtar_file(what_to_unwtar):
+                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files)
+
+        elif what_to_unwtar.is_dir():
+            if not can_skip_unwtar(what_to_unwtar, destination_folder):
+                for root, dirs, files in os.walk(what_to_unwtar, followlinks=False):
                     # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                     # to the top level of the sync folder.
                     if "bookkeeping" in dirs:
@@ -236,18 +237,18 @@ class Unwtar(PythonBatchCommandBase):
                         log.debug(f"skipping {root} because bookkeeping folder was found")
                         continue
 
-                    tail_folder = root[len(expanded_what_to_unwtar):].strip("\\/")
-                    if self.where_to_unwtar is not None:
-                        where_to_unwtar_the_file = os.path.join(self.where_to_unwtar, tail_folder)
+                    root_Path = Path(root)
+                    tail_folder =root_Path.relative_to(what_to_unwtar)
+                    where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                     for a_file in files:
-                        a_file_path = os.path.join(root, a_file)
+                        a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
                             unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
-                log.debug(f"unwtar {expanded_what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
+                log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
-            raise FileNotFoundError(expanded_what_to_unwtar)
+            raise FileNotFoundError(what_to_unwtar)
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
