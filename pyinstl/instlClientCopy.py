@@ -111,7 +111,7 @@ class InstlClientCopy(InstlClient):
         # so copy should be avoided.
         if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
             self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
-            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False)
+            self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
         self.create_require_file_instructions()
 

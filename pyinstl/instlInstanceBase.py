@@ -228,7 +228,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open(file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
 
             define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str()},
                                                 '!define', "definitions",
@@ -292,7 +292,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += MakeDirs(destination_folder)
-                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False)
+                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")

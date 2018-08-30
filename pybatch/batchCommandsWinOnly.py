@@ -46,8 +46,8 @@ class WinShortcut(PythonBatchCommandBase):
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
                 file.Save(expanded_shortcut_path, 0)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'shortcut_path': self.shortcut_path,
             'target_path': self.target_path,

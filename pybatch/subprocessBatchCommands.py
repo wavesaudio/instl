@@ -80,8 +80,8 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
             with ShellCommand(shell_command, f"""{self.message} #{i+1}""", progress_count=0) as shelli:
                 shelli()
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'shell_commands_list': self.shell_commands_list,
         })
@@ -120,8 +120,8 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
             if sys_exit.code != 0:
                 raise
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'config_file': self.config_file,
         })

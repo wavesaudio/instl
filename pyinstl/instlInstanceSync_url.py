@@ -109,7 +109,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
             for config_file in config_files:
                 if sys.platform == 'win32':
                     # curl on windows has problem with path to config files that have unicode characters
@@ -207,7 +207,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                     if int(config_vars["__NUM_FILES_TO_DOWNLOAD__"]) > 0:
                         post_sync_accum_transaction += self.chown_for_synced_folders()
                         self.instlObj.progress("create download instructions done")
-                    post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False)
+                    post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
         sync_accum += Progress("Done sync")
 

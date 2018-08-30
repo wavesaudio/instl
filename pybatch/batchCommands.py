@@ -78,8 +78,8 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         self.make_random_dirs_recursive(self.num_levels)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -129,8 +129,8 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
     def error_msg_self(self):
         return f"creating {self.cur_path}"
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -159,8 +159,8 @@ class Touch(PythonBatchCommandBase, essential=True):
         with open(self.path, 'a') as tfd:
             os.utime(self.path, None)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -185,8 +185,8 @@ class Cd(PythonBatchCommandBase, essential=True):
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -219,8 +219,8 @@ class CdSection(Cd, essential=False):
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -272,8 +272,8 @@ class ChFlags(RunProcessBase, essential=True):
         run_args.append(self.path)
         return run_args
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -293,8 +293,8 @@ class Unlock(ChFlags, essential=True):
         resolved_path = pathlib.Path(self.path).resolve()
         return f"""{self.__class__.__name__} '{resolved_path}'"""
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -326,8 +326,8 @@ class RmFile(PythonBatchCommandBase, essential=True):
         os.remove(self.path)
         return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -353,8 +353,8 @@ class RmDir(PythonBatchCommandBase, essential=True):
         shutil.rmtree(self.path)
         return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -382,8 +382,8 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
             shutil.rmtree(self.path)
         return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -407,8 +407,8 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
                 wfd.write(rfd.read())
         return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -452,8 +452,8 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
             os.chown(expanded_path, uid=int(self.user_id), gid=int(self.group_id))
             return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -540,8 +540,8 @@ class Chmod(RunProcessBase, essential=True):
             os.chmod(expanded_path, mode_to_set)
         return None
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -574,8 +574,8 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         Chown(user_id=self.user_id, group_id=self.group_id, path=self.path, recursive=self.recursive, progress_count=0)()
         Chmod(path=self.path, mode=self.mode, recursive=self.recursive, progress_count=0)()
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -617,8 +617,8 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
                     except Exception as ex:
                         print("failed to remove", root_path, ex)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'folder_to_remove': self.folder_to_remove,
         })
@@ -650,8 +650,8 @@ class Ls(PythonBatchCommandBase, essential=True):
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'folders_to_list': self.folders_to_list,
             'out_file': self.out_file,
@@ -690,8 +690,8 @@ class CUrl(RunProcessBase):
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
         return
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'src': self.src,
             'trg': self.trg,

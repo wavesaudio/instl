@@ -27,8 +27,8 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         raise NotImplementedError("AnonymousAccum.__call__ should not be called")
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -48,8 +48,8 @@ class RaiseException(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         raise self.exception_type(self.exception_message)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({"dummy_exception": self.exception_message})
 
 
@@ -77,8 +77,8 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
     def __call__(self, *args, **kwargs):
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -104,8 +104,8 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         PythonBatchCommandBase.running_progress += self.own_progress_count
         log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -128,8 +128,8 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -152,8 +152,8 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -194,8 +194,8 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -236,8 +236,8 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})
 
 
@@ -260,7 +260,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         return suppress_exception
 
     def log_error(self, exc_val, exc_tb):
-        error_dict = exc_val.raising_obj.error_dict(exc_val)
+        error_dict = exc_val.raising_obj.error_dict(None, exc_val, exc_tb)
         error_dict.update({
             "batch_file": exc_tb.tb_frame.f_code.co_filename,
             "batch_line": exc_tb.tb_lineno
@@ -278,6 +278,6 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({})

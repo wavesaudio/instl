@@ -188,13 +188,18 @@ def main():
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__SYSTEM_LOG_FILE_PATH__": utils.get_system_log_file_path(),
-                    "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+                    "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16)),
+                    "__SUDO_USER__": os.environ.get("SUDO_USER", "no set")
                     }
 
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
+    else:
+        initial_vars.update(
+                    {"__USER_ID__": -1,
+                     "__GROUP_ID__": -1})
 
     # config_logger()
     instance = None

@@ -46,8 +46,8 @@ class MacDock(PythonBatchCommandBase):
             dock_util_command.append("--no-restart")
         utils.dock_util(dock_util_command)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'path_to_item': self.path_to_item,
             'label_for_item': self.label_for_item,
@@ -70,8 +70,8 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         os.symlink(os.path.expandvars(self.path_to_target), os.path.expandvars(self.path_to_symlink))
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'path_to_symlink': self.path_to_symlink,
             'path_to_target': self.path_to_target,
@@ -104,8 +104,8 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
                 symlink_text_path.write_text(link_value)
                 symlink_to_convert.unlink()
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'symlink_to_convert': self.symlink_to_convert,
         })
@@ -138,8 +138,8 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink.symlink_to(symlink_target)
         symlink_file_to_convert.unlink()
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'symlink_file_to_convert': self.symlink_file_to_convert,
         })
@@ -184,8 +184,8 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
             for symlink_file, link_value in broken_symlinks:
                 print(symlink_file, "-?>", link_value)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'folder_to_convert': self.folder_to_convert,
             'last_symlink_file': self.last_symlink_file
@@ -223,8 +223,8 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                     with SymlinkFileToSymlink(item_path, progress_count=0) as symlink_converter:
                         symlink_converter()
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update({
             'folder_to_convert': self.folder_to_convert,
             'target_path': self.target_path,

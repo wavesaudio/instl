@@ -91,7 +91,6 @@ class InstlClient(InstlInstanceBase):
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
-        self.create_instl_history_file()
         self.command_output()
         self.items_table.config_var_list_to_db(config_vars)
 
@@ -99,21 +98,6 @@ class InstlClient(InstlInstanceBase):
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
-
-    def create_instl_history_file(self):
-        config_vars["__BATCH_CREATE_TIME__"] = time.strftime("%Y/%m/%d %H:%M:%S")
-        yaml_of_defines = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions",
-                                                explicit_start=True, sort_mappings=True)
-
-        # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
-        # and the folder actually exists.
-        instl_temp_history_file_path = config_vars["INSTL_HISTORY_TEMP_PATH"].str()
-        instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
-        if os.path.isdir(instl_temp_history_folder):
-            with utils.utf8_open(instl_temp_history_file_path, "w") as wfd:
-                utils.make_open_file_read_write_for_all(wfd)
-                aYaml.writeAsYaml(yaml_of_defines, wfd)
-            self.batch_accum += AppendFileToFile("$(INSTL_HISTORY_TEMP_PATH)", "$(INSTL_HISTORY_PATH)")
 
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in config_vars:
@@ -305,12 +289,12 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False)
+        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False, copy_owner=True)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
-            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False)
+            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False, copy_owner=True)
         else:   # remove previous require.yaml since the new one does not contain anything
             self.batch_accum += RmFile("$(SITE_REQUIRE_FILE_PATH)")
 

@@ -187,7 +187,10 @@ class DBMaster(object):
     def transaction(self, description=None):
         try:
             if not description:
-                description = inspect.stack()[2][3]
+                try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
+                    description = inspect.stack()[2][3]
+                except:
+                    description = "unknown"
             time1 = time.perf_counter()
             self.begin()
             yield self.__curs

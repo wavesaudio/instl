@@ -26,7 +26,7 @@ def can_skip_unwtar(what_to_work_on: os.PathLike, where_to_unwtar: os.PathLike):
     return retVal
 
 
-def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
+def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None, copy_owner=True):
     try:
         wtar_file_paths = utils.find_split_files(wtar_file_path)
 
@@ -46,7 +46,6 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 tar_total_checksum = tar.pax_headers.get("total_checksum")
                 if tar_total_checksum:
                     if os.path.exists(destination_path):
-                        disk_total_checksum = "disk_total_checksum_was_not_found"
                         with utils.ChangeDirIfExists(destination_folder):
                             disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
 
@@ -56,6 +55,11 @@ def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, i
                 if do_the_unwtarring:
                     utils.safe_remove_file_system_object(destination_path)
                     tar.extractall(destination_folder)
+
+                    if copy_owner:
+                        from pybatch import Chown
+                        first_wtar_file_st = os.stat(wtar_file_paths[0])
+                        Chown(first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], destination_folder, recursive=True)()
 
         if no_artifacts:
             for wtar_file in wtar_file_paths:
@@ -186,19 +190,20 @@ class Wtar(PythonBatchCommandBase):
             else:
                 log.debug(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update(
             {'what_to_wtar': os.fspath(self.what_to_wtar),
              'where_to_put_wtar': os.fspath(self.where_to_put_wtar)})
 
 
 class Unwtar(PythonBatchCommandBase):
-    def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False, **kwargs) -> None:
+    def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False,                  copy_owner=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.what_to_unwtar = what_to_unwtar
         self.where_to_unwtar = where_to_unwtar if where_to_unwtar else None
         self.no_artifacts = no_artifacts
+        self.copy_owner = copy_owner
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}(what_to_unwtar={utils.quoteme_raw_string(self.what_to_unwtar)}'''
@@ -244,8 +249,8 @@ class Unwtar(PythonBatchCommandBase):
         else:
             raise FileNotFoundError(expanded_what_to_unwtar)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update(
             {'what_to_unwtar': os.fspath(self.what_to_unwtar),
              'where_to_unwtar': os.fspath(self.where_to_unwtar)})
@@ -320,8 +325,8 @@ class Wzip(PythonBatchCommandBase):
         with open(target_wzip_file, "wb") as wfd, open(expanded_what_to_zip, "rb") as rfd:
             wfd.write(zlib.compress(rfd.read(), zlib_compression_level))
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update(
             {'what_to_wzip': os.fspath(self.what_to_wzip),
              'where_to_put_wzip': os.fspath(self.where_to_put_wzip)})
@@ -362,8 +367,8 @@ class Unwzip(PythonBatchCommandBase):
             decompressed = zlib.decompress(rfd.read())
             wfd.write(decompressed)
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
         self._error_dict.update(
             {'what_to_unwzip': os.fspath(self.what_to_unwzip),
              'where_to_put_unwzip': os.fspath(self.where_to_put_unwzip)})

@@ -328,14 +328,22 @@ def safe_remove_file_system_object(path_to_file_system_object, followlinks=False
         pass
 
 
-def make_open_file_read_write_for_all(fd):
+def make_open_file_read_write_for_all(fd, user=-1, group=-1):
     try:
         os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except Exception:
         try:
             os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception:
-            print("make_open_file_read_write_for_all: failed for ", fd.name)
+            print("make_open_file_read_write_for_all: chmod failed for ", fd.name)
+    if user != -1 or group != -1:
+        try:
+            os.fchown(fd.fileno(), user, group)
+        except Exception:
+            try:
+                os.chown(fd.name, user, group)
+            except Exception:
+                print("make_open_file_read_write_for_all: chown failed for ", fd.name)
 
 
 def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):

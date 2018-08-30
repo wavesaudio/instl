@@ -565,7 +565,7 @@ class TestPythonBatch(unittest.TestCase):
 
     def test_CopyFileToFile_repr(self):
         dir_from = r"\p\o\i"
-        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False)
+        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False, copy_owner=True)
         cftf_obj_recreated = eval(repr(cftf_obj))
         self.assertEqual(cftf_obj, cftf_obj_recreated, "CopyFileToFile.repr did not recreate CopyFileToFile object correctly")
 

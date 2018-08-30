@@ -68,7 +68,7 @@ class PythonBatchCommandBase(abc.ABC):
         return f"{self.__class__.__name__.progress_msg_self()}"
 
     @abc.abstractmethod
-    def error_dict_self(self, exc_val):
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         pass
 
     @abc.abstractmethod
@@ -161,7 +161,7 @@ class PythonBatchCommandBase(abc.ABC):
         """
         pass
 
-    def error_dict(self, exc_val) -> Dict:
+    def error_dict(self, exc_type, exc_val, exc_tb) -> Dict:
         if self._error_dict is None:
             self._error_dict = dict()
         self._error_dict.update({
@@ -172,7 +172,7 @@ class PythonBatchCommandBase(abc.ABC):
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': os.getcwd(),
              })
-        self.error_dict_self(exc_val)
+        self.error_dict_self(exc_type, exc_val, exc_tb)
         return self._error_dict
 
     def __enter__(self):
@@ -251,5 +251,5 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
     def __repr__(self):
         raise NotImplementedError
 
-    def error_dict_self(self, exc_val):
-        super().error_dict_self(exc_val)
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
