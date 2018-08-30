@@ -309,7 +309,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -343,7 +343,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def progress_msg_self(self):
