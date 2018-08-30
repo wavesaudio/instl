@@ -189,7 +189,7 @@ class DBMaster(object):
             if not description:
                 try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
                     description = inspect.stack()[2][3]
-                except:
+                except IndexError as ex:
                     description = "unknown"
             time1 = time.perf_counter()
             self.begin()
