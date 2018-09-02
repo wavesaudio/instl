@@ -144,9 +144,9 @@ class TestPythonBatch(unittest.TestCase):
         if self.test_folder.exists():
             for root, dirs, files in os.walk(str(self.test_folder)):
                 for d in dirs:
-                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec)
+                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, follow_symlinks=False)
                 for f in files:
-                    os.chmod(os.path.join(root, f), Chmod.all_read_write)
+                    os.chmod(os.path.join(root, f), Chmod.all_read_write, follow_symlinks=False)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
         self.batch_accum.set_current_section("pre")
@@ -169,17 +169,18 @@ class TestPythonBatch(unittest.TestCase):
 
         bc_repr = repr(self.batch_accum)
         self.write_file_in_test_folder(test_name+".py", bc_repr)
+        bc_compiled = compile(bc_repr, test_name+".py", 'exec')
         stdout_capture = io.StringIO()
         with capture_stdout(stdout_capture):
             if not expected_exception:
                 try:
-                    ops = exec(f"""{bc_repr}""", globals(), locals())
+                    ops = exec(bc_compiled, globals(), locals())
                 except SyntaxError:
                     print(f"> > > > SyntaxError in {test_name}")
                     raise
             else:
                 with self.assertRaises(expected_exception):
-                    ops = exec(f"""{bc_repr}""", globals(), locals())
+                    ops = exec(bc_compiled, globals(), locals())
 
         self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
 
@@ -612,7 +613,6 @@ class TestPythonBatch(unittest.TestCase):
 
         self.assertTrue(filecmp.cmp(file_to_copy, target_file_different_name_without_hard_links))
         self.assertTrue(is_same_inode(file_to_copy, target_file_different_name_with_hard_links))
-
 
     def test_RmFile_repr(self):
         rmfile_obj = RmFile(r"\just\remove\me\already")
@@ -1131,12 +1131,13 @@ class TestPythonBatch(unittest.TestCase):
         relative_symlink_to_a_folder = self.path_inside_test_folder("relative_symlink_of_a_folder")
 
         self.batch_accum.clear()
-        self.batch_accum += Touch(a_file_to_symlink)
-        self.batch_accum += MakeDirs(a_folder_to_symlink)
-        self.batch_accum += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
-        self.batch_accum += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
-        self.batch_accum += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
-        self.batch_accum += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
+        with self.batch_accum.sub_accum(Cd(self.test_folder)) as iSubSub:
+            iSubSub += Touch(a_file_to_symlink)
+            iSubSub += MakeDirs(a_folder_to_symlink)
+            iSubSub += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
+            iSubSub += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
+            iSubSub += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
+            iSubSub += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
         self.exec_and_capture_output("CreateSymlink")
 
         self.assertFalse(os.path.islink(a_file_to_symlink), f"CreateSymlink {a_file_to_symlink} should be a file not a symlink")
@@ -1209,7 +1210,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
         self.batch_accum += MakeDirs(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
-            with self.batch_accum.sub_accum(Section(test_data.original_to_symlink.name)) as symlink_test_accum:
+            with self.batch_accum.sub_accum(CdSection(self.test_folder ,test_data.original_to_symlink.name)) as symlink_test_accum:
                 symlink_test_accum += CreateSymlink(test_data.symlink_to_a_original, test_data.original_to_symlink)                # symlink with full path
                 symlink_test_accum += CreateSymlink(test_data.relative_symlink_to_a_original, test_data.original_to_symlink.name)  # symlink with relative path
                 symlink_test_accum += SymlinkToSymlinkFile(test_data.symlink_to_a_original)
@@ -1221,8 +1222,9 @@ class TestPythonBatch(unittest.TestCase):
             self.assertFalse(os.path.islink(test_data[0]), f"SymlinkToSymlinkFile {test_data.original_to_symlink} should be a file not a symlink")
             self.assertFalse(test_data.symlink_to_a_original.exists(), f"SymlinkToSymlinkFile {test_data.symlink_to_a_original} should have been erased")
             self.assertFalse(test_data.relative_symlink_to_a_original.exists(), f"SymlinkToSymlinkFile {test_data.relative_symlink_to_a_original} should have been erased")
-            self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should be replaced by .symlink file")
+            self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should have been replaced by .symlink file")
             self.assertTrue(test_data.symlink_file_of_relative.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_relative} should be replaced by .symlink file")
+
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_original)
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_relative)

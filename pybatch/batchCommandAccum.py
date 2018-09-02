@@ -164,6 +164,3 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         pass
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)

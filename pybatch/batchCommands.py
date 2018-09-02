@@ -3,7 +3,7 @@ import stat
 import random
 import string
 import shutil
-import pathlib
+from pathlib import Path
 import shlex
 import collections
 from typing import List, Any, Optional, Union
@@ -78,10 +78,6 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         self.make_random_dirs_recursive(self.num_levels)
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class MakeDirs(PythonBatchCommandBase, essential=True):
     """ Create one or more dirs
@@ -93,10 +89,6 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
     def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
         super().__init__()
         self.paths_to_make = paths_to_make
-        try:
-            [os.fspath(path) for path in self.paths_to_make]
-        except:
-            print(f"MakeDirs bad paths: {self.paths_to_make}")
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
         self.own_progress_count = len(self.paths_to_make)
@@ -116,22 +108,14 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
-        retVal = 0
         for self.cur_path in self.paths_to_make:
-            expanded_path_to_make = os.path.expandvars(self.cur_path)
+            resolved_path_to_make = utils.ResolvedPath(self.cur_path)
             if self.remove_obstacles:
-                if os.path.isfile(expanded_path_to_make):
-                    os.unlink(expanded_path_to_make)
-            os.makedirs(expanded_path_to_make, mode=0o777, exist_ok=True)
-            retVal += 1
-        return retVal
-
-    def error_msg_self(self):
-        return f"creating {self.cur_path}"
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+                if os.path.isfile(resolved_path_to_make):
+                    self.doing = f"""removing file that should be a folder '{resolved_path_to_make}'"""
+                    os.unlink(resolved_path_to_make)
+            self.doing = f"""creating a folder '{resolved_path_to_make}'"""
+            resolved_path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
 
 
 class MakeDirsWithOwner(MakeDirs, essential=True):
@@ -156,12 +140,9 @@ class Touch(PythonBatchCommandBase, essential=True):
         return f"""{self.__class__.__name__} to '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        with open(self.path, 'a') as tfd:
-            os.utime(self.path, None)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_path = utils.ResolvedPath(self.path)
+        with open(resolved_path, 'a') as tfd:
+            os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase, essential=True):
@@ -179,15 +160,12 @@ class Cd(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
-        os.chdir(os.path.expandvars(self.new_path))
-        return None
+        resolved_new_path = utils.ResolvedPath(self.new_path)
+        self.doing = f"""changing current directory to '{resolved_new_path}'"""
+        os.chdir(resolved_new_path)
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class CdSection(Cd, essential=False):
@@ -209,19 +187,16 @@ class CdSection(Cd, essential=False):
         return the_repr
 
     def progress_msg_self(self):
-        return f"""Cd to '{os.path.expandvars(self.new_path)}'"""
+        return f"""Cd to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
-        os.chdir(os.path.expandvars(self.new_path))
-        return None
+        resolved_new_path = Path(os.path.expandvars(self.new_path))
+        self.doing = f"""changing current directory to '{resolved_new_path}'"""
+        os.chdir(resolved_new_path)
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class ChFlags(RunProcessBase, essential=True):
@@ -243,25 +218,28 @@ class ChFlags(RunProcessBase, essential=True):
         return the_repr
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} {self.flag} '{self.path}'"""
+        return f"""changing flag '{self.flag}' of file '{self.path}"""
 
     def create_run_args(self):
+        path = os.fspath(utils.ResolvedPath(self.path))
+        self.doing = f"""changing flag '{self.flag}' of file '{path}"""
         flag = self.flags_dict[sys.platform][self.flag]
         if sys.platform == 'darwin':
-            return self._create_run_args_mac(flag)
+            retVal = self._create_run_args_mac(flag, path)
         elif sys.platform == 'win32':
-            return self._create_run_args_win(flag)
+            retVal = self._create_run_args_win(flag, path)
+        return retVal
 
-    def _create_run_args_win(self, flag):
+    def _create_run_args_win(self, flag, path):
         run_args = list()
         run_args.append("attrib")
         if self.recursive:
             run_args.extend(('/S', '/D'))
         run_args.append(flag)
-        run_args.append(self.path)
+        run_args.append(os.fspath(path))
         return run_args
 
-    def _create_run_args_mac(self, flag):
+    def _create_run_args_mac(self, flag, path):
         run_args = list()
         run_args.append("chflags")
         if self.ignore_errors:
@@ -269,12 +247,8 @@ class ChFlags(RunProcessBase, essential=True):
         if self.recursive:
             run_args.append("-R")
         run_args.append(flag)
-        run_args.append(self.path)
+        run_args.append(os.fspath(path))
         return run_args
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class Unlock(ChFlags, essential=True):
@@ -290,12 +264,7 @@ class Unlock(ChFlags, essential=True):
         return the_repr
 
     def progress_msg_self(self):
-        resolved_path = pathlib.Path(self.path).resolve()
-        return f"""{self.__class__.__name__} '{resolved_path}'"""
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        return f"""{self.__class__.__name__} '{self.path}'"""
 
 
 class RmFile(PythonBatchCommandBase, essential=True):
@@ -315,20 +284,11 @@ class RmFile(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""Remove file '{self.path}'"""
 
-    def error_msg_self(self):
-        if os.path.isdir(self.path):
-            retVal = "cannot remove file that is actually a folder"
-        else:
-            retVal = ""
-        return retVal
-
     def __call__(self, *args, **kwargs):
-        os.remove(self.path)
+        resolved_path = utils.ResolvedPath(self.path)
+        self.doing = f"""removing file '{resolved_path}'"""
+        resolved_path.unlink()
         return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
@@ -350,12 +310,10 @@ class RmDir(PythonBatchCommandBase, essential=True):
         return f"""Remove directory '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        shutil.rmtree(self.path)
+        resolved_path = utils.ResolvedPath(self.path)
+        self.doing = f"""removing folder '{resolved_path}'"""
+        shutil.rmtree(resolved_path)
         return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
@@ -376,15 +334,13 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        if os.path.isfile(self.path):
-            os.remove(self.path)
-        elif os.path.isdir(self.path):
-            shutil.rmtree(self.path)
-        return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_path = utils.ResolvedPath(self.path)
+        if resolved_path.is_file():
+            self.doing = f"""removing file'{resolved_path}'"""
+            resolved_path.unlink()
+        elif resolved_path.is_dir():
+            self.doing = f"""removing folder'{resolved_path}'"""
+            shutil.rmtree(resolved_path)
 
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
@@ -402,14 +358,13 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        resolved_source = utils.ResolvedPath(self.source_file)
+        resolved_target = utils.ResolvedPath(self.target_file)
+        self.doing = f"Append {resolved_source} to {resolved_target}"
         with open(self.target_file, "a") as wfd:
             with open(self.source_file, "r") as rfd:
                 wfd.write(rfd.read())
         return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class Chown(RunProcessBase, call__call__=True, essential=True):
@@ -448,13 +403,10 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
-            expanded_path = os.path.expandvars(self.path)
-            os.chown(expanded_path, uid=int(self.user_id), gid=int(self.group_id))
+            resolved_path = utils.ResolvedPath(self.path)
+            self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}''"""
+            os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
             return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class Chmod(RunProcessBase, essential=True):
@@ -527,22 +479,20 @@ class Chmod(RunProcessBase, essential=True):
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
-            expanded_path = os.path.expandvars(self.path)
+            resolved_path = utils.ResolvedPath(self.path)
+            path_stats = resolved_path.stat()
             flags, op = self.parse_symbolic_mode(self.mode)
             mode_to_set = flags
             if op == '+':
-                current_mode = stat.S_IMODE(os.stat(expanded_path)[stat.ST_MODE])
+                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
                 mode_to_set |= current_mode
             elif op == '-':
-                current_mode = stat.S_IMODE(os.stat(expanded_path)[stat.ST_MODE])
+                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
                 mode_to_set = current_mode & ~flags
 
-            os.chmod(expanded_path, mode_to_set)
+            self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
+            os.chmod(resolved_path, mode_to_set)
         return None
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
@@ -571,12 +521,10 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
 
     def __call__(self, *args, **kwargs):
-        Chown(user_id=self.user_id, group_id=self.group_id, path=self.path, recursive=self.recursive, progress_count=0)()
-        Chmod(path=self.path, mode=self.mode, recursive=self.recursive, progress_count=0)()
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_path = utils.ResolvedPath(self.path)
+        self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
+        Chown(user_id=self.user_id, group_id=self.group_id, path=resolved_path, recursive=self.recursive, progress_count=0)()
+        Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, progress_count=0)()
 
 
 class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
@@ -593,7 +541,8 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         return f"""Remove empty directory '{self.folder_to_remove}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-       for root_path, dir_names, file_names in os.walk(self.folder_to_remove, topdown=False, onerror=None, followlinks=False):
+        resolved_folder_to_remove = utils.ResolvedPath(self.folder_to_remove)
+        for root_path, dir_names, file_names in os.walk(resolved_folder_to_remove, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.
             existing_dirs = [dir_name for dir_name in dir_names if os.path.isdir(os.path.join(root_path, dir_name))]
@@ -609,19 +558,15 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
                     for filename in ignored_files:
                         file_to_remove_full_path = os.path.join(root_path, filename)
                         try:
+                            self.doing = f"""removing ignored file '{file_to_remove_full_path}'"""
                             os.remove(file_to_remove_full_path)
                         except Exception as ex:
-                            print("failed to remove", file_to_remove_full_path, ex)
+                            log.warning("failed to remove", file_to_remove_full_path, ex)
                     try:
+                        self.doing = f"""removing empty folder '{root_path}'"""
                         os.rmdir(root_path)
                     except Exception as ex:
-                        print("failed to remove", root_path, ex)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'folder_to_remove': self.folder_to_remove,
-        })
+                        log.warning("failed to remove", root_path, ex)
 
 
 class Ls(PythonBatchCommandBase, essential=True):
@@ -645,17 +590,10 @@ class Ls(PythonBatchCommandBase, essential=True):
         return f"""List '{utils.quoteme_raw_if_list(self.folders_to_list)}' to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_folder_list = [os.path.expandvars(folder_path) for folder_path in self.folders_to_list]
-        the_listing = utils.disk_item_listing(*expanded_folder_list, ls_format=self.ls_format)
+        resolved_folder_list = [utils.ResolvedPath(folder_path) for folder_path in self.folders_to_list]
+        the_listing = utils.disk_item_listing(*resolved_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'folders_to_list': self.folders_to_list,
-            'out_file': self.out_file,
-        })
 
 
 class CUrl(RunProcessBase):
@@ -681,22 +619,15 @@ class CUrl(RunProcessBase):
         return f"""Download '{src}' to '{self.trg}'"""
 
     def create_run_args(self):
-        run_args = [self.curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
+        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
+        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
                     "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
                     "--retry", self.retires, "--retry-delay", self.retry_delay,
                     "-o", self.trg, self.src]
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
-        return
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'src': self.src,
-            'trg': self.trg,
-            'curl_path': self.curl_path,
-        })
+        return run_args
 
 
 # todo:

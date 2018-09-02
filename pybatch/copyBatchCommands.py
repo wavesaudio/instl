@@ -67,12 +67,12 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""Copy '{self.src}' to '{self.dst}'"""
+        return f"""Copy '{os.path.expandvars(self.src)}' to '{os.path.expandvars(self.dst)}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_src: Path = Path(os.path.expandvars(self.src)).resolve()
-        expanded_dst: Path = Path(os.path.expandvars(self.dst)).resolve()
-        self.copy_tree(expanded_src, expanded_dst)
+        resolved_src: Path = utils.ResolvedPath(self.src)
+        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        self.copy_tree(resolved_src, resolved_dst)
 
     def get_ignored_files(self, root: Path, names_in_root):
         ignored_names = []
@@ -93,7 +93,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         for dst_name in dst_names:
             if dst_name not in src_names and dst_name not in dst_ignored_names:
                 dst_path = dst.joinpath(dst_name)
-                self.last_step, self.last_src, self.last_dst = "remove_extraneous_files", "", dst_path
+                self.last_step, self.last_src, self.last_dst = "remove redundant file", "", dst_path
                 log.info(f"delete {dst_path}")
                 if dst_path.is_symlink() or dst_path.is_file():
                     self.dry_run or dst_path.unlink()
@@ -101,7 +101,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     self.dry_run or shutil.rmtree(dst_path)
 
     def copy_symlink(self, src_path: Path, dst_path: Path):
-        self.last_step, self.last_src, self.last_dst = "copy_symlink", src_path, dst_path
+        self.last_src, self.last_dst = src_path, dst_path
+        self.doing = f"""copy symlink '{self.last_src}' to '{self.last_dst}'"""
+
         link_to = os.readlink(src_path)
         if self.symlinks_as_symlinks:
             self.dry_run or os.symlink(link_to, dst_path)
@@ -138,7 +140,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
             is assumed to exist
         """
-        self.last_step, self.last_src, self.last_dst = "copy_file_to_file", src, dst
+        self.last_src, self.last_dst = src, dst
+        self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
+
         if self.should_copy_file(src, dst):
             if not self.hard_links or src.is_symlink():
                 log.debug(f"copy file '{src}' to '{dst}'")
@@ -159,7 +163,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return dst
 
     def copy_file_to_dir(self, src: Path, dst: Path, follow_symlinks=True):
-        self.last_step, self.last_src, self.last_dst = "copy_file_to_dir", src, dst
+        self.last_src, self.last_dst = src, dst
+        self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         dst.mkdir(parents=True, exist_ok=True)
         final_dst = dst.joinpath(src.name)
@@ -169,7 +174,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     def copy_tree(self, src: Path, dst: Path):
         """ based on shutil.copytree
         """
-        self.last_step, self.last_src, self.last_dst = "copy_tree", src, dst
+        self.last_src, self.last_dst = src, dst
+        self.doing = f"""copy folder '{self.last_src}' to '{self.last_dst}'"""
 
         self.statistics['dirs'] += 1
         log.debug(f"copy folder '{src}' to '{dst}'")
@@ -219,18 +225,11 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
-        src_stat = os.lstat(self.src)
-        dst_stat = os.lstat(self.dst)
         last_src_stat = os.lstat(self.last_src)
         last_dst_stat = os.lstat(self.last_dst)
         self._error_dict.update(
-            {'copy_from': {"path": os.fspath(self.src), "mode": utils.unix_permissions_to_str(src_stat.st_mode)},
-             'copy_to': {"path": os.fspath(self.dst), "mode": utils.unix_permissions_to_str(dst_stat.st_mode)},
-             'last_step': self.last_step,
-             'last_src':  {"path": os.fspath(self.last_src), "mode": utils.unix_permissions_to_str(last_src_stat.st_mode)},
-             'last_dst':  {"path": os.fspath(self.last_dst), "mode": utils.unix_permissions_to_str(last_dst_stat.st_mode)},
-             'errno': getattr(exc_val, 'errno', "unknown"),
-             'strerror': getattr(exc_val, 'strerror', "unknown")})
+            {'last_src':  {"path": os.fspath(self.last_src), "mode": utils.unix_permissions_to_str(last_src_stat.st_mode)},
+             'last_dst':  {"path": os.fspath(self.last_dst), "mode": utils.unix_permissions_to_str(last_dst_stat.st_mode)}})
 
 
 class CopyDirToDir(RsyncClone):
@@ -238,23 +237,15 @@ class CopyDirToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_src: Path = Path(os.path.expandvars(self.src)).resolve()
-        expanded_dst: Path = Path(os.path.expandvars(self.dst)).resolve()
-        final_dst: Path = expanded_dst.joinpath(expanded_src.name)
-        self.copy_tree(expanded_src, final_dst)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_src: Path = utils.ResolvedPath(self.src)
+        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        final_dst: Path = resolved_dst.joinpath(resolved_src.name)
+        self.copy_tree(resolved_src, final_dst)
 
 
 class CopyDirContentsToDir(RsyncClone):
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class CopyFileToDir(RsyncClone):
@@ -262,13 +253,9 @@ class CopyFileToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        expanded_src: Path = Path(os.path.expandvars(self.src)).resolve()
-        expanded_dst: Path = Path(os.path.expandvars(self.dst)).resolve()
-        self.copy_file_to_dir(expanded_src, expanded_dst)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_src: Path = utils.ResolvedPath(self.src)
+        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        self.copy_file_to_dir(resolved_src, resolved_dst)
 
 
 class CopyFileToFile(RsyncClone):
@@ -276,11 +263,7 @@ class CopyFileToFile(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_src: Path = Path(os.path.expandvars(self.src)).resolve()
-        expanded_dst: Path = Path(os.path.expandvars(self.dst)).resolve()
-        expanded_dst.parent.mkdir(parents=True, exist_ok=True)
-        self.copy_file_to_file(expanded_src, expanded_dst)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+        resolved_src: Path = utils.ResolvedPath(self.src)
+        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_dst.parent.mkdir(parents=True, exist_ok=True)
+        self.copy_file_to_file(resolved_src, resolved_dst)

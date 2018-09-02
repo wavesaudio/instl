@@ -503,33 +503,10 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-class WavesCentralRequester(object):
-    def __init__(self, domain) -> None:
-        self.domain = domain
-        self.namespace = "Central/Central.svc"
-        self.url_template = 'https://{self.domain}/{self.namespace}/{func}'
-        self.standard_headers = {"Content-Type": "application/json"}
-        self.time_token = None
-        self.user_guid = None
-
-    def request(self, func, data={}):
-        import json
-        import requests
-        url = self.url_template.format(**locals())
-        the_data = dict(data)
-        if self.time_token:
-            the_data['TimeToken'] = self.time_token
-        if self.user_guid:
-            the_data['UserGuid'] = self.user_guid
-        data_string = json.dumps(the_data)
-        response = requests.post(url, data=data_string, headers=self.standard_headers)
-        response.raise_for_status()
-        reply_data = response.json()
-        IsSuccess = reply_data.get('IsSuccess', False)
-        if IsSuccess:
-            self.time_token = reply_data.get('TimeToken', self.time_token)
-            #print("time_token:", self.time_token)
-            if 'oResult' in reply_data and isinstance(reply_data['oResult'], dict):
-                self.user_guid = reply_data.get('oResult', {}).get('UserGuid', self.user_guid)
-                #print("new user guid:", self.user_guid)
-            return reply_data
+def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
+    """ return a pathlib.Path object after calling
+        os.path.expandvars to expand environment variables
+        and Path.resolve to resolve relative paths and
+    """
+    resolved_path = Path(os.path.expandvars(path_to_resolve)).resolve()
+    return resolved_path

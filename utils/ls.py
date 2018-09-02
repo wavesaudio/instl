@@ -6,7 +6,7 @@ import datetime
 import stat
 import json
 import tarfile
-import pathlib
+from pathlib import Path, PurePath
 
 import utils
 
@@ -19,10 +19,10 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     'C': sha1 checksum (files only)
     'D': Mac: if 'P' or 'p' is given "/" is appended to the path if item is a directory, non-positional
          Win: <DIR> if item is directory empty string otherwise
-    'd': list only directories not files, non-positional. 
+    'd': list only directories not files, non-positional.
     'E': Mac: if 'P' or 'p' is given extra character is appended to the path, '@' for link, '*' for executable, '=' for socket, '|' for FIFO
          Win: Not applicable
-    'f': list only files not directories, non-positional. 
+    'f': list only files not directories, non-positional.
     'g': Mac: gid
          Win: Not applicable
     'G': Mac: Group name or gid if name not found
@@ -44,14 +44,14 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     'U': Mac: User name or uid if name not found
          Win: domain+"\\"+user name
     'W': Not implemented yet. List contents of wtar files
-    '*' if ls_format contains only '*' it is and alias to the default and means: 
+    '*' if ls_format contains only '*' it is and alias to the default and means:
         Mac: MIRLUGSTCPE
         Win: MTDSUGCP
     Note: if both 'd' and 'f' are not in ls_format disk_item_listing will act as if both are in ls_format
             so 'SCp' actually means 'SCpfd'
     """
     os_names = utils.get_current_os_names()
-    files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: pathlib.PurePath(file).parts)
+    files_or_folders_to_list = sorted([Path(f) for f in files_or_folders_to_list], key=lambda file: file.parts)
     folder_ls_func = None
     item_ls_func = None
     if "Mac" in os_names:
@@ -74,17 +74,17 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
         listing_items = list()
         opening_remarks = list()
         if add_remarks:
-            opening_remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
+            opening_remarks.append(f"""# {datetime.datetime.today().isoformat()} listing of {root_file_or_folder_path}""")
 
         if utils.is_first_wtar_file(root_file_or_folder_path):
             listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
-        elif os.path.isdir(root_file_or_folder_path):
+        elif root_file_or_folder_path.is_dir():
             listing_items.extend(folder_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
-        elif os.path.isfile(root_file_or_folder_path) and 'f' in ls_format:
+        elif root_file_or_folder_path.is_file() and 'f' in ls_format:
             root_folder, _ = os.path.split(root_file_or_folder_path)
             listing_items.append(item_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
         else:
-            opening_remarks.append(" ".join(('#', "folder was not found", root_file_or_folder_path)))
+            opening_remarks.append(f"""# folder was not found {root_file_or_folder_path}""")
 
         if output_format == 'text':
             total_list.extend(opening_remarks)
@@ -94,7 +94,7 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
             for item in listing_items:
                 total_list.append(translate_item_dict_to_be_keyed_by_path(item))
         elif output_format == 'json':
-            total_list.append({root_file_or_folder_path: translate_json_key_names(listing_items)})
+            total_list.append({os.fspath(root_file_or_folder_path): translate_json_key_names(listing_items)})
 
     if output_format == 'text':
         retVal = "\n".join(total_list)
@@ -297,10 +297,10 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             else:
                 the_parts[format_char] = ""
         elif format_char == 'P':
-            as_posix = pathlib.PurePath(the_path).as_posix()
+            as_posix = PurePath(the_path).as_posix()
             the_parts[format_char] = str(as_posix)
         elif format_char == 'p' and root_folder is not None:
-            relative_path = pathlib.PurePath(the_path).relative_to(pathlib.PurePath(root_folder))
+            relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
             the_parts[format_char] = str(relative_path.as_posix())
 
     return the_parts

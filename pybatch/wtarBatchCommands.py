@@ -92,28 +92,28 @@ class Wtar(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         """ Create a new wtar archive for a file or folder provided in self.what_to_wtar
 
-            If self.where_to_put_wtar is None the new wtar file will be created
+            If self.resolved_where_to_put_wtar is None the new wtar file will be created
                 next to the input with extension '.wtar'.
                 e.g. the call:
                     Wtar(/a/b/c)
                 will create the wtar file at path:
                     /a/b/c.wtar
 
-            If self.where_to_put_wtar is an existing file, the new wtar will overwrite
+            If self.resolved_where_to_put_wtar is an existing file, the new wtar will overwrite
                 this existing file, wtar extension will NOT be added.
                 e.g. assuming /d/e/f.txt is an existing file, the call:
                     Wtar(/a/b/c, /d/e/f.txt)
                 will create the wtar file at path:
                     /d/e/f.txt
 
-            if self.where_to_put_wtar is and existing folder the wtar file will be created
+            if self.resolved_where_to_put_wtar is and existing folder the wtar file will be created
                 inside this folder with extension '.wtar'.
                 e.g. assuming /g/h/i is an existing folder, the call:
                     Wtar(/a/b/c, /g/h/i)
                 will create the wtar file at path:
                     /g/h/i/c.wtar
 
-            if self.where_to_put_wtar is not None but does not exists, the folder will be created
+            if self.resolved_where_to_put_wtar is not None but does not exists, the folder will be created
                 and the wtar file will be created inside the new folder with extension
                  '.wtar'.
                 e.g. assuming /j/k/l is a non existing folder, the call:
@@ -139,25 +139,27 @@ class Wtar(PythonBatchCommandBase):
 
         """
 
-        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(os.path.expandvars(self.what_to_wtar))
+        resolved_what_to_wtar = utils.ResolvedPath(self.what_to_wtar)
 
         if self.where_to_put_wtar is not None:
-            where_to_put_wtar = os.path.expandvars(self.where_to_put_wtar)
+            resolved_where_to_put_wtar = utils.ResolvedPath(self.where_to_put_wtar)
         else:
-            where_to_put_wtar = what_to_work_on_dir
-            if not where_to_put_wtar:
-                where_to_put_wtar = os.curdir
+            resolved_where_to_put_wtar = resolved_what_to_wtar.parent
+            if not resolved_where_to_put_wtar:
+                resolved_where_to_put_wtar = Path(os.curdir).resolve()
 
-        if os.path.isfile(where_to_put_wtar):
-            target_wtar_file = where_to_put_wtar
+        if resolved_where_to_put_wtar.is_file():
+            target_wtar_file = resolved_where_to_put_wtar
         else:  # assuming it's a folder
-            os.makedirs(where_to_put_wtar, exist_ok=True)
-            target_wtar_file = os.path.join(where_to_put_wtar, what_to_work_on_leaf+".wtar")
+            resolved_where_to_put_wtar.mkdir(parents=True, exist_ok=True)
+            target_wtar_file = resolved_where_to_put_wtar.joinpath(resolved_what_to_wtar.name+".wtar")
 
         tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
-        with utils.ChangeDirIfExists(what_to_work_on_dir):
-            pax_headers = {"total_checksum": utils.get_recursive_checksums(what_to_work_on_leaf, ignore=ignore_files)["total_checksum"]}
+
+        self._doing = f"""wtaring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
+        with utils.ChangeDirIfExists(resolved_what_to_wtar.parent):
+            pax_headers = {"total_checksum": utils.get_recursive_checksums(resolved_what_to_wtar.name, ignore=ignore_files)["total_checksum"]}
 
             def check_tarinfo(tarinfo):
                 for ig in ignore_files:
@@ -185,15 +187,9 @@ class Wtar(PythonBatchCommandBase):
                     existing_wtar_parts = utils.find_split_files_from_base_file(target_wtar_file)
                     [utils.safe_remove_file(f) for f in existing_wtar_parts]
                 with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
-                    tar.add(what_to_work_on_leaf, filter=check_tarinfo)
+                    tar.add(resolved_what_to_wtar.name, filter=check_tarinfo)
             else:
-                log.debug(f"{what_to_work_on} skipped since {what_to_work_on}.wtar already exists and has the same contents")
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update(
-            {'what_to_wtar': os.fspath(self.what_to_wtar),
-             'where_to_put_wtar': os.fspath(self.where_to_put_wtar)})
+                log.debug(f"{resolved_what_to_wtar.name} skipped since {resolved_what_to_wtar.name}.wtar already exists and has the same contents")
 
 
 class Unwtar(PythonBatchCommandBase):
@@ -220,8 +216,10 @@ class Unwtar(PythonBatchCommandBase):
 
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        what_to_unwtar: Path = Path(os.path.expandvars(self.what_to_unwtar)).resolve()
-        destination_folder: Path = Path(os.path.expandvars(self.where_to_unwtar) if self.where_to_unwtar else what_to_unwtar.parent).resolve()
+        what_to_unwtar: Path = utils.ResolvedPath(self.what_to_unwtar)
+        destination_folder: Path = utils.ResolvedPath(self.where_to_unwtar) if self.where_to_unwtar else what_to_unwtar.parent
+
+        self._doing = f"""unwtar '{what_to_unwtar}' to '{destination_folder}''"""
 
         if what_to_unwtar.is_file():
             if utils.is_first_wtar_file(what_to_unwtar):
@@ -243,18 +241,13 @@ class Unwtar(PythonBatchCommandBase):
                     for a_file in files:
                         a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
+                            self._doing = f"""unwtaring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
                             unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
                 log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
             raise FileNotFoundError(what_to_unwtar)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update(
-            {'what_to_unwtar': os.fspath(self.what_to_unwtar),
-             'where_to_unwtar': os.fspath(self.where_to_unwtar)})
 
 
 class Wzip(PythonBatchCommandBase):
@@ -309,28 +302,23 @@ class Wzip(PythonBatchCommandBase):
         return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_what_to_zip = os.path.expandvars(self.what_to_wzip)
-        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(expanded_what_to_zip)
+        resolved_what_to_zip = utils.ResolvedPath(self.what_to_wzip)
+
         if self.where_to_put_wzip:
-            target_wzip_file = os.path.expandvars()
+            target_wzip_file = utils.ResolvedPath(self.where_to_put_wzip)
         else:
-            target_wzip_file = what_to_work_on_dir
+            target_wzip_file = resolved_what_to_zip.parent
             if not target_wzip_file:  # os.path.split might return empty string
-                target_wzip_file = os.curdir
-        if not os.path.isfile(target_wzip_file):
+                target_wzip_file = Path.cwd()
+        if not target_wzip_file.is_file():
             # assuming it's a folder
-            os.makedirs(target_wzip_file, exist_ok=True)
-            target_wzip_file = os.path.join(target_wzip_file, what_to_work_on_leaf+".wzip")
+            target_wzip_file.mkdir(parents=True, exist_ok=True)
+            target_wzip_file = target_wzip_file.joinpath(resolved_what_to_zip.name+".wzip")
 
+        self._doing = f"""wziping '{resolved_what_to_zip}' to '{target_wzip_file}'"""
         zlib_compression_level = int(config_vars.get("ZLIB_COMPRESSION_LEVEL", "8"))
-        with open(target_wzip_file, "wb") as wfd, open(expanded_what_to_zip, "rb") as rfd:
+        with open(target_wzip_file, "wb") as wfd, open(resolved_what_to_zip, "rb") as rfd:
             wfd.write(zlib.compress(rfd.read(), zlib_compression_level))
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update(
-            {'what_to_wzip': os.fspath(self.what_to_wzip),
-             'where_to_put_wzip': os.fspath(self.where_to_put_wzip)})
 
 
 class Unwzip(PythonBatchCommandBase):
@@ -338,6 +326,8 @@ class Unwzip(PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.what_to_unwzip = os.fspath(what_to_unwzip)
         self.where_to_put_unwzip = os.fspath(where_to_put_unwzip) if where_to_put_unwzip else None
+        self.resolved_what_to_unwzip = None  #
+        self.target_unwzip_file = None
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.what_to_unwzip)}'''
@@ -350,26 +340,21 @@ class Unwzip(PythonBatchCommandBase):
         return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        expanded_what_to_unwzip = os.path.expandvars(self.what_to_unwzip)
-        target_unwzip_file = os.path.expandvars(self.where_to_put_unwzip)
-        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(expanded_what_to_unwzip)
+        resolved_what_to_unwzip = utils.ResolvedPath(self.what_to_unwzip)
+        target_unwzip_file = utils.ResolvedPath(self.where_to_put_unwzip)
+        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(resolved_what_to_unwzip)
         if not target_unwzip_file:
-            target_unwzip_file = what_to_work_on_dir
+            target_unwzip_file = resolved_what_to_unwzip.parent
             if not target_unwzip_file:  # os.path.split might return empty string
-                target_unwzip_file = os.curdir
-        if not os.path.isfile(target_unwzip_file):
+                target_unwzip_file = Path.cwd()
+        if not target_unwzip_file.is_file():
             # assuming it's a folder
-            os.makedirs(target_unwzip_file, exist_ok=True)
-            if what_to_work_on_leaf.endswith(".wzip"):
-                what_to_work_on_leaf = what_to_work_on_leaf[:-len(".wzip")]
+            target_unwzip_file.mkdir(parents=True, exist_ok=True)
+            if resolved_what_to_unwzip.name.endswith(".wzip"):
+                what_to_work_on_leaf = resolved_what_to_unwzip.stem
             target_unwzip_file = os.path.join(target_unwzip_file, what_to_work_on_leaf)
 
-        with open(expanded_what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
+        self._doing = f"""unzipping '{resolved_what_to_unwzip}' to '{target_unwzip_file}''"""
+        with open(resolved_what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
             decompressed = zlib.decompress(rfd.read())
             wfd.write(decompressed)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update(
-            {'what_to_unwzip': os.fspath(self.what_to_unwzip),
-             'where_to_put_unwzip': os.fspath(self.where_to_put_unwzip)})

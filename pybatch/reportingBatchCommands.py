@@ -27,30 +27,26 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         raise NotImplementedError("AnonymousAccum.__call__ should not be called")
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class RaiseException(PythonBatchCommandBase, essential=True):
-    def __init__(self, exception_type, exception_message, identifier=None, **kwargs) -> None:
+    def __init__(self, exception_type, exception_message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.exception_type = exception_type
+        self.exception_type_name = self.exception_type.__name__
         self.exception_message = exception_message
+        self.non_representative__dict__keys.append('exception_type')
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({self.exception_type.__name__}, "{self.exception_message}")'''
+        the_repr = f'''{self.__class__.__name__}({self.exception_type_name}, "{self.exception_message}")'''
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f'''Raising exception {self.exception_type.__name__}'''
+        return f'''Raising exception {self.exception_type.__name__}("{self.exception_message}")'''
 
     def __call__(self, *args, **kwargs) -> None:
         raise self.exception_type(self.exception_message)
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({"dummy_exception": self.exception_message})
+section_stack = list()
 
 
 class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
@@ -77,9 +73,14 @@ class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_co
     def __call__(self, *args, **kwargs):
         pass
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
+    def __enter__(self):
+        global section_stack
+        section_stack.append(self.titles)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            global section_stack
+            section_stack.pop()
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
@@ -104,10 +105,6 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         PythonBatchCommandBase.running_progress += self.own_progress_count
         log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
@@ -128,10 +125,6 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False):
     """
@@ -151,10 +144,6 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
 
     def __call__(self, *args, **kwargs) -> None:
         pass
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
 
 
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
@@ -194,10 +183,6 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
     """
@@ -236,10 +221,6 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
     def __call__(self, *args, **kwargs) -> None:
         pass
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
@@ -251,7 +232,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         self.exit_time = time.perf_counter()
         suppress_exception = False
         if exc_val:
-            self.log_error(exc_val, exc_tb)
+            self.log_error(exc_type, exc_val, exc_tb)
             log.info("Shakespeare says: The Comedy of Errors")
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
@@ -259,13 +240,9 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
         return suppress_exception
 
-    def log_error(self, exc_val, exc_tb):
-        error_dict = exc_val.raising_obj.error_dict(None, exc_val, exc_tb)
-        error_dict.update({
-            "batch_file": exc_tb.tb_frame.f_code.co_filename,
-            "batch_line": exc_tb.tb_lineno
-        })
-        error_json = json.dumps(error_dict)
+    def log_error(self, exc_type, exc_val, exc_tb):
+        error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
+        error_json = json.dumps(error_dict, separators=(',\n', ': '), sort_keys=True)
         log.error(f"{error_json}")
 
     def __repr__(self) -> str:
@@ -277,7 +254,3 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
 
     def __call__(self, *args, **kwargs) -> None:
         pass
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})

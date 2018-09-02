@@ -24,11 +24,11 @@ class WinShortcut(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")
-        expanded_shortcut_path = os.path.expandvars(self.shortcut_path)
-        shortcut = shell.CreateShortCut(expanded_shortcut_path)
-        expanded_target_path = os.path.expandvars(self.target_path)
-        shortcut.Targetpath = expanded_target_path
-        working_directory, target_name = os.path.split(expanded_target_path)
+        resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
+        shortcut = shell.CreateShortCut(resolved_shortcut_path)
+        resolved_target_path = os.path.expandvars(self.target_path)
+        shortcut.Targetpath = resolved_target_path
+        working_directory, target_name = os.path.split(resolved_target_path)
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
         if self.run_as_admin:
@@ -40,15 +40,8 @@ class WinShortcut(PythonBatchCommandBase):
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
-            file.Load(expanded_shortcut_path)
+            file.Load(resolved_shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
-                file.Save(expanded_shortcut_path, 0)
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'shortcut_path': self.shortcut_path,
-            'target_path': self.target_path,
-        })
+                file.Save(resolved_shortcut_path, 0)

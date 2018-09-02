@@ -41,10 +41,6 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         if self.info_map_file:
             self.info_map_table.read_from_file(self.info_map_file, a_format="text", disable_indexes_during_read=True)
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class CheckDownloadFolderChecksum(InfoMapBase):
     def __init__(self, info_map_file=None, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
@@ -109,10 +105,6 @@ class CheckDownloadFolderChecksum(InfoMapBase):
             report_lines.append(self.missing_files_exception_message)
         return report_lines
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class SetExecPermissionsInSyncFolder(InfoMapBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
@@ -142,10 +134,6 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
             if os.path.isfile(file_item_path):
                 Chmod(file_item_path, "a+x", progress_count=0)()
 
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})
-
 
 class CreateSyncFolders(InfoMapBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
@@ -168,8 +156,5 @@ class CreateSyncFolders(InfoMapBase):
         else:
             dl_dir_items = self.info_map_table.get_items(what="dir")
         for dl_dir in dl_dir_items:
+            self.doing = f"""creating sync folder '{dl_dir}'"""
             MakeDirs(dl_dir.path)()
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({})

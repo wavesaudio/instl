@@ -25,12 +25,9 @@ class ShellCommand(RunProcessBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.message}"""
 
-    def error_msg_self(self) -> str:
-        return f"error running shell command"
-
     def create_run_args(self):
-        expanded_shell_command = os.path.expandvars(self.shell_command)
-        the_lines = [expanded_shell_command]
+        resolved_shell_command = os.path.expandvars(self.shell_command)
+        the_lines = [resolved_shell_command]
         return the_lines
 
 
@@ -77,14 +74,9 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_commands_list):
+            self.doing = f"""running shell command #{i} '{shell_command}'"""
             with ShellCommand(shell_command, f"""{self.message} #{i+1}""", progress_count=0) as shelli:
                 shelli()
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'shell_commands_list': self.shell_commands_list,
-        })
 
 
 class ParallelRun(PythonBatchCommandBase, essential=True):
@@ -108,20 +100,17 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         commands = list()
-        with utils.utf8_open(self.config_file, "r") as rfd:
+        resolved_config_file = utils.ResolvedPath(self.config_file)
+        self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
+        with utils.utf8_open(resolved_config_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
                 if line and line[0] != "#":
                     args = shlex.split(line)
                     commands.append(args)
         try:
+            self.doing = f"""ParallelRun, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)
-        self._error_dict.update({
-            'config_file': self.config_file,
-        })

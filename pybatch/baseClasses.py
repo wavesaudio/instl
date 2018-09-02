@@ -24,6 +24,14 @@ class PythonBatchCommandBase(abc.ABC):
         __repr__: must be implemented correctly so the returned string can be passed to eval to recreate the object
         __init__: must record all parameters needed to implement __repr__ and must not do any actual work!
         __call__: here the real work is done (if any)
+
+        members:
+        self.doing - the most possible detailed description of what the object is doing. Derived classes should update this member
+            during operations, e.g. if a folder is copied file by file, self.doing will be rewritten as each file is copied.
+                self.doing is often very similar to what is returned by progress_msg_self, however progress_msg_self is description
+                of what was *asked* to be done, while doing is meant to describe what was actually being done when an error occurred.
+
+        non_representative__dict__keys - list of keys of self.__dict__ that should not be used when comparing or displaying self
     """
     instance_counter: int = 0
     total_progress: int = 0
@@ -55,6 +63,8 @@ class PythonBatchCommandBase(abc.ABC):
         self.in_sub_accum = False
         self.essential_action_counter = 0
         self._error_dict = None
+        self.doing = None  # description of what the object is doing, derived classes should update this member during operations
+        self.non_representative__dict__keys = ['non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
@@ -65,9 +75,8 @@ class PythonBatchCommandBase(abc.ABC):
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message
         """
-        return f"{self.__class__.__name__.progress_msg_self()}"
+        return f"{self.__class__.__name__}"
 
-    @abc.abstractmethod
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         pass
 
@@ -130,11 +139,12 @@ class PythonBatchCommandBase(abc.ABC):
         if context.is_essential():
             self.add(context)
 
+    def representative_dict(self):
+        """  return a partial self.__dict__ without keys tha should not be used for presentation or comparing"""
+        return {k: self.__dict__[k] for k in self.__dict__.keys() if k not in self.non_representative__dict__keys}
+
     def __eq__(self, other) -> bool:
-        do_not_compare_keys = ('progress', )
-        dict_self = {k:  self.__dict__[k] for k in self.__dict__.keys() if k not in do_not_compare_keys}
-        dict_other = {k: other.__dict__[k] for k in other.__dict__.keys() if k not in do_not_compare_keys}
-        is_eq = dict_self == dict_other
+        is_eq = self.representative_dict() == other.representative_dict()
         return is_eq
 
     def __hash__(self):
@@ -150,11 +160,6 @@ class PythonBatchCommandBase(abc.ABC):
         """
         return f"{self.__class__.__name__}"
 
-    def error_msg_self(self) -> str:
-        """ classes overriding PythonBatchCommandBase can add their own error message
-        """
-        return f"{self.__class__.__name__}"
-
     def enter_self(self) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
             repeating __enter__, bit not do any actual work!
@@ -164,15 +169,21 @@ class PythonBatchCommandBase(abc.ABC):
     def error_dict(self, exc_type, exc_val, exc_tb) -> Dict:
         if self._error_dict is None:
             self._error_dict = dict()
+        self.error_dict_self(exc_type, exc_val, exc_tb)
+        if not self.doing:
+            self.doing = self.progress_msg_self()
         self._error_dict.update({
+            'doing': self.doing,
             'exception_type': str(type(exc_val).__name__),
             'exception_str': str(exc_val),
-            'instl_class': self.__class__.__name__,
+            'instl_class': repr(self),
+            'obj__dict__': self.representative_dict(),
             'local_time': time.strftime("%Y-%m-%d_%H.%M.%S"),
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': os.getcwd(),
+            "batch_file": exc_tb.tb_frame.f_code.co_filename,
+            "batch_line": exc_tb.tb_lineno
              })
-        self.error_dict_self(exc_type, exc_val, exc_tb)
         return self._error_dict
 
     def __enter__(self):
@@ -232,15 +243,10 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
     def __call__(self, *args, **kwargs):
         run_args = self.create_run_args()
         run_args = list(map(str, run_args))
-        #log.debug(" ".join(run_args))
-        #if run_args[0].startswith('['):
-        #    return
-        #if len(run_args) == 1:
-        #    import shlex
-        #    run_args = shlex.split(run_args[0])  # does not work...subprocess.run will nor accept the split command
+        self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-        self.stdout = completed_process.stdout
-        self.stderr = completed_process.stderr
+        self.stdout = utils.unicodify(completed_process.stdout)
+        self.stderr = utils.unicodify(completed_process.stderr)
         #log.debug(completed_process.stdout)
         completed_process.check_returncode()
         return None  # what to return here?
@@ -252,6 +258,3 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def __repr__(self):
         raise NotImplementedError
-
-    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
-        super().error_dict_self(exc_type, exc_val, exc_tb)

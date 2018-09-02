@@ -11,7 +11,7 @@ from .batchCommands import *
 
 """
 class Dummy(PythonBatchCommandBase, essential=True):
-    def __init__(self, identifier=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:
