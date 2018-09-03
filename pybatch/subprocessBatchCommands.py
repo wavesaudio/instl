@@ -6,7 +6,7 @@ import collections
 from typing import List, Any, Optional, Union
 
 import utils
-from .baseClasses import *
+from .baseClasses import PythonBatchCommandBase, RunProcessBase
 
 
 class ShellCommand(RunProcessBase, essential=True):

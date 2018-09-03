@@ -9,6 +9,10 @@ import datetime
 
 from .baseClasses import PythonBatchCommandBase
 from .reportingBatchCommands import Section, PythonBatchRuntime
+from .subprocessBatchCommands import ShellCommand
+
+from pybatch import *
+
 from configVar import config_vars
 import utils
 

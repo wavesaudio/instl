@@ -296,7 +296,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
         """ remove a directory.
             - it's OK if the directory does not exist.
             - all files and directory under path will be removed recursively
-            - exception will be raised if the path if a folder
+            - exception will be raised if the path is not a folder
         """
         super().__init__()
         self.path: os.PathLike = path

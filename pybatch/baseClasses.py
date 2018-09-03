@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from typing import List
 import logging
 
+
 log = logging.getLogger()
 import utils
 
@@ -70,6 +71,9 @@ class PythonBatchCommandBase(abc.ABC):
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
         return the_repr
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {PythonBatchCommandBase.instance_counter}"
 
     @abc.abstractmethod
     def progress_msg_self(self) -> str:

@@ -77,7 +77,7 @@ class InstlClientRemove(InstlClient):
     def create_remove_instructions_for_source(self, IID, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
-        retVal = []
+        retVal = AnonymousAccum()
         source_path, source_type = source[0], source[1]
         base_, leaf = os.path.split(source_path)
         to_remove_path = os.path.normpath(os.path.join(folder, leaf))
@@ -86,21 +86,25 @@ class InstlClientRemove(InstlClient):
 
         if len(specific_remove_actions) == 0:  # no specific actions were specified, so just remove the files
             if source_type == '!dir':  # remove whole folder
-                retVal.append(RmDir(to_remove_path))
+                retVal += RmDir(to_remove_path)
             elif source_type == '!file':  # remove single file
-                retVal.append(RmFile(to_remove_path))
+                retVal += RmFile(to_remove_path)
             elif source_type == '!dir_cont':  # remove all source's files and folders from a folder
                 remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, immediate_children_only=True)
                 remove_paths = utils.original_names_from_wtars_names(item.path for item in remove_items)
                 for remove_path in remove_paths:
                     base_, leaf = os.path.split(remove_path)
                     full_path_to_remove = os.path.normpath(os.path.join(folder, leaf))
-                    retVal.append(RmFileOrDir(full_path_to_remove))
+                    retVal += RmFileOrDir(full_path_to_remove)
         else:
             # when an item should not be removed it will get such a detail:
             # remove_item: ~
             # this will cause specific_remove_actions list to be [None].
             # after filtering None values the list will be empty and remove actions will not be created
-            specific_remove_actions = [ShellCommand(_f, f"""'{to_remove_path}' remove action""") for _f in specific_remove_actions if _f]  # filter out None values
-            retVal.extend(specific_remove_actions)
+
+            for action in specific_remove_actions:
+                if action:
+                    message = f"""'{to_remove_path}' remove action"""
+                    pybatch_action = EvalShellCommand(action, message)
+                    retVal += pybatch_action
         return retVal
