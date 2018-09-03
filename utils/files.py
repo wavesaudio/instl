@@ -9,6 +9,10 @@ import stat
 import fnmatch
 from contextlib import contextmanager
 import ssl
+from pathlib import Path
+import logging
+log = logging.getLogger()
+
 import pyinstl.connectionBase
 #from pyinstl import connection_factory
 import zlib
@@ -328,14 +332,26 @@ def safe_remove_file_system_object(path_to_file_system_object, followlinks=False
         pass
 
 
-def make_open_file_read_write_for_all(fd):
+def make_open_file_read_write_for_all(fd, user=-1, group=-1):
     try:
-        os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        if hasattr(os, 'fchmod'):
+            os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except Exception:
         try:
-            os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            if hasattr(os, 'chmod'):
+                os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception:
-            print("make_open_file_read_write_for_all: failed for ", fd.name)
+            log.warning(f"""make_open_file_read_write_for_all: chmod failed for {fd.name}""")
+    if user != -1 or group != -1:
+        try:
+            if hasattr(os, 'fchown'):
+                os.fchown(fd.fileno(), user, group)
+        except Exception:
+            try:
+                if hasattr(os, 'chown'):
+                    os.chown(fd.name, user, group)
+            except Exception:
+                log.warning(f"""make_open_file_read_write_for_all: chown failed for {fd.name}""")
 
 
 def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):
@@ -420,25 +436,23 @@ def smart_copy_file(source_path, destination_path):
             pass
 
 
-def find_split_files(first_file):
+def find_split_files(first_file: Path):
     try:
         retVal = list()
-        norm_first_file = os.path.normpath(first_file)  # remove trailing . if any
 
-        if norm_first_file.endswith(".aa"):
-            base_folder, base_name = os.path.split(norm_first_file)
-            if not base_folder:
-                base_folder = os.curdir
-            filter_pattern = base_name[:-2] + "??"  # with ?? instead of aa
-            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(base_folder)), filter_pattern))
+        first_file_name = first_file.name
+        first_file_dir = first_file.parent
+        if first_file_name.endswith(".aa"):
+            filter_pattern = first_file_name[:-2] + "??"  # with ?? instead of aa
+            matching_files = sorted(fnmatch.filter((f.name for f in os.scandir(first_file_dir)), filter_pattern))
             for a_file in matching_files:
-                retVal.append(os.path.join(base_folder, a_file))
+                retVal.append(first_file_dir.joinpath(a_file))
         else:
-            retVal.append(norm_first_file)
+            retVal.append(first_file)
         return retVal
 
     except Exception as es:
-        print("exception while find_split_files", first_file)
+        log.error(f"""exception while find_split_files {first_file}""")
         raise es
 
 
@@ -491,33 +505,10 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-class WavesCentralRequester(object):
-    def __init__(self, domain) -> None:
-        self.domain = domain
-        self.namespace = "Central/Central.svc"
-        self.url_template = 'https://{self.domain}/{self.namespace}/{func}'
-        self.standard_headers = {"Content-Type": "application/json"}
-        self.time_token = None
-        self.user_guid = None
-
-    def request(self, func, data={}):
-        import json
-        import requests
-        url = self.url_template.format(**locals())
-        the_data = dict(data)
-        if self.time_token:
-            the_data['TimeToken'] = self.time_token
-        if self.user_guid:
-            the_data['UserGuid'] = self.user_guid
-        data_string = json.dumps(the_data)
-        response = requests.post(url, data=data_string, headers=self.standard_headers)
-        response.raise_for_status()
-        reply_data = response.json()
-        IsSuccess = reply_data.get('IsSuccess', False)
-        if IsSuccess:
-            self.time_token = reply_data.get('TimeToken', self.time_token)
-            #print("time_token:", self.time_token)
-            if 'oResult' in reply_data and isinstance(reply_data['oResult'], dict):
-                self.user_guid = reply_data.get('oResult', {}).get('UserGuid', self.user_guid)
-                #print("new user guid:", self.user_guid)
-            return reply_data
+def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
+    """ return a Path object after calling
+        os.path.expandvars to expand environment variables
+        and Path.resolve to resolve relative paths and
+    """
+    resolved_path = Path(os.path.expandvars(path_to_resolve)).resolve()
+    return resolved_path

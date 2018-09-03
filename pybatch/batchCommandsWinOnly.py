@@ -19,24 +19,16 @@ class WinShortcut(PythonBatchCommandBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")
-        expanded_shortcut_path = os.path.expandvars(self.shortcut_path)
-        shortcut = shell.CreateShortCut(expanded_shortcut_path)
-        expanded_target_path = os.path.expandvars(self.target_path)
-        shortcut.Targetpath = expanded_target_path
-        working_directory, target_name = os.path.split(expanded_target_path)
+        resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
+        shortcut = shell.CreateShortCut(resolved_shortcut_path)
+        resolved_target_path = os.path.expandvars(self.target_path)
+        shortcut.Targetpath = resolved_target_path
+        working_directory, target_name = os.path.split(resolved_target_path)
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
         if self.run_as_admin:
@@ -48,8 +40,8 @@ class WinShortcut(PythonBatchCommandBase):
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
-            file.Load(expanded_shortcut_path)
+            file.Load(resolved_shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
-                file.Save(expanded_shortcut_path, 0)
+                file.Save(resolved_shortcut_path, 0)

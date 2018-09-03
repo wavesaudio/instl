@@ -3,7 +3,7 @@
 
 import sys
 import os
-import pathlib
+from pathlib import Path
 import unittest
 import shutil
 import stat
@@ -19,6 +19,15 @@ import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
 from pybatch.copyBatchCommands import RsyncClone
+from configVar import config_vars
+
+current_os_names = utils.get_current_os_names()
+os_family_name = current_os_names[0]
+os_second_name = current_os_names[0]
+if len(current_os_names) > 1:
+    os_second_name = current_os_names[1]
+
+config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
 @contextlib.contextmanager
@@ -126,7 +135,7 @@ class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
+        self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
 
@@ -135,9 +144,9 @@ class TestPythonBatch(unittest.TestCase):
         if self.test_folder.exists():
             for root, dirs, files in os.walk(str(self.test_folder)):
                 for d in dirs:
-                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec)
+                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, follow_symlinks=False)
                 for f in files:
-                    os.chmod(os.path.join(root, f), Chmod.all_read_write)
+                    os.chmod(os.path.join(root, f), Chmod.all_read_write, follow_symlinks=False)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
         self.batch_accum.set_current_section("pre")
@@ -160,27 +169,20 @@ class TestPythonBatch(unittest.TestCase):
 
         bc_repr = repr(self.batch_accum)
         self.write_file_in_test_folder(test_name+".py", bc_repr)
+        bc_compiled = compile(bc_repr, test_name+".py", 'exec')
         stdout_capture = io.StringIO()
         with capture_stdout(stdout_capture):
             if not expected_exception:
                 try:
-                    ops = exec(f"""{bc_repr}""", globals(), locals())
+                    ops = exec(bc_compiled, globals(), locals())
                 except SyntaxError:
                     print(f"> > > > SyntaxError in {test_name}")
                     raise
             else:
                 with self.assertRaises(expected_exception):
-                    ops = exec(f"""{bc_repr}""", globals(), locals())
+                    ops = exec(bc_compiled, globals(), locals())
 
         self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
-
-    def write_as_batch(self, test_name=None):
-        if test_name is None:
-            test_name = self.which_test
-        test_name = f"{self.sub_test_counter}_{test_name}"
-
-        bc_repr = batch_repr(str(self.batch_accum))
-        self.write_file_in_test_folder(test_name+".sh", bc_repr)
 
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
@@ -202,7 +204,6 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += MakeDirs(dir_to_make_1, remove_obstacles=False)  # MakeDirs twice should be OK
 
         self.exec_and_capture_output()
-        # self.write_as_batch()
 
         self.assertTrue(dir_to_make_1.exists(), f"{self.which_test}: {dir_to_make_1} should exist")
         self.assertTrue(dir_to_make_2.exists(), f"{self.which_test}: {dir_to_make_2} should exist")
@@ -565,7 +566,7 @@ class TestPythonBatch(unittest.TestCase):
 
     def test_CopyFileToFile_repr(self):
         dir_from = r"\p\o\i"
-        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False)
+        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False, copy_owner=True)
         cftf_obj_recreated = eval(repr(cftf_obj))
         self.assertEqual(cftf_obj, cftf_obj_recreated, "CopyFileToFile.repr did not recreate CopyFileToFile object correctly")
 
@@ -612,7 +613,6 @@ class TestPythonBatch(unittest.TestCase):
 
         self.assertTrue(filecmp.cmp(file_to_copy, target_file_different_name_without_hard_links))
         self.assertTrue(is_same_inode(file_to_copy, target_file_different_name_with_hard_links))
-
 
     def test_RmFile_repr(self):
         rmfile_obj = RmFile(r"\just\remove\me\already")
@@ -741,7 +741,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         #self.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.batch_accum += MakeDirs(batches_dir)
-        self.batch_accum += ShellCommands(shell_commands_list=geronimo)
+        self.batch_accum += ShellCommands(shell_commands_list=geronimo, message="testing ShellCommands")
 
         self.exec_and_capture_output()
 
@@ -1081,7 +1081,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(curl_obj, curl_obj_recreated, "CUrl.repr did not recreate CUrl object correctly")
 
     def test_Curl_download(self):
-        sample_file = pathlib.Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
         with open(sample_file, 'r') as stream:
             test_data = stream.read()
         url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
@@ -1102,10 +1102,10 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum.clear()
         with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
             redundant_accum += Echo("redundant echo")
-        self.assertEqual(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with only echo should discarded")
+        self.assertEqual(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with only echo should discarded")
         with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
             redundant_accum += Wzip("dummy no real path")
-        self.assertGreater(self.batch_accum.num_batch_commands(), 0, f"{self.which_test}: a Section with essential command should not discarded")
+        self.assertGreater(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with essential command should not discarded")
 
     def test_CreateSymlink_repr(self):
 
@@ -1131,12 +1131,13 @@ class TestPythonBatch(unittest.TestCase):
         relative_symlink_to_a_folder = self.path_inside_test_folder("relative_symlink_of_a_folder")
 
         self.batch_accum.clear()
-        self.batch_accum += Touch(a_file_to_symlink)
-        self.batch_accum += MakeDirs(a_folder_to_symlink)
-        self.batch_accum += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
-        self.batch_accum += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
-        self.batch_accum += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
-        self.batch_accum += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
+        with self.batch_accum.sub_accum(Cd(self.test_folder)) as iSubSub:
+            iSubSub += Touch(a_file_to_symlink)
+            iSubSub += MakeDirs(a_folder_to_symlink)
+            iSubSub += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
+            iSubSub += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
+            iSubSub += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
+            iSubSub += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
         self.exec_and_capture_output("CreateSymlink")
 
         self.assertFalse(os.path.islink(a_file_to_symlink), f"CreateSymlink {a_file_to_symlink} should be a file not a symlink")
@@ -1197,8 +1198,8 @@ class TestPythonBatch(unittest.TestCase):
             symlink_to_a_original = self.path_inside_test_folder(f"symlink_of_{name}")
             relative_symlink_to_a_original = self.path_inside_test_folder(f"relative_symlink_of_{name}")
 
-            symlink_file_of_original = pathlib.Path(os.fspath(symlink_to_a_original)+".symlink")
-            symlink_file_of_relative = pathlib.Path(os.fspath(relative_symlink_to_a_original)+".symlink")
+            symlink_file_of_original = Path(os.fspath(symlink_to_a_original)+".symlink")
+            symlink_file_of_relative = Path(os.fspath(relative_symlink_to_a_original)+".symlink")
 
             return SymlinkTestData(original_to_symlink, symlink_to_a_original, symlink_file_of_original, relative_symlink_to_a_original, symlink_file_of_relative)
 
@@ -1209,7 +1210,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
         self.batch_accum += MakeDirs(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
-            with self.batch_accum.sub_accum(Section(test_data.original_to_symlink.name)) as symlink_test_accum:
+            with self.batch_accum.sub_accum(CdSection(self.test_folder ,test_data.original_to_symlink.name)) as symlink_test_accum:
                 symlink_test_accum += CreateSymlink(test_data.symlink_to_a_original, test_data.original_to_symlink)                # symlink with full path
                 symlink_test_accum += CreateSymlink(test_data.relative_symlink_to_a_original, test_data.original_to_symlink.name)  # symlink with relative path
                 symlink_test_accum += SymlinkToSymlinkFile(test_data.symlink_to_a_original)
@@ -1221,8 +1222,9 @@ class TestPythonBatch(unittest.TestCase):
             self.assertFalse(os.path.islink(test_data[0]), f"SymlinkToSymlinkFile {test_data.original_to_symlink} should be a file not a symlink")
             self.assertFalse(test_data.symlink_to_a_original.exists(), f"SymlinkToSymlinkFile {test_data.symlink_to_a_original} should have been erased")
             self.assertFalse(test_data.relative_symlink_to_a_original.exists(), f"SymlinkToSymlinkFile {test_data.relative_symlink_to_a_original} should have been erased")
-            self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should be replaced by .symlink file")
+            self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should have been replaced by .symlink file")
             self.assertTrue(test_data.symlink_file_of_relative.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_relative} should be replaced by .symlink file")
+
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_original)
             self.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_relative)
@@ -1251,7 +1253,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform != 'darwin':
             return
 
-        folder_of_symlinks = pathlib.Path("/Users/shai/Desktop/Tk.framework")
+        folder_of_symlinks = Path("/Users/shai/Desktop/Tk.framework")
 
         self.batch_accum.clear()
         self.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
@@ -1261,7 +1263,6 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
         self.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
-
     def test_RsyncClone_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
@@ -1270,7 +1271,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(cdtd_obj, cdtd_obj_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
 
         cdtd_obj = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
-                 patterns_to_ignore=['*.a', 'b.*'],
+                 ignore_patterns=['*.a', 'b.*'],
                  hard_links=False,
                  ignore_dangling_symlinks=True,
                  delete_extraneous_files=True,
@@ -1318,7 +1319,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform == 'darwin':
             self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
         file_names_to_ignore = ["hootenanny"]
-        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_ignore, patterns_to_ignore=file_names_to_ignore)
+        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=file_names_to_ignore)
 
         self.exec_and_capture_output()
 
@@ -1331,9 +1332,43 @@ class TestPythonBatch(unittest.TestCase):
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
 
+    def test_RaiseException_repr(self):
+        the_exception = ValueError
+        the_message = "just a dummy exception"
+        re_obj = RaiseException(the_exception, the_message)
+        re_obj_recreated = eval(repr(re_obj))
+        self.assertEqual(re_obj, re_obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
+
+    def test_RaiseException(self):
+        self.batch_accum.clear()
+        self.batch_accum += RaiseException(ValueError, "la la la")
+        self.exec_and_capture_output(expected_exception=ValueError)
+
+    def test_SVNClient_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        create_svn_obj = SVNClient("checkout", "--depth", "infinity")
+        create_svn_obj_recreated = eval(repr(create_svn_obj))
+        self.assertEqual(create_svn_obj, create_svn_obj_recreated, "SVNClient.repr did not recreate SVNClient object correctly")
+
+    def test_SVNClient(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        svn_checkout_dir = Path("/Volumes/BonaFide/installers/testinstl/V9/svn")
+
+        self.batch_accum.clear()
+        with self.batch_accum.sub_accum(Cd(svn_checkout_dir)) as sub_bc:
+            sub_bc += SVNClient("info")
+
+        self.exec_and_capture_output()
+
 
 if __name__ == '__main__':
-    test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
+    test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
     shutil.rmtree(test_folder)
 
     unittest.main()

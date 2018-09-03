@@ -2,11 +2,12 @@
 
 
 import subprocess
-import time
 import sys
 import os
 import signal
 import logging
+from itertools import repeat
+from concurrent import futures
 
 log = logging.getLogger(__name__)
 
@@ -18,47 +19,54 @@ def run_processes_in_parallel(commands, shell=False):
     global exit_val
     try:
         install_signal_handlers()
-        run_parallels(commands, shell)
+        with futures.ThreadPoolExecutor(len(commands)) as executor:
+            list(executor.map(run_process, commands, repeat(shell), repeat(process_list)))
         exit_val = 0
         killall_and_exit()
-    except Exception:
+    except Exception as e:
+        log.error(e)
         killall_and_exit()
 
 
-def run_parallels(commands, shell=False):
+def run_process(command, shell, process_list):
     global exit_val
-    for i, command in enumerate(commands):
-        try:
-            if getattr(os, "setsid", None):
-                if shell:
-                    full_command = " ".join(command)
-                    a_process = subprocess.Popen(full_command, shell=shell, bufsize=1, preexec_fn=os.setsid)  # Unix
-                else:
-                    a_process = subprocess.Popen(command, executable=command[0], shell=shell, bufsize=1, preexec_fn=os.setsid)  # Unix
-            else:
-                a_process = subprocess.Popen(command, executable=command[0], shell=shell, bufsize=1)  # Windows
-            process_list.append(a_process)
-        except Exception:
-            log.error("failed to start", command, file=sys.stderr)
-            sys.stdout.flush()
-            exit_val = 31
-            killall_and_exit()
+    a_process = launch_process(command, shell)
+    process_list.append(a_process)
+    while True:
+        enqueue_output(a_process.stdout)
+        status = a_process.poll()
+        if status is not None:  # None means it's still alive
+            log.debug(f'Process finished - {command}')
+            if status != 0:
+                exit_val = status
+                raise RuntimeError(f'Command failed {command}')
+            break
 
-    active_process_list = list()
-    while process_list:
-        for a_process in process_list:
-            status = a_process.poll()
-            if status is None:  # None means it's still alive
-                active_process_list.append(a_process)
-                sys.stdout.flush()
-            else:
-                if status != 0:
-                    exit_val = status
-                    killall_and_exit()
-        process_list[:] = active_process_list
-        active_process_list[:] = []
-        sys.stdout.flush()
-        time.sleep(.2)
+
+def launch_process(command, shell):
+    global exit_val
+    if shell:
+        full_command = " ".join(command)
+        kwargs = {}
+    else:
+        full_command = command
+        kwargs = {'executable': command[0]}
+    if getattr(os, "setsid", None):  # UNIX
+        kwargs['preexec_fn'] = os.setsid
+    try:
+        a_process = subprocess.Popen(full_command, shell=shell, bufsize=1,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    except Exception as e:
+        exit_val = 31
+        raise RuntimeError(f"failed to start {command}") from e
+    return a_process
+
+
+def enqueue_output(out):
+    for line in iter(out.readline, b''):
+        if line != '':
+            log.info(line.decode('utf-8').strip('\n'))
+    out.close()
 
 
 def signal_handler(signum, frame):

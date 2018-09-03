@@ -2,6 +2,9 @@
 
 
 import utils
+import logging
+log = logging.getLogger()
+
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from .indexItemTable import IndexItemsTable
@@ -24,12 +27,10 @@ class InstlDoIt(InstlInstanceBase):
         self.init_default_doit_vars()
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        self.batch_accum += self.platform_helper.setup_echo()
         # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
-        self.platform_helper.init_copy_tool()
         self.items_table.resolve_inheritance()
         self.calculate_full_doit_order()
-        self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
+        #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
@@ -51,7 +52,7 @@ class InstlDoIt(InstlInstanceBase):
             if len(target_os_names) > 1:
                 second_name = target_os_names[1]
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
-        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
+        #self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
 
     def do_doit(self):
         for doit_stage in ("pre_doit", "doit", "post_doit"):
@@ -92,7 +93,7 @@ class InstlDoIt(InstlInstanceBase):
         all_iis_set = set(self.items_table.get_all_iids())
         orphan_iids = list(set(self.full_doit_order)-all_iis_set)
         if orphan_iids:
-            print("Don't know to do with these orphan items::", orphan_iids)
+            log.warning(f"""Don't know to do with these orphan items: {orphan_iids}""")
             config_vars["__ORPHAN_DOIT_TARGETS__"] = sorted(orphan_iids)
             for o_iid in orphan_iids:
                 self.full_doit_order.remove(o_iid)

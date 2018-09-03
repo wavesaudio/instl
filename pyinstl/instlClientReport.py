@@ -18,9 +18,9 @@ class InstlClientReport(InstlClient):
         self.guids_to_ignore = None
         self.output_data = []
 
-    def get_default_out_file(self):
-        retVal = "stdout"
-        return retVal
+    def get_default_out_file(self) -> None:
+        if "__MAIN_OUT_FILE__" not in config_vars:
+            config_vars["__MAIN_OUT_FILE__"] = "stdout"
 
     def command_output(self):
         out_file = config_vars["__MAIN_OUT_FILE__"].str()

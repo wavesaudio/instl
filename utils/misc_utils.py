@@ -10,7 +10,7 @@ import collections
 import subprocess
 import numbers
 import stat
-import pathlib
+from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
 import rsa
@@ -437,6 +437,20 @@ def quoteme_raw_list(list_of_things):
     return retVal
 
 
+def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
+    if isinstance(list_of_things, str):
+        retVal = quoteme_raw_if_string(list_of_things)
+    elif isinstance(list_of_things, collections.Sequence):
+        if one_element_list_as_string and len(list_of_things) == 1:
+            retVal = quoteme_raw_if_string(list_of_things[0])
+        else:
+            retVal = quoteme_raw_list(list_of_things)
+            retVal = "".join(("[", ", ".join(retVal), "]"))
+    else:
+        retVal = quoteme_raw_if_string(list_of_things)
+    return retVal
+
+
 def quote_path_properly(path_to_quote):
     quote_char = "'"
     if "'" in path_to_quote or "${" in path_to_quote:
@@ -672,7 +686,7 @@ class DictDiffer(object):
 
 
 def find_mount_point(path):
-    mount_p = pathlib.PurePath(path)
+    mount_p = PurePath(path)
     while not os.path.ismount(str(mount_p)):
         mount_p = mount_p.parent
     return str(mount_p)
@@ -735,14 +749,14 @@ wtar_file_re = re.compile("""
 
 
 def is_wtar_file(in_possible_wtar) -> bool:
-    match = wtar_file_re.match(in_possible_wtar)
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
     retVal: bool = match is not None
     return retVal
 
 
 def is_first_wtar_file(in_possible_wtar):
     retVal = False
-    match = wtar_file_re.match(in_possible_wtar)
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
     if match:
         split_numerator = match['split_numerator']
         retVal = split_numerator is None or split_numerator == ".aa"
@@ -807,7 +821,7 @@ def get_recursive_checksums(some_path, ignore=None):
                 item_path_dir, item_path_leaf = os.path.split(item.path)
                 if item_path_leaf not in ignore:
                     the_checksum = get_file_checksum(item.path, follow_symlinks=False)
-                    normalized_path = pathlib.PurePath(item.path).as_posix()
+                    normalized_path = PurePath(item.path).as_posix()
                     retVal[normalized_path] = the_checksum
 
         checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
@@ -877,7 +891,7 @@ def get_system_log_file_path():
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
-        folder_to_write_in = appdirs.user_log_dir("")
+        folder_to_write_in = appdirs.user_data_dir('Waves Central', 'Waves Audio')
     system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
     return system_log_file_path
 

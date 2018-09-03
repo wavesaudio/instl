@@ -4,8 +4,8 @@ import os
 import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
-from typing import List
-import pathlib
+import logging
+log = logging.getLogger()
 
 import utils
 import aYaml
@@ -83,19 +83,14 @@ class InstlClient(InstlInstanceBase):
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        #self.batch_accum += self.platform_helper.setup_echo()
-        #self.platform_helper.init_platform_tools()
-        # after reading variable COPY_TOOL from yaml, we might need to re-init the copy tool.
-        #self.platform_helper.init_copy_tool()
         self.progress("calculate install items")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
-        self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
-        self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
+        #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
+        #self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
-        self.create_instl_history_file()
         self.command_output()
         self.items_table.config_var_list_to_db(config_vars)
 
@@ -104,21 +99,6 @@ class InstlClient(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def create_instl_history_file(self):
-        config_vars["__BATCH_CREATE_TIME__"] = time.strftime("%Y/%m/%d %H:%M:%S")
-        yaml_of_defines = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions",
-                                                explicit_start=True, sort_mappings=True)
-
-        # write the history file, but only if variable LOCAL_REPO_BOOKKEEPING_DIR is defined
-        # and the folder actually exists.
-        instl_temp_history_file_path = config_vars["INSTL_HISTORY_TEMP_PATH"].str()
-        instl_temp_history_folder, instl_temp_history_file_name = os.path.split(instl_temp_history_file_path)
-        if os.path.isdir(instl_temp_history_folder):
-            with utils.utf8_open(instl_temp_history_file_path, "w") as wfd:
-                utils.make_open_file_read_write_for_all(wfd)
-                aYaml.writeAsYaml(yaml_of_defines, wfd)
-            self.batch_accum += self.platform_helper.append_file_to_file("$(INSTL_HISTORY_TEMP_PATH)",
-                                                                         "$(INSTL_HISTORY_PATH)")
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in config_vars:
             #raise ValueError("'SYNC_BASE_URL' was not defined")
@@ -212,7 +192,7 @@ class InstlClient(InstlInstanceBase):
 
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
-        # marked ignored iids, all subsequent operations not act on these iids
+        # mark ignored iids, so all subsequent operations not act on these iids
         ignored_iids = list(config_vars.get("MAIN_IGNORED_TARGETS", []))
         self.items_table.set_ignore_iids(ignored_iids)
 
@@ -222,6 +202,7 @@ class InstlClient(InstlInstanceBase):
                 self.items_table.install_status["none"],
                 self.items_table.install_status["main"],
                 main_iids)
+
         # find dependant of main install items
         main_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["main"])
         # mark dependants of main items, but only if they are not already in main items
@@ -236,6 +217,7 @@ class InstlClient(InstlInstanceBase):
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
                 update_iids)
+
         # find dependants of update install items
         update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
         # mark dependants of update items, but only if they are not already marked
@@ -284,19 +266,22 @@ class InstlClient(InstlInstanceBase):
         require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].str()
         self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
 
-    def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> List[PythonBatchCommandBase]:
+    def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> PythonBatchCommandBase:
         """ accumulate action_type actions from iid_list, eliminating duplicates"""
-        retVal = list()
+        retVal = AnonymousAccum()
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
         for IID, an_action in iid_and_action:
             if IID != previous_iid:  # avoid multiple progress messages for same iid
+                actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
-                retVal.append(Progress(f"{name_and_version} {action_description}"))
                 previous_iid = IID
-            retVal.append(SingleShellCommand(an_action))
+            actions = config_vars.resolve_str_to_list(an_action)
+            for action in actions:
+                actions_of_iid_count += 1
+                retVal += ShellCommand(action, f"{name_and_version} {action_description} {actions_of_iid_count}")
         return retVal
 
     def create_require_file_instructions(self):
@@ -304,33 +289,18 @@ class InstlClient(InstlInstanceBase):
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
         new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
         os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False)
+        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False, copy_owner=True)
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
-            self.batch_accum += Progress("copy new require.yaml to $(SITE_REQUIRE_FILE_PATH)")
-            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False)
+            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False, copy_owner=True)
         else:   # remove previous require.yaml since the new one does not contain anything
-            self.batch_accum += Progress("remove previous require.yaml from $(SITE_REQUIRE_FILE_PATH)")
-            self.batch_accum += self.platform_helper.rmfile("$(SITE_REQUIRE_FILE_PATH)")
-
-    def create_folder_manifest_command(self, which_folder_to_manifest, output_folder, output_file_name, back_ground: bool=False):
-        """ create batch commands to write a manifest of specific folder to a file """
-        self.batch_accum += self.platform_helper.mkdir(output_folder)
-        ls_output_file = os.path.join(output_folder, output_file_name)
-        create_folder_ls_command_parts = [self.platform_helper.run_instl(), "ls",
-                                      "--in",  utils.quoteme_double(which_folder_to_manifest),
-                                      "--out", utils.quoteme_double(ls_output_file)]
-        if config_vars["__CURRENT_OS__"].str() == "Mac":
-            if False:  # back_ground: temporary disabled background, it causes DB conflicts when two "ls" command happen in parallel
-                create_folder_ls_command_parts.extend("&")
-            else:
-                create_folder_ls_command_parts.extend(("||", "true"))
-        self.batch_accum += " ".join(create_folder_ls_command_parts)
+            self.batch_accum += RmFile("$(SITE_REQUIRE_FILE_PATH)")
 
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix: str, back_ground: bool=False):
         """ create batch commands to write a manifest of the sync folder to a file """
+        retVal = AnonymousAccum()
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
         output_folder = None
@@ -341,11 +311,11 @@ class InstlClient(InstlInstanceBase):
                 if os.path.isdir(output_folder):
                     break
                 output_folder = None
-        commands = []
+
         if output_folder is not None:
-            output_file_path = pathlib.Path(output_folder, output_file_name)
-            commands.append(Ls(which_folder_to_manifest, out_file=output_file_path))
-        return commands
+            output_file_path = Path(output_folder, output_file_name)
+            retVal += Ls(which_folder_to_manifest, out_file=output_file_path)
+        return retVal
 
     def repr_require_for_yaml(self):
         translate_detail_name = {'require_version': 'version', 'require_guid': 'guid', 'require_by': 'require_by'}
@@ -368,7 +338,7 @@ class InstlClient(InstlInstanceBase):
             or if update of installed items was requested
         """
         explicitly_asked_for_binaries_check = 'CHECK_BINARIES_VERSIONS' in config_vars
-        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in config_vars["MAIN_INSTALL_TARGETS"]
+        update_was_requested = "__UPDATE_INSTALLED_ITEMS__" in config_vars.get("MAIN_INSTALL_TARGETS", []).list()
         retVal = explicitly_asked_for_binaries_check or update_was_requested
         return retVal
 
@@ -395,7 +365,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.insert_binary_versions(binaries_version_list)
 
         except Exception as ex:
-            print("exception while in check_binaries_versions", ex)
+            log.warning(f"""exception while in check_binaries_versions {ex}""")
         return binaries_version_list
 
     def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
@@ -483,40 +453,32 @@ class InstlClient(InstlInstanceBase):
         self.info_map_table.update_downloads(items_to_update)
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
-        retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
-
+        retVal = AnonymousAccum()
         target_folder_path_resolved = config_vars.resolve_str(target_folder_path)
         if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
-            #assert list(self.all_iids_by_target_folder[target_folder_path]) == list(iids_in_folder)
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                self.batch_accum += Remark(f"- Begin folder {target_folder_path}")
-                self.batch_accum += Cd(target_folder_path)
+                retVal += Cd(target_folder_path)
                 # todo: conditional CD - if fails to not do other instructions
-                self.batch_accum += Progress(f"remove previous versions {target_folder_path} ...")
+                retVal += Progress(f"remove previous versions {target_folder_path} ...")
 
                 for previous_source in previous_sources:
                     retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
-
         return retVal
 
     def create_remove_previous_sources_instructions_for_source(self, folder, source):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
-        retVal = 0  # return the number of real actions (e.g. not progress, remark, etc)
+        retVal = AnonymousAccum()
         source_path, source_type = source[0], source[1]
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
-            remove_action = RmDir(to_remove_path)
-            self.batch_accum += remove_action
-            retVal += 1
+            retVal += RmDir(to_remove_path)
         elif source_type == '!file':  # remove single file
-            remove_action = self.platform_helper.rmfile(to_remove_path, ignore_if_not_exist=True)
-            self.batch_accum += remove_action
-            retVal += 1
+            retVal += RmFile(to_remove_path)
         elif source_type == '!dir_cont':
             raise Exception("previous_sources cannot have tag !dir_cont")
         return retVal

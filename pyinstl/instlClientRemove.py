@@ -36,32 +36,29 @@ class InstlClientRemove(InstlClient):
         self.calc_iid_to_name_and_version()
 
         self.batch_accum.set_current_section('remove')
-        self.batch_accum += Progress("Starting remove")
+        self.batch_accum += Progress("Start remove")
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold),
                                            reverse=True)
-        # print(sorted_target_folder_list)
+
         self.accumulate_unique_actions_for_active_iids('pre_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
 
         for folder_name in sorted_target_folder_list:
-            with self.batch_accum.sub_accum(Section(folder_name)) as folder_accum_transaction:
-                self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-                folder_accum_transaction += Progress(f"Remove from folder {folder_name}")
+            with self.batch_accum.sub_accum(Section("Remove from folder", folder_name)) as folder_accum_transaction:
+                folder_accum_transaction += self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
                 config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
 
                 for IID in items_in_folder:
-                    with folder_accum_transaction.sub_accum(Section(IID)) as iid_accum_transaction:
-                        name_for_iid = self.name_for_iid(iid=IID)
-                        iid_accum_transaction += Progress(f"Remove {name_for_iid}")
+                    name_for_iid = self.name_for_iid(iid=IID)
+                    with folder_accum_transaction.sub_accum(Section("Remove", name_for_iid)) as iid_accum_transaction:
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
-                            with iid_accum_transaction.sub_accum(Section(source[0])) as source_accum_transaction:
-                                _, source_leaf = os.path.split(source[0])
-                                source_accum_transaction += Progress(f"Remove {source_leaf}")
+                            _, source_leaf = os.path.split(source[0])
+                            with iid_accum_transaction.sub_accum(Section("Remove", source_leaf)) as source_accum_transaction:
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
@@ -104,6 +101,6 @@ class InstlClientRemove(InstlClient):
             # remove_item: ~
             # this will cause specific_remove_actions list to be [None].
             # after filtering None values the list will be empty and remove actions will not be created
-            specific_remove_actions = [SingleShellCommand(_f) for _f in specific_remove_actions if _f]  # filter out None values
+            specific_remove_actions = [ShellCommand(_f, f"""'{to_remove_path}' remove action""") for _f in specific_remove_actions if _f]  # filter out None values
             retVal.extend(specific_remove_actions)
         return retVal

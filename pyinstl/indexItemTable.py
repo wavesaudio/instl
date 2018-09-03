@@ -8,6 +8,8 @@ from collections import defaultdict
 import re
 import yaml
 from typing import List
+import logging
+log = logging.getLogger()
 
 import utils
 from configVar import config_vars
@@ -1115,7 +1117,7 @@ class IndexItemsTable(object):
                 config_var_insert_list.append((identifier, raw_value, resolved_value))
             self.add_config_vars(config_var_insert_list)
         except Exception as ex:  # config vars are written to db for reference so we can continue even if exception ware raised
-            print(ex)
+            log.warning(ex)
 
     def add_config_vars(self, list_of_config_var_values):
         query_text = """INSERT INTO config_var_t(name, raw_value, resolved_value)

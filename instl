@@ -22,7 +22,9 @@ import sqlite3
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
 import utils
+
 log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
@@ -115,7 +117,7 @@ def config_logger():
                 'formatter': 'detailed',
                 'filename': system_log_file_path,
                 'mode': 'a',
-                'maxBytes': 10000000,
+                'maxBytes': 5000000,
                 'backupCount': 10,
                 'filters': ['parent']
             }
@@ -185,13 +187,18 @@ def main():
                     "__USER_DESKTOP_DIR__": os.path.normpath("$(__USER_HOME_DIR__)/Desktop"),
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__SYSTEM_LOG_FILE_PATH__": utils.get_system_log_file_path(),
-                    "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16))
+                    "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16)),
+                    "__SUDO_USER__": os.environ.get("SUDO_USER", "no set")
                     }
 
     if os_family_name != "Win":
         initial_vars.update(
                     {"__USER_ID__": str(os.getuid()),
                      "__GROUP_ID__": str(os.getgid())})
+    else:
+        initial_vars.update(
+                    {"__USER_ID__": -1,
+                     "__GROUP_ID__": -1})
 
     # config_logger()
     instance = None
@@ -260,7 +267,7 @@ class InvocationReporter(object):
             log.debug(f"===== {self.random_invocation_name} =====")
             log.debug(f"Start: {self.start_time}")
             log.debug(f"instl: {sys.argv[0]}")
-            log.debug('argv: {}'.format(" ".join(sys.argv[1:])))
+            log.debug(f'argv: {" ".join(sys.argv[1:])}')
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
@@ -272,7 +279,7 @@ class InvocationReporter(object):
             log.debug(f"Run time: {end_time-self.start_time}")
             log.debug(f"End: {end_time}")
             log.debug(f"===== {self.random_invocation_name} =====")
-        except:
+        except Exception as e:
             log.warning(f'instl log file report finalize failed - {e}')
 
 

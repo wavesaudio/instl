@@ -3,11 +3,13 @@ import os
 import stat
 import tarfile
 from collections import OrderedDict
-import pathlib
+import logging
+
+log = logging.getLogger()
 
 from configVar import config_vars
 import utils
-import zlib
+
 
 from .baseClasses import PythonBatchCommandBase
 from .batchCommands import MakeDirs
@@ -32,16 +34,8 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
         if self.info_map_file:
@@ -71,16 +65,8 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''Check download folder checksum'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
@@ -131,16 +117,8 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''Set exec permissions in download folder'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
@@ -154,7 +132,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
             exec_file_paths = self.info_map_table.get_required_exec_file_paths()
         for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
-                Chmod(file_item_path, "a+x")()
+                Chmod(file_item_path, "a+x", progress_count=0)()
 
 
 class CreateSyncFolders(InfoMapBase):
@@ -168,16 +146,8 @@ class CreateSyncFolders(InfoMapBase):
         the_repr += ")"
         return the_repr
 
-    def repr_batch_win(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
-    def repr_batch_mac(self) -> str:
-        the_repr = f''''''
-        return the_repr
-
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''Create download directories'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
@@ -186,4 +156,5 @@ class CreateSyncFolders(InfoMapBase):
         else:
             dl_dir_items = self.info_map_table.get_items(what="dir")
         for dl_dir in dl_dir_items:
+            self.doing = f"""creating sync folder '{dl_dir}'"""
             MakeDirs(dl_dir.path)()

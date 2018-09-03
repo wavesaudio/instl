@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
-
-
-import sys
 from collections import deque, defaultdict
 from configVar import config_vars
+import logging
+log = logging.getLogger()
 
 from .instlClientRemove import InstlClientRemove
 
@@ -101,7 +100,7 @@ class InstlClientUninstall(InstlClientRemove):
             self.create_remove_instructions()
             self.create_require_file_instructions()
         else:
-            print("nothing to uninstall")
+            log.info("nothing to uninstall")
 
     def calculate_all_uninstall_items_option_2(self):
         # option 2: remove instructions will be created for items that are not in require.yaml

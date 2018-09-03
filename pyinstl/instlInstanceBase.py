@@ -5,7 +5,7 @@ import os
 import sys
 import re
 import abc
-import pathlib
+from pathlib import Path
 import platform
 import appdirs
 import urllib.error
@@ -15,8 +15,6 @@ import time
 
 import aYaml
 import utils
-from .batchAccumulator import BatchAccumulatorFactory
-from .platformSpecificHelper_Base import PlatformSpecificHelperFactory
 
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
@@ -24,6 +22,9 @@ from configVar import ConfigVarYamlReader
 from . import connectionBase
 from db import DBManager
 from pybatch import *
+
+from .curlHelper import CUrlHelper
+
 log = logging.getLogger(__name__)
 
 
@@ -82,21 +83,13 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
         self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
 
-        self.platform_helper = None
-        self.batch_accum = None
-        self.init_platform_helpers()
+        self.batch_accum = PythonBatchCommandAccum()
+        self.dl_tool = CUrlHelper()
 
         self.out_file_realpath = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
-
-    def init_platform_helpers(self):
-        use_python_batch = bool(config_vars.get("USE_PYTHON_BATCH", "False"))
-        self.platform_helper = PlatformSpecificHelperFactory(str(config_vars["__CURRENT_OS__"]), self, use_python_batch=use_python_batch)
-        self.batch_accum = BatchAccumulatorFactory(use_python_batch=use_python_batch)
-        # init initial copy tool, tool might be later overridden after reading variable COPY_TOOL from yaml.
-        self.platform_helper.init_copy_tool()
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -199,11 +192,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         del self.db
         config_vars.print_statistics()
 
-    def get_default_out_file(self):
+    def get_default_out_file(self) -> None:
         if "__MAIN_OUT_FILE__" not in config_vars:
             if "__MAIN_INPUT_FILE__" in config_vars:
-                default_out_file = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-                config_vars["__MAIN_OUT_FILE__"] = default_out_file
+                config_vars["__MAIN_OUT_FILE__"] = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def get_default_db_file(self):
         if "__MAIN_DB_FILE__" not in config_vars:
@@ -236,7 +228,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open(file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
+            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
 
             define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str()},
                                                 '!define', "definitions",
@@ -300,8 +292,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             destination_path = config_vars.resolve_str(copy_destination.value)
                             destination_folder, destination_file_name = os.path.split(destination_path)
                             self.batch_accum += MakeDirs(destination_folder)
-                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False)
-                            self.batch_accum += Progress(f"copy cached file to {destination_path}")
+                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
@@ -335,7 +326,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = os.path.join("$(USER_CACHE_DIR)", continue_dir)
         else:
             retVal = "$(USER_CACHE_DIR)"
-        # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
+        # log.info("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
             retVal = config_vars.resolve_str(retVal)
             os.makedirs(retVal, exist_ok=True)
@@ -363,7 +354,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
         assert "__MAIN_OUT_FILE__" in config_vars
 
-        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = str(self.platform_helper.num_items_for_progress_report)
+        config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
 
         self.create_variables_assignment(in_batch_accum)
 
@@ -391,7 +382,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         else:
             self.out_file_realpath = "stdout"
         msg = " ".join(
-            (self.out_file_realpath, str(self.platform_helper.num_items_for_progress_report), "progress items"))
+            (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)
 
     def run_batch_file(self):
@@ -422,19 +413,19 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
             depend_cycles = installItemGraph.find_cycles(depend_graph)
             if not depend_cycles:
-                print("No depend cycles found")
+                log.info("No depend cycles found")
             else:
                 for cy in depend_cycles:
-                    print("depend cycle:", " -> ".join(cy))
+                    log.info(f"""depend cycle: {" -> ".join(cy)}""")
             inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
             inherit_cycles = installItemGraph.find_cycles(inherit_graph)
             if not inherit_cycles:
-                print("No inherit cycles found")
+                log.info("No inherit cycles found")
             else:
                 for cy in inherit_cycles:
-                    print("inherit cycle:", " -> ".join(cy))
+                    log.info(f"""inherit cycle: {" -> ".join(cy)}""")
         except ImportError:  # no installItemGraph, no worry
-                print("Could not load installItemGraph")
+                log.info("Could not load installItemGraph")
 
     def needs(self, iid, all_iids_set=None, cache=None):
         if cache is None:
@@ -463,7 +454,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return sorted(needed_by_list)
         except ImportError:  # no installItemGraph, no worry
-            print("Could not load installItemGraph")
+            log.info("Could not load installItemGraph")
             return None
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):
@@ -483,12 +474,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def handle_yaml_read_error(self, **kwargs):
         try:
-            path_to_file = pathlib.Path(kwargs['path-to-file'])
+            path_to_file = Path(kwargs['path-to-file'])
             the_exception = kwargs.get('exception', None)
-            main_input_file = pathlib.Path(config_vars["__MAIN_INPUT_FILE__"])
+            main_input_file = Path(config_vars["__MAIN_INPUT_FILE__"])
             date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
             report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
-            report_file_path = pathlib.Path(main_input_file.parent, report_file_name)
+            report_file_path = Path(main_input_file.parent, report_file_name)
             with open(report_file_path, "w") as wfd:
                 wfd.write(f"path: {path_to_file}\n\n")
                 wfd.write(f"exception: {the_exception}\n\n")

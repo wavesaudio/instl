@@ -3,7 +3,7 @@
 import sys
 import os
 import unittest
-import pathlib
+from pathlib import Path
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
@@ -89,9 +89,9 @@ class TestConfigVar(unittest.TestCase):
         self.assertEqual("321", config_vars.resolve_str("$(PUSHKIN[2])$(PUSHKIN[1])$(PUSHKIN[0])"))
 
     def test_readFile(self):
-        input_file_path = pathlib.Path(__file__).parent.joinpath("test_input.yaml")
-        out_file_path = pathlib.Path(__file__).parent.joinpath("test_out.yaml")
-        expected_file_path = pathlib.Path(__file__).parent.joinpath("expected_output.yaml")
+        input_file_path = Path(__file__).parent.joinpath("test_input.yaml")
+        out_file_path = Path(__file__).parent.joinpath("test_out.yaml")
+        expected_file_path = Path(__file__).parent.joinpath("expected_output.yaml")
 
         reader = ConfigVarYamlReader()
         reader.read_yaml_file(input_file_path)

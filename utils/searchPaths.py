@@ -9,7 +9,7 @@
 """
 
 import os
-import pathlib
+from pathlib import Path
 
 # noinspection PyPep8Naming
 class SearchPaths(object):
@@ -67,14 +67,14 @@ class SearchPaths(object):
         """
         retVal = None
         if os.path.isfile(in_file):
-            real_file = pathlib.Path(in_file).resolve()
+            real_file = Path(in_file).resolve()
             real_folder = real_file.parent
             self.add_search_path(str(real_folder))
             retVal = str(real_file)
         else:
             for try_path in iter(self.config_vars[self.search_paths_var]):
                 try:
-                    real_file = pathlib.Path(try_path, in_file).resolve()
+                    real_file = Path(try_path, in_file).resolve()
                     if os.path.isfile(str(real_file)):
                         # in_file might be a relative path so must add the file's
                         # real folder so it's in the list.
