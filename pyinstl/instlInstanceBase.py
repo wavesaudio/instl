@@ -326,7 +326,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             retVal = os.path.join("$(USER_CACHE_DIR)", continue_dir)
         else:
             retVal = "$(USER_CACHE_DIR)"
-        # print("1------------------", user_cache_dir, "-", from_url, "-", retVal)
+        # log.info("1------------------", user_cache_dir, "-", from_url, "-", retVal)
         if make_dir and retVal:
             retVal = config_vars.resolve_str(retVal)
             os.makedirs(retVal, exist_ok=True)
@@ -413,19 +413,19 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
             depend_cycles = installItemGraph.find_cycles(depend_graph)
             if not depend_cycles:
-                print("No depend cycles found")
+                log.info("No depend cycles found")
             else:
                 for cy in depend_cycles:
-                    print("depend cycle:", " -> ".join(cy))
+                    log.info(f"""depend cycle: {" -> ".join(cy)}""")
             inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
             inherit_cycles = installItemGraph.find_cycles(inherit_graph)
             if not inherit_cycles:
-                print("No inherit cycles found")
+                log.info("No inherit cycles found")
             else:
                 for cy in inherit_cycles:
-                    print("inherit cycle:", " -> ".join(cy))
+                    log.info(f"""inherit cycle: {" -> ".join(cy)}""")
         except ImportError:  # no installItemGraph, no worry
-                print("Could not load installItemGraph")
+                log.info("Could not load installItemGraph")
 
     def needs(self, iid, all_iids_set=None, cache=None):
         if cache is None:
@@ -454,7 +454,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             needed_by_list = installItemGraph.find_needed_by(graph, iid)
             return sorted(needed_by_list)
         except ImportError:  # no installItemGraph, no worry
-            print("Could not load installItemGraph")
+            log.info("Could not load installItemGraph")
             return None
 
     def repo_rev_to_folder_hierarchy(self, repo_rev):

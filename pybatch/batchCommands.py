@@ -561,12 +561,12 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
                             self.doing = f"""removing ignored file '{file_to_remove_full_path}'"""
                             os.remove(file_to_remove_full_path)
                         except Exception as ex:
-                            log.warning("failed to remove", file_to_remove_full_path, ex)
+                            log.warning(f"""failed to remove {file_to_remove_full_path}, {ex}""")
                     try:
                         self.doing = f"""removing empty folder '{root_path}'"""
                         os.rmdir(root_path)
                     except Exception as ex:
-                        log.warning("failed to remove", root_path, ex)
+                        log.warning(f"""failed to remove {root_path}, {ex}""")
 
 
 class Ls(PythonBatchCommandBase, essential=True):
@@ -587,7 +587,7 @@ class Ls(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""List '{utils.quoteme_raw_if_list(self.folders_to_list)}' to '{self.out_file}'"""
+        return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         resolved_folder_list = [utils.ResolvedPath(folder_path) for folder_path in self.folders_to_list]

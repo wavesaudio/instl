@@ -40,7 +40,7 @@ class InstlClientRemove(InstlClient):
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold),
                                            reverse=True)
-        # print(sorted_target_folder_list)
+
         self.accumulate_unique_actions_for_active_iids('pre_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
 
         for folder_name in sorted_target_folder_list:

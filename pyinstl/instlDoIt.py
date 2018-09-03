@@ -2,6 +2,9 @@
 
 
 import utils
+import logging
+log = logging.getLogger()
+
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from .indexItemTable import IndexItemsTable
@@ -90,7 +93,7 @@ class InstlDoIt(InstlInstanceBase):
         all_iis_set = set(self.items_table.get_all_iids())
         orphan_iids = list(set(self.full_doit_order)-all_iis_set)
         if orphan_iids:
-            print("Don't know to do with these orphan items::", orphan_iids)
+            log.warning(f"""Don't know to do with these orphan items: {orphan_iids}""")
             config_vars["__ORPHAN_DOIT_TARGETS__"] = sorted(orphan_iids)
             for o_iid in orphan_iids:
                 self.full_doit_order.remove(o_iid)

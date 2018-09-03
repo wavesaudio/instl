@@ -3,6 +3,8 @@
 import sys
 import os
 import abc
+import logging
+log = logging.getLogger()
 
 import utils
 from . import connectionBase
@@ -93,7 +95,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 new_have_info_map_path = config_vars["NEW_HAVE_INFO_MAP_PATH"].str()
                 self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
         except Exception:
-            print("Exception reading info_map:", info_map_file_url)
+            log.error(f"""Exception reading info_map: {info_map_file_url}""")
             raise
 
     def mark_required_items(self):

@@ -25,7 +25,6 @@ import utils
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
-print("logger level", log.getEffectiveLevel())
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.
 os.umask(0)
@@ -268,7 +267,7 @@ class InvocationReporter(object):
             log.debug(f"===== {self.random_invocation_name} =====")
             log.debug(f"Start: {self.start_time}")
             log.debug(f"instl: {sys.argv[0]}")
-            log.debug('argv: {}'.format(" ".join(sys.argv[1:])))
+            log.debug(f'argv: {" ".join(sys.argv[1:])}')
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 

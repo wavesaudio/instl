@@ -437,11 +437,14 @@ def quoteme_raw_list(list_of_things):
     return retVal
 
 
-def quoteme_raw_if_list(list_of_things):
+def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
     if isinstance(list_of_things, str):
         retVal = quoteme_raw_if_string(list_of_things)
     elif isinstance(list_of_things, collections.Sequence):
-        retVal = quoteme_raw_list(list_of_things)
+        if one_element_list_as_string and len(list_of_things) == 1:
+            retVal = quoteme_raw_if_string(list_of_things[0])
+        else:
+            retVal = quoteme_raw_list(list_of_things)
     else:
         retVal = quoteme_raw_if_string(list_of_things)
     return retVal

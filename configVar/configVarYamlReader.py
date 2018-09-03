@@ -6,6 +6,8 @@
 import sys
 import re
 from contextlib import contextmanager
+import logging
+log = logging.getLogger()
 
 import aYaml
 from configVar import config_vars
@@ -96,5 +98,5 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                 if condition_result:
                     self.read_defines(contents)
         else:
-            print(f"unknown conditional {identifier}")
+            log.warning(f"unknown conditional {identifier}")
 

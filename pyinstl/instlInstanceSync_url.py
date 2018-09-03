@@ -174,7 +174,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
             for m_p in sorted(mount_points_to_size):
                 free_bytes = shutil.disk_usage(m_p).free
-                print(mount_points_to_size[m_p], "bytes to download to drive", "".join(("'", m_p, "'")), free_bytes-mount_points_to_size[m_p], "bytes will remain")
+                log.info(f"""{mount_points_to_size[m_p]} bytes to download to drive {"".join(("'", m_p, "'"))} {free_bytes-mount_points_to_size[m_p]} bytes will remain""")
 
         dl_commands += self.create_sync_folders()
         self.create_sync_urls(file_list)

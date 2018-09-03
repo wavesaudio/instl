@@ -10,6 +10,8 @@ import fnmatch
 from contextlib import contextmanager
 import ssl
 from pathlib import Path
+import logging
+log = logging.getLogger()
 
 import pyinstl.connectionBase
 #from pyinstl import connection_factory
@@ -339,7 +341,7 @@ def make_open_file_read_write_for_all(fd, user=-1, group=-1):
             if hasattr(os, 'chmod'):
                 os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception:
-            print("make_open_file_read_write_for_all: chmod failed for ", fd.name)
+            log.warning(f"""make_open_file_read_write_for_all: chmod failed for {fd.name}""")
     if user != -1 or group != -1:
         try:
             if hasattr(os, 'fchown'):
@@ -349,7 +351,7 @@ def make_open_file_read_write_for_all(fd, user=-1, group=-1):
                 if hasattr(os, 'chown'):
                     os.chown(fd.name, user, group)
             except Exception:
-                print("make_open_file_read_write_for_all: chown failed for ", fd.name)
+                log.warning(f"""make_open_file_read_write_for_all: chown failed for {fd.name}""")
 
 
 def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):
@@ -450,7 +452,7 @@ def find_split_files(first_file: Path):
         return retVal
 
     except Exception as es:
-        print("exception while find_split_files", first_file)
+        log.error(f"""exception while find_split_files {first_file}""")
         raise es
 
 

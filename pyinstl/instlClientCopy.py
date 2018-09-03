@@ -7,6 +7,8 @@ from pathlib import Path
 import utils
 import functools
 from typing import Dict, List, Optional
+import logging
+log = logging.getLogger()
 
 from configVar import config_vars
 from .instlClient import InstlClient
@@ -134,7 +136,7 @@ class InstlClientCopy(InstlClient):
         retVal = AnonymousAccum()
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
-            print("no source files for "+source_path)
+            log.warning(f"""no source files for {source_path}""")
             return retVal
         num_wtars: int = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)

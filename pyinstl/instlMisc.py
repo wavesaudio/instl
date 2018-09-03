@@ -35,16 +35,16 @@ class InstlMisc(InstlInstanceBase):
         do_command_func()
         after_time = time.perf_counter()
         if bool(config_vars["PRINT_COMMAND_TIME"]):
-            print(self.the_command, "time:", round(after_time - before_time, 4), "sec.")
+            log.info(f"""{self.the_command} time: {round(after_time - before_time, 4)} sec.""")
 
     def dynamic_progress(self, msg):
         if self.total_progress > 0:
             self.progress_staccato_count = (self.progress_staccato_count + 1) % self.progress_staccato_period
             self.curr_progress += 1
             if not self.progress_staccato_command or self.progress_staccato_count == 0:
-                print(f"Progress: {self.curr_progress} of {self.total_progress}; {msg}")
+                log.info(f"Progress: {self.curr_progress} of {self.total_progress}; {msg}")
         elif self.no_numbers_progress:
-            print(f"Progress: ... of ...; {msg}")
+            log.info(f"Progress: ... of ...; {msg}")
 
     def do_version(self):
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
@@ -65,7 +65,7 @@ class InstlMisc(InstlInstanceBase):
     def do_wtar(self):
         what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
         if not os.path.exists(what_to_work_on):
-            print(what_to_work_on, "does not exists")
+            log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wtar = None
@@ -113,7 +113,7 @@ class InstlMisc(InstlInstanceBase):
             except ImportError:
                 bad_modules.append(module)
         if len(bad_modules) > 0:
-            print("missing modules:", bad_modules)
+            log.error(f"""missing modules {bad_modules}""")
             sys.exit(17)
 
     def do_remove_empty_folders(self):
@@ -159,7 +159,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_fail(self):
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
-        print("Failing on purpose with exit code", exit_code)
+        log.error(f"""Failing on purpose with exit code {exit_code}""")
         sys.exit(exit_code)
 
     def do_checksum(self):
@@ -203,12 +203,12 @@ class InstlMisc(InstlInstanceBase):
                 py_compiled = compile(py_text, py_file_path, mode='exec', flags=0, dont_inherit=False, optimize=2)
                 exec(py_compiled, globals())
         except Exception as ex:
-            print("Exception while exec ", py_file_path, ex)
+            log.error(f"""Exception while exec {py_file_path}, {ex}""")
 
     def do_wzip(self):
         what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
         if not os.path.exists(what_to_work_on):
-            print(what_to_work_on, "does not exists")
+            log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wzip = None

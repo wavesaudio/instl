@@ -3,7 +3,9 @@
 
 import os
 import re
-from functools import reduce
+import logging
+log = logging.getLogger()
+
 import csv
 import sqlite3
 from contextlib import contextmanager
@@ -326,7 +328,7 @@ class SVNTable(object):
             raises ValueError is a_format is not supported.
         """
         if in_file in self.files_read_list:
-            print(f"skipping '{in_file}': file was already read")
+            log.info(f"SVNTable.read_from_file skipping '{in_file}': file was already read")
             return
 
         if a_format == "guess":
@@ -382,8 +384,7 @@ class SVNTable(object):
                     row_data.extend((0, 0, ""))  # required, need_download, extra_props
                     return row_data
                 except KeyError as unused_ke:
-                    print(unused_ke)
-                    print("Error:", "line:", line_num, "record:", record)
+                    log.error(f"""SVNTable.read_from_svn_info Error: line: {line_num}  record: {record}""")
                     raise
 
             record = dict()
@@ -598,7 +599,7 @@ class SVNTable(object):
                 if not match:
                     parts = line.rstrip().split(", ", 2)
                     if len(parts) != 2:
-                        print("weird line:", line, line_num)
+                        log.warning(f"""weird line {line}, {line_num}""")
                     yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
 
         with self.db.transaction() as curs:
@@ -655,7 +656,7 @@ class SVNTable(object):
                 not_in_props_to_ignore_query = """UPDATE svn_item_t SET extra_props = extra_props || :prop_name || ";" WHERE path = :old_path;"""
                 curs.executemany(not_in_props_to_ignore_query, not_in_props_to_ignore_query_params)
         except Exception as ex:
-            print("Line:", line_num, ex)
+            log.error(f"""SVNTable.read_props Line: {line_num}, {ex}""")
             raise
 
     def get_any_item(self, item_path) -> SVNRow:
@@ -1081,7 +1082,7 @@ class SVNTable(object):
                     retVal = curs.fetchall()
                     retVal = self.SVNRowListToObjects(retVal)
             else:
-                print(dir_path, "was not found")
+                log.warning(f"""{dir_path} was not found""")
         return retVal
 
     def mark_required_for_dir(self, dir_path) -> int:

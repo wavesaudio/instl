@@ -19,6 +19,8 @@ import yaml
 import urllib.error
 
 from typing import Callable, Dict, List, Tuple
+import logging
+log = logging.getLogger()
 
 import utils
 
@@ -84,13 +86,13 @@ class YamlReader(object):
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message
                     read_file_history = " -> ".join(self.file_read_stack+[file_path])
-                    print(f"{ex.__class__.__name__} reading file:\n", read_file_history)
+                    log.error(f"{ex.__class__.__name__} reading file:\n", read_file_history)
                     self.exception_printed = True
                 raise
         except Exception as ex:
             if not self.exception_printed:      # avoid recursive printing of error message
                 read_file_history = "\n->\n".join([os.fspath(file_path) for file_path in  self.file_read_stack])
-                print("Exception reading file:", read_file_history)
+                log.error(f"""Exception reading file: {read_file_history}""")
                 self.exception_printed = True
             raise
 

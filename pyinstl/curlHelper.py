@@ -7,8 +7,8 @@ import itertools
 from pathlib import Path, PurePath
 import sys
 import functools
-import random
-import string
+import logging
+log = logging.getLogger()
 
 import utils
 from configVar import config_vars  # √
@@ -127,7 +127,7 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
                             self.short_win_paths_cache[fixed_path_parent] = short_parent_path
                         except Exception as e:  # failed to mkdir or get the short path? never mind, just use the full path
                             self.short_win_paths_cache[fixed_path_parent] = fixed_path_parent
-                            print("warning creating short path failed for", fixed_path, e, "using long path")
+                            log.warning(f"""warning creating short path failed for {fixed_path}, {e}, using long path""")
 
                     short_file_path = os.path.join(self.short_win_paths_cache[fixed_path_parent], fixed_path_name)
                     fixed_path = short_file_path.replace("\\", "\\\\")

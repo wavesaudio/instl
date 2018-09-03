@@ -35,7 +35,7 @@ class MacDock(PythonBatchCommandBase):
                 if self.restart_the_doc:
                     dock_util_command.append("--restart")
                 else:
-                    print("mac-dock confusing options, both --path and --restart were not supplied")
+                    log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
                 dock_util_command.append(self.path_to_item)
@@ -166,7 +166,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         if len(broken_symlinks) > 0:
             log.warning("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:
-                log.warning(symlink_file, "-?>", link_value)
+                log.warning(f"""{symlink_file} -?, {link_value}""")
 
 
 class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):

@@ -9,6 +9,8 @@ from time import time
 import shlex
 from tkinter import *
 from tkinter.ttk import *
+import logging
+log = logging.getLogger()
 
 import utils
 import aYaml
@@ -150,7 +152,7 @@ class InstlGui(InstlInstanceBase):
         if path_to_file == "": return
         path_to_file = os.path.relpath(path_to_file)
         if not os.path.isfile(path_to_file):
-            print("File not found:", path_to_file)
+            log.info(f"""File not found:{path_to_file}""")
             return
 
         try:
@@ -244,7 +246,7 @@ class InstlGui(InstlInstanceBase):
                 self.read_yaml_file(config_path)
                 self.admin_config_file_dirty = False
             else:
-                print("File not found:", config_path)
+                log.info(f"""File not found: {config_path}""")
 
     def update_admin_state(self, *args):
         config_vars["ADMIN_GUI_CMD"] = self.admin_command_name_var.get()
@@ -309,7 +311,7 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = client_process.communicate()
         return_code = client_process.returncode
         if return_code != 0:
-            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
 
     def run_admin(self):
         self.update_admin_state()
@@ -323,7 +325,7 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = admin_process.communicate()
         return_code = admin_process.returncode
         if return_code != 0:
-            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
 
     def create_admin_frame(self, master):
 
@@ -412,10 +414,10 @@ class InstlGui(InstlInstanceBase):
         ADMIN_GUI_LIMIT_values = config_vars.get("ADMIN_GUI_LIMIT", []).raw()
         ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
         if ADMIN_GUI_LIMIT_values:
-            print("ADMIN_GUI_LIMIT_values:", ADMIN_GUI_LIMIT_values)
+            log.info(f"""ADMIN_GUI_LIMIT_values: {ADMIN_GUI_LIMIT_values}""")
             self.admin_limit_var.set(" ".join([shlex.quote(p) for p in ADMIN_GUI_LIMIT_values]))
         else:
-            print("ADMIN_GUI_LIMIT_values:", "no values")
+            log.info("ADMIN_GUI_LIMIT_values: no values")
             self.admin_limit_var.set("")
         self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
@@ -444,7 +446,7 @@ class InstlGui(InstlInstanceBase):
         if value not in ["", "\n"]:
             self.master.clipboard_clear()
             self.master.clipboard_append(value)
-            print("data was copied to clipboard!")
+            log.info("data was copied to clipboard!")
 
     def create_client_frame(self, master):
 
@@ -524,7 +526,7 @@ class InstlGui(InstlInstanceBase):
         elif self.tab_name == tab_names['CLIENT']:
             self.update_client_state()
         else:
-            print("Unknown tab", self.tab_name)
+            log.info(f"""Unknown tab {self.tab_name}""")
 
     def create_gui(self):
 
@@ -567,15 +569,15 @@ class InstlGui(InstlInstanceBase):
             else:
                 check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
         except OSError:
-            print("Cannot run:", command_line)
+            log.info(f"""Cannot run: {command_line}""")
             return
 
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
         if return_code != 0:
-            print(" ".join(command_line) + " returned exit code " + str(return_code))
+            log.info(f"""{" ".join(command_line)} returned exit code {return_code}""")
         else:
-            print(path_to_yaml, "read OK")
+            log.info(f"""{path_to_yaml} read OK""")
 
 
 class ToolTip(Toplevel):

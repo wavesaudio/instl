@@ -8,6 +8,8 @@ import requests
 import json
 import urllib3
 urllib3.disable_warnings()
+import logging
+log = logging.getLogger()
 
 from typing import Dict
 
@@ -51,7 +53,7 @@ class ConnectionBase(object):
                     try:
                         header_values = json.loads(header_values)
                     except Exception as ex:
-                        print("CUSTOM_HEADERS not valid json", custom_headers, ex)
+                        log.warning(f"""CUSTOM_HEADERS not valid json {custom_headers}, {ex}""")
                     else:
                         retVal.extend(list(header_values.items()))
         return retVal
