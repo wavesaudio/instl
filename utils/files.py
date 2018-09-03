@@ -504,7 +504,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
 
 
 def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
-    """ return a pathlib.Path object after calling
+    """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """

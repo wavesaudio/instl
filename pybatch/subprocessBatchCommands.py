@@ -1,6 +1,6 @@
 import os
 import stat
-import pathlib
+from pathlib import Path
 import shlex
 import collections
 from typing import List, Any, Optional, Union
@@ -62,7 +62,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         elif sys.platform == "win32":
             batch_extension = ".bat"
         commands_text = "\n".join(the_lines)
-        batch_file_path = pathlib.Path(self.dir, self.var_name + batch_extension)
+        batch_file_path = Path(self.dir, self.var_name + batch_extension)
         with open(batch_file_path, "w") as batch_file:
             batch_file.write(commands_text)
         os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)

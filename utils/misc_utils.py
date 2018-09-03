@@ -10,7 +10,7 @@ import collections
 import subprocess
 import numbers
 import stat
-import pathlib
+from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
 import rsa
@@ -682,7 +682,7 @@ class DictDiffer(object):
 
 
 def find_mount_point(path):
-    mount_p = pathlib.PurePath(path)
+    mount_p = PurePath(path)
     while not os.path.ismount(str(mount_p)):
         mount_p = mount_p.parent
     return str(mount_p)
@@ -817,7 +817,7 @@ def get_recursive_checksums(some_path, ignore=None):
                 item_path_dir, item_path_leaf = os.path.split(item.path)
                 if item_path_leaf not in ignore:
                     the_checksum = get_file_checksum(item.path, follow_symlinks=False)
-                    normalized_path = pathlib.PurePath(item.path).as_posix()
+                    normalized_path = PurePath(item.path).as_posix()
                     retVal[normalized_path] = the_checksum
 
         checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))

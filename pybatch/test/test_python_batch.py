@@ -3,7 +3,7 @@
 
 import sys
 import os
-import pathlib
+from pathlib import Path
 import unittest
 import shutil
 import stat
@@ -135,7 +135,7 @@ class TestPythonBatch(unittest.TestCase):
     def __init__(self, which_test="banana"):
         super().__init__(which_test)
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
+        self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
 
@@ -1081,7 +1081,7 @@ class TestPythonBatch(unittest.TestCase):
         self.assertEqual(curl_obj, curl_obj_recreated, "CUrl.repr did not recreate CUrl object correctly")
 
     def test_Curl_download(self):
-        sample_file = pathlib.Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
         with open(sample_file, 'r') as stream:
             test_data = stream.read()
         url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
@@ -1198,8 +1198,8 @@ class TestPythonBatch(unittest.TestCase):
             symlink_to_a_original = self.path_inside_test_folder(f"symlink_of_{name}")
             relative_symlink_to_a_original = self.path_inside_test_folder(f"relative_symlink_of_{name}")
 
-            symlink_file_of_original = pathlib.Path(os.fspath(symlink_to_a_original)+".symlink")
-            symlink_file_of_relative = pathlib.Path(os.fspath(relative_symlink_to_a_original)+".symlink")
+            symlink_file_of_original = Path(os.fspath(symlink_to_a_original)+".symlink")
+            symlink_file_of_relative = Path(os.fspath(relative_symlink_to_a_original)+".symlink")
 
             return SymlinkTestData(original_to_symlink, symlink_to_a_original, symlink_file_of_original, relative_symlink_to_a_original, symlink_file_of_relative)
 
@@ -1253,7 +1253,7 @@ class TestPythonBatch(unittest.TestCase):
         if sys.platform != 'darwin':
             return
 
-        folder_of_symlinks = pathlib.Path("/Users/shai/Desktop/Tk.framework")
+        folder_of_symlinks = Path("/Users/shai/Desktop/Tk.framework")
 
         self.batch_accum.clear()
         self.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
@@ -1346,7 +1346,7 @@ class TestPythonBatch(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    test_folder = pathlib.Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
+    test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
     shutil.rmtree(test_folder)
 
     unittest.main()

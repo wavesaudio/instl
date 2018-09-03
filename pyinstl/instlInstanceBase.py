@@ -5,7 +5,7 @@ import os
 import sys
 import re
 import abc
-import pathlib
+from pathlib import Path
 import platform
 import appdirs
 import urllib.error
@@ -474,12 +474,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def handle_yaml_read_error(self, **kwargs):
         try:
-            path_to_file = pathlib.Path(kwargs['path-to-file'])
+            path_to_file = Path(kwargs['path-to-file'])
             the_exception = kwargs.get('exception', None)
-            main_input_file = pathlib.Path(config_vars["__MAIN_INPUT_FILE__"])
+            main_input_file = Path(config_vars["__MAIN_INPUT_FILE__"])
             date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
             report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
-            report_file_path = pathlib.Path(main_input_file.parent, report_file_name)
+            report_file_path = Path(main_input_file.parent, report_file_name)
             with open(report_file_path, "w") as wfd:
                 wfd.write(f"path: {path_to_file}\n\n")
                 wfd.write(f"exception: {the_exception}\n\n")

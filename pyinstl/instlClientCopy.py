@@ -3,7 +3,7 @@
 
 import sys
 import os
-import pathlib
+from pathlib import Path
 import utils
 import functools
 from typing import Dict, List, Optional
@@ -281,7 +281,7 @@ class InstlClientCopy(InstlClient):
         """ for some paths we cannot wait for resolution in the batch file"""
         resolved_path = config_vars.resolve_str(path_to_resolve)
         try:
-            resolved_path = str(pathlib.Path(resolved_path).resolve())
+            resolved_path = str(Path(resolved_path).resolve())
         except:
             pass
         return resolved_path

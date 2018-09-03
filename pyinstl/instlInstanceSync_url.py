@@ -3,6 +3,7 @@
 from collections import defaultdict
 import urllib
 import sys
+from pathlib import PurePath
 if sys.platform == 'win32':
     import win32api
 
@@ -133,7 +134,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             files. The full path versions of the indexed files is used to create remove instructions
         """
         self.instlObj.progress("removing redundant files from sync folder")
-        pure_local_sync_dir = pathlib.PurePath(self.local_sync_dir)
+        pure_local_sync_dir = PurePath(self.local_sync_dir)
         files_to_check = list()
         for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
             try: dirs.remove("bookkeeping")
@@ -141,7 +142,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             try: files.remove(".DS_Store")
             except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
             for disk_item in files:
-                item_full_path = pathlib.PurePath(root, disk_item)
+                item_full_path = PurePath(root, disk_item)
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
                 files_to_check.append((item_partial_path, item_full_path))
         redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)

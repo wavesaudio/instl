@@ -5,7 +5,7 @@ import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
 from typing import List
-import pathlib
+from pathlib import Path
 
 import utils
 import aYaml
@@ -313,7 +313,7 @@ class InstlClient(InstlInstanceBase):
                 output_folder = None
 
         if output_folder is not None:
-            output_file_path = pathlib.Path(output_folder, output_file_name)
+            output_file_path = Path(output_folder, output_file_name)
             retVal += Ls(which_folder_to_manifest, out_file=output_file_path)
         return retVal
 

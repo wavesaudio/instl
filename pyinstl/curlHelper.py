@@ -4,7 +4,7 @@
 import os
 import abc
 import itertools
-import pathlib
+from pathlib import Path, PurePath
 import sys
 import functools
 import random
@@ -111,7 +111,7 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
             if 'Win' in utils.get_current_os_names():
                 import win32api
             for url, path, size in sorted_by_size:
-                fixed_path = pathlib.PurePath(path)
+                fixed_path = PurePath(path)
                 if 'Win' in utils.get_current_os_names():
                     # to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
                     # short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
