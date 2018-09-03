@@ -43,6 +43,8 @@ from .info_mapBatchCommands import CheckDownloadFolderChecksum
 from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
 from .info_mapBatchCommands import CreateSyncFolders
 
+from .svnBatchCommands import SVNClient
+
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut
 

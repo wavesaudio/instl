@@ -445,6 +445,7 @@ def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
             retVal = quoteme_raw_if_string(list_of_things[0])
         else:
             retVal = quoteme_raw_list(list_of_things)
+            retVal = "".join(("[", ", ".join(retVal), "]"))
     else:
         retVal = quoteme_raw_if_string(list_of_things)
     return retVal

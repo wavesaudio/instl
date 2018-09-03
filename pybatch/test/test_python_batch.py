@@ -1344,6 +1344,28 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += RaiseException(ValueError, "la la la")
         self.exec_and_capture_output(expected_exception=ValueError)
 
+    def test_SVNClient_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        create_svn_obj = SVNClient("checkout", "--depth", "infinity")
+        create_svn_obj_recreated = eval(repr(create_svn_obj))
+        self.assertEqual(create_svn_obj, create_svn_obj_recreated, "SVNClient.repr did not recreate SVNClient object correctly")
+
+    def test_SVNClient(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        svn_checkout_dir = Path("/Volumes/BonaFide/installers/testinstl/V9/svn")
+
+        self.batch_accum.clear()
+        with self.batch_accum.sub_accum(Cd(svn_checkout_dir)) as sub_bc:
+            sub_bc += SVNClient("info")
+
+        self.exec_and_capture_output()
+
 
 if __name__ == '__main__':
     test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)
