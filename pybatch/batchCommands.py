@@ -163,40 +163,30 @@ class Cd(PythonBatchCommandBase, essential=True):
         resolved_new_path = utils.ResolvedPath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
         os.chdir(resolved_new_path)
+        assert os.getcwd() == os.fspath(resolved_new_path)
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
 
 
-class CdSection(Cd, essential=False):
-    def __init__(self, path: os.PathLike, *titles) -> None:
+class CdStage(Cd, essential=False):
+    def __init__(self, stage_name: str, path: os.PathLike, *titles) -> None:
         super().__init__(path)
+        self.stage_name = stage_name
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
         self.titles = titles
 
     def __repr__(self):
-        if len(self.titles) == 1:
-            quoted_titles = utils.quoteme_double(self.titles[0])
-        else:
-            quoted_titles = ", ".join((utils.quoteme_double(title) for title in self.titles))
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.new_path))}"""
-        if quoted_titles:
-            the_repr += f""", {quoted_titles}"""
-        the_repr += ")"
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}, {utils.quoteme_raw_string(self.new_path)})"""
         return the_repr
+
+    def stage_str(self):
+        the_str = f"""{self.stage_name}<{self.new_path}>"""
+        return the_str
 
     def progress_msg_self(self):
         return f"""Cd to '{self.new_path}'"""
-
-    def __call__(self, *args, **kwargs):
-        self.old_path = os.getcwd()
-        resolved_new_path = Path(os.path.expandvars(self.new_path))
-        self.doing = f"""changing current directory to '{resolved_new_path}'"""
-        os.chdir(resolved_new_path)
-
-    def exit_self(self, exit_return):
-        os.chdir(self.old_path)
 
 
 class ChFlags(RunProcessBase, essential=True):
@@ -288,7 +278,6 @@ class RmFile(PythonBatchCommandBase, essential=True):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""removing file '{resolved_path}'"""
         resolved_path.unlink()
-        return None
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
@@ -296,7 +285,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
         """ remove a directory.
             - it's OK if the directory does not exist.
             - all files and directory under path will be removed recursively
-            - exception will be raised if the path if a folder
+            - exception will be raised if the path is not a folder
         """
         super().__init__()
         self.path: os.PathLike = path
@@ -312,8 +301,8 @@ class RmDir(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""removing folder '{resolved_path}'"""
+        #assert not os.fspath(resolved_path).startswith("/p4client")
         shutil.rmtree(resolved_path)
-        return None
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
@@ -335,6 +324,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
+        #assert not os.fspath(resolved_path).startswith("/p4client")
         if resolved_path.is_file():
             self.doing = f"""removing file'{resolved_path}'"""
             resolved_path.unlink()
@@ -364,7 +354,6 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         with open(self.target_file, "a") as wfd:
             with open(self.source_file, "r") as rfd:
                 wfd.write(rfd.read())
-        return None
 
 
 class Chown(RunProcessBase, call__call__=True, essential=True):
@@ -406,7 +395,6 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
             resolved_path = utils.ResolvedPath(self.path)
             self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}''"""
             os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
-            return None
 
 
 class Chmod(RunProcessBase, essential=True):
@@ -492,7 +480,6 @@ class Chmod(RunProcessBase, essential=True):
 
             self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
             os.chmod(resolved_path, mode_to_set)
-        return None
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):

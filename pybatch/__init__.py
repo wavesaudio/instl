@@ -1,6 +1,6 @@
 import sys
 
-from .batchCommands import PythonBatchCommandBase
+from .batchCommands import PythonBatchCommandBase, RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .copyBatchCommands import CopyDirContentsToDir
@@ -12,7 +12,7 @@ from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
-from .reportingBatchCommands import Section
+from .reportingBatchCommands import Stage
 from .reportingBatchCommands import ConfigVarAssign
 from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
@@ -57,3 +57,16 @@ if sys.platform == "darwin":
     from .batchCommandsMacOnly import SymlinkToSymlinkFile
 
 from .new_batchCommands import *
+
+
+def EvalShellCommand(action_str, message):
+    """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
+    """
+    retVal = Echo(message)
+    try:
+        retVal = eval(action_str, globals(), locals())
+        if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
+            raise TypeError(f"{retVal} is not PythonBatchCommandBase")
+    except (SyntaxError, TypeError, NameError) as ex:
+        retVal = ShellCommand(action_str, message)
+    return retVal

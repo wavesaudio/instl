@@ -189,21 +189,21 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.progress("create download instructions ...")
 
-        with self.instlObj.batch_accum.sub_accum(Section("before_sync")) as before_sync_accum:
+        with self.instlObj.batch_accum.sub_accum(Stage("before_sync")) as before_sync_accum:
             before_sync_accum += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
 
-        with self.instlObj.batch_accum.sub_accum(Section("Start download from $(SYNC_BASE_URL)")) as sync_accum:
+        with self.instlObj.batch_accum.sub_accum(Stage("download", "$(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
             sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
 
             with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
-                with local_repo_sync_dir_accum.sub_accum(Section("remove_redundant_files_in_sync_folder")) as rrfisf:
+                with local_repo_sync_dir_accum.sub_accum(Stage("remove_redundant_files_in_sync_folder")) as rrfisf:
                     rrfisf += self.create_instructions_to_remove_redundant_files_in_sync_folder()
 
                 local_repo_sync_dir_accum += self.create_download_instructions()
 
-                with local_repo_sync_dir_accum.sub_accum(Section("post_sync")) as post_sync_accum_transaction:
+                with local_repo_sync_dir_accum.sub_accum(Stage("post_sync")) as post_sync_accum_transaction:
 
                     if int(config_vars["__NUM_FILES_TO_DOWNLOAD__"]) > 0:
                         post_sync_accum_transaction += self.chown_for_synced_folders()

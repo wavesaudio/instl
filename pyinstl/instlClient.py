@@ -281,7 +281,8 @@ class InstlClient(InstlInstanceBase):
             actions = config_vars.resolve_str_to_list(an_action)
             for action in actions:
                 actions_of_iid_count += 1
-                retVal += ShellCommand(action, f"{name_and_version} {action_description} {actions_of_iid_count}")
+                message = f"{name_and_version} {action_description} {actions_of_iid_count}"
+                retVal += EvalShellCommand(action, message)
         return retVal
 
     def create_require_file_instructions(self):
