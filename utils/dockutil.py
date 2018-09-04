@@ -109,8 +109,8 @@ Contact:
     if e:
         print("")
         print('Error processing options:', e)
-        sys.exit(1)
-    sys.exit(0)
+        return 1
+    return 0
 
 
 def verboseOutput(*args):
@@ -131,7 +131,7 @@ def dock_util(args):
             "remove=", "after=", "before=", "position=", "display=", "view=",
             "sort=", "label=", "type=", "allhomes", "homeloc=", "no-restart", "restart", "hupdock="])
     except getopt.GetoptError as e:  # if parsing of options fails, display usage and parse error
-        usage(e)
+        return usage(e)
 
     # setup default values
     global verbose
@@ -164,7 +164,7 @@ def dock_util(args):
             verbose = True
         elif opt == "--version":
             print(version)
-            sys.exit(0)
+            return 0
         elif opt == "--add":
             add_path = arg
         elif opt == "--replacing":
@@ -239,7 +239,7 @@ def dock_util(args):
 
     if explicit_restart:
         restart_the_dock()
-        sys.exit(0)
+        return 0
 
     # get the list of plists to process
     # if allhomes option was set, get a list of home directories in the homedirectory location
@@ -255,7 +255,7 @@ def dock_util(args):
     # exit if we couldn't find any plists to process
     if len(plist_paths) < 1:
         print('no dock plists were found')
-        sys.exit(1)
+        return 1
 
     # loop over plist paths
     for plist_path in plist_paths:
@@ -274,7 +274,7 @@ def dock_util(args):
             plist_path = pipes.quote(plist_path)
         else:
             print(plist_path, 'does not seem to be a home directory or a dock plist')
-            sys.exit(1)
+            return 1
 
         # check for each action and process accordingly
         if remove_labels: # --remove action(s)
@@ -317,7 +317,7 @@ def dock_util(args):
             if not item_found:
                 print(find_label, "was not found in", plist_path)
                 if not all_homes:  # only exit non-zero if we aren't processing all homes, because for allhomes, exit status for find would be irrelevant
-                    sys.exit(1)
+                    return 1
 
         elif move_label is not None: # --move action
             pl = readPlist(plist_path)
@@ -365,8 +365,8 @@ def dock_util(args):
             else:
                 print('item', add_path, 'was not added to Dock')
                 if not all_homes:  # only exit non-zero if we aren't processing all homes, because for allhomes, exit status for add would be irrelevant
-                    sys.exit(1)
-
+                    return 1
+    return 0
 
 # NOTE on use of defaults
 # We use defaults because it knows how to handle cfpreferences caching even when given a path rather than a domain
@@ -584,7 +584,7 @@ def addItem(pl, add_path, replace_label=None, position=None, before_item=None, a
         new_item = {'GUID': new_guid, 'tile-data': {'label': label_name, 'url': {'_CFURLString': add_path, '_CFURLStringType': 15}}, 'tile-type': tile_type}
     else:
         print('unknown type:', tile_type)
-        sys.exit(1)
+        return False
 
     verboseOutput('adding', new_item)
 
@@ -685,7 +685,8 @@ def label_key_for_tile(item):
 
 
 def main():
-    dock_util(sys.argv[1:])
+    retVal = dock_util(sys.argv[1:])
+    sys.exit(retVal)
 
 
 if __name__ == "__main__":
