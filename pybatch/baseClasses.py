@@ -261,7 +261,6 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         self.stderr = utils.unicodify(completed_process.stderr)
         #log.debug(completed_process.stdout)
         completed_process.check_returncode()
-        return None  # what to return here?
 
     def log_result(self, log_lvl, message, exc_val):
         if self.stderr:

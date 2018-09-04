@@ -163,6 +163,7 @@ class Cd(PythonBatchCommandBase, essential=True):
         resolved_new_path = utils.ResolvedPath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
         os.chdir(resolved_new_path)
+        assert os.getcwd() == os.fspath(resolved_new_path)
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
@@ -186,15 +187,6 @@ class CdStage(Cd, essential=False):
 
     def progress_msg_self(self):
         return f"""Cd to '{self.new_path}'"""
-
-    def __call__(self, *args, **kwargs):
-        self.old_path = os.getcwd()
-        resolved_new_path = Path(os.path.expandvars(self.new_path)).resolve()
-        self.doing = f"""changing current directory to '{resolved_new_path}'"""
-        os.chdir(resolved_new_path)
-
-    def exit_self(self, exit_return):
-        os.chdir(self.old_path)
 
 
 class ChFlags(RunProcessBase, essential=True):
@@ -286,7 +278,6 @@ class RmFile(PythonBatchCommandBase, essential=True):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""removing file '{resolved_path}'"""
         resolved_path.unlink()
-        return None
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
@@ -310,8 +301,8 @@ class RmDir(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""removing folder '{resolved_path}'"""
+        #assert not os.fspath(resolved_path).startswith("/p4client")
         shutil.rmtree(resolved_path)
-        return None
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
@@ -333,6 +324,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
+        #assert not os.fspath(resolved_path).startswith("/p4client")
         if resolved_path.is_file():
             self.doing = f"""removing file'{resolved_path}'"""
             resolved_path.unlink()
@@ -362,7 +354,6 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         with open(self.target_file, "a") as wfd:
             with open(self.source_file, "r") as rfd:
                 wfd.write(rfd.read())
-        return None
 
 
 class Chown(RunProcessBase, call__call__=True, essential=True):
@@ -404,7 +395,6 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
             resolved_path = utils.ResolvedPath(self.path)
             self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}''"""
             os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
-            return None
 
 
 class Chmod(RunProcessBase, essential=True):
@@ -490,7 +480,6 @@ class Chmod(RunProcessBase, essential=True):
 
             self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
             os.chmod(resolved_path, mode_to_set)
-        return None
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
