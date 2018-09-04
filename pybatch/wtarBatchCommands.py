@@ -157,7 +157,7 @@ class Wtar(PythonBatchCommandBase):
         tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        self._doing = f"""wtaring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
+        self._doing = f"""wtarring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
         with utils.ChangeDirIfExists(resolved_what_to_wtar.parent):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(resolved_what_to_wtar.name, ignore=ignore_files)["total_checksum"]}
 
@@ -241,7 +241,7 @@ class Unwtar(PythonBatchCommandBase):
                     for a_file in files:
                         a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
-                            self._doing = f"""unwtaring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
+                            self._doing = f"""unwtarring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
                             unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
                 log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
