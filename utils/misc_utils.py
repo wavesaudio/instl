@@ -891,7 +891,7 @@ def get_system_log_file_path():
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
-        folder_to_write_in = appdirs.user_data_dir('Waves Central', 'Waves Audio')
+        folder_to_write_in = appdirs.user_data_dir('Waves Central', 'Waves Audio', roaming=True)
     system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
     return system_log_file_path
 
