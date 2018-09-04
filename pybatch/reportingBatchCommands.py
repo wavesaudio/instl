@@ -46,41 +46,36 @@ class RaiseException(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         raise self.exception_type(self.exception_message)
 
-section_stack = list()
 
-
-class Section(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
-    """ Section: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
-        Section itself preforms no action only the contained commands will be preformed
+class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
+    """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
+        Stage itself preforms no action only the contained commands will be preformed
     """
-    def __init__(self, *titles):
+    def __init__(self, stage_name, stage_extra=None):
         super().__init__()
-        self.titles = titles
+        self.stage_name = stage_name
+        self.stage_extra = stage_extra
         self.own_progress_count = 0
 
     def __repr__(self):
-        if len(self.titles) == 1:
-            quoted_titles = utils.quoteme_double(self.titles[0])
-        else:
-            quoted_titles = ", ".join((utils.quoteme_double(title) for title in self.titles))
-        the_repr = f"""{self.__class__.__name__}({quoted_titles})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}"""
+        if self.stage_extra:
+            the_repr += f"""{utils.quoteme_raw_string(self.stage_extra)}"""
+        the_repr += ")"
         return the_repr
 
+    def stage_str(self):
+        the_str = f"""{self.stage_name}"""
+        if self.stage_extra:
+            the_str += f"""<{self.stage_extra}>"""
+        return the_str
+
     def progress_msg_self(self):
-        the_progress_msg = f'''{", ".join(self.titles)}'''
+        the_progress_msg = f'''{self.stage_name}'''
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
         pass
-
-    def __enter__(self):
-        global section_stack
-        section_stack.append(self.titles)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            global section_stack
-            section_stack.pop()
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
@@ -238,6 +233,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
+        PythonBatchCommandBase.stage_stack.clear()
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):

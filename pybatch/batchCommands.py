@@ -168,30 +168,28 @@ class Cd(PythonBatchCommandBase, essential=True):
         os.chdir(self.old_path)
 
 
-class CdSection(Cd, essential=False):
-    def __init__(self, path: os.PathLike, *titles) -> None:
+class CdStage(Cd, essential=False):
+    def __init__(self, stage_name: str, path: os.PathLike, *titles) -> None:
         super().__init__(path)
+        self.stage_name = stage_name
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
         self.titles = titles
 
     def __repr__(self):
-        if len(self.titles) == 1:
-            quoted_titles = utils.quoteme_double(self.titles[0])
-        else:
-            quoted_titles = ", ".join((utils.quoteme_double(title) for title in self.titles))
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.new_path))}"""
-        if quoted_titles:
-            the_repr += f""", {quoted_titles}"""
-        the_repr += ")"
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}, {utils.quoteme_raw_string(self.new_path)})"""
         return the_repr
+
+    def stage_str(self):
+        the_str = f"""{self.stage_name}<{self.new_path}>"""
+        return the_str
 
     def progress_msg_self(self):
         return f"""Cd to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
         self.old_path = os.getcwd()
-        resolved_new_path = Path(os.path.expandvars(self.new_path))
+        resolved_new_path = Path(os.path.expandvars(self.new_path)).resolve()
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
         os.chdir(resolved_new_path)
 

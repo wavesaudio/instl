@@ -1100,12 +1100,12 @@ class TestPythonBatch(unittest.TestCase):
 
     def test_Essentiality(self):
         self.batch_accum.clear()
-        with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
+        with self.batch_accum.sub_accum(Stage("redundant section")) as redundant_accum:
             redundant_accum += Echo("redundant echo")
-        self.assertEqual(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with only echo should discarded")
-        with self.batch_accum.sub_accum(Section("redundant section")) as redundant_accum:
+        self.assertEqual(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Stage with only echo should discarded")
+        with self.batch_accum.sub_accum(Stage("redundant section")) as redundant_accum:
             redundant_accum += Wzip("dummy no real path")
-        self.assertGreater(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Section with essential command should not discarded")
+        self.assertGreater(self.batch_accum.total_progress_count(), 0, f"{self.which_test}: a Stage with essential command should not discarded")
 
     def test_CreateSymlink_repr(self):
 
@@ -1210,7 +1210,7 @@ class TestPythonBatch(unittest.TestCase):
         self.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
         self.batch_accum += MakeDirs(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
-            with self.batch_accum.sub_accum(CdSection(self.test_folder ,test_data.original_to_symlink.name)) as symlink_test_accum:
+            with self.batch_accum.sub_accum(CdStage(self.test_folder , test_data.original_to_symlink.name)) as symlink_test_accum:
                 symlink_test_accum += CreateSymlink(test_data.symlink_to_a_original, test_data.original_to_symlink)                # symlink with full path
                 symlink_test_accum += CreateSymlink(test_data.relative_symlink_to_a_original, test_data.original_to_symlink.name)  # symlink with relative path
                 symlink_test_accum += SymlinkToSymlinkFile(test_data.symlink_to_a_original)

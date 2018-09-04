@@ -44,7 +44,7 @@ class InstlClientRemove(InstlClient):
         self.accumulate_unique_actions_for_active_iids('pre_remove', list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]))
 
         for folder_name in sorted_target_folder_list:
-            with self.batch_accum.sub_accum(Section("Remove from folder", folder_name)) as folder_accum_transaction:
+            with self.batch_accum.sub_accum(Stage("Remove from folder", folder_name)) as folder_accum_transaction:
                 folder_accum_transaction += self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
                 config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
@@ -53,12 +53,12 @@ class InstlClientRemove(InstlClient):
 
                 for IID in items_in_folder:
                     name_for_iid = self.name_for_iid(iid=IID)
-                    with folder_accum_transaction.sub_accum(Section("Remove", name_for_iid)) as iid_accum_transaction:
+                    with folder_accum_transaction.sub_accum(Stage("Remove", name_for_iid)) as iid_accum_transaction:
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
                             _, source_leaf = os.path.split(source[0])
-                            with iid_accum_transaction.sub_accum(Section("Remove", source_leaf)) as source_accum_transaction:
+                            with iid_accum_transaction.sub_accum(Stage("Remove", source_leaf)) as source_accum_transaction:
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
                                 source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                                 source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")

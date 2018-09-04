@@ -62,13 +62,12 @@ class InstlClientCopy(InstlClient):
             pass  # if it did not work - forget it
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
-        with self.batch_accum.sub_accum(Section("create folders")) as create_folders_section:
+        with self.batch_accum.sub_accum(Stage("create_folders")) as create_folders_section:
             for target_folder_path in folder_list:
                 create_folders_section += MakeDirs(target_folder_path)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
-        self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to NEW_HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created but before it was executed
@@ -78,6 +77,7 @@ class InstlClientCopy(InstlClient):
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
+        self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
 
         self.accumulate_unique_actions_for_active_iids('pre_copy')
@@ -94,13 +94,13 @@ class InstlClientCopy(InstlClient):
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
         for target_folder_path in sorted_target_folder_list:
             if remove_previous_sources:
-                with self.batch_accum.sub_accum(Section("create_remove_previous_sources_instructions_for_target_folder", target_folder_path)) as seb_sec:
+                with self.batch_accum.sub_accum(Stage("remove_previous_sources_instructions_for_target_folder", target_folder_path)) as seb_sec:
                     seb_sec += self.create_remove_previous_sources_instructions_for_target_folder(target_folder_path)
             self.create_copy_instructions_for_target_folder(target_folder_path)
 
         # actions instructions for sources that do not need copying, here folder_name is the sync folder
         for sync_folder_name in sorted(self.no_copy_iids_by_sync_folder.keys()):
-            with self.batch_accum.sub_accum(CdSection(sync_folder_name, "create_copy_instructions_for_no_copy_folder")) as folder_accum:
+            with self.batch_accum.sub_accum(CdStage("create_copy_instructions_for_no_copy_folder", sync_folder_name)) as folder_accum:
                 folder_accum += self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
         self.progress(self.bytes_to_copy, "bytes to copy")
@@ -275,7 +275,7 @@ class InstlClientCopy(InstlClient):
     def pre_copy_mac_handling(self) -> None:
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:
-            with self.batch_accum.sub_accum(CdSection("$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
+            with self.batch_accum.sub_accum(CdStage("SetExecPermissionsInSyncFolder", "$(COPY_SOURCES_ROOT_DIR)")) as sub_bc:
                 sub_bc += SetExecPermissionsInSyncFolder()
 
     # Todo: move function to a better location
@@ -289,7 +289,7 @@ class InstlClientCopy(InstlClient):
         return resolved_path
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
-        with self.batch_accum.sub_accum(CdSection(target_folder_path, "copy to folder")) as copy_to_folder_accum:
+        with self.batch_accum.sub_accum(CdStage("copy_to_folder", target_folder_path)) as copy_to_folder_accum:
             self.current_destination_folder = target_folder_path
             num_items_copied_to_folder = 0
             items_in_folder = sorted(self.all_iids_by_target_folder[target_folder_path])
@@ -300,12 +300,12 @@ class InstlClientCopy(InstlClient):
             num_symlink_items: int = 0
             for IID in items_in_folder:
                 name_and_version = self.name_and_version_for_iid(iid=IID)
-                with copy_to_folder_accum.sub_accum(Section("copy", name_and_version)) as iid_accum:
+                with copy_to_folder_accum.sub_accum(Stage("copy", name_and_version)) as iid_accum:
                     self.current_iid = IID
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     for source in resolved_sources_for_iid:
-                        with iid_accum.sub_accum(Section("copy source", source[0])) as source_accum:
+                        with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
                             source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
                             source_accum += self.create_copy_instructions_for_source(source, name_and_version)

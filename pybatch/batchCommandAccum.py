@@ -8,7 +8,7 @@ import time
 import datetime
 
 from .baseClasses import PythonBatchCommandBase
-from .reportingBatchCommands import Section, PythonBatchRuntime
+from .reportingBatchCommands import Stage, PythonBatchRuntime
 from .subprocessBatchCommands import ShellCommand
 
 from pybatch import *
@@ -46,7 +46,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         if section_name in PythonBatchCommandAccum.section_order:
             self.current_section = section_name
             if self.current_section not in self.sections:
-                self.sections[self.current_section] = Section(self.current_section)
+                self.sections[self.current_section] = Stage(self.current_section)
         else:
             raise ValueError(f"{section_name} is not a known section_name name")
 

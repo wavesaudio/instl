@@ -34,6 +34,7 @@ class PythonBatchCommandBase(abc.ABC):
 
         non_representative__dict__keys - list of keys of self.__dict__ that should not be used when comparing or displaying self
     """
+    stage_stack = list()
     instance_counter: int = 0
     total_progress: int = 0
     running_progress: int = 0
@@ -65,7 +66,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
-        self.non_representative__dict__keys = ['non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
+        self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
@@ -74,6 +75,9 @@ class PythonBatchCommandBase(abc.ABC):
 
     def __str__(self):
         return f"{self.__class__.__name__} {PythonBatchCommandBase.instance_counter}"
+
+    def stage_str(self):
+        return None
 
     @abc.abstractmethod
     def progress_msg_self(self) -> str:
@@ -178,6 +182,7 @@ class PythonBatchCommandBase(abc.ABC):
             self.doing = self.progress_msg_self()
         self._error_dict.update({
             'doing': self.doing,
+            'stage': ".".join(filter(None, (stage.stage_str() for stage in PythonBatchCommandBase.stage_stack))),
             'exception_type': str(type(exc_val).__name__),
             'exception_str': str(exc_val),
             'instl_class': repr(self),
@@ -191,6 +196,7 @@ class PythonBatchCommandBase(abc.ABC):
         return self._error_dict
 
     def __enter__(self):
+        PythonBatchCommandBase.stage_stack.append(self)
         self.enter_time = time.perf_counter()
         try:
             PythonBatchCommandBase.running_progress += self.own_progress_count
@@ -223,6 +229,8 @@ class PythonBatchCommandBase(abc.ABC):
             if not hasattr(exc_val, "raising_obj"):
                 setattr(exc_val, "raising_obj", self)
         self.exit_self(exit_return=suppress_exception)
+        if suppress_exception:
+            PythonBatchCommandBase.stage_stack.pop()
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
         #log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception

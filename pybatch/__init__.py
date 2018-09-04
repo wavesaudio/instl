@@ -12,7 +12,7 @@ from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
 from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
-from .reportingBatchCommands import Section
+from .reportingBatchCommands import Stage
 from .reportingBatchCommands import ConfigVarAssign
 from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
