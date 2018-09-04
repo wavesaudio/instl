@@ -67,6 +67,7 @@ def EvalShellCommand(action_str, message):
         retVal = eval(action_str, globals(), locals())
         if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
             raise TypeError(f"{retVal} is not PythonBatchCommandBase")
+        retVal.remark = f"""eval'ed {message}"""
     except (SyntaxError, TypeError, NameError) as ex:
         retVal = ShellCommand(action_str, message)
     return retVal

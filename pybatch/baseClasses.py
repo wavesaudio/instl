@@ -57,6 +57,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.own_progress_count = kwargs.get('progress_count', 1)
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', False)
+        self.remark = kwargs.get('remark', None)
 
         self.exceptions_to_ignore = []
         self.child_batch_commands = []
@@ -66,7 +67,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
-        self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
+        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
@@ -236,7 +237,7 @@ class PythonBatchCommandBase(abc.ABC):
         return suppress_exception
 
     def log_result(self, log_lvl, message, exc_val):
-        log.log(log_lvl, f"{self.progress_msg()}; {message}; {exc_val.__class__.__name__}: {exc_val}")
+        log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):

@@ -113,6 +113,12 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             obj_name = camel_to_snake_case(f"{obj.__class__.__name__}_{_create_unique_obj_name.instance_counter:03}_{prog_count}")
             return obj_name
 
+        def _remark_helper(*the_remarks):
+            retVal = ", ".join(str(remark) for remark in filter(None, the_remarks))
+            if retVal:
+                retVal = f"""  # {retVal}"""
+            return retVal
+
         def _repr_helper(batch_items, io_str, indent):
             nonlocal progress_count
             indent_str = single_indent*indent
@@ -122,20 +128,20 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             else:
                 progress_count += batch_items.own_progress_count
                 if batch_items.call__call__ is False and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}  # {progress_count}\n""")
+                    io_str.write(f"""{indent_str}{repr(batch_items)}{_remark_helper(progress_count, batch_items.remark)}\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
-                    io_str.write(f"""{indent_str}with {repr(batch_items)}:  # {progress_count}\n""")
+                    io_str.write(f"""{indent_str}with {repr(batch_items)}:{_remark_helper(progress_count, batch_items.remark)}\n""")
                     if batch_items.child_batch_commands:
                         _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
                     else:
                         io_str.write(f"""{indent_str}{single_indent}pass\n""")
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}()  # {progress_count}\n""")
+                    io_str.write(f"""{indent_str}{repr(batch_items)}(){_remark_helper(progress_count, batch_items.remark)}\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
                     obj_name = _create_unique_obj_name(batch_items, progress_count)
-                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n""")
+                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {obj_name}:{_remark_helper(progress_count, batch_items.remark)}\n""")
                     io_str.write(f"""{indent_str}{single_indent}{obj_name}()\n""")
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
