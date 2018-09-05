@@ -135,7 +135,7 @@ class open_for_read_file_or_url(object):
         self.verify_ssl = verify_ssl
         self.fd = None
         self._actual_path = in_file_or_url
-        match = protocol_header_re.match(in_file_or_url)
+        match = protocol_header_re.match(os.fspath(in_file_or_url))
         if not match:  # it's a local file
             self.local_file_path = in_file_or_url
             if path_searcher is not None:
@@ -218,29 +218,28 @@ def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum
     return contents_buffer
 
 
-def download_and_cache_file_or_url(in_url, cache_folder, translate_url_callback=None, expected_checksum=None):
+def download_and_cache_file_or_url(in_url, cache_folder: Path, translate_url_callback=None, expected_checksum=None):
     """ download file to given cache folder
         if checksum is supplied and the a file with that checksum exists in cache folder - download can be avoided
         otherwise download the file
         :return: path of the downloaded file
     """
 
-    if os.path.isfile(cache_folder):  # happens sometimes...
+    if cache_folder.is_file():  # happens sometimes...
         safe_remove_file(cache_folder)
-    if not os.path.isdir(cache_folder):
-        os.makedirs(cache_folder, exist_ok=True)
+    cache_folder.mkdir(parents=True, exist_ok=True)
 
     url_file_name = last_url_item(in_url)
     cached_file_name = expected_checksum if expected_checksum else url_file_name
-    cached_file_path = os.path.join(cache_folder, cached_file_name)
+    cached_file_path = cache_folder.joinpath(cached_file_name)
     if expected_checksum is None:  # no checksum? -> force download
         safe_remove_file(cached_file_path)
 
-    if os.path.isfile(cached_file_path):  # file exists? -> make sure it has the right checksum
+    if cached_file_path.is_file():  # file exists? -> make sure it has the right checksum
         if not utils.check_file_checksum(cached_file_path, expected_checksum):
             safe_remove_file(cached_file_path)
 
-    if not os.path.isfile(cached_file_path):  # need to download
+    if not cached_file_path.is_file():  # need to download
         contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
@@ -258,16 +257,17 @@ def download_from_file_or_url(in_url, in_target_path=None, translate_url_callbac
     if not in_target_path:
         in_target_path = cache_folder
     if in_target_path:
+        in_target_path = utils.ResolvedPath(in_target_path)
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)
         need_decompress = url_extension == ".wzip"
-        if os.path.isdir(in_target_path):
+        if in_target_path.is_dir():
             target_file_name = url_base_file_name if need_decompress else url_file_name
-            final_file_path = os.path.join(in_target_path, target_file_name)
+            final_file_path = in_target_path.joinpath(target_file_name)
         else:
             final_file_path = in_target_path
             _, target_extension = os.path.splitext(final_file_path)
-            if need_decompress and target_extension == ".wzip":
+            if need_decompress and final_file_path.suffix == ".wzip":
                 need_decompress = False  # no need to decompress if target is expected to be compressed
 
         if need_decompress:

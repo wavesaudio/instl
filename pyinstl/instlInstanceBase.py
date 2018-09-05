@@ -284,15 +284,13 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = config_vars.resolve_str(copy_destination.value)
-                        if os.path.isfile(destination_file_resolved_path) and expected_checksum is not None:
+                        destination_file_resolved_path = utils.ResolvedPath(config_vars.resolve_str(copy_destination.value))
+                        if destination_file_resolved_path.is_file() and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            destination_path = config_vars.resolve_str(copy_destination.value)
-                            destination_folder, destination_file_name = os.path.split(destination_path)
-                            self.batch_accum += MakeDirs(destination_folder)
-                            self.batch_accum += CopyFileToFile(file_path, destination_path, hard_links=False, copy_owner=True)
+                            self.batch_accum += MakeDirs(destination_file_resolved_path.parent)
+                            self.batch_accum += CopyFileToFile(file_path, destination_file_resolved_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
@@ -321,15 +319,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
-        self.calc_user_cache_dir_var()
+        self.calc_user_cache_dir_var(make_dir)
+        retVal = Path(os.fspath(config_vars["USER_CACHE_DIR"]))
         if continue_dir:
-            retVal = os.path.join("$(USER_CACHE_DIR)", continue_dir)
-        else:
-            retVal = "$(USER_CACHE_DIR)"
-        # log.info("1------------------", user_cache_dir, "-", from_url, "-", retVal)
-        if make_dir and retVal:
-            retVal = config_vars.resolve_str(retVal)
-            os.makedirs(retVal, exist_ok=True)
+            retVal = retVal.joinpath(continue_dir)
         return retVal
 
     def relative_sync_folder_for_source(self, source):

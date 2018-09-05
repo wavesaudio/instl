@@ -843,7 +843,7 @@
 
 
     user visible changes:
-    * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating
+    * default for HAVE_INFO_MAP_COPY_PATH is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating
         sync batch file but before running the sync batch file
 
     programmer visible changes:

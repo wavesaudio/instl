@@ -1,10 +1,14 @@
+from pathlib import Path
 import keyword
 import json
+import re
 
 import utils
 
 from .baseClasses import *
 log = logging.getLogger(__name__)
+
+need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 
 
 class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, is_anonymous=True):
@@ -157,11 +161,14 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
     def __repr__(self) -> str:
         the_repr = ""
         if any(self.var_values):
+            need_path_resolving = need_path_resolving_re.match(self.var_name) is not None
             adjusted_values = list()
             for val in self.var_values:
                 try:
                     adjusted_values.append(int(val))
                 except:
+                    if need_path_resolving:
+                        val = os.fspath(Path(os.path.expandvars(val)).resolve())
                     adjusted_values.append(utils.quoteme_raw_string(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''{self.var_name} = {adjusted_values[0]}'''
@@ -195,11 +202,14 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
     def __repr__(self) -> str:
         the_repr = ""
         if any(self.var_values):
+            need_path_resolving = need_path_resolving_re.match(self.var_name) is not None
             adjusted_values = list()
             for val in self.var_values:
                 try:
                     adjusted_values.append(int(val))
                 except:
+                    if need_path_resolving:
+                        val = os.fspath(Path(os.path.expandvars(val)).resolve())
                     adjusted_values.append(utils.quoteme_raw_string(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''config_vars['{self.var_name}'] = {adjusted_values[0]}'''

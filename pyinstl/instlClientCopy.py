@@ -69,10 +69,10 @@ class InstlClientCopy(InstlClient):
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
         # If we got here while in synccopy command, there is no need to read the info map again.
-        # If we got here while in copy command, read HAVE_INFO_MAP_FOR_COPY which defaults to NEW_HAVE_INFO_MAP_PATH.
+        # If we got here while in copy command, read HAVE_INFO_MAP_COPY_PATH which defaults to NEW_HAVE_INFO_MAP_PATH.
         # Copy might be called after the sync batch file was created but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
-            have_info_path = config_vars["HAVE_INFO_MAP_FOR_COPY"].str()
+            have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
 
         # copy and actions instructions for sources
