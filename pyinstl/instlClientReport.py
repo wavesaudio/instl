@@ -23,7 +23,7 @@ class InstlClientReport(InstlClient):
             config_vars["__MAIN_OUT_FILE__"] = "stdout"
 
     def command_output(self):
-        out_file = config_vars["__MAIN_OUT_FILE__"].str()
+        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
         output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 

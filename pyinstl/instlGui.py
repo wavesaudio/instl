@@ -162,7 +162,7 @@ class InstlGui(InstlInstanceBase):
             subprocess.call(['open', path_to_file])
 
     def create_client_command_line(self):
-        retVal = [config_vars["__INSTL_EXE_PATH__"].str(), config_vars["CLIENT_GUI_CMD"].str(),
+        retVal = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), config_vars["CLIENT_GUI_CMD"].str(),
                   "--in", config_vars["CLIENT_GUI_IN_FILE"].str(),
                   "--out", config_vars["CLIENT_GUI_OUT_FILE"].str()]
 
@@ -560,7 +560,7 @@ class InstlGui(InstlInstanceBase):
         # self.master.destroy() # optional; see description below
 
     def check_yaml(self, path_to_yaml):
-        command_line = [config_vars["__INSTL_EXE_PATH__"].str(), "read-yaml",
+        command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",
                         "--in", path_to_yaml]
 
         try:

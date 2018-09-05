@@ -14,4 +14,4 @@ class InstlInstanceSync_boto(InstlInstanceSync):
 
     def init_sync_vars(self):
         super().init_sync_vars()
-        self.local_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
+        self.local_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])

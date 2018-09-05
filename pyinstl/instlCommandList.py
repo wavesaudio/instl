@@ -19,7 +19,7 @@ class CommandListRunner(object):
 
     def run(self, parallel=False):
         command_list = self.prepare_command_list_from_file()
-        config_file = config_vars["__CONFIG_FILE__"].str()
+        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
         command_list_dir, command_list_leaf = os.path.split(config_file)
         if parallel:
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel from {command_list_leaf}")
@@ -37,7 +37,7 @@ class CommandListRunner(object):
 
     def prepare_command_list_from_file(self):
         command_list = list()
-        config_file = config_vars["__CONFIG_FILE__"].str()
+        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
         with utils.utf8_open(config_file, "r") as rfd:
             command_lines = rfd.readlines()
 

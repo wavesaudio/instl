@@ -58,19 +58,19 @@ class InstlMisc(InstlInstanceBase):
         pyinstl.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        processes_list_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
 
         ParallelRun(processes_list_file, shell=False)()
 
     def do_wtar(self):
-        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
+        what_to_work_on = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         if not os.path.exists(what_to_work_on):
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wtar = None
         if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].str()
+            where_to_put_wtar = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
         Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
@@ -80,7 +80,7 @@ class InstlMisc(InstlInstanceBase):
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
         where_to_unwtar = None
         if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_unwtar = config_vars["__MAIN_OUT_FILE__"].str()
+            where_to_unwtar = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
         Unwtar(what_to_work_on, where_to_unwtar, self.no_artifacts)()
 
@@ -88,17 +88,17 @@ class InstlMisc(InstlInstanceBase):
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
-        info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()
 
     def do_set_exec(self):
         self.progress_staccato_command = True
-        info_map_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         SetExecPermissionsInSyncFolder(info_map_file)
 
     def do_create_folders(self):
         self.progress_staccato_command = True
-        self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        self.info_map_table.read_from_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
         dir_items = self.info_map_table.get_items(what="dir")
         MakeDirs(*dir_items)
         self.dynamic_progress(f"Create folder {dir_item.path}")
@@ -117,19 +117,19 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_remove_empty_folders(self):
-        folder_to_remove = config_vars["__MAIN_INPUT_FILE__"].str()
+        folder_to_remove = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         files_to_ignore = list(config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []))
 
         RemoveEmptyFolders(folder_to_remove, files_to_ignore=files_to_ignore)()
 
     def do_win_shortcut(self):
         shortcut_path = config_vars["__SHORTCUT_PATH__"].str()
-        target_path = config_vars["__SHORTCUT_TARGET_PATH__"].str()
+        target_path = os.fspath(config_vars["__SHORTCUT_TARGET_PATH__"])
         run_as_admin =  bool(config_vars.get("__RUN_AS_ADMIN__", "False"))
         WinShortcut(shortcut_path, target_path, run_as_admin)()
 
     def do_translate_url(self):
-        url_to_translate = config_vars["__MAIN_INPUT_FILE__"].str()
+        url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
         print(translated_url)
 
@@ -142,7 +142,7 @@ class InstlMisc(InstlInstanceBase):
         MacDock(path_to_item, label_for_item, restart_the_doc, remove)()
 
     def do_ls(self):
-        main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].str()
+        main_folder_to_list = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         folders_to_list = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
@@ -153,7 +153,7 @@ class InstlMisc(InstlInstanceBase):
             folders_to_list.append(main_folder_to_list)
 
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
-        out_file = config_vars["__MAIN_OUT_FILE__"].str()
+        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
         Ls(folders_to_list, out_file, ls_format)()
 
@@ -163,7 +163,7 @@ class InstlMisc(InstlInstanceBase):
         sys.exit(exit_code)
 
     def do_checksum(self):
-        path_to_checksum = config_vars["__MAIN_INPUT_FILE__"].str()
+        path_to_checksum = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
         checksums_dict = utils.get_recursive_checksums(path_to_checksum, ignore=ignore_files)
         total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
@@ -177,13 +177,13 @@ class InstlMisc(InstlInstanceBase):
 
     def do_resolve(self):
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        config_file = config_vars["__CONFIG_FILE__"].str()
+        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
         if not os.path.isfile(config_file):
             raise FileNotFoundError(config_file, config_vars["__CONFIG_FILE__"].raw())
-        input_file = config_vars["__MAIN_INPUT_FILE__"].str()
+        input_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         if not os.path.isfile(input_file):
             raise FileNotFoundError(input_file, config_vars["__MAIN_INPUT_FILE__"].raw())
-        output_file = config_vars["__MAIN_OUT_FILE__"].str()
+        output_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
         self.read_yaml_file(config_file)
         with utils.utf8_open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()
@@ -197,7 +197,7 @@ class InstlMisc(InstlInstanceBase):
             self.read_yaml_file("InstlClient.yaml")  # temp hack, which additional config file to read should come from command line options
             config_file = config_vars.get("__CONFIG_FILE__").str()
             self.read_yaml_file(config_file, ignore_if_not_exist=True)
-            py_file_path = config_vars["__MAIN_INPUT_FILE__"].str()
+            py_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
             with utils.utf8_open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
                 py_compiled = compile(py_text, py_file_path, mode='exec', flags=0, dont_inherit=False, optimize=2)
@@ -206,13 +206,13 @@ class InstlMisc(InstlInstanceBase):
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
 
     def do_wzip(self):
-        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].str()
+        what_to_work_on = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         if not os.path.exists(what_to_work_on):
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wzip = None
         if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].str()
+            where_to_put_wzip = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
         Wzip(what_to_work_on, where_to_put_wzip)()

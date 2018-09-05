@@ -22,7 +22,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
     def init_sync_vars(self):
         super().init_sync_vars()
-        self.local_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
+        self.local_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
 
     def create_sync_folders(self):
 
@@ -78,7 +78,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """
         dl_commands = AnonymousAccum()
 
-        main_out_file_dir, main_out_file_leaf = os.path.split(config_vars["__MAIN_OUT_FILE__"].str())
+        main_out_file_dir, main_out_file_leaf = os.path.split(os.fspath(config_vars["__MAIN_OUT_FILE__"]))
         curl_config_folder = os.path.join(main_out_file_dir, "curl")
         os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))

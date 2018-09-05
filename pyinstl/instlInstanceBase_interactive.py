@@ -597,7 +597,7 @@ class CMDObj(cmd.Cmd, object):
         print("")
 
     def do_which(self, param):
-        print(config_vars["__INSTL_EXE_PATH__"].str())
+        print(os.fspath(config_vars["__INSTL_EXE_PATH__"]))
 
     def help_which(self):
         print("print full path to currently running instl")

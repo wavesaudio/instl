@@ -149,7 +149,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_defaults_file(self, file_name, allow_reading_of_internal_vars=True, ignore_if_not_exist=True):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(config_vars["__INSTL_DEFAULTS_FOLDER__"].str(), file_name + ".yaml")
+        name_specific_defaults_file_path = os.path.join(os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"]), file_name + ".yaml")
         self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=ignore_if_not_exist, allow_reading_of_internal_vars=allow_reading_of_internal_vars)
 
     def read_user_config(self):
@@ -202,7 +202,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             db_base_path = None
             if "__MAIN_OUT_FILE__" in config_vars:
                 # try to set the db file next to the output file
-                db_base_path = str(config_vars["__MAIN_OUT_FILE__"])
+                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
             elif "__MAIN_INPUT_FILE__" in config_vars:
                 # if no output file try next to the input file
                 db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
@@ -317,7 +317,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             config_vars["USER_CACHE_DIR"] = user_cache_dir
             #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
         if make_dir:
-            user_cache_dir_resolved = config_vars["USER_CACHE_DIR"].str()
+            user_cache_dir_resolved = os.fspath(config_vars["USER_CACHE_DIR"])
             os.makedirs(user_cache_dir_resolved, exist_ok=True)
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
@@ -362,7 +362,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         final_repr = repr(in_batch_accum)
 
-        out_file = config_vars["__MAIN_OUT_FILE__"].str()
+        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
         out_file += file_name_post_fix
         out_file = os.path.abspath(out_file)
         d_path, f_name = os.path.split(out_file)
@@ -476,7 +476,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         try:
             path_to_file = Path(kwargs['path-to-file'])
             the_exception = kwargs.get('exception', None)
-            main_input_file = Path(config_vars["__MAIN_INPUT_FILE__"])
+            main_input_file = Path(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
             date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
             report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
             report_file_path = Path(main_input_file.parent, report_file_name)

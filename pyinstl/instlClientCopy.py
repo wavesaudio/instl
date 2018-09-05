@@ -111,7 +111,7 @@ class InstlClientCopy(InstlClient):
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
-        if config_vars["HAVE_INFO_MAP_PATH"].str() != config_vars["SITE_HAVE_INFO_MAP_PATH"].str():
+        if os.fspath(config_vars["HAVE_INFO_MAP_PATH"]) != os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"]):
             self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 

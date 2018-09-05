@@ -61,7 +61,7 @@ class InstlClient(InstlInstanceBase):
         active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
 
-        main_input_file_path: str = config_vars["__MAIN_INPUT_FILE__"].str()
+        main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         self.read_yaml_file(main_input_file_path)
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
@@ -263,7 +263,7 @@ class InstlClient(InstlInstanceBase):
         return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
-        require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].str()
+        require_file_path = os.fspath(config_vars["SITE_REQUIRE_FILE_PATH"])
         self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
 
     def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> PythonBatchCommandBase:
@@ -399,7 +399,7 @@ class InstlClient(InstlInstanceBase):
                 resolved_install_folder = config_vars.resolve_str(install_folder)
             else:
                 resolved_install_folder = install_folder
-            local_repo_sync_dir = config_vars["LOCAL_REPO_SYNC_DIR"].str()
+            local_repo_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
 
             if source_tag in ('!dir', '!dir_cont'):
                 if direct_sync:

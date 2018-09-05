@@ -20,7 +20,7 @@ class InstlDoIt(InstlInstanceBase):
 
     def do_command(self):
         # print("client_commands", fixed_command_name)
-        main_input_file_path = config_vars["__MAIN_INPUT_FILE__"].str()
+        main_input_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         self.read_yaml_file(main_input_file_path)
         active_oses = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)

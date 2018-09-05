@@ -36,7 +36,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in config_vars:
-            config_file_resolved = self.path_searcher.find_file(config_vars["__CONFIG_FILE__"].str(), return_original_if_not_found=True)
+            config_file_resolved = self.path_searcher.find_file(os.fspath(config_vars["__CONFIG_FILE__"]), return_original_if_not_found=True)
             config_vars["__CONFIG_FILE_PATH__"] = config_file_resolved
 
             self.read_yaml_file(config_file_resolved)
@@ -49,7 +49,7 @@ class InstlAdmin(InstlInstanceBase):
         do_command_func()
 
     def do_trans(self):
-        self.info_map_table.read_from_file(config_vars["__MAIN_INPUT_FILE__"].str(), a_format="info", disable_indexes_during_read=True)
+        self.info_map_table.read_from_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]), a_format="info", disable_indexes_during_read=True)
 
         if "__PROPS_FILE__" in config_vars:
             self.info_map_table.read_from_file(config_vars["__PROPS_FILE__"].str(), a_format="props")
@@ -62,7 +62,7 @@ class InstlAdmin(InstlInstanceBase):
 
         if "__BASE_URL__" in config_vars:
             self.add_urls_to_info_map()
-        self.info_map_table.write_to_file(config_vars["__MAIN_OUT_FILE__"].str(), field_to_write=self.fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(os.fspath(config_vars["__MAIN_OUT_FILE__"]), field_to_write=self.fields_relevant_to_info_map)
 
     def add_urls_to_info_map(self):
         base_url = config_vars["__BASE_URL__"].str()
@@ -125,9 +125,9 @@ class InstlAdmin(InstlInstanceBase):
         revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
         repo_url = config_vars["SVN_REPO_URL"].str()
         if os.path.isdir(repo_url):
-            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", os.curdir]
+            svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", os.curdir]
         else:
-            svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", repo_url]
+            svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", repo_url]
         with utils.ChangeDirIfExists(repo_url):
             proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             my_stdout, my_stderr = proc.communicate()
@@ -499,12 +499,12 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
+        repo_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
         save_dir = os.getcwd()
         os.chdir(repo_folder)
 
         # read svn info
-        svn_info_command = [config_vars["SVN_CLIENT_PATH"].str(), "info", "--depth", "infinity"]
+        svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", "--depth", "infinity"]
         proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
@@ -516,7 +516,7 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
 
         # read svn props
-        svn_props_command = [config_vars["SVN_CLIENT_PATH"].str(), "proplist", "--depth", "infinity"]
+        svn_props_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "proplist", "--depth", "infinity"]
         proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         my_stdout, my_stderr = proc.communicate()
         with utils.utf8_open("../svn-proplist-for-fix-props.txt", "w") as wfd:
@@ -532,15 +532,15 @@ class InstlAdmin(InstlInstanceBase):
             shouldBeExec = self.should_be_exec(item)
             for extra_prop in item.extra_props_list():
                 # print("remove prop", extra_prop, "from", item.path)
-                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
+                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
                 self.batch_accum += Progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
             if item.isExecutable() and not shouldBeExec:
                 # print("remove prop", "executable", "from", item.path)
-                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propdel", 'svn:executable', '"'+item.path+'"') )
+                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", 'svn:executable', '"'+item.path+'"') )
                 self.batch_accum += Progress(" ".join(("remove prop", "executable", "from", item.path)) )
             elif not item.isExecutable() and shouldBeExec:
                 # print("add prop", "executable", "to", item.path)
-                self.batch_accum += " ".join( (config_vars["SVN_CLIENT_PATH"].str(), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
+                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
                 self.batch_accum += Progress(" ".join(("add prop", "executable", "from", item.path)) )
 
         os.chdir(save_dir)
@@ -581,7 +581,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
         stage_folder = config_vars["STAGING_FOLDER"].str()
-        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
+        svn_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
 
         self.compile_exclude_regexi()
 
@@ -824,7 +824,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
         stage_folder = config_vars["STAGING_FOLDER"].str()
-        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].str()
+        svn_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
 
         # --limit command line option might have been specified
         limit_info_list = []
@@ -870,14 +870,14 @@ class InstlAdmin(InstlInstanceBase):
             private_key_file = self.path_searcher.find_file(config_vars["PRIVATE_KEY_FILE"].str(),
                                                             return_original_if_not_found=True)
             private_key = open(private_key_file, "rb").read()
-        file_to_sign = self.path_searcher.find_file(config_vars["__MAIN_INPUT_FILE__"].str(),
+        file_to_sign = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
                                                     return_original_if_not_found=True)
         file_sigs = utils.create_file_signatures(file_to_sign, private_key_text=private_key)
         self.progress("sha1:\n", file_sigs["sha1_checksum"])
         self.progress("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
 
     def do_check_sig(self):
-        file_to_check = self.path_searcher.find_file(config_vars["__MAIN_INPUT_FILE__"].str(),
+        file_to_check = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
                                                      return_original_if_not_found=True)
         file_contents = open(file_to_check, "rb").read()
 
@@ -903,17 +903,17 @@ class InstlAdmin(InstlInstanceBase):
                     self.progress("Bad Signature")
 
     def do_verify_index(self):
-        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
         self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str(), disable_indexes_during_read=True)
 
         self.verify_index_to_repo()
 
     def do_read_yaml(self):
-        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
         if "__MAIN_OUT_FILE__" in config_vars:
             define_yaml = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
             index_yaml = aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
-            out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
+            out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
             with open(out_file_path, "w") as wfd:
                 aYaml.writeAsYaml(define_yaml, wfd)
                 aYaml.writeAsYaml(index_yaml, wfd)
@@ -921,7 +921,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_depend(self):
         from . import installItemGraph
 
-        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].str())
+        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
         depend_result = defaultdict(dict)
@@ -937,7 +937,7 @@ class InstlAdmin(InstlInstanceBase):
             if not depend_result[IID]['needed_by']:
                 depend_result[IID]['needed_by'] = None # so '~' is displayed instead of []
 
-        out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
+        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             aYaml.writeAsYaml(aYaml.YamlDumpWrap(depend_result, sort_mappings=True), out_file)
         self.progress("dependencies written to", out_file_path)
@@ -1090,9 +1090,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = config_vars["__MAIN_OUT_FILE__"].str()
+        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
-            what_to_scan = config_vars["__MAIN_INPUT_FILE__"].str()
+            what_to_scan = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
             if os.path.isfile(what_to_scan):
                 file_size = os.path.getsize(what_to_scan)
                 print(what_to_scan+",", file_size, file=out_file)
@@ -1167,7 +1167,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_filter_infomap(self):
         """ filter the full infomap file according to info_map fields in the index """
         # __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
-        instl_folder = config_vars["__MAIN_INPUT_FILE__"].str()
+        instl_folder = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         full_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
         index_yaml_path = os.path.join(instl_folder, "index.yaml")
         zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
@@ -1225,7 +1225,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].str()
+        instl_folder_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         index_path = os.path.join(instl_folder_path, "index.yaml")
         self.read_yaml_file(index_path)
         main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")

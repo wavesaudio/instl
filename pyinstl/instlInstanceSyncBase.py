@@ -43,8 +43,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         info_map_file_url = None
         try:
             with self.instlObj.info_map_table.reading_files_context():
-                os.makedirs(config_vars["LOCAL_REPO_BOOKKEEPING_DIR"].str(), exist_ok=True)
-                os.makedirs(config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"].str(), exist_ok=True)
+                os.makedirs(os.fspath(config_vars["LOCAL_REPO_BOOKKEEPING_DIR"]), exist_ok=True)
+                os.makedirs(os.fspath(config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"]), exist_ok=True)
 
                 if "INSTL_FOLDER_BASE_URL" not in config_vars:
                     if "REPO_REV_FOLDER_HIERARCHY" not in config_vars:
@@ -58,7 +58,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                 info_map_file_expected_checksum = None
                 if "INFO_MAP_CHECKSUM" in config_vars:
                     info_map_file_expected_checksum = config_vars["INFO_MAP_CHECKSUM"].str()
-                local_copy_of_info_map_in = config_vars["LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"].str()
+                local_copy_of_info_map_in = os.fspath(config_vars["LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"])
                 local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
                                                 in_target_path=local_copy_of_info_map_in,
                                                 translate_url_callback=connectionBase.translate_url,
@@ -92,7 +92,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                     self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out)
                     self.instlObj.progress(f"read info_map {info_map_file_url}")
 
-                new_have_info_map_path = config_vars["NEW_HAVE_INFO_MAP_PATH"].str()
+                new_have_info_map_path = os.fspath(config_vars["NEW_HAVE_INFO_MAP_PATH"])
                 self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
         except Exception:
             log.error(f"""Exception reading info_map: {info_map_file_url}""")
@@ -104,7 +104,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             All required items are written to required_info_map.txt for reference.
         """
         self.instlObj.info_map_table.mark_required_files_for_active_items()
-        required_file_path = config_vars["REQUIRED_INFO_MAP_PATH"].str()
+        required_file_path = os.fspath(config_vars["REQUIRED_INFO_MAP_PATH"])
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
         num_required_files = sum(item.fileFlag for item in required_items_list)
@@ -119,7 +119,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.instlObj.set_sync_locations_for_active_items()
         self.instlObj.progress("check checksum of existing required files ...")
         self.instlObj.info_map_table.mark_need_download()
-        need_download_file_path = config_vars["TO_SYNC_INFO_MAP_PATH"].str()
+        need_download_file_path = os.fspath(config_vars["TO_SYNC_INFO_MAP_PATH"])
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
         self.instlObj.progress(f"{len(need_download_items_list)} files to download")

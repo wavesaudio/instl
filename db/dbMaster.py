@@ -351,8 +351,8 @@ class DBAccess(object):
 
     def __get__(self, instance, owner):
         if self._db is None:
-            db_url = str(config_vars["__MAIN_DB_FILE__"])
-            ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].str()
+            db_url = os.fspath(config_vars["__MAIN_DB_FILE__"])
+            ddls_folder = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
             self._db = DBMaster(db_url, ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
         return self._db

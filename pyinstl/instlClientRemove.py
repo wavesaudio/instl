@@ -29,9 +29,9 @@ class InstlClientRemove(InstlClient):
 
     def create_remove_instructions(self):
 
-        have_info_path = config_vars["HAVE_INFO_MAP_PATH"].str()
+        have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_PATH"])
         if not os.path.isfile(have_info_path):
-            have_info_path = config_vars["SITE_HAVE_INFO_MAP_PATH"].str()
+            have_info_path = os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"])
         self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
         self.calc_iid_to_name_and_version()
 

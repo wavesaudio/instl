@@ -5,6 +5,8 @@
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
+import os
+from pathlib import PurePath
 import collections
 from typing import List, Optional, Union
 
@@ -86,9 +88,10 @@ class ConfigVar:
         """ implement Adding a file system path protocol
             so configVar can be passed to pathlib, os.path, etc
             we do not really know if the configVar actually represents
-            a path, we just return is as a string
+            a path, we just return is as a string, hoping to cut redundant slashes and such.
         """
-        return self.str()
+        retVal = os.fspath(PurePath(self.str()))
+        return retVal
 
     def __int__(self) -> int:
         retVal = int(self.join(sep=''))
