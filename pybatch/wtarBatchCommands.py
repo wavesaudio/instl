@@ -27,7 +27,7 @@ def can_skip_unwtar(what_to_work_on: Path, where_to_unwtar: Path):
     return retVal
 
 
-def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=True):
+def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=False):
     try:
         wtar_file_paths = utils.find_split_files(wtar_file_path)
 

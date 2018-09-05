@@ -381,20 +381,22 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if self.group_id != -1:
             user_and_group += f":{self.group_id}"
         run_args.append(user_and_group)
-        run_args.append(self.path)
+        the_path = os.fspath(utils.ResolvedPath(self.path))
+        run_args.append(the_path)
         return run_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        # os.chown is not recursive so call the system's chown
-        if self.recursive:
-            return super().__call__(args, kwargs)
-        else:
-            resolved_path = utils.ResolvedPath(self.path)
-            self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}''"""
-            os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
+        if (self.user_id, self.group_id) != (-1, -1):
+            # os.chown is not recursive so call the system's chown
+            if self.recursive:
+                return super().__call__(args, kwargs)
+            else:
+                resolved_path = utils.ResolvedPath(self.path)
+                self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}'"""
+                os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
 
 
 class Chmod(RunProcessBase, essential=True):
