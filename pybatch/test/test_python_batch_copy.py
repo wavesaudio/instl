@@ -144,57 +144,6 @@ class TestPythonBatchCopy(TestPythonBatch):
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, filen_names_to_ignore)
 
-    def test_MoveDirToDir(self):
-        """ test MoveDirToDir (with/without using hard links)
-            a directory is created and filled with random files and folders.
-            This directory is copied and both source and targets dirs are compared to make sure they are the same.
-
-            without hard links:
-                Folder structure and files should be identical
-
-            with hard links:
-                - All mirrored files should have the same inode number - meaning they are hard links to
-            the same file.
-
-            In order to be able to check the copy the test first copy from one folder to the second and then moves the second to a third folder
-        """
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-
-        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
-        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
-        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
-        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
-        if sys.platform == 'darwin':
-            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
-        filen_names_to_ignore = ["hootenanny"]
-        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filen_names_to_ignore)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
-
-        if sys.platform == 'darwin':
-            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
-        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filen_names_to_ignore)
-
     def test_CopyDirContentsToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"

@@ -984,15 +984,6 @@ class TestPythonBatchMain(TestPythonBatch, unittest.TestCase):
         obj_recreated = eval(if_repr)
         self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
 
-    def test_IfFileExist_repr(self):
-        the_path = "/mama/mia/here/i/go/again"
-        obj = IfFileExist(the_path, if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
-        if_repr = repr(obj)
-        print("original  repr:", if_repr)
-        obj_recreated = eval(if_repr)
-        print("recreated repr:", repr(obj_recreated))
-        self.assertEqual(obj, obj_recreated, "IfFileExist.repr (1) did not recreate IfFileExist object correctly")
-
     def test_IfFileExist(self):
         file_that_should_exist = self.path_inside_test_folder("should_exist")
         self.assertFalse(file_that_should_exist.exists(), f"{self.which_test}: {file_that_should_exist} should not exist before test")

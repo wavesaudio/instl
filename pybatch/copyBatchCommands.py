@@ -258,6 +258,21 @@ class CopyDirContentsToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
 
+class MoveDirContentsToDir(CopyDirContentsToDir):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        super().__call__(*args, **kwargs)
+        self.doing = f"""removing contents dir '{self.src}'"""
+        if not self.dry_run:
+            for child_item in Path(self.src).iterdir():
+                if child_item.is_file():
+                    child_item.unlink()
+                elif child_item.is_dir():
+                    shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
+
+
 class CopyFileToDir(RsyncClone):
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -266,6 +281,16 @@ class CopyFileToDir(RsyncClone):
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         self.copy_file_to_dir(resolved_src, resolved_dst)
+
+
+class MoveFileToDir(CopyFileToDir):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        super().__call__(*args, **kwargs)
+        self.doing = f"""removing file '{self.src}'"""
+        self.dry_run or Path(self.src).unlink()
 
 
 class CopyFileToFile(RsyncClone):
@@ -277,3 +302,13 @@ class CopyFileToFile(RsyncClone):
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
         self.copy_file_to_file(resolved_src, resolved_dst)
+
+
+class MoveFileToFile(CopyFileToFile):
+    def __init__(self, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+
+    def __call__(self, *args, **kwargs) -> None:
+        super().__call__(*args, **kwargs)
+        self.doing = f"""removing file '{self.src}'"""
+        self.dry_run or Path(self.src).unlink()
