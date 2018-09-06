@@ -96,22 +96,22 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         # calling read_file_or_url
         return read_file_or_url(save_to_path, encoding=encoding)
     match = protocol_header_re.match(os.fspath(in_file_or_url))
+    actual_file_path = in_file_or_url
     if not match:  # it's a local file
-        local_file_path = in_file_or_url
         if path_searcher is not None:
-            local_file_path = path_searcher.find_file(local_file_path)
-        if local_file_path:
+            actual_file_path = path_searcher.find_file(actual_file_path)
+        if actual_file_path:
             if 'Win' in utils.get_current_os_names():
-                local_file_path = os.path.abspath(local_file_path)
+                actual_file_path = os.path.abspath(actual_file_path)
             else:
-                local_file_path = os.path.realpath(local_file_path)
+                actual_file_path = os.path.realpath(actual_file_path)
         else:
-            raise FileNotFoundError(f"Could not locate local file {local_file_path}")
+            raise FileNotFoundError(f"Could not locate local file {actual_file_path}")
         if encoding is None:
             read_mod = "rb"
         else:
             read_mod = "r"
-        with open(local_file_path, "r", encoding=encoding) as rdf:
+        with open(actual_file_path, "r", encoding=encoding) as rdf:
             buffer = rdf.read()
     else:
         session = connection_factory().get_session(in_file_or_url)
@@ -122,7 +122,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
     if save_to_path and in_file_or_url != save_to_path:
         with open(save_to_path, "w") as wfd:
             wfd.write(buffer)
-    return buffer
+    return buffer, actual_file_path
 
 
 class open_for_read_file_or_url(object):

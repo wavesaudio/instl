@@ -30,159 +30,12 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-@contextlib.contextmanager
-def capture_stdout(in_new_stdout=None):
-    old_stdout = sys.stdout
-    if in_new_stdout is None:
-        new_stdout = io.StringIO()
-    else:
-        new_stdout = in_new_stdout
-    sys.stdout = new_stdout
-    yield new_stdout
-    new_stdout.seek(0)
-    sys.stdout = old_stdout
+from testPythonBatch import *
 
 
-def explain_dict_diff(d1, d2):
-    keys1 = set(d1.keys())
-    keys2 = set(d2.keys())
-    if keys1 != keys2:
-        print("keys in d1 not in d2", keys1-keys2)
-        print("keys in d2 not in d1", keys2-keys1)
-    else:
-        for k in keys1:
-            if d1[k] != d2[k]:
-                print(f"d1['{k}']({d1[k]}) != d2['{k}']({d2[k]})")
-
-
-def is_identical_dircmp(a_dircmp: filecmp.dircmp):
-    """ filecmp.dircmp does not have straight forward way to ask are directories the same?
-        is_identical_dircmp attempts to fill this gap
-    """
-    retVal = len(a_dircmp.left_only) == 0 and len(a_dircmp.right_only) == 0 and len(a_dircmp.diff_files) == 0
-    if retVal:
-        for sub_dircmp in a_dircmp.subdirs.values():
-            retVal = is_identical_dircmp(sub_dircmp)
-            if not retVal:
-                break
-    return retVal
-
-
-def is_identical_dircomp_with_ignore(a_dircmp: filecmp.dircmp, filen_names_to_ignore):
-    '''A non recusive function that tests that two folders are the same, but testing that the ignore list has been ignored (and not copied to trg folder)'''
-    return a_dircmp.left_only == filen_names_to_ignore and len(a_dircmp.right_only) == 0 and len(a_dircmp.diff_files) == 0
-
-
-def is_same_inode(file_1, file_2):
-    retVal = os.stat(file_1)[stat.ST_INO] == os.stat(file_2)[stat.ST_INO]
-    return retVal
-
-
-def is_hard_linked(a_dircmp: filecmp.dircmp):
-    """ check that all same_files are hard link of each other"""
-    retVal = True
-    for a_file in a_dircmp.same_files:
-        left_file = os.path.join(a_dircmp.left, a_file)
-        right_file = os.path.join(a_dircmp.right, a_file)
-        retVal = is_same_inode(left_file, right_file)
-        if not retVal:
-            break
-    if retVal:
-        for sub_dircmp in a_dircmp.subdirs.values():
-            retVal = is_hard_linked(sub_dircmp)
-            if not retVal:
-                break
-    return retVal
-
-
-def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
-    root_mode = stat.S_IMODE(os.stat(folder_path).st_mode)
-    if root_mode != expected_dir_mode:
-        return False
-    for root, dirs, files in os.walk(folder_path, followlinks=False):
-        for item in files:
-            item_path = os.path.join(root, item)
-            item_mode = stat.S_IMODE(os.stat(item_path).st_mode)
-            if item_mode != expected_file_mode:
-                return False
-        for item in dirs:
-            item_path = os.path.join(root, item)
-            item_mode = stat.S_IMODE(os.stat(item_path).st_mode)
-            if item_mode != expected_dir_mode:
-                return False
-    return True
-
-
-def is_hidden(filepath):
-    name = os.path.basename(os.path.abspath(filepath))
-    return name.startswith('.') or has_hidden_attribute(filepath)
-
-
-def has_hidden_attribute(filepath):
-    try:
-        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
-        assert attrs != -1
-        result = bool(attrs & 2)
-    except (AttributeError, AssertionError):
-        result = False
-    return result
-
-
-main_test_folder_name = "python_batch_test_results"
-
-
-class TestPythonBatch(unittest.TestCase):
-    def __init__(self, which_test="banana"):
+class TestPythonBatchMain(TestPythonBatch, unittest.TestCase):
+    def __init__(self, which_test="apple"):
         super().__init__(which_test)
-        self.which_test = which_test.lstrip("test_")
-        self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
-        self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
-        self.sub_test_counter = 0
-
-    def setUp(self):
-        """ for each test create it's own test sub-fold"""
-        if self.test_folder.exists():
-            for root, dirs, files in os.walk(str(self.test_folder)):
-                for d in dirs:
-                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, follow_symlinks=False)
-                for f in files:
-                    os.chmod(os.path.join(root, f), Chmod.all_read_write, follow_symlinks=False)
-            shutil.rmtree(self.test_folder)  # make sure the folder is erased
-        self.test_folder.mkdir(parents=True, exist_ok=False)
-        self.batch_accum.set_current_section("pre")
-
-    def tearDown(self):
-        pass
-
-    def path_inside_test_folder(self, name):
-        return self.test_folder.joinpath(name).resolve()
-
-    def write_file_in_test_folder(self, file_name, contents):
-        with open(self.path_inside_test_folder(file_name), "w") as wfd:
-            wfd.write(contents)
-
-    def exec_and_capture_output(self, test_name=None, expected_exception=None):
-        self.sub_test_counter += 1
-        if test_name is None:
-            test_name = self.which_test
-        test_name = f"{self.sub_test_counter}_{test_name}"
-
-        bc_repr = repr(self.batch_accum)
-        self.write_file_in_test_folder(test_name+".py", bc_repr)
-        bc_compiled = compile(bc_repr, test_name+".py", 'exec')
-        stdout_capture = io.StringIO()
-        with capture_stdout(stdout_capture):
-            if not expected_exception:
-                try:
-                    ops = exec(bc_compiled, globals(), locals())
-                except SyntaxError:
-                    print(f"> > > > SyntaxError in {test_name}")
-                    raise
-            else:
-                with self.assertRaises(expected_exception):
-                    ops = exec(bc_compiled, globals(), locals())
-
-        self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
 
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
@@ -415,204 +268,6 @@ class TestPythonBatch(unittest.TestCase):
         cwd_after = os.getcwd()
         # cwd should be back to where it was
         self.assertEqual(cwd_before, cwd_after, "{self.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
-
-    def test_CopyDirToDir_repr(self):
-        dir_from = r"\p\o\i"
-        dir_to = "/q/w/r"
-        cdtd_obj = CopyDirToDir(dir_from, dir_to, hard_links=False)
-        cdtd_obj_repr = repr(cdtd_obj)
-        cdtd_obj_recreated = eval(cdtd_obj_repr)
-        self.assertEqual(cdtd_obj, cdtd_obj_recreated, "CopyDirToDir.repr did not recreate CopyDirToDir object correctly")
-
-    def test_CopyDirToDir(self):
-        """ test CopyDirToDir (with/without using rsync's link_dest option)
-            a directory is created and filled with random files and folders.
-            This directory is copied and both source and targets dirs are compared to make sure they are the same.
-
-            without hard links:
-                Folder structure and files should be identical
-
-            with hard links:
-                - All mirrored files should have the same inode number - meaning they are hard links to
-            the same file.
-
-                - Currently this test fails for unknown reason. The rsync command does not create hard links.
-            The exact same rsync command when ran for terminal creates the hard links. So I assume the
-            rsync command is correct but running it from python changes something.
-
-        """
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-
-        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
-        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
-        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
-        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
-        if sys.platform == 'darwin':
-            self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
-        filen_names_to_ignore = ["hootenanny"]
-        self.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filen_names_to_ignore)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
-
-        if sys.platform == 'darwin':
-            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
-        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filen_names_to_ignore)
-
-    def test_CopyDirContentsToDir_repr(self):
-        dir_from = r"\p\o\i"
-        dir_to = "/q/w/r"
-        cdctd_obj = CopyDirContentsToDir(dir_from, dir_to, link_dest=True)
-        cdctd_obj_recreated = eval(repr(cdctd_obj))
-        self.assertEqual(cdctd_obj, cdctd_obj_recreated, "CopyDirContentsToDir.repr did not recreate CopyDirContentsToDir object correctly")
-
-    def test_CopyDirContentsToDir(self):
-        """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
-            should be copied - not the source dir itself.
-        """
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-
-        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-        self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
-        if sys.platform == 'darwin':
-            self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
-        filen_names_to_ignore = ["hootenanny"]
-        self.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filen_names_to_ignore)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
-
-        if sys.platform == 'darwin':
-            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard  links to the same file")
-
-        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filen_names_to_ignore)
-
-    def test_CopyFileToDir_repr(self):
-        dir_from = r"\p\o\i"
-        dir_to = "/q/w/r"
-        cftd_obj = CopyFileToDir(dir_from, dir_to, hard_links=False)
-        cftd_obj_recreated = eval(repr(cftd_obj))
-        self.assertEqual(cftd_obj, cftd_obj_recreated, "CopyFileToDir.repr did not recreate CopyFileToDir object correctly")
-
-    def test_CopyFileToDir(self):
-        """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
-            one file that is copied by it's full path.
-        """
-        file_name = "hootenanny"
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-        file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
-
-        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        self.batch_accum += MakeDirs(dir_to_copy_to_no_hard_links)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch(file_name)  # add one file
-        self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, hard_links=False)
-        if sys.platform == 'darwin':
-            self.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_with_hard_links, hard_links=True)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
-
-        if sys.platform == 'darwin':
-            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
-
-    def test_CopyFileToFile_repr(self):
-        dir_from = r"\p\o\i"
-        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False, copy_owner=True)
-        cftf_obj_recreated = eval(repr(cftf_obj))
-        self.assertEqual(cftf_obj, cftf_obj_recreated, "CopyFileToFile.repr did not recreate CopyFileToFile object correctly")
-
-    def test_CopyFileToFile(self):
-        """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
-            one file that is copied by it's full path and target is a full path to a file.
-        """
-        file_name = "hootenanny"
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-        file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
-
-        target_dir_no_hard_links = self.path_inside_test_folder("target_dir_no_hard_links")
-        self.assertFalse(target_dir_no_hard_links.exists(), f"{self.which_test}: {target_dir_no_hard_links} should not exist before test")
-        target_file_no_hard_links = target_dir_no_hard_links.joinpath(file_name).resolve()
-
-        target_dir_with_hard_links = self.path_inside_test_folder("target_dir_with_hard_links")
-        self.assertFalse(target_dir_with_hard_links.exists(), f"{self.which_test}: {target_dir_with_hard_links} should not exist before test")
-        target_file_with_hard_links = target_dir_with_hard_links.joinpath(file_name).resolve()
-
-        target_dir_with_different_name = self.path_inside_test_folder("target_dir_with_different_name")
-        self.assertFalse(target_dir_with_different_name.exists(), f"{self.which_test}: {target_dir_with_different_name} should not exist before test")
-        target_file_different_name_without_hard_links = target_dir_with_different_name.joinpath("Scrooge").resolve()
-        target_file_different_name_with_hard_links = target_dir_with_different_name.joinpath("Ebenezer").resolve()
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        self.batch_accum += MakeDirs(target_dir_no_hard_links)
-        self.batch_accum += MakeDirs(target_dir_with_hard_links)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch(file_name)  # add one file
-        self.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, hard_links=False)
-        self.batch_accum += CopyFileToFile(file_to_copy, target_file_with_hard_links, hard_links=True)
-        self.batch_accum += CopyFileToFile(file_to_copy, target_file_different_name_without_hard_links, hard_links=False)
-        self.batch_accum += CopyFileToFile(file_to_copy, target_file_different_name_with_hard_links, hard_links=True)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test}  (no hard links): source and target dirs are not the same")
-
-        dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, target_dir_with_hard_links)
-        self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test}  (with hard links): source and target files are not hard links to the same file")
-
-        self.assertTrue(filecmp.cmp(file_to_copy, target_file_different_name_without_hard_links))
-        self.assertTrue(is_same_inode(file_to_copy, target_file_different_name_with_hard_links))
 
     def test_RmFile_repr(self):
         rmfile_obj = RmFile(r"\just\remove\me\already")
@@ -1266,71 +921,20 @@ class TestPythonBatch(unittest.TestCase):
     def test_RsyncClone_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        cdtd_obj = RsyncClone(dir_from, dir_to)
-        cdtd_obj_recreated = eval(repr(cdtd_obj))
-        self.assertEqual(cdtd_obj, cdtd_obj_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
+        ong = RsyncClone(dir_from, dir_to)
+        ong_recreated = eval(repr(ong))
+        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
 
-        cdtd_obj = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
+        ong = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
                  ignore_patterns=['*.a', 'b.*'],
                  hard_links=False,
                  ignore_dangling_symlinks=True,
                  delete_extraneous_files=True,
                  verbose=17,
                  dry_run=True)
-        print(repr(cdtd_obj))
-        cdtd_obj_recreated = eval(repr(cdtd_obj))
-        self.assertEqual(cdtd_obj, cdtd_obj_recreated, "RsyncClone.repr (2) did not recreate RsyncClone object correctly")
-
-    def test_RsyncClone(self):
-        """ test RsyncClone (with/without using rsync's link_dest option)
-            a directory is created and filled with random files and folders.
-            This directory is copied and both source and targets dirs are compared to make sure they are the same.
-
-            without hard links:
-                Folder structure and files should be identical
-
-            with hard links:
-                - All mirrored files should have the same inode number - meaning they are hard links to
-            the same file.
-
-                - Currently this test fails for unknown reason. The rsync command does not create hard links.
-            The exact same rsync command when ran for terminal creates the hard links. So I assume the
-            rsync command is correct but running it from python changes something.
-
-        """
-        dir_to_copy_from = self.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.which_test}: {dir_to_copy_from} should not exist before test")
-
-        dir_to_copy_to_no_hard_links = self.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_hard_links = self.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
-        dir_to_copy_to_with_ignore = self.path_inside_test_folder("copy-target-with-ignore")
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
-
-        self.batch_accum.clear()
-        self.batch_accum += MakeDirs(dir_to_copy_from)
-        with self.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
-            sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
-        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
-        if sys.platform == 'darwin':
-            self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
-        file_names_to_ignore = ["hootenanny"]
-        self.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=file_names_to_ignore)
-
-        self.exec_and_capture_output()
-
-        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_no_hard_links)
-        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.which_test} (no hard links): source and target dirs are not the same")
-
-        if sys.platform == 'darwin':
-            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
-            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.which_test} (with hard links): source and target files are not hard links to the same file")
-        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
+        print(repr(ong))
+        ong_recreated = eval(repr(ong))
+        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (2) did not recreate RsyncClone object correctly")
 
     def test_RaiseException_repr(self):
         the_exception = ValueError
@@ -1365,6 +969,50 @@ class TestPythonBatch(unittest.TestCase):
             sub_bc += SVNClient("info")
 
         self.exec_and_capture_output()
+
+    def test_If_repr(self):
+        the_condition = True
+        obj = If(the_condition, if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
+        if_repr = repr(obj)
+        print(if_repr)
+        obj_recreated = eval(if_repr)
+        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
+
+        obj = If(Path("/mama/mia/here/i/go/again").exists(), if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
+        if_repr = repr(obj)
+        print(if_repr)
+        obj_recreated = eval(if_repr)
+        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
+
+    def test_IfFileExist_repr(self):
+        the_path = "/mama/mia/here/i/go/again"
+        obj = IfFileExist(the_path, if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
+        if_repr = repr(obj)
+        print("original  repr:", if_repr)
+        obj_recreated = eval(if_repr)
+        print("recreated repr:", repr(obj_recreated))
+        self.assertEqual(obj, obj_recreated, "IfFileExist.repr (1) did not recreate IfFileExist object correctly")
+
+    def test_IfFileExist(self):
+        file_that_should_exist = self.path_inside_test_folder("should_exist")
+        self.assertFalse(file_that_should_exist.exists(), f"{self.which_test}: {file_that_should_exist} should not exist before test")
+        file_that_should_not_exist = self.path_inside_test_folder("should_not_exist")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.which_test}: {file_that_should_not_exist} should not exist before test")
+        file_touched_if_exist = self.path_inside_test_folder("touched_if_exist")
+        self.assertFalse(file_touched_if_exist.exists(), f"{self.which_test}: {file_touched_if_exist} should not exist before test")
+        file_touched_if_not_exist = self.path_inside_test_folder("touched_if_not_exist")
+        self.assertFalse(file_touched_if_not_exist.exists(), f"{self.which_test}: {file_touched_if_not_exist} should not exist before test")
+
+        self.batch_accum.clear()
+        self.batch_accum += Touch(file_that_should_exist)
+        self.batch_accum += If(IsFile(file_that_should_exist), if_true=Touch(file_touched_if_exist), if_false=Touch(file_that_should_not_exist))
+        self.batch_accum += If(IsFile(file_that_should_not_exist), if_true=Touch(file_that_should_not_exist), if_false=Touch(file_touched_if_not_exist))
+
+        self.exec_and_capture_output()
+        self.assertTrue(file_that_should_exist.exists(), f"{self.which_test}: {file_that_should_exist} should have been created")
+        self.assertTrue(file_touched_if_exist.exists(), f"{self.which_test}: {file_touched_if_exist} should have been created")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.which_test}: {file_that_should_not_exist} should not have been created")
+        self.assertTrue(file_touched_if_not_exist.exists(), f"{self.which_test}: {file_touched_if_not_exist} should have been created")
 
 
 if __name__ == '__main__':
