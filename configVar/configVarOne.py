@@ -6,7 +6,7 @@
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
 import os
-from pathlib import PurePath
+from pathlib import PurePath, Path
 import collections
 from typing import List, Optional, Union
 
@@ -85,12 +85,22 @@ class ConfigVar:
         return retVal
 
     def __fspath__(self) -> str:
-        """ implement Adding a file system path protocol
+        """ implements os.PathLike - https://docs.python.org/3.6/library/os.html#os.PathLike
             so configVar can be passed to pathlib, os.path, etc
             we do not really know if the configVar actually represents
             a path, we just return is as a string, hoping to cut redundant slashes and such.
         """
         retVal = os.fspath(PurePath(self.str()))
+        return retVal
+
+    def Path(self, resolve: bool =False) -> Path:
+        retVal: Path = Path(self.str())
+        if resolve:
+            retVal = retVal.resolve()
+        return retVal
+
+    def PurePath(self) -> PurePath:
+        retVal: PurePath = PurePath(self.str())
         return retVal
 
     def __int__(self) -> int:

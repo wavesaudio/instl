@@ -263,7 +263,7 @@ class InstlClient(InstlInstanceBase):
         return list(iids_set), list(update_iids_set)
 
     def read_previous_requirements(self):
-        require_file_path = os.fspath(config_vars["SITE_REQUIRE_FILE_PATH"])
+        require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
         self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
 
     def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> PythonBatchCommandBase:

@@ -54,23 +54,23 @@ class InstlMisc(InstlInstanceBase):
         import pyinstl.helpHelper
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
 
-        help_folder_path = os.path.join(config_vars["__INSTL_DATA_FOLDER__"].str(), "help")
+        help_folder_path = config_vars["__INSTL_DATA_FOLDER__"].Path(resolve=True).joinpath("help")
         pyinstl.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        processes_list_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
 
         ParallelRun(processes_list_file, shell=False)()
 
     def do_wtar(self):
-        what_to_work_on = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        if not os.path.exists(what_to_work_on):
+        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        if not what_to_work_on.exists():
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wtar = None
         if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wtar = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+            where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
         Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
@@ -176,18 +176,18 @@ class InstlMisc(InstlInstanceBase):
         print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
-        config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
-        if not os.path.isfile(config_file):
+        config_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
+        if not config_file.is_file():
             raise FileNotFoundError(config_file, config_vars["__CONFIG_FILE__"].raw())
-        input_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        if not os.path.isfile(input_file):
+        input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        if not input_file.is_file():
             raise FileNotFoundError(input_file, config_vars["__MAIN_INPUT_FILE__"].raw())
-        output_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
         self.read_yaml_file(config_file)
         with utils.utf8_open(input_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
+        output_file = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
+        config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         with utils.utf8_open(output_file, "w") as wfd:
             wfd.write(resolved_text)
 
@@ -195,9 +195,9 @@ class InstlMisc(InstlInstanceBase):
         py_file_path = "unknown file"
         try:
             self.read_yaml_file("InstlClient.yaml")  # temp hack, which additional config file to read should come from command line options
-            config_file = config_vars.get("__CONFIG_FILE__").str()
+            config_file = config_vars.get("__CONFIG_FILE__").Path(resolve=True)
             self.read_yaml_file(config_file, ignore_if_not_exist=True)
-            py_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+            py_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
             with utils.utf8_open(py_file_path, 'r') as rfd:
                 py_text = rfd.read()
                 py_compiled = compile(py_text, py_file_path, mode='exec', flags=0, dont_inherit=False, optimize=2)
@@ -206,13 +206,13 @@ class InstlMisc(InstlInstanceBase):
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
 
     def do_wzip(self):
-        what_to_work_on = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        if not os.path.exists(what_to_work_on):
+        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        if not what_to_work_on.exists():
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
         where_to_put_wzip = None
         if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wzip = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+            where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
         Wzip(what_to_work_on, where_to_put_wzip)()

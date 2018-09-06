@@ -64,7 +64,7 @@ class YamlReader(object):
                 self.file_read_stack.append(file_path)
                 buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
                 buffer = io.StringIO(buffer)     # turn text to a stream
-                kwargs['path-to-file'] = file_path
+                kwargs['path-to-file'] = os.fspath(file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
                 self.file_read_stack.pop()
@@ -85,7 +85,7 @@ class YamlReader(object):
                 self.file_read_stack.pop()
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message
-                    read_file_history = " -> ".join(self.file_read_stack+[file_path])
+                    read_file_history = " -> ".join(self.file_read_stack+[os.fspath(file_path)])
                     log.error(f"{ex.__class__.__name__} reading file:\n", read_file_history)
                     self.exception_printed = True
                 raise
