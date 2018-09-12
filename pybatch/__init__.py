@@ -24,6 +24,11 @@ from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
 
+from .removeBatchCommands import RmDir
+from .removeBatchCommands import RmFile
+from .removeBatchCommands import RmFileOrDir
+from .removeBatchCommands import RemoveEmptyFolders
+
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd
 from .batchCommands import ChFlags
@@ -31,9 +36,6 @@ from .batchCommands import Chmod
 from .batchCommands import Chown
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
-from .batchCommands import RmDir
-from .batchCommands import RmFile
-from .batchCommands import RmFileOrDir
 from .batchCommands import RunProcessBase
 from .batchCommands import touch
 from .batchCommands import Touch

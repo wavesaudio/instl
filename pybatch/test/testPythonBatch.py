@@ -4,7 +4,6 @@
 import sys
 import os
 from pathlib import Path
-import unittest
 import shutil
 import stat
 import ctypes
@@ -131,9 +130,9 @@ def has_hidden_attribute(filepath):
 main_test_folder_name = "python_batch_test_results"
 
 
-class TestPythonBatch(unittest.TestCase):
-    def __init__(self, which_test="banana"):
-        super().__init__(which_test)
+class TestPythonBatch(object):
+    def __init__(self, uni_test_obj, which_test="banana"):
+        self.uni_test_obj = uni_test_obj
         self.which_test = which_test.lstrip("test_")
         self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
@@ -182,7 +181,7 @@ class TestPythonBatch(unittest.TestCase):
                     print(f"> > > > SyntaxError in {test_name}")
                     raise
             else:
-                with self.assertRaises(expected_exception):
+                with self.uni_test_obj.assertRaises(expected_exception):
                     ops = exec(bc_compiled, globals(), locals())
 
         self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
