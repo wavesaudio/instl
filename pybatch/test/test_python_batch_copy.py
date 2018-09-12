@@ -36,6 +36,24 @@ class TestPythonBatchCopy(unittest.TestCase):
     def tearDown(self):
         self.pbt.tearDown()
 
+    def test_RsyncClone_repr(self):
+        dir_from = r"\p\o\i"
+        dir_to = "/q/w/r"
+        ong = RsyncClone(dir_from, dir_to)
+        ong_recreated = eval(repr(ong))
+        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
+
+        ong = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
+                 ignore_patterns=['*.a', 'b.*'],
+                 hard_links=False,
+                 ignore_dangling_symlinks=True,
+                 delete_extraneous_files=True,
+                 verbose=17,
+                 dry_run=True)
+        print(repr(ong))
+        ong_recreated = eval(repr(ong))
+        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (2) did not recreate RsyncClone object correctly")
+
     def test_RsyncClone(self):
         """ test RsyncClone (with/without using rsync's link_dest option)
             a directory is created and filled with random files and folders.
