@@ -128,6 +128,9 @@ class CreateRegistryKey(BaseRegistryKey):
     def __repr__(self) -> str:
         return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {utils.quoteme_double(self.key_to_create)}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
 
+    def progress_msg_self(self) -> str:
+        return f"Creating key {self.key}\\{self.key_to_create}"
+
     def __call__(self, *args, **kwargs):
         self._key = self._open_key()
         winreg.CreateKey(self._key, self.key_to_create)
@@ -148,6 +151,9 @@ class CreateRegistryValues(BaseRegistryKey):
 
     def _open_key(self, **kwargs):
         return super()._open_key(permission_flag=winreg.KEY_ALL_ACCESS)
+
+    def progress_msg_self(self) -> str:
+        return f"Creating values {self.key} -> {self.values_dict}"
 
     def __call__(self, *args, **kwargs):
         try:
@@ -173,6 +179,9 @@ class DeleteRegistryKey(BaseRegistryKey):
     def __repr__(self) -> str:
         return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {utils.quoteme_raw_string(self.key_to_delete)}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
 
+    def progress_msg_self(self) -> str:
+        return f"Deleting key {self.key}\\{self.key_to_delete}"
+
     def __call__(self, *args, **kwargs):
         self._key = self._open_key()
         winreg.DeleteKey(self._key, self.key_to_delete)
@@ -186,6 +195,9 @@ class DeleteRegistryValues(BaseRegistryKey):
 
     def __repr__(self) -> str:
         return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {self.values}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
+
+    def progress_msg_self(self) -> str:
+        return f"Deleting values {self.key} -> {self.values}"
 
     def _open_key(self, **kwargs):
         return super()._open_key(permission_flag=winreg.KEY_ALL_ACCESS)
