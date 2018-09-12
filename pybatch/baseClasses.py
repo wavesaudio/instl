@@ -7,9 +7,8 @@ import time
 from contextlib import contextmanager
 from typing import List
 import logging
-
-
 log = logging.getLogger()
+
 import utils
 
 
@@ -154,8 +153,25 @@ class PythonBatchCommandBase(abc.ABC):
         return {k: self.__dict__[k] for k in self.__dict__.keys() if k not in self.non_representative__dict__keys}
 
     def __eq__(self, other) -> bool:
-        is_eq = self.representative_dict() == other.representative_dict()
+        my_repr_dict = self.representative_dict()
+        other_repr_dict = other.representative_dict()
+        is_eq =  my_repr_dict == other_repr_dict
         return is_eq
+
+    def explain_diff(self, other) -> str:
+        retVal = list()
+        my_repr_dict = self.representative_dict()
+        other_repr_dict = other.representative_dict()
+        for my_key in my_repr_dict:
+            if my_key not in other_repr_dict:
+                retVal.append(f"{my_key} in 1st but not in 2nd")
+            elif my_repr_dict[my_key] != other_repr_dict[my_key]:
+                retVal.append(f"1st[{my_key}](my_repr_dict[my_key]) != 2nd[{my_key}](other_repr_dict[my_key])")
+
+        for other_key in other_repr_dict:
+            if other_key not in my_repr_dict:
+                retVal.append(f"{my_key} in 2nd but not in 1st")
+        return ", ".join(retVal)
 
     def __hash__(self):
         the_hash = hash(tuple(sorted(self.__dict__.items())))
