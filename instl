@@ -86,7 +86,7 @@ def config_logger():
             'detailed': {
                 'class': 'logging.Formatter',
                 'datefmt': '%Y-%m-%d_%H:%M:%S',
-                'format': '%(asctime)s.%(msecs)03d | %(levelname)-7s| %(message)-150s| {%(stack_lvl)s %(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | %(name)s.%(funcName)s|%(lineno)-3s}',
+                'format': '%(asctime)s.%(msecs)03d | %(levelname)-7s|%(stack_lvl)s %(message)-150s| {%(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | {%(name)s.%(funcName)s|%(lineno)-3s}'
             },
             'json': {
                 '()': JsonFormatter,
@@ -137,7 +137,7 @@ class ParentFilter(logging.Filter):
         record.name = re.sub('.*\.', '', record.name)
         try:
             stack = inspect.stack()
-            record.stack_lvl = '.' * (len(stack) - 9)
+            record.stack_lvl = '  ' * (len(stack) - 9)
             record.parent_mod = inspect.getmodulename(stack[8][1])
             record.parent_func_name = stack[8][3]
             record.parent_line_no = stack[8][2]
