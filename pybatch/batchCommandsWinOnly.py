@@ -137,6 +137,8 @@ class CreateRegistryKey(BaseRegistryKey):
 
 
 class CreateRegistryValues(BaseRegistryKey):
+    '''Creating registry values (and key if needed) based on a supplied dictionary.
+       If a value already exists it will overwrite the previous value'''
     def __init__(self, hkey, key, values_dict: dict, **kwargs):
         super().__init__(hkey, key, **kwargs)
         self.values_dict = values_dict
@@ -174,3 +176,30 @@ class DeleteRegistryKey(BaseRegistryKey):
     def __call__(self, *args, **kwargs):
         self._key = self._open_key()
         winreg.DeleteKey(self._key, self.key_to_delete)
+
+
+class DeleteRegistryValues(BaseRegistryKey):
+    '''Deleting registry values based on a supplied list'''
+    def __init__(self, hkey, key, values: (list, tuple), **kwargs):
+        super().__init__(hkey, key, **kwargs)
+        self.values = values
+
+    def __repr__(self) -> str:
+        return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {self.values}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
+
+    def _open_key(self, **kwargs):
+        return super()._open_key(permission_flag=winreg.KEY_ALL_ACCESS)
+
+    def __call__(self, *args, **kwargs):
+        try:
+            self._key = self._open_key()
+        except FileNotFoundError:  # Key doesn't exist
+            return
+        for name in self.values:
+            try:
+                winreg.DeleteValue(self._key, name)
+            except FileNotFoundError:
+                pass  # Value does not exists
+
+    def exit_self(self, exit_return):
+        winreg.CloseKey(self._key)

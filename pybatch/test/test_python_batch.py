@@ -1394,6 +1394,13 @@ class TestPythonBatch(unittest.TestCase):
         reg_obj_recreated = eval(repr(reg_obj))
         self.assertEqual(reg_obj, reg_obj_recreated, "DeleteRegistryKey.repr did not recreate DeleteRegistryKey object correctly")
 
+    def test_DeleteRegistryValues_repr(self):
+        if sys.platform == 'darwin':
+            return
+        reg_obj = DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', ('key1', 'key2'))
+        reg_obj_recreated = eval(repr(reg_obj))
+        self.assertEqual(reg_obj, reg_obj_recreated, "DeleteRegistryValues.repr did not recreate DeleteRegistryValues object correctly")
+
     def test_ReadRegistryValue(self):
         # reg.exe add HKEY_LOCAL_MACHINE\SOFTWARE\Waves /V LocationV10 /T REG_SZ /D "%CD%" /F'
         expected_value = r'C:\ProgramData\Microsoft\Windows NT\MSFax'
@@ -1416,6 +1423,13 @@ class TestPythonBatch(unittest.TestCase):
         DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()
         test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
         self.assertFalse(test_key.exists, f'Key should not exist - {test_key.hkey}\\{test_key.key}')
+
+    def test_DeleteRegistryValues(self):
+        test_values = ('key1', 'key2')
+        DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_values)()
+        for value in test_values:
+            with self.assertRaises(FileNotFoundError):
+                ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', value)()
 
 
 if __name__ == '__main__':

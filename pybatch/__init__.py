@@ -52,6 +52,7 @@ if sys.platform == "win32":
     from .batchCommandsWinOnly import CreateRegistryKey
     from .batchCommandsWinOnly import CreateRegistryValues
     from .batchCommandsWinOnly import DeleteRegistryKey
+    from .batchCommandsWinOnly import DeleteRegistryValues
 
 if sys.platform == "darwin":
     from .batchCommandsMacOnly import CreateSymlink
