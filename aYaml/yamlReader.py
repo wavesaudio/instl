@@ -58,11 +58,17 @@ class YamlReader(object):
 
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
-            #self.progress("reading ", file_path)
+            kwargs.setdefault('original-path-to-file', file_path)
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(file_path)
-                buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+                buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+                prog_message = f"reading {os.fspath(file_path)}"
+                if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
+                    prog_message += f" [{kwargs['original-path-to-file']}]"
+                if os.fspath(actual_file_path) != os.fspath(file_path) and os.fspath(actual_file_path) != os.fspath(kwargs['original-path-to-file']):
+                    prog_message += f" [{actual_file_path}]"
+                self.progress(prog_message)
                 buffer = io.StringIO(buffer)     # turn text to a stream
                 kwargs['path-to-file'] = os.fspath(file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars

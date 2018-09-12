@@ -149,7 +149,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_defaults_file(self, file_name, allow_reading_of_internal_vars=True, ignore_if_not_exist=True):
         """ read class specific file from defaults/class_name.yaml """
-        name_specific_defaults_file_path = os.path.join(os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"]), file_name + ".yaml")
+        name_specific_defaults_file_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path().joinpath(file_name + ".yaml").resolve()
         self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=ignore_if_not_exist, allow_reading_of_internal_vars=allow_reading_of_internal_vars)
 
     def read_user_config(self):
@@ -254,6 +254,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_include_node(self, i_node, *args, **kwargs):
         if i_node.isScalar():
+            kwargs['original-path-to-file'] = i_node.value
             resolved_file_name = config_vars.resolve_str(i_node.value)
             self.read_yaml_file(resolved_file_name, *args, **kwargs)
         elif i_node.isSequence():
@@ -261,6 +262,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
+                kwargs['original-path-to-file'] = i_node["url"].value
                 resolved_file_url = config_vars.resolve_str(i_node["url"].value)
                 expected_checksum = None
                 if "checksum" in i_node:

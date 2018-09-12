@@ -80,7 +80,7 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        self.accumulate_unique_actions_for_active_iids('pre_copy')
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_copy')
 
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
@@ -105,7 +105,7 @@ class InstlClientCopy(InstlClient):
 
         self.progress(self.bytes_to_copy, "bytes to copy")
 
-        self.accumulate_unique_actions_for_active_iids('post_copy')
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('post_copy')
 
         self.batch_accum.set_current_section('post-copy')
         # Copy have_info file to "site" (e.g. /Library/Application support/... or c:\ProgramData\...)

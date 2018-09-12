@@ -3,10 +3,16 @@ import sys
 from .batchCommands import PythonBatchCommandBase, RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
+from .conditionalBatchCommands import If
+from .conditionalBatchCommands import IsFile
+from .conditionalBatchCommands import IsDir
+from .conditionalBatchCommands import IsSymlink
+
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
 from .copyBatchCommands import CopyFileToDir
 from .copyBatchCommands import CopyFileToFile
+from .copyBatchCommands import MoveDirToDir
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo

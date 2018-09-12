@@ -43,6 +43,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
 
+    @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
@@ -67,7 +68,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
-        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore']
+        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', 'last_src', 'last_dst', 'last_step']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
