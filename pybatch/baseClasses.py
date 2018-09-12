@@ -43,6 +43,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
 
+    @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
