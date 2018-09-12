@@ -50,7 +50,7 @@ if sys.platform == "win32":
     from .batchCommandsWinOnly import BaseRegistryKey
     from .batchCommandsWinOnly import ReadRegistryValue
     from .batchCommandsWinOnly import CreateRegistryKey
-    from .batchCommandsWinOnly import CreateRegistryValue
+    from .batchCommandsWinOnly import CreateRegistryValues
     from .batchCommandsWinOnly import DeleteRegistryKey
 
 if sys.platform == "darwin":

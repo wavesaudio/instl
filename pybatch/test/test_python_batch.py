@@ -1380,10 +1380,10 @@ class TestPythonBatch(unittest.TestCase):
         reg_obj_recreated = eval(repr(reg_obj))
         self.assertEqual(reg_obj, reg_obj_recreated, "CreateRegistryKey.repr did not recreate CreateRegistryKey object correctly")
 
-    def test_CreateRegistryValue_repr(self):
+    def test_CreateRegistryValues_repr(self):
         if sys.platform == 'darwin':
             return
-        reg_obj = CreateRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'test_val1', 'test_data')
+        reg_obj = CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', {'key1': 'val1', 'key2': 'val2'})
         reg_obj_recreated = eval(repr(reg_obj))
         self.assertEqual(reg_obj, reg_obj_recreated, "CreateRegistryKey.repr did not recreate CreateRegistryKey object correctly")
 
@@ -1405,11 +1405,12 @@ class TestPythonBatch(unittest.TestCase):
         test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
         self.assertTrue(test_key.exists, f'Key not created - {test_key.hkey}\\{test_key.key}')
 
-    def test_CreateRegistryValue(self):
-        expected_value = 'test_data'
-        CreateRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'testval1', expected_value)()
-        value = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'testval1')()
-        self.assertEqual(value, 'test_data', f"ReadRegistryKey values {expected_value} != {value}")
+    def test_CreateRegistryValues(self):
+        test_data = {'key1': 'val1', 'key2': 'val2'}
+        CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_data)()
+        for k, expected_value in test_data.items():
+            value = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', k)()
+            self.assertEqual(value, expected_value, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_DeleteRegistryKey(self):
         DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()

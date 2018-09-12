@@ -136,14 +136,13 @@ class CreateRegistryKey(BaseRegistryKey):
         winreg.CloseKey(self._key)
 
 
-class CreateRegistryValue(BaseRegistryKey):
-    def __init__(self, hkey, key, name, data, **kwargs):
+class CreateRegistryValues(BaseRegistryKey):
+    def __init__(self, hkey, key, values_dict: dict, **kwargs):
         super().__init__(hkey, key, **kwargs)
-        self.name = name
-        self.data = data
+        self.values_dict = values_dict
 
     def __repr__(self) -> str:
-        return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {utils.quoteme_double(self.name)}, {utils.quoteme_double(self.data)}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
+        return f'''{self.__class__.__name__}({utils.quoteme_double(self.hkey)}, {utils.quoteme_raw_string(self.key)}, {self.values_dict}, data_type={utils.quoteme_double(self.data_type)}, reg_view={self.reg_view})'''
 
     def _open_key(self, **kwargs):
         return super()._open_key(permission_flag=winreg.KEY_ALL_ACCESS)
@@ -153,7 +152,8 @@ class CreateRegistryValue(BaseRegistryKey):
             self._key = self._open_key()
         except FileNotFoundError:  # Key doesn't exist
             self._key = winreg.CreateKey(self._hkey, self.key)
-        winreg.SetValueEx(self._key, self.name, 0, self._data_type, self.data)
+        for name, data in self.values_dict.items():
+            winreg.SetValueEx(self._key, name, 0, self._data_type, data)
 
     def exit_self(self, exit_return):
         winreg.CloseKey(self._key)
