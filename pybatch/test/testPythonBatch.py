@@ -142,11 +142,14 @@ class TestPythonBatch(unittest.TestCase):
     def setUp(self):
         """ for each test create it's own test sub-fold"""
         if self.test_folder.exists():
+            kwargs = {}
+            if sys.platform == 'darwin':
+                kwargs['follow_symlinks'] = False
             for root, dirs, files in os.walk(str(self.test_folder)):
                 for d in dirs:
-                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, follow_symlinks=False)
+                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, **kwargs)
                 for f in files:
-                    os.chmod(os.path.join(root, f), Chmod.all_read_write, follow_symlinks=False)
+                    os.chmod(os.path.join(root, f), Chmod.all_read_write, **kwargs)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
         self.batch_accum.set_current_section("pre")

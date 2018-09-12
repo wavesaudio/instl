@@ -1047,25 +1047,37 @@ class TestPythonBatchMain(TestPythonBatch, unittest.TestCase):
         self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_CreateRegistryKey(self):
-        CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()
+        self.batch_accum.clear()
+        self.batch_accum += CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')
+        self.exec_and_capture_output()
+
         test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
         self.assertTrue(test_key.exists, f'Key not created - {test_key.hkey}\\{test_key.key}')
 
     def test_CreateRegistryValues(self):
         test_data = {'key1': 'val1', 'key2': 'val2'}
-        CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_data)()
+        self.batch_accum.clear()
+        self.batch_accum += CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_data)
+        self.exec_and_capture_output()
+
         for k, expected_value in test_data.items():
             value = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', k)()
             self.assertEqual(value, expected_value, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_DeleteRegistryKey(self):
-        DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()
+        self.batch_accum.clear()
+        self.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')
+        self.exec_and_capture_output()
+
         test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
         self.assertFalse(test_key.exists, f'Key should not exist - {test_key.hkey}\\{test_key.key}')
 
     def test_DeleteRegistryValues(self):
         test_values = ('key1', 'key2')
-        DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_values)()
+        self.batch_accum.clear()
+        self.batch_accum += DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', test_values)
+        self.exec_and_capture_output()
+
         for value in test_values:
             with self.assertRaises(FileNotFoundError):
                 ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', value)()
