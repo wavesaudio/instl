@@ -1366,6 +1366,56 @@ class TestPythonBatch(unittest.TestCase):
 
         self.exec_and_capture_output()
 
+    def test_ReadRegistryValue_repr(self):
+        if sys.platform == 'darwin':
+            return
+        reg_obj = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder')
+        reg_obj_recreated = eval(repr(reg_obj))
+        self.assertEqual(reg_obj, reg_obj_recreated, "ReadRegistryKey.repr did not recreate ReadRegistryKey object correctly")
+
+    def test_CreateRegistryKey_repr(self):
+        if sys.platform == 'darwin':
+            return
+        reg_obj = CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'test_val1')
+        reg_obj_recreated = eval(repr(reg_obj))
+        self.assertEqual(reg_obj, reg_obj_recreated, "CreateRegistryKey.repr did not recreate CreateRegistryKey object correctly")
+
+    def test_CreateRegistryValue_repr(self):
+        if sys.platform == 'darwin':
+            return
+        reg_obj = CreateRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'test_val1', 'test_data')
+        reg_obj_recreated = eval(repr(reg_obj))
+        self.assertEqual(reg_obj, reg_obj_recreated, "CreateRegistryKey.repr did not recreate CreateRegistryKey object correctly")
+
+    def test_DeleteRegistryKey_repr(self):
+        if sys.platform == 'darwin':
+            return
+        reg_obj = DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')
+        reg_obj_recreated = eval(repr(reg_obj))
+        self.assertEqual(reg_obj, reg_obj_recreated, "DeleteRegistryKey.repr did not recreate DeleteRegistryKey object correctly")
+
+    def test_ReadRegistryValue(self):
+        # reg.exe add HKEY_LOCAL_MACHINE\SOFTWARE\Waves /V LocationV10 /T REG_SZ /D "%CD%" /F'
+        expected_value = r'C:\ProgramData\Microsoft\Windows NT\MSFax'
+        value = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder')()
+        self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
+
+    def test_CreateRegistryKey(self):
+        CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()
+        test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
+        self.assertTrue(test_key.exists, f'Key not created - {test_key.hkey}\\{test_key.key}')
+
+    def test_CreateRegistryValue(self):
+        expected_value = 'test_data'
+        CreateRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'testval1', expected_value)()
+        value = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', 'testval1')()
+        self.assertEqual(value, 'test_data', f"ReadRegistryKey values {expected_value} != {value}")
+
+    def test_DeleteRegistryKey(self):
+        DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', 'Test')()
+        test_key = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', '')
+        self.assertFalse(test_key.exists, f'Key should not exist - {test_key.hkey}\\{test_key.key}')
+
 
 if __name__ == '__main__':
     test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name)

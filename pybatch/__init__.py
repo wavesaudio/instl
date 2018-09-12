@@ -47,6 +47,11 @@ from .svnBatchCommands import SVNClient
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut
+    from .batchCommandsWinOnly import BaseRegistryKey
+    from .batchCommandsWinOnly import ReadRegistryValue
+    from .batchCommandsWinOnly import CreateRegistryKey
+    from .batchCommandsWinOnly import CreateRegistryValue
+    from .batchCommandsWinOnly import DeleteRegistryKey
 
 if sys.platform == "darwin":
     from .batchCommandsMacOnly import CreateSymlink
