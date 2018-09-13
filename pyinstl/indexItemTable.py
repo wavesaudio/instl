@@ -547,6 +547,10 @@ class IndexItemsTable(object):
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
     def read_index_node(self, a_node: yaml.MappingNode) -> None:
+        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
+        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
+                                                                  detail_name, detail_value, tag)
+                                                                  VALUES(?,?,?,?,?,?)"""
         index_items = list()
         items_details = list()
         for IID in a_node:
@@ -559,15 +563,39 @@ class IndexItemsTable(object):
                 index_items.append(item)
                 items_details.extend(original_item_details)
 
-        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
-        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
-                                                                  detail_name, detail_value, tag)
-                                                                  VALUES(?,?,?,?,?,?)"""
         with self.db.transaction() as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+
+    def read_index_node_one_by_one(self, a_node: yaml.MappingNode) -> None:
+        """ for debugging problems with reading index.yaml use read_index_node_one_by_one instead of read_index_node"""
+        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
+        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
+                                                                  detail_name, detail_value, tag)
+                                                                  VALUES(?,?,?,?,?,?)"""
+        for IID in a_node:
+            try:
+                index_items = list()
+                items_details = list()
+                template_match = self.template_re.match(IID)
+                if template_match:
+                    node = self.read_index_template_node(template_match, a_node[IID])
+                    self.read_index_node_one_by_one(node)
+                else:
+                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
+                    index_items.append(item)
+                    items_details.extend(original_item_details)
+
+                with self.db.transaction() as curs:
+                    curs.executemany(insert_item_q, index_items)
+                    curs.executemany(insert_item_detail_q, items_details)
+                    curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
+                    curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+            except Exception as ex:
+                print(f"failed reading {IID}: {ex}")
+                raise
 
     def read_index_template_node(self, template_match, instances_node):
         yaml_text = "--- !index\n"
@@ -789,16 +817,33 @@ class IndexItemsTable(object):
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
         if iid_list:
-            query_vars = ((iid,) for iid in iid_list)
-            query_text = f"""
-                UPDATE index_item_t
-                SET install_status={new_status}
-                WHERE iid == ?
-                AND install_status={old_status}
-                AND ignore = 0
-              """
-            with self.db.transaction() as curs:
-                curs.executemany(query_text, query_vars)
+            if True:  # release code
+                query_vars = ((iid,) for iid in iid_list)
+                query_text = f"""
+                    UPDATE index_item_t
+                    SET install_status={new_status}
+                    WHERE iid == ?
+                    AND install_status={old_status}
+                    AND ignore = 0
+                  """
+                with self.db.transaction() as curs:
+                    curs.executemany(query_text, query_vars)
+            if False:  # debug code
+                for iid in iid_list:
+                    try:
+                        query_vars = ((iid,),)
+                        query_text = f"""
+                            UPDATE index_item_t
+                            SET install_status={new_status}
+                            WHERE iid == ?
+                            AND install_status={old_status}
+                            AND ignore = 0
+                          """
+                        with self.db.transaction() as curs:
+                            curs.executemany(query_text, query_vars)
+                    except Exception as ex:
+                        print(f"failed change_status_of_iids_to_another_status {iid}: {ex}")
+                        raise
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:

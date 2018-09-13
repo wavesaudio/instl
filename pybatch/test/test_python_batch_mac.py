@@ -37,18 +37,20 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_MacDoc_repr(self):
-        if sys.platform == "darwin":
-            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
-            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
-            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
-            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
-            mac_dock_obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
-            mac_dock_obj_recreated = eval(repr(mac_dock_obj))
-            self.assertEqual(mac_dock_obj, mac_dock_obj_recreated, "MacDoc.repr did not recreate MacDoc object correctly")
+        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
     def test_MacDoc(self):
         if sys.platform == "darwin":
@@ -61,9 +63,10 @@ class TestPythonBatchMac(unittest.TestCase):
 
         some_file_path = "/Pippi/Långstrump"
         some_symlink_path = "/Astrid/Anna/Emilia/Lindgren"
-        create_symlink_obj = CreateSymlink(some_symlink_path, some_file_path)
-        create_symlink_obj_recreated = eval(repr(create_symlink_obj))
-        self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "CreateSymlink.repr did not recreate CreateSymlink object correctly")
+        obj = CreateSymlink(some_symlink_path, some_file_path)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"CreateSymlink.repr did not recreate CreateSymlink object correctly: {diff_explanation}")
 
     def test_CreateSymlink(self):
 
@@ -112,9 +115,10 @@ class TestPythonBatchMac(unittest.TestCase):
             return
 
         some_file_path = "/Pippi/Långstrump"
-        create_symlink_obj = SymlinkToSymlinkFile(some_file_path)
-        create_symlink_obj_recreated = eval(repr(create_symlink_obj))
-        self.assertEqual(create_symlink_obj, create_symlink_obj_recreated, "SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly")
+        obj = SymlinkToSymlinkFile(some_file_path)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly: {diff_explanation}")
 
     def test_SymlinkFileToSymlink_repr(self):
 
@@ -122,9 +126,10 @@ class TestPythonBatchMac(unittest.TestCase):
             return
 
         some_file_path = "/Pippi/Långstrump.symlink"
-        resolve_symlink_obj = SymlinkFileToSymlink(some_file_path)
-        resolve_symlink_obj_reresolved = eval(repr(resolve_symlink_obj))
-        self.assertEqual(resolve_symlink_obj, resolve_symlink_obj_reresolved, "SymlinkToSymlinkFile.repr did not reresolve SymlinkToSymlinkFile object correctly")
+        obj = SymlinkFileToSymlink(some_file_path)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not resolve SymlinkToSymlinkFile object correctly: {diff_explanation}")
 
     def test_SymlinkToSymlinkFileAndBack(self):
         """ since symlinks cannot be uploaded (or downloaded) to S3, instl replaces them with
@@ -215,9 +220,10 @@ class TestPythonBatchMac(unittest.TestCase):
         if sys.platform != 'darwin':
             return
 
-        create_svn_obj = SVNClient("checkout", "--depth", "infinity")
-        create_svn_obj_recreated = eval(repr(create_svn_obj))
-        self.assertEqual(create_svn_obj, create_svn_obj_recreated, "SVNClient.repr did not recreate SVNClient object correctly")
+        obj = SVNClient("checkout", "--depth", "infinity")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"SVNClient.repr did not recreate SVNClient object correctly: {diff_explanation}")
 
     def test_SVNClient(self):
 

@@ -1,5 +1,6 @@
 import os
 import shutil
+import glob
 from typing import List
 import logging
 
@@ -10,12 +11,12 @@ log = logging.getLogger()
 
 
 class RmFile(PythonBatchCommandBase, essential=True):
-    def __init__(self, path: os.PathLike) -> None:
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
         """ remove a file
             - It's OK is the file does not exist
             - but exception will be raised if path is a folder
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -33,13 +34,13 @@ class RmFile(PythonBatchCommandBase, essential=True):
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
-    def __init__(self, path: os.PathLike) -> None:
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
         """ remove a directory.
             - it's OK if the directory does not exist.
             - all files and directory under path will be removed recursively
             - exception will be raised if the path is not a folder
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -58,12 +59,12 @@ class RmDir(PythonBatchCommandBase, essential=True):
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
-    def __init__(self, path: os.PathLike):
+    def __init__(self, path: os.PathLike, **kwargs):
         """ remove a file or directory.
             - it's OK if the path does not exist.
             - all files and directory under path will be removed recursively
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -125,3 +126,27 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
                         os.rmdir(root_path)
                     except Exception as ex:
                         log.warning(f"""failed to remove {root_path}, {ex}""")
+
+
+class RmGlob(PythonBatchCommandBase, essential=True):
+    def __init__(self, pattern: os.PathLike, **kwargs) -> None:
+        """ remove files matching a pattern
+            - it's OK if the directory does not exist.
+            - all files and directory matching the pattern will be removed recursively
+        """
+        super().__init__(**kwargs)
+        self.pattern: os.PathLike = pattern
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.pattern))})"""
+        return the_repr
+
+    def progress_msg_self(self):
+        return f"""Remove pattern '{self.pattern}'"""
+
+    def __call__(self, *args, **kwargs):
+        list_to_remove = glob.glob(os.path.expandvars(self.pattern))
+        for item in list_to_remove:
+            with RmFileOrDir(item, progress_count=0) as rfod:
+                rfod()

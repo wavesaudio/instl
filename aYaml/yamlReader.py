@@ -30,7 +30,7 @@ class YamlReader(object):
         self.path_searcher = None
         self.url_translator = None
         self.specific_doc_readers: Dict[str, Callable] = dict()
-        self.file_read_stack: List[os.PathLike] = list()
+        self.file_read_stack: List[str] = list()
         self.exception_printed = False
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
 
@@ -61,7 +61,7 @@ class YamlReader(object):
             kwargs.setdefault('original-path-to-file', file_path)
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
-                self.file_read_stack.append(file_path)
+                self.file_read_stack.append(os.fspath(file_path))
                 buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
                 prog_message = f"reading {os.fspath(file_path)}"
                 if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
@@ -97,7 +97,7 @@ class YamlReader(object):
                 raise
         except Exception as ex:
             if not self.exception_printed:      # avoid recursive printing of error message
-                read_file_history = "\n->\n".join([os.fspath(file_path) for file_path in  self.file_read_stack])
+                read_file_history = "\n->\n".join(self.file_read_stack)
                 log.error(f"""Exception reading file: {read_file_history}""")
                 self.exception_printed = True
             raise

@@ -29,7 +29,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 import utils
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 
 def Is64Windows():

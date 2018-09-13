@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 from .batchCommands import *
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 
 class RsyncClone(PythonBatchCommandBase, essential=True):

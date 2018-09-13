@@ -25,7 +25,7 @@ from pybatch import *
 
 from .curlHelper import CUrlHelper
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 
 value_ref_re = re.compile("""
@@ -398,6 +398,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
         self.items_table.read_index_node(a_node)
+        #self.items_table.read_index_node_one_by_one(a_node)  # for debugging reading index.yaml
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 

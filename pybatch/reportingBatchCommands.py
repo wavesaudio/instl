@@ -6,7 +6,7 @@ import re
 import utils
 
 from .baseClasses import *
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 

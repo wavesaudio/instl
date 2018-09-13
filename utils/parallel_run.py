@@ -9,7 +9,7 @@ import logging
 from itertools import repeat
 from concurrent import futures
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 exit_val = 0
 process_list = list()

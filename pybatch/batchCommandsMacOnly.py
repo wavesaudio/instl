@@ -8,7 +8,7 @@ import utils
 
 
 class MacDock(PythonBatchCommandBase):
-    def __init__(self, path_to_item, label_for_item, restart_the_doc, remove=False, **kwargs) -> None:
+    def __init__(self, path_to_item=None, label_for_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_item = path_to_item
         self.label_for_item = label_for_item
@@ -16,11 +16,18 @@ class MacDock(PythonBatchCommandBase):
         self.remove = remove
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.path_to_item)}, {utils.quoteme_raw_string(self.label_for_item)}, restart_the_doc={self.restart_the_doc}, remove={self.remove})'''
+        the_repr = f'''{self.__class__.__name__}('''
+        param_list = list()
+        param_list.append(self.named__init__param('path_to_item', self.path_to_item))
+        param_list.append(self.named__init__param('label_for_item', self.label_for_item))
+        param_list.append(self.named__init__param('restart_the_doc', self.restart_the_doc))
+        param_list.append(self.named__init__param('remove', self.remove))
+        the_repr += ", ".join(param_list)
+        the_repr += ")"
         return the_repr
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{path_to_item}' as '{self.label_for_item}'"""
+        return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         dock_util_command = list()
@@ -66,6 +73,10 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         path_to_target = Path(os.path.expandvars(self.path_to_target))
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
+        try:
+            path_to_symlink.unlink()
+        except:
+            pass
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
         path_to_symlink.symlink_to(path_to_target)
 

@@ -28,6 +28,7 @@ from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
 from .removeBatchCommands import RmFileOrDir
 from .removeBatchCommands import RemoveEmptyFolders
+from .removeBatchCommands import RmGlob
 
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd

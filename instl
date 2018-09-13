@@ -23,7 +23,7 @@ from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from utils import InstlException
 import utils
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
 # umask to 0 so that all files created under sudo, can be re-written under regular user.

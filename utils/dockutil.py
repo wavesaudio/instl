@@ -24,7 +24,7 @@ import platform
 
 import utils
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
 
 # default verbose printing to off
 verbose = False

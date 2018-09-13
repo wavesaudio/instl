@@ -45,14 +45,16 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_RmFile_repr(self):
-        rmfile_obj = RmFile(r"\just\remove\me\already")
-        rmfile_obj_recreated = eval(repr(rmfile_obj))
-        self.assertEqual(rmfile_obj, rmfile_obj_recreated, "RmFile.repr did not recreate RmFile object correctly")
+        obj = RmFile(r"\just\remove\me\already")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmFile.repr did not recreate RmFile object correctly: {diff_explanation}")
 
     def test_RmDir_repr(self):
-        rmfile_obj = RmDir(r"\just\remove\me\already")
-        rmfile_obj_recreated = eval(repr(rmfile_obj))
-        self.assertEqual(rmfile_obj, rmfile_obj_recreated, "RmDir.repr did not recreate RmDir object correctly")
+        obj = RmDir(r"\just\remove\me\already")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmDir.repr did not recreate RmDir object correctly: {diff_explanation}")
 
     def test_remove(self):
         """ Create a folder and fill it with random files.
@@ -77,19 +79,22 @@ class TestPythonBatchRemove(unittest.TestCase):
 
     def test_RemoveEmptyFolders_repr(self):
         with self.assertRaises(TypeError):
-            ref_obj = RemoveEmptyFolders()
+            obj = RemoveEmptyFolders()
 
-        ref_obj = RemoveEmptyFolders("/per/pen/di/cular")
-        ref_obj_recreated =eval(repr(ref_obj))
-        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+        obj = RemoveEmptyFolders("/per/pen/di/cular")
+        obj_recreated =eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
-        ref_obj = RemoveEmptyFolders("/per/pen/di/cular", [])
-        ref_obj_recreated =eval(repr(ref_obj))
-        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+        obj = RemoveEmptyFolders("/per/pen/di/cular", [])
+        obj_recreated =eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
-        ref_obj = RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await'])
-        ref_obj_recreated =eval(repr(ref_obj))
-        self.assertEqual(ref_obj, ref_obj_recreated, "RemoveEmptyFolders.repr did not recreate MacDoc object correctly")
+        obj = RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await'])
+        obj_recreated =eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
 
     def test_RemoveEmptyFolders(self):
         folder_to_remove = self.pbt.path_inside_test_folder("folder-to-remove")
@@ -120,3 +125,33 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.exec_and_capture_output("remove empty folders")
         self.assertFalse(os.path.isdir(folder_to_remove), f"{self.pbt.which_test} : folder was not removed {folder_to_remove}")
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not removed {file_to_stay}")
+
+    def test_RmGlob_repr(self):
+        obj = RmGlob("/lo/lla/pa/loo/za/*.pendicular")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate MacDoc object correctly: {diff_explanation}")
+
+    def test_RmGlob(self):
+        folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
+
+        pattern = os.fspath(folder_to_glob)+"/?b*.k*"
+        files_that_should_be_removed = ["abc.kif", "cba.kmf"]
+        files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef"]
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
+            for f in files_that_should_be_removed + files_that_should_not_be_removed:
+                cd_accum += Touch(f)
+
+        self.pbt.batch_accum += RmGlob(pattern)
+        self.pbt.exec_and_capture_output()
+
+        for f in files_that_should_be_removed:
+            fp = Path(folder_to_glob, f)
+            self.assertFalse(fp.is_file(), f"{self.pbt.which_test} : file was not removed {fp}")
+
+        for f in files_that_should_not_be_removed:
+            fp = Path(folder_to_glob, f)
+            self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
