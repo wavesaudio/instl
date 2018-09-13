@@ -52,20 +52,22 @@ class WinShortcut(PythonBatchCommandBase):
 
 class BaseRegistryKey(PythonBatchCommandBase):
     reg_view_num_to_const = {64: winreg.KEY_WOW64_64KEY, 32: winreg.KEY_WOW64_32KEY}
-    def __init__(self, top_key: str, sub_key: str, data_type: str='REG_SZ', reg_view: int=64, **kwargs):
+    def __init__(self, top_key: str, sub_key: str, data_type: str='REG_SZ', reg_num_bits: int=64, **kwargs):
         '''
         The base registry sub_key class to be used for reading/creating/deleting keys or values in the registry
         args follow names and meaning of winreg functions such as OpenKey
         Args:
             top_key one of HKEY_CLASSES_ROOT/HKEY_CURRENT_USER/HKEY_LOCAL_MACHINE/HKEY_USERS/HKEY_CURRENT_CONFIG
             sub_key - path to sub_key's folder
-            reg_view - 32/64
+            reg_num_bits - 32/64
             data_type -  REG_SZ (default) | REG_DWORD | REG_EXPAND_SZ | REG_MULTI_SZ'''
         super().__init__(**kwargs)
         self.top_key = top_key
         self.sub_key = sub_key
+        self.value_name = None
+        self.value_data = None
         self.data_type = data_type
-        self.reg_view = reg_view
+        self.reg_num_bits = reg_num_bits
         self.key_handle = None
         self.permission_flag = winreg.KEY_READ
         self.ignore_if_not_exist = kwargs.get('ignore_if_not_exist', False)
@@ -73,22 +75,40 @@ class BaseRegistryKey(PythonBatchCommandBase):
             self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}({utils.quoteme_double(self.top_key)}, {utils.quoteme_raw_string(self.sub_key)}"
-        if self.data_type != 'REG_SZ':
-            the_repr += f", data_type={utils.quoteme_double(self.data_type)}"
-        if self.reg_view != 64:
-            the_repr += f", reg_view={self.reg_view}"
+        the_repr = f"{self.__class__.__name__}("
+        the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
         the_repr += ")"
         return the_repr
 
+    def positional_members_repr(self) -> str:
+        """ helper function to create repr for BaseRegistryKey common to all subclasses """
+        members_repr = list()
+        members_repr.append(utils.quoteme_double(self.top_key))
+        members_repr.append(utils.quoteme_raw_string(self.sub_key))
+        if self.value_name is not None:
+            members_repr.append(utils.quoteme_raw_string(self.value_name))
+        if self.value_data is not None:
+            members_repr.append(utils.quoteme_raw_string(self.value_data))
+        return members_repr
+
+    def named_members_repr(self) -> str:
+        members_repr = list()
+        if self.data_type != 'REG_SZ':
+            members_repr.append(f"data_type={utils.quoteme_double(self.data_type)}")
+        if self.reg_num_bits != 64:
+            members_repr.append(f"reg_num_bits={self.reg_num_bits}")
+        if self.ignore_if_not_exist is not False:
+            members_repr.append(f"ignore_if_not_exist={self.ignore_if_not_exist}")
+        return members_repr
+
     def __str__(self):
-        return f"{self.__class__.__name__} {self.top_key}, {self.sub_key}, {self.data_type}, {self.reg_view}"
+        return f"{self.__class__.__name__} {self.top_key}, {self.sub_key}, {self.data_type}, {self.reg_num_bits}"
 
     def progress_msg_self(self) -> str:
         return "BaseRegistryKey"
 
     def _open_key(self):
-        self.key_handle = winreg.OpenKey(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_view] | self.permission_flag))
+        self.key_handle = winreg.OpenKey(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
 
     def _close_key(self):
         if self.key_handle is not None:
@@ -98,35 +118,15 @@ class BaseRegistryKey(PythonBatchCommandBase):
     def exit_self(self, exit_return):
         self._close_key()
 
-    @property
-    def exists(self):
-        try:
-            _key = self._open_key()
-        except FileNotFoundError:
-            return False
-        else:
-            return True
-
     def __call__(self, *args, **kwargs):
         raise NotImplemented()
 
 
 class ReadRegistryValue(BaseRegistryKey):
-    def __init__(self, top_key: str, sub_key: str, value_name: str, **kwargs):
+    def __init__(self, top_key: str, sub_key: str, value_name: str=None, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.value_name = value_name
         self.the_value = None
-
-    def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}({utils.quoteme_double(self.top_key)}, {utils.quoteme_raw_string(self.sub_key)}, {utils.quoteme_raw_string(self.value_name)}"
-        if self.data_type != 'REG_SZ':
-            the_repr += f", data_type={utils.quoteme_double(self.data_type)}"
-        if self.reg_view != 64:
-            the_repr += f", reg_view={self.reg_view}"
-        if self.ignore_if_not_exist != False:
-            the_repr += f", ignore_if_not_exist={self.ignore_if_not_exist}"
-        the_repr += ")"
-        return the_repr
 
     def progress_msg_self(self) -> str:
         return f"Reading {self.sub_key}\\{self.value_name} -> {self.the_value}"
@@ -148,8 +148,9 @@ class ReadRegistryValue(BaseRegistryKey):
 
 
 class CreateRegistryKey(BaseRegistryKey):
-    def __init__(self, top_key: str, sub_key: str, **kwargs):
+    def __init__(self, top_key: str, sub_key: str, value_data=None, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
+        self.value_data = value_data
         self.permission_flag = winreg.KEY_ALL_ACCESS
 
     def progress_msg_self(self) -> str:
@@ -157,7 +158,9 @@ class CreateRegistryKey(BaseRegistryKey):
 
     def __call__(self, *args, **kwargs):
         try:
-            self.key_handle = winreg.CreateKey(getattr(winreg, self.top_key), self.sub_key)
+            self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
+            if self.value_data is not None:
+                winreg.SetValueEx(self.key_handle, None, 0, getattr(winreg, 'REG_SZ'), self.value_data)
         finally:
             self._close_key()
 
@@ -171,12 +174,9 @@ class CreateRegistryValues(BaseRegistryKey):
         self.permission_flag = winreg.KEY_ALL_ACCESS
 
     def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}({utils.quoteme_double(self.top_key)}, {utils.quoteme_raw_string(self.sub_key)}"
+        the_repr = f"{self.__class__.__name__}("
+        the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
         the_repr += f", value_dict={self.value_dict}"
-        if self.data_type != 'REG_SZ':
-            the_repr += f", data_type={utils.quoteme_double(self.data_type)}"
-        if self.reg_view != 64:
-            the_repr += f", reg_view={self.reg_view}"
         the_repr += ")"
         return the_repr
 
@@ -185,7 +185,7 @@ class CreateRegistryValues(BaseRegistryKey):
 
     def __call__(self, *args, **kwargs):
         try:
-            self.key_handle = winreg.CreateKey(getattr(winreg, self.top_key), self.sub_key)
+            self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             for value_name, value_data in self.value_dict.items():
                 winreg.SetValueEx(self.key_handle, value_name, 0, getattr(winreg, self.data_type), value_data)
         finally:
@@ -203,7 +203,11 @@ class DeleteRegistryKey(BaseRegistryKey):
         return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
-        winreg.DeleteKeyEx(getattr(winreg, self.top_key), self.sub_key, (self.reg_view_num_to_const[self.reg_view] | self.permission_flag), 0)
+        try:
+            self._open_key()
+            winreg.DeleteKey(self.key_handle, "")
+        except Exception as ex:
+            raise
 
 
 class DeleteRegistryValues(BaseRegistryKey):
@@ -215,14 +219,8 @@ class DeleteRegistryValues(BaseRegistryKey):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}({utils.quoteme_double(self.top_key)}, {utils.quoteme_raw_string(self.sub_key)}"
-        the_repr += f", {utils.quoteme_raw_if_list(self.values)}"
-        if self.data_type != 'REG_SZ':
-            the_repr += f", data_type={utils.quoteme_double(self.data_type)}"
-        if self.reg_view != 64:
-            the_repr += f", reg_view={self.reg_view}"
-        if self.ignore_if_not_exist != False:
-            the_repr += f", ignore_if_not_exist={self.ignore_if_not_exist}"
+        the_repr = f"{self.__class__.__name__}("
+        the_repr += ", ".join(self.positional_members_repr() + [f"{utils.quoteme_raw_if_list(self.values)}"]+self.named_members_repr())
         the_repr += ")"
         return the_repr
 
