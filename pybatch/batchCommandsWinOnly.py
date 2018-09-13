@@ -203,10 +203,7 @@ class DeleteRegistryKey(BaseRegistryKey):
         return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
-        try:
-            winreg.DeleteKeyEx(getattr(winreg, self.top_key), self.sub_key, (self.reg_view_num_to_const[self.reg_view] | self.permission_flag), 0)
-        except:
-            pass
+        winreg.DeleteKeyEx(getattr(winreg, self.top_key), self.sub_key, (self.reg_view_num_to_const[self.reg_view] | self.permission_flag), 0)
 
 
 class DeleteRegistryValues(BaseRegistryKey):
