@@ -8,10 +8,111 @@
 """
 
 import os
+import re
+import sys
+import json
 import appdirs
 import inspect
 import logging
 import logging.handlers
+from logging.config import dictConfig
+
+from utils import misc_utils as utils
+
+log_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s|%(stack_lvl)s %(message)-150s| {%(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | {%(name)s.%(funcName)s|%(lineno)-3s}'
+
+
+def config_logger(system_log_file_path=None):
+    if system_log_file_path is None:
+        system_log_file_path = utils.get_system_log_file_path()
+    os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
+    config_dict = get_config_dict(system_log_file_path)
+    dictConfig(config_dict)
+
+
+def get_config_dict(system_log_file_path):
+    return {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'simple': {
+                'class': 'logging.Formatter',
+                'format': '%(message)s'
+            },
+            'detailed': {
+                'class': 'logging.Formatter',
+                'datefmt': '%Y-%m-%d_%H:%M:%S',
+                'format': log_format
+            },
+            'json': {
+                '()': JsonFormatter,
+                'format': '%(message)s'
+            }
+        },
+        'filters': {
+            'parent': {
+                '()': ParentFilter,
+            }
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'level': 'INFO',
+                'formatter': 'simple',
+                'stream': sys.stdout
+            },
+            'errors': {
+                'class': 'logging.StreamHandler',
+                'level': 'ERROR',
+                'formatter': 'simple',
+                'stream': sys.stderr
+            },
+            'system_log': {
+                'class': 'logging.handlers.RotatingFileHandler',
+                'level': 'DEBUG',
+                'formatter': 'detailed',
+                'filename': system_log_file_path,
+                'mode': 'a',
+                'maxBytes': 5000000,
+                'backupCount': 10,
+                'filters': ['parent']
+            }
+        },
+        'root': {
+            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
+            'handlers': ['console', 'errors', 'system_log'],
+        },
+    }
+
+
+class ParentFilter(logging.Filter):
+    '''Adds additional info to the log message - stack level, parent info: module, function name, line number.'''
+    def filter(self, record):
+        record.name = re.sub('.*\.', '', record.name)
+        try:
+            stack = inspect.stack()
+            record.stack_lvl = '  ' * (len(stack) - 9)
+            record.parent_mod = inspect.getmodulename(stack[8][1])
+            record.parent_func_name = stack[8][3]
+            record.parent_line_no = stack[8][2]
+        except IndexError:
+            record.stack_lvl = ''
+            record.parent_mod = ''
+            record.parent_func_name = ''
+            record.parent_line_no = ''
+        return True
+
+
+class JsonFormatter(object):
+    ATTR_TO_JSON = ['created', 'filename', 'funcName', 'levelname', 'lineno', 'module', 'msecs', 'msg', 'name', 'pathname', 'process', 'processName', 'relativeCreated', 'thread', 'threadName']
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+    def format(self, record):
+        obj = {attr: getattr(record, attr)
+               for attr in self.ATTR_TO_JSON}
+        return json.dumps(obj, indent=4)
 
 
 def get_log_folder_path(in_app_name, in_app_author):
@@ -120,7 +221,7 @@ def func_log_wrapper(logged_func):
                     inspect.getsourcefile(logged_func),
                     # 2nd value was supposed to be inspect.getsourcelines(logged_func)[1],
                     # however it does not work when compiled with pyinstaller
-                    None, 
+                    None,
                     logged_func.__name__)
             save_findCaller_func = logging.Logger.findCaller
             logging.Logger.findCaller = findCaller_override

@@ -10,6 +10,7 @@ import ctypes
 import io
 import contextlib
 import filecmp
+import logging
 import random
 import string
 from collections import namedtuple
@@ -27,6 +28,7 @@ if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
+log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
@@ -172,16 +174,14 @@ class TestPythonBatch(object):
         bc_repr = repr(self.batch_accum)
         self.write_file_in_test_folder(test_name+".py", bc_repr)
         bc_compiled = compile(bc_repr, test_name+".py", 'exec')
-        stdout_capture = io.StringIO()
-        with capture_stdout(stdout_capture):
-            if not expected_exception:
-                try:
-                    ops = exec(bc_compiled, globals(), locals())
-                except SyntaxError:
-                    print(f"> > > > SyntaxError in {test_name}")
-                    raise
-            else:
-                with self.uni_test_obj.assertRaises(expected_exception):
-                    ops = exec(bc_compiled, globals(), locals())
+        utils.config_logger(self.path_inside_test_folder(f'{test_name}_output.txt'))
 
-        self.write_file_in_test_folder(test_name+"_output.txt", stdout_capture.getvalue())
+        if not expected_exception:
+            try:
+                ops = exec(bc_compiled, globals(), locals())
+            except SyntaxError:
+                log.error(f"> > > > SyntaxError in {test_name}")
+                raise
+        else:
+            with self.uni_test_obj.assertRaises(expected_exception):
+                ops = exec(bc_compiled, globals(), locals())
