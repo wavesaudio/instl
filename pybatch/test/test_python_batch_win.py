@@ -134,7 +134,7 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_DeleteRegistryValues_repr(self):
         for reg_num_bits in (64, 32):
-            obj = DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryValues_repr', ('key1', 'key2'), reg_num_bits=reg_num_bits)
+            obj = DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryValues_repr', 'key1', 'key2', reg_num_bits=reg_num_bits)
             obj_recreated = eval(repr(obj))
             diff_explanation = obj.explain_diff(obj_recreated)
             self.assertEqual(obj, obj_recreated, f"DeleteRegistryValues.repr did not recreate DeleteRegistryValues object correctly: {diff_explanation}")
@@ -159,7 +159,7 @@ class TestPythonBatchWin(unittest.TestCase):
                            'stay_key1': 'value1_' + str(reg_num_bits), 'stay_key2': 'value2_' + str(reg_num_bits)}
             delete_values = [k for k in test_values.keys() if k.startswith('delete')]
             self.pbt.batch_accum.clear()
-            self.pbt.batch_accum += DeleteRegistryValues('HKEY_LOCAL_MACHINE', test_key_path, delete_values, reg_num_bits=reg_num_bits)
+            self.pbt.batch_accum += DeleteRegistryValues('HKEY_LOCAL_MACHINE', test_key_path, *delete_values, reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output()
 
             for key in test_values.keys():

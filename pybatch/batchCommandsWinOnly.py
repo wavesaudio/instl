@@ -212,7 +212,7 @@ class DeleteRegistryKey(BaseRegistryKey):
 
 class DeleteRegistryValues(BaseRegistryKey):
     '''Deleting registry values based on a supplied list'''
-    def __init__(self, top_key, sub_key, values: (list, tuple), **kwargs):
+    def __init__(self, top_key, sub_key, *values: str, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.values = list(values)
         self.permission_flag = winreg.KEY_ALL_ACCESS
@@ -220,7 +220,7 @@ class DeleteRegistryValues(BaseRegistryKey):
 
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}("
-        the_repr += ", ".join(self.positional_members_repr() + [f"{utils.quoteme_raw_if_list(self.values)}"]+self.named_members_repr())
+        the_repr += ", ".join(self.positional_members_repr() + utils.quoteme_raw_list(self.values) + self.named_members_repr())
         the_repr += ")"
         return the_repr
 
