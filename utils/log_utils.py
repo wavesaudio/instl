@@ -100,10 +100,9 @@ class ParentFilter(logging.Filter):
 
 
 class CustomFormatter(logging.Formatter):
-    simple_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s|%(stack_lvl)s %(message)-150s'
-    detailed_format = simple_format + '| {%(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | {%(name)s.%(funcName)s|%(lineno)-3s}'
-    info_fmt = err_fmt = simple_format
-    dbg_fmt = detailed_format
+    simple_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s'
+    detailed_format = simple_format + ' | {%(parent_mod)s.%(parent_func_name)s,%(parent_line_no)s} | {%(name)s.%(funcName)s,%(lineno)s}'
+    format_for_levels = {logging.DEBUG: detailed_format, logging.ERROR: detailed_format}
 
     def __init__(self):
         super().__init__(fmt=CustomFormatter.simple_format, datefmt='%Y-%m-%d_%H:%M:%S', style='%')
@@ -115,14 +114,7 @@ class CustomFormatter(logging.Formatter):
         format_orig = self._style._fmt
 
         # Replace the original format with one customized by logging level
-        if record.levelno == logging.DEBUG:
-            self._style._fmt = CustomFormatter.dbg_fmt
-
-        elif record.levelno == logging.INFO:
-            self._style._fmt = CustomFormatter.info_fmt
-
-        elif record.levelno == logging.ERROR:
-            self._style._fmt = CustomFormatter.err_fmt
+        self._style._fmt = CustomFormatter.format_for_levels.get(record.levelno, CustomFormatter.simple_format)
 
         # Call the original formatter class to do the grunt work
         result = logging.Formatter.format(self, record)
