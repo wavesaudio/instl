@@ -1,12 +1,46 @@
 import os
 import stat
+import abc
 from pathlib import Path
 import shlex
 import collections
+import subprocess
 from typing import List, Any, Optional, Union
 
 import utils
-from .baseClasses import PythonBatchCommandBase, RunProcessBase
+from .baseClasses import PythonBatchCommandBase
+
+
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.ignore_all_errors:
+            self.exceptions_to_ignore.append(subprocess.CalledProcessError)
+        self.shell = kwargs.get('shell', False)
+        self.stdout = ''
+        self.stderr = ''
+
+    @abc.abstractmethod
+    def create_run_args(self):
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        run_args = self.create_run_args()
+        run_args = list(map(str, run_args))
+        self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
+        completed_process = subprocess.run(*run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
+        self.stdout = utils.unicodify(completed_process.stdout)
+        self.stderr = utils.unicodify(completed_process.stderr)
+        #log.debug(completed_process.stdout)
+        completed_process.check_returncode()
+
+    def log_result(self, log_lvl, message, exc_val):
+        if self.stderr:
+            message += f'; STDERR: {self.stderr.decode()}'
+        super().log_result(log_lvl, message, exc_val)
+
+    def __repr__(self):
+        raise NotImplementedError
 
 
 class ShellCommand(RunProcessBase, essential=True):

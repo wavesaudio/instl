@@ -1,5 +1,6 @@
 from configVar import config_vars
 from .baseClasses import *
+from .subprocessBatchCommands import RunProcessBase
 
 
 class SVNClient(RunProcessBase):

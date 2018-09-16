@@ -1,6 +1,5 @@
 import os
 import sys
-import subprocess
 import abc
 from typing import Dict
 import time
@@ -67,7 +66,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
-        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', 'last_src', 'last_dst', 'last_step']
+        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
@@ -255,35 +254,3 @@ class PythonBatchCommandBase(abc.ABC):
 
     def log_result(self, log_lvl, message, exc_val):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
-
-
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if self.ignore_all_errors:
-            self.exceptions_to_ignore.append(subprocess.CalledProcessError)
-        self.shell = kwargs.get('shell', False)
-        self.stdout = ''
-        self.stderr = ''
-
-    @abc.abstractmethod
-    def create_run_args(self):
-        raise NotImplementedError
-
-    def __call__(self, *args, **kwargs):
-        run_args = self.create_run_args()
-        run_args = list(map(str, run_args))
-        self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        completed_process = subprocess.run(*run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-        self.stdout = utils.unicodify(completed_process.stdout)
-        self.stderr = utils.unicodify(completed_process.stderr)
-        #log.debug(completed_process.stdout)
-        completed_process.check_returncode()
-
-    def log_result(self, log_lvl, message, exc_val):
-        if self.stderr:
-            message += f'; STDERR: {self.stderr.decode()}'
-        super().log_result(log_lvl, message, exc_val)
-
-    def __repr__(self):
-        raise NotImplementedError

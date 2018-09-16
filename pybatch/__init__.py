@@ -1,6 +1,7 @@
 import sys
 
-from .batchCommands import PythonBatchCommandBase, RunProcessBase
+from .baseClasses import PythonBatchCommandBase
+from .subprocessBatchCommands import RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .conditionalBatchCommands import If
@@ -37,7 +38,6 @@ from .batchCommands import Chmod
 from .batchCommands import Chown
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
-from .batchCommands import RunProcessBase
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock

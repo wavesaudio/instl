@@ -2,6 +2,7 @@ import os
 
 import utils
 from .baseClasses import *
+from .subprocessBatchCommands import RunProcessBase
 
 
 class CopyBase(RunProcessBase, essential=True):
