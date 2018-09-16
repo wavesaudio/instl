@@ -11,7 +11,7 @@ import re
 
 import utils
 from .baseClasses import *
-
+from .subprocessBatchCommands import RunProcessBase
 
 def touch(file_path):
     with open(file_path, 'a'):
