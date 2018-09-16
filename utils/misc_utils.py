@@ -418,6 +418,9 @@ def quoteme_raw_string(simple_string):
             if quote_mark in simple_string:
                 raise Exception("Oy Vey, how to quote this awful string ->{simple_string}<-")
 
+    if len(quote_mark) == 1 and "\n" in simple_string:
+        quote_mark = quote_mark * 3
+
     retVal = "".join((quote_mark, simple_string, quote_mark))
     if not no_need_for_raw_re.match(simple_string):
         retVal = "".join(('r', retVal))
