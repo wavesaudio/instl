@@ -19,8 +19,6 @@ from logging.config import dictConfig
 
 from utils import misc_utils as utils
 
-log_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s|%(stack_lvl)s %(message)-150s| {%(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | {%(name)s.%(funcName)s|%(lineno)-3s}'
-
 
 def config_logger(system_log_file_path=None):
     if system_log_file_path is None:
@@ -40,9 +38,7 @@ def get_config_dict(system_log_file_path):
                 'format': '%(message)s'
             },
             'detailed': {
-                'class': 'logging.Formatter',
-                'datefmt': '%Y-%m-%d_%H:%M:%S',
-                'format': log_format
+                '()': CustomFormatter,
             },
             'json': {
                 '()': JsonFormatter,
@@ -101,6 +97,40 @@ class ParentFilter(logging.Filter):
             record.parent_func_name = ''
             record.parent_line_no = ''
         return True
+
+
+class CustomFormatter(logging.Formatter):
+    simple_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s|%(stack_lvl)s %(message)-150s'
+    detailed_format = simple_format + '| {%(parent_mod)s.%(parent_func_name)s|%(parent_line_no)s} | {%(name)s.%(funcName)s|%(lineno)-3s}'
+    info_fmt = err_fmt = simple_format
+    dbg_fmt = detailed_format
+
+    def __init__(self):
+        super().__init__(fmt=CustomFormatter.simple_format, datefmt='%Y-%m-%d_%H:%M:%S', style='%')
+
+    def format(self, record):
+
+        # Save the original format configured by the user
+        # when the logger formatter was instantiated
+        format_orig = self._style._fmt
+
+        # Replace the original format with one customized by logging level
+        if record.levelno == logging.DEBUG:
+            self._style._fmt = CustomFormatter.dbg_fmt
+
+        elif record.levelno == logging.INFO:
+            self._style._fmt = CustomFormatter.info_fmt
+
+        elif record.levelno == logging.ERROR:
+            self._style._fmt = CustomFormatter.err_fmt
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._style._fmt = format_orig
+
+        return result
 
 
 class JsonFormatter(object):
