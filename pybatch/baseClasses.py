@@ -274,7 +274,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         run_args = self.create_run_args()
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
+        completed_process = subprocess.run(*run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = utils.unicodify(completed_process.stdout)
         self.stderr = utils.unicodify(completed_process.stderr)
         #log.debug(completed_process.stdout)

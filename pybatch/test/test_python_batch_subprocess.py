@@ -52,17 +52,18 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
         self.assertFalse(batches_dir.exists(), f"{self.pbt.which_test}: {batches_dir} should not exist before test")
-
+        # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
+        #     shell_command_010_184()
         if sys.platform == 'darwin':
             geronimo = [f"""ls /Users/shai/Desktop >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
                         f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
 
-            # geronimo = [r"SET",]
-            geronimo = [r"dir %appdata% >> %appdata%\geronimo.txt",
-                        r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
-                        r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
-                        r"cmd /C dir %userprofile%\desktop",]
+            geronimo = [r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"']
+            # geronimo = [r"dir %appdata% >> %appdata%\geronimo.txt",
+            #             r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
+            #             r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
+            #             r"cmd /C dir %userprofile%\desktop",]
 
         self.pbt.batch_accum.clear()
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
