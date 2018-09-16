@@ -37,11 +37,11 @@ from .batchCommands import Chmod
 from .batchCommands import Chown
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
-from .batchCommands import RunProcessBase
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
 
+from .subprocessBatchCommands import RunProcessBase
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
 from .subprocessBatchCommands import ShellCommand
