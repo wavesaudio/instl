@@ -44,13 +44,80 @@ class TestPythonBatchMain(unittest.TestCase):
     def tearDown(self):
         self.pbt.tearDown()
 
+    def test_AnonymousAccum_repr(self):
+        """ test that AnonymousAccum.__repr__ is NOT implemented
+        """
+        obj = AnonymousAccum()
+        with self.assertRaises(NotImplementedError):
+            obj_recreated = eval(repr(obj))
+
+    def test_Progress_repr(self):
+        """ test that Progress.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = Progress("Tuti")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
+
+        obj = Progress("Tuti", progress_count=17)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
+
+    def test_Stage_repr(self):
+        """ test that Stage.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = Stage("Tuti")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
+
+        obj = Stage("Tuti", "Fruti")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
+
+    def test_Echo_repr(self):
+        """ test that Echo.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = Echo("echo echo echo")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, 'print("echo echo echo")', "Echo.repr did not recreate Echo object correctly")
+
+    def test_Remark_repr(self):
+        """ test that Remark.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = Remark("remark remark remark")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, '# remark remark remark', "Remark.repr did not recreate Remark object correctly")
+
+    def test_PythonVarAssign_repr(self):
+        """ test that PythonVarAssign.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = PythonVarAssign("luli", "lu")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, 'luli = "lu"', "PythonVarAssign.repr did not recreate PythonVarAssign object correctly")
+
+    def test_ConfigVarAssign_repr(self):
+        """ test that ConfigVarAssign.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        obj = ConfigVarAssign("luli", "lu")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, '''config_vars['luli'] = "lu"''', "PythonVarAssign.repr did not recreate PythonVarAssign object correctly")
+
+        obj = ConfigVarAssign("Algemene", "Bank", "Nederland")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, '''config_vars['Algemene'] = ("Bank", "Nederland")''', "PythonVarAssign.repr did not recreate PythonVarAssign object correctly")
+
     def test_MakeDirs_0_repr(self):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        mk_dirs_obj = MakeDirs("a/b/c", "jane/and/jane", remove_obstacles=True)
-        mk_dirs_obj_recreated = eval(repr(mk_dirs_obj))
-        self.assertEqual(mk_dirs_obj, mk_dirs_obj_recreated, "MakeDirs.repr did not recreate MakeDirs object correctly")
+        obj = MakeDirs("a/b/c", "jane/and/jane", remove_obstacles=True)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "MakeDirs.repr did not recreate MakeDirs object correctly")
 
     def test_MakeDirs_1_simple(self):
         """ test MakeDirs. 2 dirs should be created side by side """
@@ -106,14 +173,14 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_Chmod_repr(self):
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
-        chmod_obj = Chmod("a/b/c", new_mode, recursive=False)
-        chmod_obj_recreated = eval(repr(chmod_obj))
-        self.assertEqual(chmod_obj, chmod_obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is int)")
+        obj = Chmod("a/b/c", new_mode, recursive=False)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is int)")
 
         new_mode = "a-rw"
-        chmod_obj = Chmod("a/b/c", new_mode, recursive=False)
-        chmod_obj_recreated = eval(repr(chmod_obj))
-        self.assertEqual(chmod_obj, chmod_obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is symbolic)")
+        obj = Chmod("a/b/c", new_mode, recursive=False)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is symbolic)")
 
     def test_Chmod_non_recursive(self):
         """ test Chmod
@@ -241,14 +308,14 @@ class TestPythonBatchMain(unittest.TestCase):
         self.pbt.exec_and_capture_output("chmod restore perm")
 
     def test_Cd_repr(self):
-        cd_obj = Cd("a/b/c")
-        cd_obj_recreated = eval(repr(cd_obj))
-        self.assertEqual(cd_obj, cd_obj_recreated, "Cd.repr did not recreate Cd object correctly")
+        obj = Cd("a/b/c")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Cd.repr did not recreate Cd object correctly")
 
     def test_Touch_repr(self):
-        touch_obj = Touch("/f/g/h")
-        touch_obj_recreated = eval(repr(touch_obj))
-        self.assertEqual(touch_obj, touch_obj, "Touch.repr did not recreate Touch object correctly")
+        obj = Touch("/f/g/h")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj, "Touch.repr did not recreate Touch object correctly")
 
     def test_Cd_and_Touch_1(self):
         """ test Cd and Touch
@@ -277,9 +344,9 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertEqual(cwd_before, cwd_after, "{self.pbt.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
 
     def test_ChFlags_repr(self):
-        chflags_obj = ChFlags("/a/file/to/change", "uchg")
-        chflags_obj_recreated = eval(repr(chflags_obj))
-        self.assertEqual(chflags_obj, chflags_obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+        obj = ChFlags("/a/file/to/change", "uchg")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
 
     def test_ChFlags(self):
         test_file = self.pbt.path_inside_test_folder("chflags-me")
@@ -321,9 +388,9 @@ class TestPythonBatchMain(unittest.TestCase):
             self.assertTrue(os.access(test_file, os.W_OK))
 
     def test_AppendFileToFile_repr(self):
-        aftf_obj = AppendFileToFile("/a/file/to/append", "/a/file/to/appendee")
-        aftf_obj_recreated = eval(repr(aftf_obj))
-        self.assertEqual(aftf_obj, aftf_obj_recreated, "AppendFileToFile.repr did not recreate AppendFileToFile object correctly")
+        obj = AppendFileToFile("/a/file/to/append", "/a/file/to/appendee")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "AppendFileToFile.repr did not recreate AppendFileToFile object correctly")
 
     def test_AppendFileToFile(self):
         source_file = self.pbt.path_inside_test_folder("source-file.txt")
@@ -350,29 +417,29 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertEqual(concatenated_content, expected_content)
 
     def test_Wtar_Unwtar_repr(self):
-        wtar_obj = Wtar("/the/memphis/belle")
-        wtar_obj_recreated = eval(repr(wtar_obj))
-        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+        obj = Wtar("/the/memphis/belle")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
 
-        wtar_obj = Wtar("/the/memphis/belle", None)
-        wtar_obj_recreated = eval(repr(wtar_obj))
-        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+        obj = Wtar("/the/memphis/belle", None)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
 
-        wtar_obj = Wtar("/the/memphis/belle", "robota")
-        wtar_obj_recreated = eval(repr(wtar_obj))
-        self.assertEqual(wtar_obj, wtar_obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
+        obj = Wtar("/the/memphis/belle", "robota")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
 
-        unwtar_obj = Unwtar("/the/memphis/belle")
-        unwtar_obj_recreated = eval(repr(unwtar_obj))
-        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+        obj = Unwtar("/the/memphis/belle")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
 
-        unwtar_obj = Unwtar("/the/memphis/belle", None)
-        unwtar_obj_recreated = eval(repr(unwtar_obj))
-        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+        obj = Unwtar("/the/memphis/belle", None)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
 
-        unwtar_obj = Unwtar("/the/memphis/belle", "robota", no_artifacts=True)
-        unwtar_obj_recreated = eval(repr(unwtar_obj))
-        self.assertEqual(unwtar_obj, unwtar_obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+        obj = Unwtar("/the/memphis/belle", "robota", no_artifacts=True)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
 
     def test_Wtar_Unwtar(self):
         folder_to_wtar = self.pbt.path_inside_test_folder("folder-to-wtar")
@@ -411,19 +478,19 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_Ls_repr(self):
         with self.assertRaises(AssertionError):
-            ref_obj = Ls([])
+            obj = Ls([])
 
-        ls_obj = Ls('', out_file="empty.txt")
-        ls_obj_recreated = eval(repr(ls_obj))
-        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+        obj = Ls('', out_file="empty.txt")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
-        ls_obj = Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')
-        ls_obj_recreated = eval(repr(ls_obj))
-        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+        obj = Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
-        ls_obj = Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")
-        ls_obj_recreated = eval(repr(ls_obj))
-        self.assertEqual(ls_obj, ls_obj_recreated, "Ls.repr did not recreate Ls object correctly")
+        obj = Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
 
     def test_Ls(self):
         folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")
@@ -441,29 +508,29 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")
 
     def test_Wzip_repr(self):
-        wzip_obj = Wzip("/the/memphis/belle")
-        wzip_obj_recreated = eval(repr(wzip_obj))
-        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+        obj = Wzip("/the/memphis/belle")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
 
-        wzip_obj = Wzip("/the/memphis/belle", None)
-        wzip_obj_recreated = eval(repr(wzip_obj))
-        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+        obj = Wzip("/the/memphis/belle", None)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
 
-        wzip_obj = Wzip("/the/memphis/belle", "robota")
-        wzip_obj_recreated = eval(repr(wzip_obj))
-        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+        obj = Wzip("/the/memphis/belle", "robota")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
 
-        unwzip_obj = Unwzip("/the/memphis/belle")
-        unwzip_obj_recreated = eval(repr(unwzip_obj))
-        self.assertEqual(unwzip_obj, unwzip_obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
+        obj = Unwzip("/the/memphis/belle")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
 
-        unwzip_obj = Unwzip("/the/memphis/belle", None)
-        unwzip_obj_recreated = eval(repr(unwzip_obj))
-        self.assertEqual(unwzip_obj, unwzip_obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
+        obj = Unwzip("/the/memphis/belle", None)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
 
-        unwzip_obj = Unwzip("/the/memphis/belle", "robota")
-        unwzip_obj_recreated = eval(repr(unwzip_obj))
-        self.assertEqual(wzip_obj, wzip_obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+        obj = Unwzip("/the/memphis/belle", "robota")
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
 
     def test_Wzip(self):
         wzip_input = self.pbt.path_inside_test_folder("wzip_in")
@@ -506,9 +573,9 @@ class TestPythonBatchMain(unittest.TestCase):
     def test_RaiseException_repr(self):
         the_exception = ValueError
         the_message = "just a dummy exception"
-        re_obj = RaiseException(the_exception, the_message)
-        re_obj_recreated = eval(repr(re_obj))
-        self.assertEqual(re_obj, re_obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
+        obj = RaiseException(the_exception, the_message)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
 
     def test_RaiseException(self):
         self.pbt.batch_accum.clear()

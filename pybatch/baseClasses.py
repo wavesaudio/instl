@@ -66,7 +66,8 @@ class PythonBatchCommandBase(abc.ABC):
         self.essential_action_counter = 0
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
-        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step']
+        self.current_working_dir = None
+        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
 
     @abc.abstractmethod
     def __repr__(self) -> str:
@@ -206,7 +207,7 @@ class PythonBatchCommandBase(abc.ABC):
             'obj__dict__': self.representative_dict(),
             'local_time': time.strftime("%Y-%m-%d_%H.%M.%S"),
             'progress_counter': PythonBatchCommandBase.running_progress,
-            'current_working_dir': os.getcwd(),
+            'current_working_dir': self.current_working_dir,
             "batch_file": exc_tb.tb_frame.f_code.co_filename,
             "batch_line": exc_tb.tb_lineno
              })
@@ -219,6 +220,7 @@ class PythonBatchCommandBase(abc.ABC):
             PythonBatchCommandBase.running_progress += self.own_progress_count
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+            self.current_working_dir =  os.getcwd()
             self.enter_self()
         except Exception as ex:
             suppress_exception = self.__exit__(*sys.exc_info())

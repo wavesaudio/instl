@@ -64,7 +64,7 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
     def __repr__(self):
         the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}"""
         if self.stage_extra:
-            the_repr += f"""{utils.quoteme_raw_string(self.stage_extra)}"""
+            the_repr += f""", {utils.quoteme_raw_string(self.stage_extra)}"""
         the_repr += ")"
         return the_repr
 
