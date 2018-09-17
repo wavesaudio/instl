@@ -66,6 +66,9 @@ def get_info_from_plugin(in_os, in_path):
         for child in xml.iter('WaveShellsBaseName'):
             retVal['WaveShellsBaseName'] = child.text
             break
+        for child in xml.iter('ArtistDlls'):
+            retVal['ArtistDlls'] = child.text
+            break
         retVal['DynamicPluginLibName'] = list()
         for child in xml.iter('DynamicPluginLibName'):
             retVal['DynamicPluginLibName'].append(child.text)
