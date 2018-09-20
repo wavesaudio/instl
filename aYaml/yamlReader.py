@@ -92,7 +92,7 @@ class YamlReader(object):
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message
                     read_file_history = " -> ".join(self.file_read_stack+[os.fspath(file_path)])
-                    log.error(f"{ex.__class__.__name__} reading file:\n", read_file_history)
+                    log.error(f"{ex.__class__.__name__} reading file: {read_file_history}")
                     self.exception_printed = True
                 raise
         except Exception as ex:
