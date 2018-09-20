@@ -27,13 +27,6 @@ class InstlClientCopy(InstlClient):
     def do_copy(self) -> None:
         self.init_copy_vars()
 
-        # unwtar will take place directly so no need to copy those files
-        self.ignore_additions = ['.wtar']
-        for ignore_item in self.ignore_additions:
-            ignore_item_wildcards = f'*{ignore_item}*'
-            if ignore_item_wildcards not in self.patterns_copy_should_ignore:
-                self.patterns_copy_should_ignore.append(ignore_item_wildcards)
-
         self.create_copy_instructions()
 
     def init_copy_vars(self) -> None:
@@ -45,7 +38,6 @@ class InstlClientCopy(InstlClient):
         # ratio between wtar file and it's uncompressed contents
         self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
         self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
-        self.patterns_copy_should_ignore = list(config_vars["COPY_IGNORE_PATTERNS"])
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
@@ -145,8 +137,7 @@ class InstlClientCopy(InstlClient):
             source_file = source_files[0]
             source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
 
-            # patterns_copy_should_ignore is passed for the sake of completeness but is not being used further down the road in copy_file_to_dir
-            retVal += CopyFileToDir(source_file_full_path, os.curdir, link_dest=True, ignore_patterns=self.patterns_copy_should_ignore)
+            retVal += CopyFileToDir(source_file_full_path, os.curdir, link_dest=True)
 
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
@@ -176,7 +167,7 @@ class InstlClientCopy(InstlClient):
 
         if no_wtar_items:
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in wtar_items}
-            ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
+            ignores = list(wtar_base_names)
             retVal += CopyDirContentsToDir(
                                                         source_path_abs,
                                                         os.curdir,
@@ -205,28 +196,13 @@ class InstlClientCopy(InstlClient):
             #    retVal += Chmod(os.curdir, "-R -f a+rwX")
         return retVal
 
-    def can_copy_be_avoided(self, dir_item: svnTree.SVNRow, source_items: List[svnTree.SVNRow]) -> bool:
-        retVal = False
-        if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
-            # look for Info.xml as first choice, Info.plist is seconds choice
-            info_item = next((i for i in source_items if i.leaf=="Info.xml"), None) or next((i for i in source_items if i.leaf=="Info.plist"), None)
-            if info_item:  # no info item - return False
-                destination_folder = config_vars.resolve_str(self.current_destination_folder)
-                dir_item_parent, dir_item_leaf = os.path.split(config_vars.resolve_str(dir_item.path))
-                info_item_abs_path = os.path.join(destination_folder, dir_item_leaf, info_item.path[len(dir_item.path)+1:])
-                retVal = utils.check_file_checksum(info_item_abs_path, info_item.checksum)
-        return retVal
-
     def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal = AnonymousAccum()
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
-            if self.can_copy_be_avoided(dir_item, source_items):
-                self.progress(f"avoid copy of {name_for_progress_message}, Info.xml has not changed")
-                return retVal
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
-            ignores = self.patterns_copy_should_ignore + list(wtar_base_names)
+            ignores = list(wtar_base_names)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             retVal += CopyDirToDir(source_path_abs, os.curdir,
                                                                                link_dest=True,

@@ -145,6 +145,23 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
         pass
 
 
+class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
+
+    def __init__(self, some_python_code, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.some_python_code = some_python_code
+
+    def __repr__(self) -> str:
+        the_repr = self.some_python_code
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
     """
         creates a python variable assignment, e.g.

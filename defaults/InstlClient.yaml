@@ -39,10 +39,24 @@ OLD_SITE_REQUIRE_FILE_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/old_$(SITE_REQUIRE_FILE
 # By default source folder are specified in the index without the OS prefix (Mac/Win)
 SOURCE_PREFIX: $(TARGET_OS)
 
-
+# during copy stage, if pathlib.Path.match returns true for one of these - file/dir will not be copied
 COPY_IGNORE_PATTERNS:
     - "*.done"
     - "._*"
+    - "*.wtar"
+    - "*.wtar.??"
+
+# during copy stage, if pathlib.Path.match returns true for one of these - file will not be hard-linked
+NO_HARD_LINK_PATTERNS:
+    - "desktop.ini"
+    - "*.ico"
+    - "*Info.xml"
+    - "*Info.plist"
+
+# during copy stage, if one of these files exists in both source and destination and has same checksum, the whole dir will not be copied
+AVOID_COPY_MARKERS:
+    - Info.xml
+    - Info.plist
 
 RSYNC_PERM_OPTIONS: a+rw,+X
 
