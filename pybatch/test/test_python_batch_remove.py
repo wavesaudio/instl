@@ -127,7 +127,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not removed {file_to_stay}")
 
     def test_RmGlob_repr(self):
-        obj = RmGlob("/lo/lla/pa/loo/za/*.pendicular")
+        obj = RmGlob("/lo/lla/pa/loo/za", "*.pendicular")
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate MacDoc object correctly: {diff_explanation}")
@@ -135,7 +135,7 @@ class TestPythonBatchRemove(unittest.TestCase):
     def test_RmGlob(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
 
-        pattern = os.fspath(folder_to_glob)+"/?b*.k*"
+        pattern = "?b*.k*"
         files_that_should_be_removed = ["abc.kif", "cba.kmf"]
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef"]
 
@@ -145,7 +145,7 @@ class TestPythonBatchRemove(unittest.TestCase):
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)
 
-        self.pbt.batch_accum += RmGlob(pattern)
+        self.pbt.batch_accum += RmGlob(os.fspath(folder_to_glob), pattern)
         self.pbt.exec_and_capture_output()
 
         for f in files_that_should_be_removed:
