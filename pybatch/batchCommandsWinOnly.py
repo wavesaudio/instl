@@ -9,6 +9,7 @@ from utils import misc_utils as utils
 
 
 class WinShortcut(PythonBatchCommandBase):
+    """ create a shortcut (windows only)"""
     def __init__(self, shortcut_path: os.PathLike, target_path: os.PathLike, run_as_admin=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.shortcut_path = shortcut_path
@@ -123,6 +124,7 @@ class BaseRegistryKey(PythonBatchCommandBase):
 
 
 class ReadRegistryValue(BaseRegistryKey):
+    """ read a value from registry (windows only)"""
     def __init__(self, top_key: str, sub_key: str, value_name: str=None, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.value_name = value_name
@@ -148,6 +150,7 @@ class ReadRegistryValue(BaseRegistryKey):
 
 
 class CreateRegistryKey(BaseRegistryKey):
+    """ create a key in registry (windows only)"""
     def __init__(self, top_key: str, sub_key: str, value_data=None, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.value_data = value_data
@@ -166,8 +169,9 @@ class CreateRegistryKey(BaseRegistryKey):
 
 
 class CreateRegistryValues(BaseRegistryKey):
-    '''Creating registry values (and sub_key if needed) based on a supplied dictionary.
-       If a value already exists it will overwrite the previous value'''
+    """creating registry values (and sub_key if needed) based on a supplied dictionary.
+       If a value already exists it will overwritten
+    """
     def __init__(self, top_key: str, sub_key: str, value_dict: Dict[str, str], **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.value_dict = value_dict
@@ -193,7 +197,7 @@ class CreateRegistryValues(BaseRegistryKey):
 
 
 class DeleteRegistryKey(BaseRegistryKey):
-    '''WARNING!! This class can not delete keys with subkeys. Access denied will be raised in such case'''
+    """ delete a key from registry (windows only) """
     def __init__(self, top_key, sub_key, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.permission_flag = winreg.KEY_ALL_ACCESS
@@ -211,7 +215,7 @@ class DeleteRegistryKey(BaseRegistryKey):
 
 
 class DeleteRegistryValues(BaseRegistryKey):
-    '''Deleting registry values based on a supplied list'''
+    """ delete specific values from registry (windows only) """
     def __init__(self, top_key, sub_key, *values: str, **kwargs):
         super().__init__(top_key, sub_key, **kwargs)
         self.values = list(values)

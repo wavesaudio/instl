@@ -33,6 +33,7 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
 
 
 class RaiseException(PythonBatchCommandBase, essential=True):
+    """ raise a specific exception - for debugging """
     def __init__(self, exception_type, exception_message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.exception_type = exception_type
@@ -83,8 +84,7 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
-    """
-        just issue a progress message
+    """ issue a progress message, increasing progress count
     """
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -106,8 +106,7 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
 
 
 class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
-    """
-        just issue a (non progress) message
+    """ issue a message without increasing progress count
     """
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -126,8 +125,7 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
 
 
 class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False):
-    """
-        write a remark in code
+    """ write a remark in code
     """
     def __init__(self, remark, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -146,8 +144,7 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
 
 
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
-    """
-        creates a python variable assignment, e.g.
+    """ creates a python variable assignment, e.g.
         x = y
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:
@@ -187,8 +184,7 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
 
 
 class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
-    """
-        creates a configVar assignment, e.g.
+    """ creates a configVar assignment, e.g.
         config_vars["x"] = y
     """
     def __init__(self, var_name, *var_values, **kwargs) -> None:

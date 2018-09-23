@@ -1,4 +1,3 @@
-from typing import List, Any
 import os
 import stat
 import tarfile
@@ -74,6 +73,8 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
 
 
 class Wtar(PythonBatchCommandBase):
+    """ create a new wtar archive for a file or folder
+    """
     def __init__(self, what_to_wtar: os.PathLike, where_to_put_wtar=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.what_to_wtar = what_to_wtar
@@ -193,6 +194,8 @@ class Wtar(PythonBatchCommandBase):
 
 
 class Unwtar(PythonBatchCommandBase):
+    """ uncompress a wtar archive
+    """
     def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False,                  copy_owner=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.what_to_unwtar = what_to_unwtar

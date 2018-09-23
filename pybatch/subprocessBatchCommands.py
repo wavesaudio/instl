@@ -66,6 +66,8 @@ class ShellCommand(RunProcessBase, essential=True):
 
 
 class ShellCommands(PythonBatchCommandBase, essential=True):
+    """ run some shells commands in a shell """
+
     def __init__(self, shell_commands_list, message, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
@@ -114,6 +116,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
 
 
 class ParallelRun(PythonBatchCommandBase, essential=True):
+    """ run some shell commands in parallel """
     def __init__(self, config_file,  shell, **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file

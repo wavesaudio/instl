@@ -334,6 +334,8 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
 
 
 class Chmod(RunProcessBase, essential=True):
+    """ change mode read.write/execute permissions for a file or folder"""
+
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
@@ -419,6 +421,7 @@ class Chmod(RunProcessBase, essential=True):
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
+    """ change mode and owner for file or folder"""
 
     def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], recursive: bool=False, **kwargs):
         super().__init__(**kwargs)
@@ -451,6 +454,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
 
 
 class Ls(PythonBatchCommandBase, essential=True):
+    """ create a listing for one or more folders, similar to unix ls command"""
     def __init__(self, *folders_to_list, out_file=None, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
@@ -478,6 +482,7 @@ class Ls(PythonBatchCommandBase, essential=True):
 
 
 class CUrl(RunProcessBase):
+    """ download a file using curl """
     def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
                  max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
         super().__init__()
@@ -513,17 +518,5 @@ class CUrl(RunProcessBase):
 
 # todo:
 # override PythonBatchCommandBase for all commands
-# windows!
-# check and map errors: for each command find which errors can be returned, which exception they raise, which can be ignored. Map all errors to a number and message.
-# check and map errors: for RunProcess special handling of exception subprocess.CalledProcessError
-# capture subprocess.run output
-# intro code
-# configVars?
-# comments ?
-# echos - most will automatically produced by the commands
-# total progress calculation
-# accumulator transactions
-# handle completed_process
-# tests: for each test add a test to verify failure is handled correctly
 # time measurements
 # InstlAdmin

@@ -2,6 +2,11 @@ from .batchCommands import *
 
 
 class If(PythonBatchCommandBase, essential=True):
+    """ preform an action based on a condition
+        if 'condition' is True 'if_true' will be preformed
+        if 'condition' is False 'if_false' will be preformed
+        either if_true or if_false can be omitted
+    """
     def __init__(self, condition, if_true=None, if_false=None,**kwargs) -> None:
         super().__init__(**kwargs)
         self.condition = condition
@@ -38,6 +43,9 @@ class If(PythonBatchCommandBase, essential=True):
 
 
 class IsFile(object):
+    """ return True if 'file_path' is a file
+        can be used as 'condition' for If
+    """
     def __init__(self, file_path):
         self.file_path = file_path
 
@@ -55,6 +63,9 @@ class IsFile(object):
 
 
 class IsDir(object):
+    """ return True if 'file_path' is a folder
+        can be used as 'condition' for If
+    """
     def __init__(self, file_path):
         self.file_path = file_path
 
@@ -72,6 +83,9 @@ class IsDir(object):
 
 
 class IsSymlink(object):
+    """ return True if 'file_path' is a symbolic link
+        can be used as 'condition' for If
+    """
     def __init__(self, file_path):
         self.file_path = file_path
 
