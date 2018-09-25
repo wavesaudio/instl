@@ -136,8 +136,9 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         - it's OK if the directory does not exist.
         - all files and folders matching the pattern will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
-    """
-    def __init__(self, path_to_folder: os.PathLike, pattern: str, **kwargs) -> None:
+        - allowing pattern to be None is temporary until new format is implemented in index
+"""
+    def __init__(self, path_to_folder: os.PathLike, pattern: str=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_folder: os.PathLike = path_to_folder
         self.pattern: os.PathLike = pattern
@@ -151,8 +152,11 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         return f"""Remove pattern '{self.pattern}' from {self.path_to_folder}"""
 
     def __call__(self, *args, **kwargs):
-        folder = utils.ResolvedPath(self.path_to_folder)
-        list_to_remove = folder.glob(self.pattern)
-        for item in list_to_remove:
-            with RmFileOrDir(item, progress_count=0) as rfod:
-                rfod()
+        if self.pattern is None:
+            log.wanging(f"skip RmGlob of '{self.path_to_folder}' because pattern is None")
+        else:
+            folder = utils.ResolvedPath(self.path_to_folder)
+            list_to_remove = folder.glob(self.pattern)
+            for item in list_to_remove:
+                with RmFileOrDir(item, progress_count=0) as rfod:
+                    rfod()
