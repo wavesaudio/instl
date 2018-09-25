@@ -302,6 +302,8 @@ class InstlClient(InstlInstanceBase):
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix: str, back_ground: bool=False):
         """ create batch commands to write a manifest of the sync folder to a file """
         retVal = AnonymousAccum()
+        if 'SYNC_FOLDER_MANIFEST_FILE' in config_vars:  # sync folder manifest file should not be created twice
+            return retVal
         which_folder_to_manifest = "$(COPY_SOURCES_ROOT_DIR)"
         output_file_name = manifest_file_name_prefix+"-sync-folder-manifest.txt"
         output_folder = None
@@ -314,6 +316,7 @@ class InstlClient(InstlInstanceBase):
                 output_folder = None
 
         if output_folder is not None:
+            config_vars['SYNC_FOLDER_MANIFEST_FILE'] = output_file_name
             output_file_path = Path(output_folder, output_file_name)
             retVal += Ls(which_folder_to_manifest, out_file=output_file_path)
         return retVal

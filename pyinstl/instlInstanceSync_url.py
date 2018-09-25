@@ -189,9 +189,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.instlObj.progress("create download instructions ...")
 
-        with self.instlObj.batch_accum.sub_accum(Stage("before_sync")) as before_sync_accum:
-            before_sync_accum += self.instlObj.create_sync_folder_manifest_command("before-sync", back_ground=False)
-
         with self.instlObj.batch_accum.sub_accum(Stage("download", "$(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 

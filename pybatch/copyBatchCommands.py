@@ -165,8 +165,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                 retVal = False
                 log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
-        if retVal:
-            log.debug(f"no skip copy file '{src}' to '{dst}'")
         return retVal
 
     def should_copy_dir(self, src: Path, dst: Path):
@@ -244,7 +242,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             src_path = src.joinpath(src_name)
             if self.should_ignore_file(src_path):
                 self.statistics['ignored'] += 1
-                log.debug(f"ignoring '{src_path}'")
                 continue
             dst_path = dst.joinpath(src_name)
             try:
