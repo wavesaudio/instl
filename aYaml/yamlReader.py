@@ -87,7 +87,7 @@ class YamlReader(object):
                 self.handle_yaml_read_error(**kwargs)
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
-                self.progress(f"'ignore_if_not_exist' specified, ignoring {ex.__class__.__name__} for {self.file_read_stack[-1]}")
+                log.warning(f"'ignore_if_not_exist' specified, ignoring {ex.__class__.__name__} for {self.file_read_stack[-1]}")
                 self.file_read_stack.pop()
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message
