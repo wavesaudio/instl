@@ -87,6 +87,7 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         Tests: TestPythonBatch.test_MakeDirs_*
     """
     def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
+        """ MakeDirs(*paths_to_make, remove_obstacles) """
         super().__init__()
         self.paths_to_make = paths_to_make
         self.remove_obstacles = remove_obstacles
@@ -127,6 +128,7 @@ class MakeDirsWithOwner(MakeDirs, essential=True):
 
 
 class Touch(PythonBatchCommandBase, essential=True):
+    """ Create an empty file if it does not already exist or update modification time to now if file exist"""
     def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.path = path
@@ -146,6 +148,9 @@ class Touch(PythonBatchCommandBase, essential=True):
 
 
 class Cd(PythonBatchCommandBase, essential=True):
+    """ change current working directory to 'path'
+        when called as a context manager (with statement), previous working directory will be restored on __exit__
+    """
     def __init__(self, path: os.PathLike) -> None:
         super().__init__()
         self.new_path: os.PathLike = path
@@ -170,6 +175,9 @@ class Cd(PythonBatchCommandBase, essential=True):
 
 
 class CdStage(Cd, essential=False):
+    """ change current working directory to 'path' and enter a new Stage
+        when called as a context manager (with statement), previous working directory will be restored on __exit__
+    """
     def __init__(self, stage_name: str, path: os.PathLike, *titles) -> None:
         super().__init__(path)
         self.stage_name = stage_name
@@ -190,8 +198,7 @@ class CdStage(Cd, essential=False):
 
 
 class ChFlags(RunProcessBase, essential=True):
-    """ Mac specific to change system flags on files or dirs.
-        These flags are different from permissions.
+    """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
     def __init__(self, path, flag: str, recursive=False, ignore_errors=True) -> None:
@@ -242,8 +249,7 @@ class ChFlags(RunProcessBase, essential=True):
 
 
 class Unlock(ChFlags, essential=True):
-    """
-        Remove the system's read-only flag, this is different from permissions.
+    """ Remove the system's read-only flag (not permissions).
         For changing permissions use chmod.
     """
     def __init__(self, path, recursive=False, ignore_errors=True):
@@ -258,6 +264,7 @@ class Unlock(ChFlags, essential=True):
 
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
+    """ append the content of 'source_file' to 'target_file'"""
     def __init__(self, source_file, target_file):
         super().__init__()
         self.source_file = source_file
@@ -281,6 +288,9 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
 
 
 class Chown(RunProcessBase, call__call__=True, essential=True):
+    """ change owner (either user, group or both) of file or folder
+        if 'path' is a folder and recursive==True, ownership will be changed recursively
+    """
     def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, recursive: bool=False, **kwargs):
         super().__init__(**kwargs)
         self.user_id: Union[int, str]  = user_id   if user_id  else -1
@@ -324,6 +334,8 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
 
 
 class Chmod(RunProcessBase, essential=True):
+    """ change mode read.write/execute permissions for a file or folder"""
+
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
@@ -409,6 +421,7 @@ class Chmod(RunProcessBase, essential=True):
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
+    """ change mode and owner for file or folder"""
 
     def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], recursive: bool=False, **kwargs):
         super().__init__(**kwargs)
@@ -441,6 +454,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
 
 
 class Ls(PythonBatchCommandBase, essential=True):
+    """ create a listing for one or more folders, similar to unix ls command"""
     def __init__(self, *folders_to_list, out_file=None, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
@@ -468,6 +482,7 @@ class Ls(PythonBatchCommandBase, essential=True):
 
 
 class CUrl(RunProcessBase):
+    """ download a file using curl """
     def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
                  max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
         super().__init__()
@@ -503,17 +518,5 @@ class CUrl(RunProcessBase):
 
 # todo:
 # override PythonBatchCommandBase for all commands
-# windows!
-# check and map errors: for each command find which errors can be returned, which exception they raise, which can be ignored. Map all errors to a number and message.
-# check and map errors: for RunProcess special handling of exception subprocess.CalledProcessError
-# capture subprocess.run output
-# intro code
-# configVars?
-# comments ?
-# echos - most will automatically produced by the commands
-# total progress calculation
-# accumulator transactions
-# handle completed_process
-# tests: for each test add a test to verify failure is handled correctly
 # time measurements
 # InstlAdmin

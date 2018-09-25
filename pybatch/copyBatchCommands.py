@@ -283,6 +283,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
 
 class CopyDirToDir(RsyncClone):
+    """ copy a folder into another
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -294,6 +297,9 @@ class CopyDirToDir(RsyncClone):
 
 
 class MoveDirToDir(CopyDirToDir):
+    """ copy a folder into another and erase the source
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -304,11 +310,17 @@ class MoveDirToDir(CopyDirToDir):
 
 
 class CopyDirContentsToDir(RsyncClone):
+    """ copy the contents of a folder into another and erase the sources
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
 
 class MoveDirContentsToDir(CopyDirContentsToDir):
+    """ copy the contents of a folder into another and erase the sources
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -324,6 +336,9 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
 
 
 class CopyFileToDir(RsyncClone):
+    """ copy a file into a folder
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -334,6 +349,9 @@ class CopyFileToDir(RsyncClone):
 
 
 class MoveFileToDir(CopyFileToDir):
+    """ copy a file into a folder and erase the source
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -344,6 +362,9 @@ class MoveFileToDir(CopyFileToDir):
 
 
 class CopyFileToFile(RsyncClone):
+    """ copy a file into another location
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -355,6 +376,9 @@ class CopyFileToFile(RsyncClone):
 
 
 class MoveFileToFile(CopyFileToFile):
+    """ copy a file into another location and erase the source
+        intermediate folders will be created as needed
+    """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 

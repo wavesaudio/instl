@@ -8,6 +8,11 @@ import utils
 
 
 class MacDock(PythonBatchCommandBase):
+    """ Change Dock items (Mac only)
+        If 'path_to_item' is not None item will be added to the dock labeled 'label_for_item'
+        or removed if remove==True
+        Dock will restarted if restart_the_doc==True
+    """
     def __init__(self, path_to_item=None, label_for_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_item = path_to_item

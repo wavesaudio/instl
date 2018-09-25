@@ -3,7 +3,6 @@ import shutil
 import glob
 from typing import List
 import logging
-
 import utils
 from pybatch import PythonBatchCommandBase
 
@@ -11,11 +10,11 @@ log = logging.getLogger()
 
 
 class RmFile(PythonBatchCommandBase, essential=True):
+    """remove a file
+    - It's OK is the file does not exist
+    - but exception will be raised if path is a folder
+    """
     def __init__(self, path: os.PathLike, **kwargs) -> None:
-        """ remove a file
-            - It's OK is the file does not exist
-            - but exception will be raised if path is a folder
-        """
         super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
@@ -34,12 +33,12 @@ class RmFile(PythonBatchCommandBase, essential=True):
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
+    """ remove a directory.
+        - it's OK if the directory does not exist.
+        - all files and directory under path will be removed recursively
+        - exception will be raised if the path is not a folder
+    """
     def __init__(self, path: os.PathLike, **kwargs) -> None:
-        """ remove a directory.
-            - it's OK if the directory does not exist.
-            - all files and directory under path will be removed recursively
-            - exception will be raised if the path is not a folder
-        """
         super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
@@ -59,17 +58,17 @@ class RmDir(PythonBatchCommandBase, essential=True):
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
+    """ remove a file or directory.
+    - it's OK if the path does not exist.
+    - all files and directory under path will be removed recursively
+    """
     def __init__(self, path: os.PathLike, **kwargs):
-        """ remove a file or directory.
-            - it's OK if the path does not exist.
-            - all files and directory under path will be removed recursively
-        """
         super().__init__(**kwargs)
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -77,7 +76,6 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        #assert not os.fspath(resolved_path).startswith("/p4client")
         if resolved_path.is_file():
             self.doing = f"""removing file'{resolved_path}'"""
             resolved_path.unlink()
@@ -87,6 +85,11 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
 
 
 class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
+    """ remove all empty directories under and including 'folder_to_remove'
+    - it's OK if the path does not exist.
+    - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
+    it will be considered empty and will be removed
+    """
     def __init__(self, folder_to_remove: os.PathLike, files_to_ignore: List = [], **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_remove = folder_to_remove
@@ -129,24 +132,27 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
 
 
 class RmGlob(PythonBatchCommandBase, essential=True):
-    def __init__(self, pattern: os.PathLike, **kwargs) -> None:
-        """ remove files matching a pattern
-            - it's OK if the directory does not exist.
-            - all files and directory matching the pattern will be removed recursively
-        """
+    """ remove files matching a pattern
+        - it's OK if the directory does not exist.
+        - all files and folders matching the pattern will be removed
+        - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
+    """
+    def __init__(self, path_to_folder: os.PathLike, pattern: str, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.path_to_folder: os.PathLike = path_to_folder
         self.pattern: os.PathLike = pattern
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.pattern))})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}, {utils.quoteme_raw_string(os.fspath(self.pattern))})"""
         return the_repr
 
     def progress_msg_self(self):
-        return f"""Remove pattern '{self.pattern}'"""
+        return f"""Remove pattern '{self.pattern}' from {self.path_to_folder}"""
 
     def __call__(self, *args, **kwargs):
-        list_to_remove = glob.glob(os.path.expandvars(self.pattern))
+        folder = utils.ResolvedPath(self.path_to_folder)
+        list_to_remove = folder.glob(self.pattern)
         for item in list_to_remove:
             with RmFileOrDir(item, progress_count=0) as rfod:
                 rfod()
