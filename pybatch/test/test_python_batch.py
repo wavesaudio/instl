@@ -616,3 +616,9 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertTrue(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should have been created")
         self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
         self.assertTrue(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should have been created")
+
+    def test_something(self):
+        #the_code = """If(IsFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\"), if_true=CopyFileToFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/Common/Utilities/V9/remove_leftovers.py\", \"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\", hard_links=False, ignore_if_not_exist=True))"""
+        the_code = """If(IsFile("$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py"), if_true=CopyFileToFile("$(LOCAL_REPO_SYNC_DIR)/Common/Utilities/V9/remove_leftovers.py", "$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py", hard_links=False, ignore_if_not_exist=True))"""
+        the_obj = eval(the_code)
+        the_repr = repr(the_obj)
