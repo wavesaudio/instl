@@ -130,7 +130,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         obj = RmGlob("/lo/lla/pa/loo/za", "*.pendicular")
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate MacDoc object correctly: {diff_explanation}")
+        self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate RmGlob object correctly: {diff_explanation}")
 
     def test_RmGlob(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
@@ -146,6 +146,44 @@ class TestPythonBatchRemove(unittest.TestCase):
                 cd_accum += Touch(f)
 
         self.pbt.batch_accum += RmGlob(os.fspath(folder_to_glob), pattern)
+        self.pbt.exec_and_capture_output()
+
+        for f in files_that_should_be_removed:
+            fp = Path(folder_to_glob, f)
+            self.assertFalse(fp.is_file(), f"{self.pbt.which_test} : file was not removed {fp}")
+
+        for f in files_that_should_not_be_removed:
+            fp = Path(folder_to_glob, f)
+            self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+    def test_RmGlobs_repr(self):
+        obj = RmGlobs("/lo/lla/pa/loo/za")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
+        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
+        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular", "i*regular.??")
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
+
+    def test_RmGlobs(self):
+        folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
+
+        patterns = "?b*.k*", "*mama*"
+        files_that_should_be_removed = ["abc.kif", "cba.kmf", "hi-mama", "mama-hi", "mama"]
+        files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
+            for f in files_that_should_be_removed + files_that_should_not_be_removed:
+                cd_accum += Touch(f)
+
+        self.pbt.batch_accum += RmGlobs(os.fspath(folder_to_glob), *patterns)
         self.pbt.exec_and_capture_output()
 
         for f in files_that_should_be_removed:

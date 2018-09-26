@@ -145,7 +145,7 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}, {utils.quoteme_raw_string(os.fspath(self.pattern))})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}, {utils.quoteme_raw_string(self.pattern)})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -157,6 +157,38 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         else:
             folder = utils.ResolvedPath(self.path_to_folder)
             list_to_remove = folder.glob(self.pattern)
+            for item in list_to_remove:
+                with RmFileOrDir(item, progress_count=0) as rfod:
+                    rfod()
+
+
+class RmGlobs(PythonBatchCommandBase, essential=True):
+    """ remove files matching any pattern in the given list
+        - it's OK if the directory does not exist.
+        - all files and folders matching the patterns will be removed
+        - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
+        - allowing pattern to be None is temporary until new format is implemented in index
+"""
+    def __init__(self, path_to_folder: os.PathLike, *patterns: List, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path_to_folder: os.PathLike = path_to_folder
+        self.patterns = patterns
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def __repr__(self):
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}"""
+        for pattern in self.patterns:
+            the_repr += f""", {utils.quoteme_raw_string(pattern)}"""
+        the_repr += ")"
+        return the_repr
+
+    def progress_msg_self(self):
+        return f"""Remove pattern '{self.patterns}' from {self.path_to_folder}"""
+
+    def __call__(self, *args, **kwargs):
+        folder = utils.ResolvedPath(self.path_to_folder)
+        for pattern in self.patterns:
+            list_to_remove = folder.glob(pattern)
             for item in list_to_remove:
                 with RmFileOrDir(item, progress_count=0) as rfod:
                     rfod()
