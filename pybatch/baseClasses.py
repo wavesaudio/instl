@@ -77,8 +77,20 @@ class PythonBatchCommandBase(abc.ABC):
     def __str__(self):
         return f"{self.__class__.__name__} {PythonBatchCommandBase.instance_counter}"
 
-    def stage_str(self):
-        return None
+    def stage_str(self) -> str:
+        return ""
+
+    def major_stage_str(self) -> str:
+        """ return the top most stage name in PythonBatchCommandBase.stage_stack that is not None or empty
+            if PythonBatchCommandBase.stage_stack is empty return the class name
+        """
+        for stage in PythonBatchCommandBase.stage_stack:
+            retVal = stage.stage_str()
+            if retVal:
+                break
+        else:
+            retVal = self.__class__.__name__
+        return retVal
 
     @abc.abstractmethod
     def progress_msg_self(self) -> str:
@@ -200,17 +212,24 @@ class PythonBatchCommandBase(abc.ABC):
             self.doing = self.progress_msg_self()
         self._error_dict.update({
             'doing': self.doing,
+            'major_stage': self.major_stage_str(),
             'stage': ".".join(filter(None, (stage.stage_str() for stage in PythonBatchCommandBase.stage_stack))),
-            'exception_type': str(type(exc_val).__name__),
-            'exception_str': str(exc_val),
             'instl_class': repr(self),
             'obj__dict__': self.representative_dict(),
             'local_time': time.strftime("%Y-%m-%d_%H.%M.%S"),
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': self.current_working_dir,
-            "batch_file": exc_tb.tb_frame.f_code.co_filename,
-            "batch_line": exc_tb.tb_lineno
              })
+        if exc_val:
+            self._error_dict.update({
+                'exception_type': str(type(exc_val).__name__),
+                'exception_str': str(exc_val),
+                })
+        if exc_tb:
+            self._error_dict.update({
+                "batch_file": exc_tb.tb_frame.f_code.co_filename,
+                "batch_line": exc_tb.tb_lineno
+                })
         return self._error_dict
 
     def __enter__(self):
