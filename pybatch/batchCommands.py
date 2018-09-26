@@ -397,7 +397,7 @@ class Chmod(RunProcessBase, essential=True):
             run_args.append('attrib')
             if self.recursive:
                 run_args.append('/s')
-        run_args.append(self.path)
+        run_args.append(utils.ResolvedPath(self.path))
         return run_args
 
     def __call__(self, *args, **kwargs):
@@ -506,10 +506,11 @@ class CUrl(RunProcessBase):
 
     def create_run_args(self):
         resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
+        resolved_trg_path = utils.ResolvedPath(self.trg)
         run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
                     "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
                     "--retry", self.retires, "--retry-delay", self.retry_delay,
-                    "-o", self.trg, self.src]
+                    "-o", resolved_trg_path, self.src]
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)

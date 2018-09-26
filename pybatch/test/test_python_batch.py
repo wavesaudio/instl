@@ -622,3 +622,4 @@ class TestPythonBatchMain(unittest.TestCase):
         the_code = """If(IsFile("$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py"), if_true=CopyFileToFile("$(LOCAL_REPO_SYNC_DIR)/Common/Utilities/V9/remove_leftovers.py", "$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py", hard_links=False, ignore_if_not_exist=True))"""
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
+        print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))

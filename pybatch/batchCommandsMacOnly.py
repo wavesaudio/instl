@@ -50,7 +50,8 @@ class MacDock(PythonBatchCommandBase):
                     log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
-                dock_util_command.append(self.path_to_item)
+                resolved_path_to_item = utils.ResolvedPath(self.path_to_item)
+                dock_util_command.append(resolved_path_to_item)
                 if self.label_for_item:
                     dock_util_command.append("--label")
                     dock_util_command.append(self.label_for_item)
@@ -76,7 +77,8 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        path_to_target = Path(os.path.expandvars(self.path_to_target))
+
+        path_to_target = utils.ResolvedPath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         try:
             path_to_symlink.unlink()

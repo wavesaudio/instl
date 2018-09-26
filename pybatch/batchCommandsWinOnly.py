@@ -30,7 +30,7 @@ class WinShortcut(PythonBatchCommandBase):
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
         shortcut = shell.CreateShortCut(resolved_shortcut_path)
-        resolved_target_path = os.path.expandvars(self.target_path)
+        resolved_target_path = os.fspath(utils.ResolvedPath(self.target_path))
         shortcut.Targetpath = resolved_target_path
         working_directory, target_name = os.path.split(resolved_target_path)
         shortcut.WorkingDirectory = working_directory
@@ -180,7 +180,7 @@ class CreateRegistryValues(BaseRegistryKey):
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}("
         the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
-        the_repr += f", value_dict={self.value_dict}"
+        the_repr += f", value_dict={utils.quoteme_raw_dict(self.value_dict)}"
         the_repr += ")"
         return the_repr
 
@@ -191,7 +191,8 @@ class CreateRegistryValues(BaseRegistryKey):
         try:
             self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             for value_name, value_data in self.value_dict.items():
-                winreg.SetValueEx(self.key_handle, value_name, 0, getattr(winreg, self.data_type), value_data)
+                resolved_value_data = os.path.expandvars(value_data)
+                winreg.SetValueEx(self.key_handle, value_name, 0, getattr(winreg, self.data_type), resolved_value_data)
         finally:
             self._close_key()
 
