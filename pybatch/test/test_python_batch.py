@@ -619,7 +619,7 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_something(self):
         #the_code = """If(IsFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\"), if_true=CopyFileToFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/Common/Utilities/V9/remove_leftovers.py\", \"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\", hard_links=False, ignore_if_not_exist=True))"""
-        the_code = """If(IsFile("$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py"), if_true=CopyFileToFile("$(LOCAL_REPO_SYNC_DIR)/Common/Utilities/V9/remove_leftovers.py", "$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py", hard_links=False, ignore_if_not_exist=True))"""
+        the_code =r'''ShellCommand(r'"taskkill.exe" /im "eMotion LV1.exe" /t /f', ignore_all_errors=True)'''
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
         print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))

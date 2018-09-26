@@ -44,10 +44,17 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def tearDown(self):
         self.pbt.tearDown()
 
-    def test_ShellCommands_repr(self):
-        # ShellCommands.repr() cannot replicate it's original construction exactly
-        # therefor the usual repr tests do not apply
-        pass
+    def test_ShellCommand_repr(self):
+        for ignore_all_errors in (True, False):
+            obj = ShellCommand("do something", ignore_all_errors=ignore_all_errors)
+            obj_recreated = eval(repr(obj))
+            diff_explanation = obj.explain_diff(obj_recreated)
+            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+
+            obj = ShellCommand("do something", "with message", ignore_all_errors=ignore_all_errors)
+            obj_recreated = eval(repr(obj))
+            diff_explanation = obj.explain_diff(obj_recreated)
+            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
 
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
@@ -73,9 +80,10 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
     def test_ParallelRun_repr(self):
-        pr_obj = ParallelRun("/rik/ya/vik", True)
-        pr_obj_recreated = eval(repr(pr_obj))
-        self.assertEqual(pr_obj, pr_obj_recreated, "ParallelRun.repr did not recreate ParallelRun object correctly")
+        obj = ParallelRun("/rik/ya/vik", True)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"ParallelRun.repr did not recreate ParallelRun object correctly: {diff_explanation}")
 
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
@@ -176,9 +184,10 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         curl_path = 'curl'
         if sys.platform == 'win32':
             curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        curl_obj = CUrl(url_from, file_to, curl_path)
-        curl_obj_recreated = eval(repr(curl_obj))
-        self.assertEqual(curl_obj, curl_obj_recreated, "CUrl.repr did not recreate CUrl object correctly")
+        obj = CUrl(url_from, file_to, curl_path)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
     def test_Curl_download(self):
         sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()

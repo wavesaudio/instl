@@ -48,18 +48,26 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 class ShellCommand(RunProcessBase, essential=True):
     """ run a single command in a shell """
 
-    def __init__(self, shell_command, message, **kwargs):
+    def __init__(self, shell_command, message=None, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
         self.shell_command = shell_command
         self.message = message
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(shell_command={utils.quoteme_raw_string(self.shell_command)}, message={utils.quoteme_raw_string(self.message)})"""
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.shell_command)}"""
+        if self.message:
+            the_repr += f""", message={utils.quoteme_raw_string(self.message)}"""
+        if self.ignore_all_errors:
+            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
+        the_repr += ")"
         return the_repr
 
     def progress_msg_self(self):
-        return f"""{self.message}"""
+        if self.message:
+            return f"""{self.message}"""
+        else:
+            return f"""running {self.shell_command}"""
 
     def create_run_args(self):
         resolved_shell_command = os.path.expandvars(self.shell_command)
