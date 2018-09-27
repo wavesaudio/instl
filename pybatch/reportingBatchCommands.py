@@ -77,6 +77,8 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
 
     def progress_msg_self(self):
         the_progress_msg = f'''{self.stage_name}'''
+        if self.stage_extra:
+            the_progress_msg += f""" {self.stage_extra}"""
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):

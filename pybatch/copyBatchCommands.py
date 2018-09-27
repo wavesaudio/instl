@@ -101,7 +101,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         retVal = False
         for ignore_pattern in self.__all_ignore_patterns:
             if file_path.match(ignore_pattern):
-                log.info(f"ignoring {file_path} because it matches pattern {ignore_pattern}")
+                log.debug(f"ignoring {file_path} because it matches pattern {ignore_pattern}")
                 retVal = True
                 break
         return retVal
@@ -111,7 +111,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if self.hard_links and not file_path.is_symlink():
             for no_hard_link_pattern in self.__all_no_hard_link_patterns:
                 if file_path.match(no_hard_link_pattern):
-                    log.info(f"not hard linking {file_path} because it matches pattern {no_hard_link_pattern}")
+                    log.debug(f"not hard linking {file_path} because it matches pattern {no_hard_link_pattern}")
                     break
             else:
                 retVal = True

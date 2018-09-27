@@ -183,7 +183,7 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
         return the_repr
 
     def progress_msg_self(self):
-        return f"""Remove pattern '{self.patterns}' from {self.path_to_folder}"""
+        return f"""Remove patterns '{self.patterns}' from {self.path_to_folder}"""
 
     def __call__(self, *args, **kwargs):
         folder = utils.ResolvedPath(self.path_to_folder)
