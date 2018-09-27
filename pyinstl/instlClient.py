@@ -264,7 +264,17 @@ class InstlClient(InstlInstanceBase):
 
     def read_previous_requirements(self):
         require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
-        self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
+        try:
+            self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
+        except Exception as ex:
+            log.warning(f"Exception reading {require_file_path}: {ex}")
+            renamed_require_file_path = Path(require_file_path.parent, config_vars.resolve_str("$(SITE_REQUIRE_FILE_NAME).failed_to_read"))
+            try:
+                require_file_path.rename(renamed_require_file_path)
+                log.warning(f"moved require.yaml to {renamed_require_file_path}")
+            except Exception as ex_in_ex:
+                log.warning(f"failed to moved require.yaml to {renamed_require_file_path}: {ex_in_ex}")
+                # no need to do anything else if renaming failed
 
     def accumulate_unique_actions_for_active_iids(self, action_type: str, limit_to_iids=None) -> PythonBatchCommandBase:
         """ accumulate action_type actions from iid_list, eliminating duplicates"""

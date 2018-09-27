@@ -32,8 +32,14 @@ class If(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         condition = self.condition
+        if isinstance(condition, str):
+            condition = eval(condition)
+
         if callable(condition):
             condition = condition()
+        else:
+            condition = bool(condition)
+
         if condition:
             if callable(self.if_true):
                 self.doing = f"""condition is True calling '{repr(self.if_true)}'"""

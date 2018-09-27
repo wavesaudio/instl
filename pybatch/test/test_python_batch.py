@@ -596,6 +596,12 @@ class TestPythonBatchMain(unittest.TestCase):
         obj_recreated = eval(if_repr)
         self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
 
+        obj = If("2 == 1+1", if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
+        if_repr = repr(obj)
+        print(if_repr)
+        obj_recreated = eval(if_repr)
+        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
+
     def test_IfFileExist(self):
         file_that_should_exist = self.pbt.path_inside_test_folder("should_exist")
         self.assertFalse(file_that_should_exist.exists(), f"{self.pbt.which_test}: {file_that_should_exist} should not exist before test")
@@ -613,6 +619,23 @@ class TestPythonBatchMain(unittest.TestCase):
 
         self.pbt.exec_and_capture_output()
         self.assertTrue(file_that_should_exist.exists(), f"{self.pbt.which_test}: {file_that_should_exist} should have been created")
+        self.assertTrue(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should have been created")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
+        self.assertTrue(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should have been created")
+
+    def test_If_2_is_1_plus_1(self):
+        file_that_should_not_exist = self.pbt.path_inside_test_folder("should_not_exist")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not exist before test")
+        file_touched_if_exist = self.pbt.path_inside_test_folder("touched_if_exist")
+        self.assertFalse(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should not exist before test")
+        file_touched_if_not_exist = self.pbt.path_inside_test_folder("touched_if_not_exist")
+        self.assertFalse(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += If("2 == 1+1", if_true=Touch(file_touched_if_exist), if_false=Touch(file_that_should_not_exist))
+        self.pbt.batch_accum += If("2 == 1+3", if_true=Touch(file_that_should_not_exist), if_false=Touch(file_touched_if_not_exist))
+
+        self.pbt.exec_and_capture_output()
         self.assertTrue(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should have been created")
         self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
         self.assertTrue(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should have been created")
