@@ -5,7 +5,7 @@ from win32com.client import Dispatch
 
 
 from .baseClasses import PythonBatchCommandBase
-from utils import misc_utils as utils
+from utils import str_utils, files
 
 
 class WinShortcut(PythonBatchCommandBase):
@@ -17,7 +17,7 @@ class WinShortcut(PythonBatchCommandBase):
         self.run_as_admin = run_as_admin
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.shortcut_path)}, {utils.quoteme_raw_string(self.target_path)}'''
+        the_repr = f'''{self.__class__.__name__}({str_utils.quoteme_raw_string(self.shortcut_path)}, {str_utils.quoteme_raw_string(self.target_path)}'''
         if self.run_as_admin:
             the_repr += ''', run_as_admin=True'''
         the_repr += ")"
@@ -27,10 +27,11 @@ class WinShortcut(PythonBatchCommandBase):
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        # TODO: Replace with f'mklink "{src}" "{dst}"' , shell = True
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
         shortcut = shell.CreateShortCut(resolved_shortcut_path)
-        resolved_target_path = os.fspath(utils.ResolvedPath(self.target_path))
+        resolved_target_path = os.fspath(files.ResolvedPath(self.target_path))
         shortcut.Targetpath = resolved_target_path
         working_directory, target_name = os.path.split(resolved_target_path)
         shortcut.WorkingDirectory = working_directory
@@ -84,18 +85,18 @@ class BaseRegistryKey(PythonBatchCommandBase):
     def positional_members_repr(self) -> str:
         """ helper function to create repr for BaseRegistryKey common to all subclasses """
         members_repr = list()
-        members_repr.append(utils.quoteme_double(self.top_key))
-        members_repr.append(utils.quoteme_raw_string(self.sub_key))
+        members_repr.append(str_utils.quoteme_double(self.top_key))
+        members_repr.append(str_utils.quoteme_raw_string(self.sub_key))
         if self.value_name is not None:
-            members_repr.append(utils.quoteme_raw_string(self.value_name))
+            members_repr.append(str_utils.quoteme_raw_string(self.value_name))
         if self.value_data is not None:
-            members_repr.append(utils.quoteme_raw_string(self.value_data))
+            members_repr.append(str_utils.quoteme_raw_string(self.value_data))
         return members_repr
 
     def named_members_repr(self) -> str:
         members_repr = list()
         if self.data_type != 'REG_SZ':
-            members_repr.append(f"data_type={utils.quoteme_double(self.data_type)}")
+            members_repr.append(f"data_type={str_utils.quoteme_double(self.data_type)}")
         if self.reg_num_bits != 64:
             members_repr.append(f"reg_num_bits={self.reg_num_bits}")
         if self.ignore_if_not_exist is not False:
@@ -180,7 +181,7 @@ class CreateRegistryValues(BaseRegistryKey):
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}("
         the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
-        the_repr += f", value_dict={utils.quoteme_raw_dict(self.value_dict)}"
+        the_repr += f", value_dict={str_utils.quoteme_raw_dict(self.value_dict)}"
         the_repr += ")"
         return the_repr
 
@@ -225,7 +226,7 @@ class DeleteRegistryValues(BaseRegistryKey):
 
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}("
-        the_repr += ", ".join(self.positional_members_repr() + utils.quoteme_raw_list(self.values) + self.named_members_repr())
+        the_repr += ", ".join(self.positional_members_repr() + str_utils.quoteme_raw_list(self.values) + self.named_members_repr())
         the_repr += ")"
         return the_repr
 
