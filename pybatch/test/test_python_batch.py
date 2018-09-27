@@ -596,6 +596,12 @@ class TestPythonBatchMain(unittest.TestCase):
         obj_recreated = eval(if_repr)
         self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
 
+        obj = If("2 == 1+1", if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
+        if_repr = repr(obj)
+        print(if_repr)
+        obj_recreated = eval(if_repr)
+        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
+
     def test_IfFileExist(self):
         file_that_should_exist = self.pbt.path_inside_test_folder("should_exist")
         self.assertFalse(file_that_should_exist.exists(), f"{self.pbt.which_test}: {file_that_should_exist} should not exist before test")
@@ -617,9 +623,26 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
         self.assertTrue(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should have been created")
 
+    def test_If_2_is_1_plus_1(self):
+        file_that_should_not_exist = self.pbt.path_inside_test_folder("should_not_exist")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not exist before test")
+        file_touched_if_exist = self.pbt.path_inside_test_folder("touched_if_exist")
+        self.assertFalse(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should not exist before test")
+        file_touched_if_not_exist = self.pbt.path_inside_test_folder("touched_if_not_exist")
+        self.assertFalse(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += If("2 == 1+1", if_true=Touch(file_touched_if_exist), if_false=Touch(file_that_should_not_exist))
+        self.pbt.batch_accum += If("2 == 1+3", if_true=Touch(file_that_should_not_exist), if_false=Touch(file_touched_if_not_exist))
+
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should have been created")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
+        self.assertTrue(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should have been created")
+
     def test_something(self):
         #the_code = """If(IsFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\"), if_true=CopyFileToFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/Common/Utilities/V9/remove_leftovers.py\", \"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\", hard_links=False, ignore_if_not_exist=True))"""
-        the_code = """If(IsFile("$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py"), if_true=CopyFileToFile("$(LOCAL_REPO_SYNC_DIR)/Common/Utilities/V9/remove_leftovers.py", "$(LOCAL_REPO_SYNC_DIR)/../V9/Common/Utilities/remove_leftovers.py", hard_links=False, ignore_if_not_exist=True))"""
+        the_code =r'''ShellCommand(r'"taskkill.exe" /im "eMotion LV1.exe" /t /f', ignore_all_errors=True)'''
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
         print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))

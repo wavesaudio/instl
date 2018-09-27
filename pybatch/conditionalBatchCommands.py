@@ -36,9 +36,11 @@ class If(PythonBatchCommandBase, essential=True):
             condition = condition()
         if condition:
             if callable(self.if_true):
+                self.doing = f"""condition is True calling '{repr(self.if_true)}'"""
                 self.if_true()
         else:
             if callable(self.if_false):
+                self.doing = f"""condition is False calling '{repr(self.if_false)}'"""
                 self.if_false()
 
 

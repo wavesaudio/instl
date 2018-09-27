@@ -358,9 +358,8 @@ class Chmod(RunProcessBase, essential=True):
             the_mode = utils.quoteme_double(the_mode)
         the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
         if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors})"
-        else:
-            the_repr += ")"
+            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
+        the_repr += ")"
         return the_repr
 
     def progress_msg_self(self):
@@ -438,9 +437,8 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
         the_repr += f''', user_id={self.user_id}, group_id={self.group_id}'''
         if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors})"
-        else:
-            the_repr += ")"
+            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
+        the_repr += ")"
         return the_repr
 
     def progress_msg_self(self):

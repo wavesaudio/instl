@@ -148,6 +148,7 @@ class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=Fal
     def __init__(self, some_python_code, **kwargs) -> None:
         super().__init__(**kwargs)
         self.some_python_code = some_python_code
+        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = self.some_python_code
