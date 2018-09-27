@@ -12,6 +12,8 @@ class If(PythonBatchCommandBase, essential=True):
         self.condition = condition
         self.if_true = if_true
         self.if_false = if_false
+        # Ignoring if_true/if_false - In case there's an error with one of the functions, the json will issue a serialization error
+        self.non_representative__dict__keys.extend(('if_true', 'if_false'))
 
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
