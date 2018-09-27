@@ -29,6 +29,7 @@ class WinShortcut(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
+        os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
         shortcut = shell.CreateShortCut(resolved_shortcut_path)
         resolved_target_path = os.fspath(utils.ResolvedPath(self.target_path))
         shortcut.Targetpath = resolved_target_path
