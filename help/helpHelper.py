@@ -5,6 +5,7 @@ import os
 import fnmatch
 import inspect
 from typing import List
+from collections import defaultdict
 
 import yaml
 
@@ -12,30 +13,68 @@ import utils
 from configVar import config_vars
 import pybatch
 
-class HelpItem(object):
-    def __init__(self, name, *topics) -> None:
+
+class HelpItemBase(object):
+    def __init__(self, name) -> None:
         self.name = name
-        self.topics = topics
         self.texts = dict()
 
-    def read_from_yaml(self, item_value_node):
-        for value_name, value_text in item_value_node.items():
-            self.texts[value_name] = value_text.value
+    def get_help_texts(self):
+        raise NotImplementedError(f"HelpItemBase did not implement get_help_texts")
 
     def short_text(self):
+        if not self.texts:
+            self.get_help_texts()
         retVal = self.texts.get("short", "")
-        if retVal is None:
-            retVal = ""
         return retVal
 
     def long_text(self):
-        return self.texts.get("long", "")
+        if not self.texts:
+            self.get_help_texts()
+        retVal = self.texts.get("long", "")
+        return retVal
+
+
+class HelpItemYaml(HelpItemBase):
+    """ help item from a yaml node
+        node should be a map with keys 'short', 'long'
+    """
+    def __init__(self, name, item_node) -> None:
+        super().__init__(name)
+        self.item_node = item_node
+
+    def get_help_texts(self):
+        for value_name, value_text in self.item_node.items():
+            self.texts[value_name] = value_text.value
+
+
+class HelpItemObj(HelpItemBase):
+    """ help item from a class declaration (the "obj")
+        signature of obj.__init__ is the 'short' help text
+        obj.__doc__ is the 'long' help text
+    """
+    def __init__(self, obj) -> None:
+        super().__init__(obj.__name__)
+        self.obj = obj
+
+    def get_help_texts(self):
+        sig = str(inspect.signature(self.obj.__init__)).replace('self, ', '').replace(' -> None', '').replace(', **kwargs', '')
+        doc_for_class = self.obj.__doc__.split("\n")
+        doc_list = list(filter(None, (dfc.strip() for dfc in doc_for_class)))
+        self.texts['short'] = f"{self.obj.__name__}{sig}"
+        self.texts['long'] = "\n".join(doc_list)
 
 
 class HelpHelper(object):
     def __init__(self, instlObj) -> None:
+        self.topics = defaultdict(list)
         self.help_items = dict()
         self.instlObj = instlObj
+
+    def add_item(self, new_item, *topics):
+        self.help_items[new_item.name] = new_item
+        for a_topic in topics:
+            self.topics[a_topic].append(new_item.name)
 
     def read_help_file(self, help_file_path):
         with utils.open_for_read_file_or_url(help_file_path) as open_file:
@@ -43,25 +82,25 @@ class HelpHelper(object):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():
                         for item_name, item_value_node in topic_items_node.items():
-                            newItem = HelpItem(item_name, topic_name, f"{topic_name}s")
-                            newItem.read_from_yaml(item_value_node)
-                            self.help_items[item_name] = newItem
+                            new_item = HelpItemYaml(item_name, item_value_node)
+                            self.add_item(new_item, topic_name)
 
-    def topics(self):
-        topics = set()
-        for item in list(self.help_items.values()):
-            topics.update(item.topics)
-        return topics
+    def read_pybatch_help(self):
+        for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
+            if inspect.isclass(obj):
+                if obj.__doc__:
+                    new_item = HelpItemObj(obj)
+                    self.add_item(new_item, "pybatch")
 
     def topic_summery(self, topic):
         retVal = "no such topics: " + topic
         short_list = list()
         if topic in ("command", "commands"):
             short_list.extend(self.topic_summery_for_commands())
-        else:
-            for item in list(self.help_items.values()):
-                if topic in item.topics:
-                    short_list.append((item.name + ":", item.short_text()))
+        elif topic in self.topics:
+            for item_name in self.topics[topic]:
+                item = self.help_items[item_name]
+                short_list.append((item.name + ":", item.short_text()))
         short_list.sort()
         if len(short_list) > 0:
             width_list = [0, 0]
@@ -110,7 +149,7 @@ class HelpHelper(object):
                 self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))
         defaults_list = [("Variable name", "Raw value", "Resolved value"),
                          ("_____________", "_________", "______________")]
-        for var in sorted(config_vars):
+        for var in sorted(config_vars.keys()):
             if not var.startswith("__"):
                 raw_value = config_vars[var].raw(join_sep=" ")
                 resolved_value = str(config_vars[var])
@@ -119,45 +158,26 @@ class HelpHelper(object):
                 else:
                     defaults_list.append((var, raw_value))
 
-        col_format = utils.gen_col_format(utils.max_widths(defaults_list))
+        width_list, align_list = utils.max_widths(defaults_list)
+        col_format = utils.gen_col_format(width_list, align_list)
         for res_line in defaults_list:
-            print(col_format[len(res_line)].format(*res_line))
-
-    def pybatch_obj_names(self) ->List[str]:
-        retVal = list()
-        for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
-            if inspect.isclass(obj):
-                if obj.__doc__:
-                    retVal.append(obj.__name__)
-        return retVal
-
-    def pybatch_help(self):
-        for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
-            if inspect.isclass(obj):
-                if obj.__doc__:
-                    sig = str(inspect.signature(obj.__init__)).replace('self, ', '').replace(' -> None', '').replace(', **kwargs', '')
-                    title = f"{obj.__name__}{sig}"
-                    doc_for_class = obj.__doc__.split("\n")
-                    doc_list = filter(None, (dfc.strip() for dfc in doc_for_class))
-                    name = f"{obj.__name__}{sig}"
-                    newItem = HelpItem(name, "pybatch")
-                    newItem.texts['short'] = f"{obj.__name__}{sig}"
-                    newItem.texts['long'] = "\n".join(doc_list)
-                    self.help_items[newItem.name] = newItem
+            a_line = col_format[len(res_line)].format(*res_line)
+            print(a_line)
 
 def do_help(subject, help_folder_path, instlObj):
     hh = HelpHelper(instlObj)
+
     for help_file in os.listdir(help_folder_path):
         if fnmatch.fnmatch(help_file, '*help.yaml'):
             hh.read_help_file(os.path.join(help_folder_path, help_file))
 
-    hh.pybatch_help()
+    hh.read_pybatch_help()
 
     if not subject:
-        for topic in hh.topics():
+        for topic in hh.topics.keys():
             print("instl", "help", "<" + topic + ">")
         print("instl", "help", "<defaults>")
-    elif subject in hh.topics():
+    elif subject in hh.topics.keys():
         print(hh.topic_summery(subject))
     else:
         if subject == "defaults":

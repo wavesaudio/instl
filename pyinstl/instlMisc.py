@@ -154,7 +154,7 @@ class InstlMisc(InstlInstanceBase):
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
         out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
-        Ls(folders_to_list, out_file, ls_format)()
+        Ls(*folders_to_list, out_file=out_file, ls_format=ls_format)()
 
     def do_fail(self):
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
