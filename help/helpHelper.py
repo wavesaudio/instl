@@ -3,12 +3,14 @@
 
 import os
 import fnmatch
+import inspect
+from typing import List
 
 import yaml
 
 import utils
 from configVar import config_vars
-
+import pybatch
 
 class HelpItem(object):
     def __init__(self, name, *topics) -> None:
@@ -121,12 +123,35 @@ class HelpHelper(object):
         for res_line in defaults_list:
             print(col_format[len(res_line)].format(*res_line))
 
+    def pybatch_obj_names(self) ->List[str]:
+        retVal = list()
+        for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
+            if inspect.isclass(obj):
+                if obj.__doc__:
+                    retVal.append(obj.__name__)
+        return retVal
+
+    def pybatch_help(self):
+        for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
+            if inspect.isclass(obj):
+                if obj.__doc__:
+                    sig = str(inspect.signature(obj.__init__)).replace('self, ', '').replace(' -> None', '').replace(', **kwargs', '')
+                    title = f"{obj.__name__}{sig}"
+                    doc_for_class = obj.__doc__.split("\n")
+                    doc_list = filter(None, (dfc.strip() for dfc in doc_for_class))
+                    name = f"{obj.__name__}{sig}"
+                    newItem = HelpItem(name, "pybatch")
+                    newItem.texts['short'] = f"{obj.__name__}{sig}"
+                    newItem.texts['long'] = "\n".join(doc_list)
+                    self.help_items[newItem.name] = newItem
 
 def do_help(subject, help_folder_path, instlObj):
     hh = HelpHelper(instlObj)
     for help_file in os.listdir(help_folder_path):
         if fnmatch.fnmatch(help_file, '*help.yaml'):
             hh.read_help_file(os.path.join(help_folder_path, help_file))
+
+    hh.pybatch_help()
 
     if not subject:
         for topic in hh.topics():

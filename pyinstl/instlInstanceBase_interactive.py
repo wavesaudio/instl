@@ -570,7 +570,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_hh(self, params):
         params = [param for param in shlex.split(params)]
-        from pyinstl.helpHelper import do_help
+        from help.helpHelper import do_help
 
         if not params:
             do_help(None)

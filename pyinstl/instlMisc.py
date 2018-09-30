@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from .instlInstanceBase import InstlInstanceBase
-from configVar import config_vars
 from . import connectionBase
 from pybatch import *
 
@@ -51,11 +50,11 @@ class InstlMisc(InstlInstanceBase):
         print(self.get_version_str())
 
     def do_help(self):
-        import pyinstl.helpHelper
+        import help.helpHelper
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
 
         help_folder_path = config_vars["__INSTL_DATA_FOLDER__"].Path(resolve=True).joinpath("help")
-        pyinstl.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
+        help.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
 
     def do_parallel_run(self):
         processes_list_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
