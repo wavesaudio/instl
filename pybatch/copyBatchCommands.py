@@ -165,6 +165,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                 retVal = False
                 log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
+            if retVal:  # destination exists and file should be copied, so make sure it's writable
+                Chmod(dst, "u+w")()
         return retVal
 
     def should_copy_dir(self, src: Path, dst: Path):

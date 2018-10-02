@@ -409,15 +409,17 @@ class Chmod(RunProcessBase, essential=True):
             path_stats = resolved_path.stat()
             flags, op = self.parse_symbolic_mode(self.mode)
             mode_to_set = flags
+            current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
             if op == '+':
-                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
                 mode_to_set |= current_mode
             elif op == '-':
-                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
                 mode_to_set = current_mode & ~flags
+            if mode_to_set != current_mode:
+                self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
+                os.chmod(resolved_path, mode_to_set)
+            else:
+                self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
 
-            self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
-            os.chmod(resolved_path, mode_to_set)
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
