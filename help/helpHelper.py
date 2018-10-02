@@ -69,6 +69,7 @@ class HelpHelper(object):
     def __init__(self, instlObj) -> None:
         self.topics = defaultdict(list)
         self.help_items = dict()
+        self.topic_items = dict()
         self.instlObj = instlObj
 
     def add_item(self, new_item, *topics):
@@ -91,6 +92,12 @@ class HelpHelper(object):
                 if obj.__doc__:
                     new_item = HelpItemObj(obj)
                     self.add_item(new_item, "pybatch")
+
+    def arrange_topics(self):
+        for a_topic in self.topics:
+            self.topic_items[a_topic] = self.help_items[a_topic]
+            self.help_items.remove(a_topic)
+            print(self.topic_items)
 
     def topic_summery(self, topic):
         retVal = "no such topics: " + topic
@@ -164,7 +171,9 @@ class HelpHelper(object):
             a_line = col_format[len(res_line)].format(*res_line)
             print(a_line)
 
+
 def do_help(subject, help_folder_path, instlObj):
+
     hh = HelpHelper(instlObj)
 
     for help_file in os.listdir(help_folder_path):
@@ -172,6 +181,8 @@ def do_help(subject, help_folder_path, instlObj):
             hh.read_help_file(os.path.join(help_folder_path, help_file))
 
     hh.read_pybatch_help()
+
+    hh.arrange_topics()
 
     if not subject:
         for topic in hh.topics.keys():
