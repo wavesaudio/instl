@@ -99,7 +99,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             parallel_run_config_file_path = config_vars.resolve_str(
                 os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, progress_count=num_files_to_download, report_own_progress=False)
+            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, own_progress_count=num_files_to_download, report_own_progress=False)
 
             if num_files_to_download > 1:
                 dl_end_message = f"Downloading {num_files_to_download} files done"
@@ -122,7 +122,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
-        check_checksum_instructions_accum += Progress("Check checksum ...", progress_count=num_files)
+        check_checksum_instructions_accum += Progress("Check checksum ...", own_progress_count=num_files)
         check_checksum_instructions_accum += CheckDownloadFolderChecksum()
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
@@ -163,7 +163,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress(f"{bytes_to_sync} of {bytes_to_sync+already_synced_num_bytes} bytes to download")
 
         if already_synced_num_files > 0:
-            dl_commands += Progress(f"{already_synced_num_files} files already in cache", progress_count=already_synced_num_files)
+            dl_commands += Progress(f"{already_synced_num_files} files already in cache", own_progress_count=already_synced_num_files)
 
         if to_sync_num_files == 0:
             return dl_commands

@@ -54,7 +54,7 @@ class PythonBatchCommandBase(abc.ABC):
     def __init__(self, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
 
-        self.own_progress_count = kwargs.get('progress_count', 1)
+        self.own_progress_count = kwargs.get('own_progress_count', 1)
         self.report_own_progress = kwargs.get('report_own_progress', True)
         self.ignore_all_errors =   kwargs.get('ignore_all_errors', PythonBatchCommandBase.default_ignore_all_errors)
         self.remark = kwargs.get('remark', None)

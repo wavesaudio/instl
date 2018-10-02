@@ -95,7 +95,7 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)}'''
         if self.own_progress_count > 1:
-            the_repr += f", progress_count={self.own_progress_count}"
+            the_repr += f", own_progress_count={self.own_progress_count}"
         the_repr += ')'
         return the_repr
 

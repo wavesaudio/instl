@@ -59,7 +59,7 @@ class TestPythonBatchMain(unittest.TestCase):
         obj_recreated = eval(repr(obj))
         self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
 
-        obj = Progress("Tuti", progress_count=17)
+        obj = Progress("Tuti", own_progress_count=17)
         obj_recreated = eval(repr(obj))
         self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
 

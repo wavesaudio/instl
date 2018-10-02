@@ -293,7 +293,7 @@ class InstlClientCopy(InstlClient):
             # only if items were actually copied there's need to (Mac only) resolve symlinks
             if  self.mac_current_and_target:
                 if num_items_copied_to_folder > 0 and num_symlink_items > 0:
-                    copy_to_folder_accum += ResolveSymlinkFilesInFolder(target_folder_path, progress_count=num_symlink_items)
+                    copy_to_folder_accum += ResolveSymlinkFilesInFolder(target_folder_path, own_progress_count=num_symlink_items)
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
             copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)

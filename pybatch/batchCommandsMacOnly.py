@@ -201,7 +201,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.folder_to_convert))}'''
         if self.own_progress_count > 1:
-            the_repr += f''', progress_count={self.own_progress_count}'''
+            the_repr += f''', own_progress_count={self.own_progress_count}'''
         the_repr += ')'
         return the_repr
 
@@ -216,6 +216,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                 if item_path.suffix == ".symlink":
                     self.last_symlink_file = os.fspath(item_path)
                     self.doing = f"""resolve symlink file '{self.last_symlink_file}'"""
-                    with SymlinkFileToSymlink(item_path, progress_count=0) as symlink_converter:
+                    with SymlinkFileToSymlink(item_path, own_progress_count=0) as symlink_converter:
                         symlink_converter()
 

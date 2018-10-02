@@ -121,7 +121,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_commands_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
-            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", progress_count=0) as shelli:
+            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", own_progress_count=0) as shelli:
                 shelli()
 
 
@@ -135,7 +135,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
     def __repr__(self):
         the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, shell={self.shell}'''
         if self.own_progress_count > 1:
-            the_repr += f''', progress_count={self.own_progress_count}'''
+            the_repr += f''', own_progress_count={self.own_progress_count}'''
         if not self.report_own_progress:
             the_repr += f''', report_own_progress={self.report_own_progress}'''
 

@@ -158,7 +158,7 @@ class RmGlob(PythonBatchCommandBase, essential=True):
             folder = utils.ResolvedPath(self.path_to_folder)
             list_to_remove = folder.glob(self.pattern)
             for item in list_to_remove:
-                with RmFileOrDir(item, progress_count=0) as rfod:
+                with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
 
@@ -190,5 +190,5 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
         for pattern in self.patterns:
             list_to_remove = folder.glob(pattern)
             for item in list_to_remove:
-                with RmFileOrDir(item, progress_count=0) as rfod:
+                with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()

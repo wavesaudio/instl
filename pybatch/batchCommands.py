@@ -450,8 +450,8 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
-        Chown(user_id=self.user_id, group_id=self.group_id, path=resolved_path, recursive=self.recursive, progress_count=0)()
-        Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, progress_count=0)()
+        Chown(user_id=self.user_id, group_id=self.group_id, path=resolved_path, recursive=self.recursive, own_progress_count=0)()
+        Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
 class Ls(PythonBatchCommandBase, essential=True):
