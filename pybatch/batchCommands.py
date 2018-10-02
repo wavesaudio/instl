@@ -201,12 +201,12 @@ class ChFlags(RunProcessBase, essential=True):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
-    def __init__(self, path, flag: str, recursive=False, ignore_errors=True) -> None:
+    def __init__(self, path, flags: List[str], recursive=False, ignore_errors=True) -> None:
         super().__init__(ignore_all_errors=ignore_errors)
         self.flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
-                           'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R'}}
+                           'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
         self.path = path
-        self.flag = flag
+        self.flags = flags
         self.recursive = recursive
         self.ignore_errors = ignore_errors
 
@@ -222,17 +222,18 @@ class ChFlags(RunProcessBase, essential=True):
         self.doing = f"""changing flag '{self.flag}' of file '{path}"""
         flag = self.flags_dict[sys.platform][self.flag]
         if sys.platform == 'darwin':
+            flag = ",".join(self.flags)
             retVal = self._create_run_args_mac(flag, path)
         elif sys.platform == 'win32':
-            retVal = self._create_run_args_win(flag, path)
+            retVal = self._create_run_args_win(self.flags, path)
         return retVal
 
-    def _create_run_args_win(self, flag, path):
+    def _create_run_args_win(self, flags, path):
         run_args = list()
         run_args.append("attrib")
         if self.recursive:
             run_args.extend(('/S', '/D'))
-        run_args.append(flag)
+        run_args.extend(flags)
         run_args.append(os.fspath(path))
         return run_args
 
