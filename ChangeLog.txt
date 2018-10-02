@@ -832,7 +832,7 @@
 
     user visible changes:
     * when writing variable to batch file, correctly write those with empty values.
-    * fixed unwtar: the output location was not correctly read from commnadline variable.
+    * fixed unwtar: the output location was not correctly read from commandline variable.
     * fixed some crashes in gui mode
     * unwtarring is done directly from the cache folder to the target.
     programmer visible changes:

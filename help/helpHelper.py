@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -35,9 +35,19 @@ class HelpItemBase(object):
         return retVal
 
 
+class HelpItemFixed(HelpItemBase):
+    """ help item initialized from code """
+    def __init__(self, name, help_text_dict) -> None:
+        super().__init__(name)
+        self.texts.update(help_text_dict)
+
+    def get_help_texts(self):
+        pass  # help text already initialized in __init__
+
+
 class HelpItemYaml(HelpItemBase):
     """ help item from a yaml node
-        node should be a map with keys 'short', 'long'
+        item_node should be a map with keys 'short', 'long'
     """
     def __init__(self, name, item_node) -> None:
         super().__init__(name)
@@ -66,16 +76,22 @@ class HelpItemObj(HelpItemBase):
 
 
 class HelpHelper(object):
-    def __init__(self, instlObj) -> None:
-        self.topics = defaultdict(list)
+    def __init__(self, instlObj, help_folder_path) -> None:
         self.help_items = dict()
-        self.topic_items = dict()
+        self.topic_items = defaultdict(list)
         self.instlObj = instlObj
+
+        for help_file in os.listdir(help_folder_path):
+            if fnmatch.fnmatch(help_file, '*help.yaml'):
+                self.read_help_file(os.path.join(help_folder_path, help_file))
+
+        self.read_pybatch_help()
+        self.additional_commands_help()
 
     def add_item(self, new_item, *topics):
         self.help_items[new_item.name] = new_item
         for a_topic in topics:
-            self.topics[a_topic].append(new_item.name)
+            self.topic_items[a_topic].append(new_item.name)
 
     def read_help_file(self, help_file_path):
         with utils.open_for_read_file_or_url(help_file_path) as open_file:
@@ -86,6 +102,15 @@ class HelpHelper(object):
                             new_item = HelpItemYaml(item_name, item_value_node)
                             self.add_item(new_item, topic_name)
 
+    def additional_commands_help(self):
+        """  add help items for commands that do not have help text in .yaml file
+        """
+        actual_command_names = list(config_vars["__COMMAND_NAMES__"])
+        for command_name in actual_command_names:
+            if command_name not in self.topic_items['command']:
+                new_item = HelpItemFixed(command_name, {"short": "no help for this command"})
+                self.add_item(new_item, "command")
+
     def read_pybatch_help(self):
         for name, obj in inspect.getmembers(pybatch, lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch.__name__)):
             if inspect.isclass(obj):
@@ -93,21 +118,12 @@ class HelpHelper(object):
                     new_item = HelpItemObj(obj)
                     self.add_item(new_item, "pybatch")
 
-    def arrange_topics(self):
-        for a_topic in self.topics:
-            self.topic_items[a_topic] = self.help_items[a_topic]
-            self.help_items.remove(a_topic)
-            print(self.topic_items)
-
     def topic_summery(self, topic):
         retVal = "no such topics: " + topic
         short_list = list()
-        if topic in ("command", "commands"):
-            short_list.extend(self.topic_summery_for_commands())
-        elif topic in self.topics:
-            for item_name in self.topics[topic]:
-                item = self.help_items[item_name]
-                short_list.append((item.name + ":", item.short_text()))
+        if topic in self.topic_items:
+            for item_name in self.topic_items[topic]:
+                short_list.append((item_name + ":", self.help_items[item_name].short_text()))
         short_list.sort()
         if len(short_list) > 0:
             width_list = [0, 0]
@@ -116,18 +132,6 @@ class HelpHelper(object):
                 width_list[1] = max(width_list[1], len(short_text))
             format_list = utils.gen_col_format(width_list)
             retVal = "\n".join(format_list[2].format(name, short) for name, short in short_list)
-        return retVal
-
-    def topic_summery_for_commands(self):
-        actual_command_names = list(config_vars["__COMMAND_NAMES__"])
-        command_to_short_text = {name: (f"{name}:", "no help for this command") for name in actual_command_names}
-        for item in list(self.help_items.values()):
-            if "commands" in item.topics:
-                short_text_tup = (f"{item.name}:", item.short_text())
-                if item.name not in actual_command_names:
-                    short_text_tup = short_text_tup[0], short_text_tup[1]+ "??? command not found ???"
-                command_to_short_text[item.name] = short_text_tup
-        retVal = [command_to_short_text[k] for k in command_to_short_text.keys()]
         return retVal
 
     def item_help(self, item_name):
@@ -149,7 +153,7 @@ class HelpHelper(object):
             ))
         return retVal
 
-    def defaults_help(self):
+    def defaults_help(self, var_name=None):
         defaults_folder_path = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
         for yaml_file in os.listdir(defaults_folder_path):
             if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
@@ -171,29 +175,25 @@ class HelpHelper(object):
             a_line = col_format[len(res_line)].format(*res_line)
             print(a_line)
 
+    def print_help(self, subject):
+        if not subject:
+            for topic_name in sorted(self.topic_items.keys()):
+                if topic_name != "topic":
+                    print(f"instl help <{topic_name}>: {self.help_items[topic_name].short_text()}")
+            if "topic" in self.topic_items:
+                print(f"""instl help <topic>: {self.help_items["topic"].short_text()}""")
+        elif subject in self.topic_items.keys():
+            print(self.topic_summery(subject))
+        else:
+            if subject == "defaults":
+                self.defaults_help()
+            else:
+                subject_lower_case = subject.lower()
+                for sub in self.help_items:
+                    if sub.lower().startswith(subject_lower_case):
+                        print(self.item_help(sub))
+
 
 def do_help(subject, help_folder_path, instlObj):
-
-    hh = HelpHelper(instlObj)
-
-    for help_file in os.listdir(help_folder_path):
-        if fnmatch.fnmatch(help_file, '*help.yaml'):
-            hh.read_help_file(os.path.join(help_folder_path, help_file))
-
-    hh.read_pybatch_help()
-
-    hh.arrange_topics()
-
-    if not subject:
-        for topic in hh.topics.keys():
-            print("instl", "help", "<" + topic + ">")
-        print("instl", "help", "<defaults>")
-    elif subject in hh.topics.keys():
-        print(hh.topic_summery(subject))
-    else:
-        if subject == "defaults":
-            hh.defaults_help()
-        else:
-            for sub in hh.help_items:
-                if sub.startswith(subject):
-                    print(hh.item_help(sub))
+    hh = HelpHelper(instlObj, help_folder_path)
+    hh.print_help(subject)

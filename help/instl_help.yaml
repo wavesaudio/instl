@@ -1,3 +1,40 @@
+topic:
+    command:
+        short: help about instl commands
+        long: |
+            such as sync, copy, synccopy, ls, etc...
+            run 'instl help command' for a list of all instl's commands
+
+    variable:
+        short: help about instl configuration variables (not fully implemented)
+        long: |
+            help information for varaibale is incomplete
+            run 'instl help variable' for a list of variables that have help information
+
+    option:
+        short: help about an instl command line options
+        long: |
+            help information for varaibale is incomplete
+            such as --in, --out, --config-file, ls, etc...
+            run 'instl help option' for a list of all instl's options
+
+    pybatch:
+        short: help about python batch classes
+        long: |
+            such as CopyDirToDir, RmFileOrDir, Ls, etc...
+            run 'instl help pybatch' for a list of all python batch classes
+
+    defaults:
+        short: help about default values of  configuration variables
+        long: |
+            mmm mmm mmm
+
+    topic:
+        short: help about one of the above help topics
+        long: |
+            such as command, variable, pybatch, etc...
+            run 'instl help topic' for a list of all instl help topics
+
 command:
     check-checksum:
         short: Check synced files against their expected sha1 checksum (utility command)
@@ -313,7 +350,6 @@ command:
 variable:
     SYNC_BASE_URL:
         short: url used as the prefix for creating the full url to download installation files
-        long: SYNC_BASE_URLSYNC_BASE_URLSYNC_BASE_URL
 
 option:
     in:
@@ -328,41 +364,3 @@ option:
         short: -r, --run
         long: |
             for commands the accept --out  option Specifying --run will also run the out_put file.
-
-topic:
-    commnad:
-        short: help about instl commands
-        long: |
-            such as sync, copy, synccopy, ls, etc...
-            run 'instl help command' for a list of all instl's commands
-
-    variable:
-        short: help about instl configuration variables
-        long: |
-            help information for varaibale is incomplete
-            run 'instl help variable' for a list of variables that have help information
-
-    option:
-        short: help about an instl command line options
-        long: |
-            help information for varaibale is incomplete
-            such as --in, --out, --config-file, ls, etc...
-            run 'instl help option' for a list of all instl's options
-
-    pybatch:
-        short: help about python batch classes
-        long: |
-            such as CopyDirToDir, RmFileOrDir, Ls, etc...
-            run 'instl help pybatch' for a list of all python batch classes
-
-    defaults:
-        short: help about default values of  configuration variables
-        long: |
-            mmm mmm mmm
-
-    topic:
-        short: help about a help topic (wait... what?)
-        long: |
-            such as commnad, variable, pybatch, etc...
-            run 'instl help topic' for a list of all instl help topics
-
