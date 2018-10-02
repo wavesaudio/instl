@@ -47,7 +47,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
-        self.local_ignore_patterns = ignore_patterns
+        self.local_ignore_patterns = sorted(ignore_patterns)
         self.local_no_hard_link_patterns = no_hard_link_patterns
         self.hard_links = hard_links
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
@@ -65,7 +65,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
-        self.__all_ignore_patterns = list(set(self.__global_ignore_patterns + self.local_ignore_patterns))
+        self.__all_ignore_patterns = sorted(list(set(self.__global_ignore_patterns + self.local_ignore_patterns)))
         self.__all_no_hard_link_patterns = list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns))
 
     def __repr__(self) -> str:
