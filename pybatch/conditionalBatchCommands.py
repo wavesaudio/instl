@@ -23,6 +23,8 @@ class If(PythonBatchCommandBase, essential=True):
             params.append(f"if_true={repr(self.if_true)}")
         if self.if_false is not None:
             params.append(f"if_false={repr(self.if_false)}")
+        if self.ignore_all_errors is True:
+            params.append("ignore_all_errors=True")
         params_text = ", ".join(filter(None, params))
         if params_text:
             the_repr += params_text
