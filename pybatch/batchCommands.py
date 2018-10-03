@@ -201,31 +201,42 @@ class ChFlags(RunProcessBase, essential=True):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
-    def __init__(self, path, flags: List[str], recursive=False, ignore_errors=True) -> None:
-        super().__init__(ignore_all_errors=ignore_errors)
-        self.flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
+    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
                            'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
+
+    def __init__(self, path, *flags: List[str], recursive=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.path = path
+
+        for flag in flags:
+            assert flag in self.flags_dict[sys.platform]
         self.flags = flags
         self.recursive = recursive
-        self.ignore_errors = ignore_errors
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, flag="{self.flag}", recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        quoted_flags = "".join(("(", ", ".join(utils.quoteme_raw_list(self.flags)), ")"))
+        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))}"""
+        for a_flag in self.flags:
+            the_repr += f""", {utils.quoteme_raw_if_string(a_flag)}"""
+        if self.recursive:
+            the_repr += f""", recursive={self.recursive}"""
+        if self.ignore_all_errors:
+            the_repr += f""", ignore_all_errors={self.ignore_all_errors}"""
+        the_repr += ")"
         return the_repr
 
     def progress_msg_self(self):
-        return f"""changing flag '{self.flag}' of file '{self.path}"""
+        return f"""changing flags '{self.flags}' of file '{self.path}"""
 
     def create_run_args(self):
         path = os.fspath(utils.ResolvedPath(self.path))
-        self.doing = f"""changing flag '{self.flag}' of file '{path}"""
-        flag = self.flags_dict[sys.platform][self.flag]
+        self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
+
+        per_system_flags = [self.flags_dict[sys.platform][flag] for flag in self.flags]
         if sys.platform == 'darwin':
-            flag = ",".join(self.flags)
-            retVal = self._create_run_args_mac(flag, path)
+            retVal = self._create_run_args_mac(per_system_flags, path)
         elif sys.platform == 'win32':
-            retVal = self._create_run_args_win(self.flags, path)
+            retVal = self._create_run_args_win(per_system_flags, path)
         return retVal
 
     def _create_run_args_win(self, flags, path):
@@ -237,14 +248,15 @@ class ChFlags(RunProcessBase, essential=True):
         run_args.append(os.fspath(path))
         return run_args
 
-    def _create_run_args_mac(self, flag, path):
+    def _create_run_args_mac(self, flags, path):
         run_args = list()
         run_args.append("chflags")
-        if self.ignore_errors:
+        if self.ignore_all_errors:
             run_args.append("-f")
         if self.recursive:
             run_args.append("-R")
-        run_args.append(flag)
+        joint_flags = ",".join(flags)  # on mac the flags must be separated by commas
+        run_args.append(joint_flags)
         run_args.append(os.fspath(path))
         return run_args
 
@@ -253,11 +265,11 @@ class Unlock(ChFlags, essential=True):
     """ Remove the system's read-only flag (not permissions).
         For changing permissions use chmod.
     """
-    def __init__(self, path, recursive=False, ignore_errors=True):
-        super().__init__(path, "unlocked", recursive=recursive, ignore_errors=ignore_errors)
+    def __init__(self, path, recursive=False, ignore_all_errors=True):
+        super().__init__(path, "unlocked", recursive=recursive, ignore_all_errors=ignore_all_errors)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, recursive={self.recursive}, ignore_errors={self.ignore_errors})"""
+        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, recursive={self.recursive}, ignore_all_errors={self.ignore_all_errors})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -419,7 +431,6 @@ class Chmod(RunProcessBase, essential=True):
                 os.chmod(resolved_path, mode_to_set)
             else:
                 self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
-
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):

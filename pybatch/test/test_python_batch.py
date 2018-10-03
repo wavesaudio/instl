@@ -105,7 +105,7 @@ class TestPythonBatchMain(unittest.TestCase):
         """
         obj = ConfigVarAssign("luli", "lu")
         the_repr = repr(obj)
-        self.assertEqual(the_repr, '''config_vars['luli'] = "lu"''', "PythonVarAssign.repr did not recreate PythonVarAssign object correctly")
+        self.assertEqual(the_repr, '''config_vars['luli'] = r"lu"''', "PythonVarAssign.repr did not recreate PythonVarAssign object correctly")
 
         obj = ConfigVarAssign("Algemene", "Bank", "Nederland")
         the_repr = repr(obj)
@@ -344,19 +344,35 @@ class TestPythonBatchMain(unittest.TestCase):
         self.assertEqual(cwd_before, cwd_after, "{self.pbt.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
 
     def test_ChFlags_repr(self):
-        obj = ChFlags("/a/file/to/change", "uchg")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+        list_of_flag_lists = (("hidden",), ("hidden", "locked"))
+        for flag_list in list_of_flag_lists:
+            obj = ChFlags("/a/file/to/change", *flag_list)
+            obj_recreated = eval(repr(obj))
+            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+        for flag_list in list_of_flag_lists:
+            obj = ChFlags("/a/file/to/change", *flag_list, recursive=True)
+            obj_recreated = eval(repr(obj))
+            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+        for flag_list in list_of_flag_lists:
+            obj = ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True)
+            obj_recreated = eval(repr(obj))
+            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+        for flag_list in list_of_flag_lists:
+            obj = ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True, recursive=True)
+            obj_recreated = eval(repr(obj))
+            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
 
-    def test_ChFlags(self):
+        with self.assertRaises(AssertionError):
+            obj = ChFlags("/a/file/to/change", "hidden", "momo")
+
+    def test_ChFlags_and_Unlock(self):
         test_file = self.pbt.path_inside_test_folder("chflags-me")
         self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
 
         self.pbt.batch_accum.clear()
         # On Windows, we must hide the file last or we won't be able to change additional flags
         self.pbt.batch_accum += Touch(test_file)
-        self.pbt.batch_accum += ChFlags(test_file, "locked")
-        self.pbt.batch_accum += ChFlags(test_file, "hidden")
+        self.pbt.batch_accum += ChFlags(test_file, "locked", "hidden")
 
         self.pbt.exec_and_capture_output("hidden_locked")
 
@@ -375,9 +391,9 @@ class TestPythonBatchMain(unittest.TestCase):
         self.pbt.batch_accum.clear()
         # On Windows, we must first unhide the file before we can change additional flags
         self.pbt.batch_accum += ChFlags(test_file, "nohidden")   # so file can be seen
-        self.pbt.batch_accum += Unlock(test_file)                # so file can be erased
+        self.pbt.batch_accum += Unlock(test_file)                # so file can be deleted, Unlock is alias for ChFlags(..., "unlocked")
 
-        self.pbt.exec_and_capture_output("nohidden")
+        self.pbt.exec_and_capture_output("nohidden_nolocked")
 
         if sys.platform == 'darwin':
             files_flags = os.stat(test_file).st_flags
