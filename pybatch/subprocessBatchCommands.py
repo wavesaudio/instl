@@ -41,8 +41,48 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             message += f'; STDERR: {self.stderr.decode()}'
         super().log_result(log_lvl, message, exc_val)
 
-    def __repr__(self):
+    def repr_own_args(self):
         raise NotImplementedError
+
+
+class CUrl(RunProcessBase):
+    """ download a file using curl """
+    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
+                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
+        super().__init__()
+        self.src: os.PathLike = src
+        self.trg: os.PathLike = trg
+        self.curl_path = curl_path
+        self.connect_time_out = connect_time_out
+        self.max_time = max_time
+        self.retires = retires
+        self.retry_delay = retry_delay
+
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
+        own_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
+        own_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
+        own_args.append( f"""connect_time_out={connect_time_out}""")
+        own_args.append( f"""max_time={self.max_time}""")
+        own_args.append( f"""retires={self.retires}""")
+        own_args.append( f"""retry_delay={self.retry_delay}""")
+        return own_args
+
+    def progress_msg_self(self):
+        return f"""Download '{src}' to '{self.trg}'"""
+
+    def create_run_args(self):
+        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
+        resolved_trg_path = utils.ResolvedPath(self.trg)
+        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
+                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
+                    "--retry", self.retires, "--retry-delay", self.retry_delay,
+                    "-o", resolved_trg_path, self.src]
+        # TODO
+        # download_command_parts.append("write-out")
+        # download_command_parts.append(CUrlHelper.curl_write_out_str)
+        return run_args
 
 
 class ShellCommand(RunProcessBase, essential=True):

@@ -50,9 +50,13 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         self.num_files_per_dir = num_files_per_dir
         self.file_size = file_size
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(num_levels={self.num_levels}, num_dirs_per_level={self.num_dirs_per_level}, num_files_per_dir={self.num_files_per_dir}, file_size={self.file_size})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(f"""num_levels={self.num_levels}""")
+        own_args.append(f"""num_dirs_per_level={self.num_dirs_per_level}""")
+        own_args.append(f"""num_files_per_dir={self.num_files_per_dir}""")
+        own_args.append(f"""file_size={self.file_size}""")
+        return own_args
 
     def progress_msg_self(self):
         the_progress_msg = f"create random directories and files under current dir {os.getcwd()}"
@@ -86,21 +90,20 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         it it always OK for a dir to already exists
         Tests: TestPythonBatch.test_MakeDirs_*
     """
-    def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True, **kwargs) -> None:
         """ MakeDirs(*paths_to_make, remove_obstacles) """
-        super().__init__()
+        super().__init__(**kwargs)
         self.paths_to_make = paths_to_make
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
         self.own_progress_count = len(self.paths_to_make)
 
-    def __repr__(self):
-        paths_csl = ", ".join(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
-        the_repr = f"""{self.__class__.__name__}({paths_csl}"""
+    def repr_own_args(self):
+        own_args = list()
+        own_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
         if not self.remove_obstacles:
-            the_repr += f", remove_obstacles={self.remove_obstacles}"
-        the_repr += ")"
-        return the_repr
+            own_args.append(f"remove_obstacles={self.remove_obstacles}")
+        return own_args
 
     def progress_msg_self(self):
         paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
@@ -123,20 +126,20 @@ class MakeDirsWithOwner(MakeDirs, essential=True):
     """ a stand in to replace platform_helper.mkdir_with_owner
         ToDo: with owner functionality should be implemented in MakeDirs
     """
-    def __init__(self, *paths_to_make, remove_obstacles: bool=True) -> None:
-        super().__init__(*paths_to_make, remove_obstacles=remove_obstacles)
+    def __init__(self, *paths_to_make, remove_obstacles: bool=True, **kwargs) -> None:
+        super().__init__(*paths_to_make, remove_obstacles=remove_obstacles, **kwargs)
 
 
 class Touch(PythonBatchCommandBase, essential=True):
     """ Create an empty file if it does not already exist or update modification time to now if file exist"""
-    def __init__(self, path: os.PathLike) -> None:
-        super().__init__()
+    def __init__(self, path: os.PathLike,**kwargs) -> None:
+        super().__init__(**kwargs)
         self.path = path
 
-    def __repr__(self):
-
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        return own_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.path}'"""
@@ -151,14 +154,15 @@ class Cd(PythonBatchCommandBase, essential=True):
     """ change current working directory to 'path'
         when called as a context manager (with statement), previous working directory will be restored on __exit__
     """
-    def __init__(self, path: os.PathLike) -> None:
-        super().__init__()
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.new_path))})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(utils.quoteme_raw_string(os.fspath(self.new_path)))
+        return own_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.new_path}'"""
@@ -178,16 +182,20 @@ class CdStage(Cd, essential=False):
     """ change current working directory to 'path' and enter a new Stage
         when called as a context manager (with statement), previous working directory will be restored on __exit__
     """
-    def __init__(self, stage_name: str, path: os.PathLike, *titles) -> None:
-        super().__init__(path)
+    def __init__(self, stage_name: str, path: os.PathLike, *titles, **kwargs) -> None:
+        super().__init__(path, **kwargs)
         self.stage_name = stage_name
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
         self.titles = titles
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}, {utils.quoteme_raw_string(self.new_path)})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(utils.quoteme_raw_string(self.stage_name))
+        own_args.append(utils.quoteme_raw_string(self.new_path))
+        for title in self.titles:
+            own_args.append(utils.quoteme_raw_string(title))
+        return own_args
 
     def stage_str(self):
         the_str = f"""{self.stage_name}<{self.new_path}>"""
@@ -204,26 +212,20 @@ class ChFlags(RunProcessBase, essential=True):
     flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
                            'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
 
-    def __init__(self, path, *flags: List[str], recursive=False, **kwargs) -> None:
+    def __init__(self, path, *flags: List[str], **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
 
         for flag in flags:
             assert flag in self.flags_dict[sys.platform]
         self.flags = flags
-        self.recursive = recursive
 
-    def __repr__(self):
-        quoted_flags = "".join(("(", ", ".join(utils.quoteme_raw_list(self.flags)), ")"))
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))}"""
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
         for a_flag in self.flags:
-            the_repr += f""", {utils.quoteme_raw_if_string(a_flag)}"""
-        if self.recursive:
-            the_repr += f""", recursive={self.recursive}"""
-        if self.ignore_all_errors:
-            the_repr += f""", ignore_all_errors={self.ignore_all_errors}"""
-        the_repr += ")"
-        return the_repr
+            own_args.append(utils.quoteme_raw_if_string(a_flag))
+        return own_args
 
     def progress_msg_self(self):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
@@ -261,16 +263,17 @@ class ChFlags(RunProcessBase, essential=True):
         return run_args
 
 
-class Unlock(ChFlags, essential=True):
+class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True}):
     """ Remove the system's read-only flag (not permissions).
         For changing permissions use chmod.
     """
-    def __init__(self, path, recursive=False, ignore_all_errors=True):
-        super().__init__(path, "unlocked", recursive=recursive, ignore_all_errors=ignore_all_errors)
+    def __init__(self, path, **kwargs):
+        super().__init__(path, "unlocked", **kwargs)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, recursive={self.recursive}, ignore_all_errors={self.ignore_all_errors})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        return own_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.path}'"""
@@ -283,9 +286,11 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         self.source_file = source_file
         self.target_file = target_file
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}, target_file={utils.quoteme_raw_string(os.fspath(self.target_file))})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append( f"""source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}""")
+        own_args.append( f"""target_file={utils.quoteme_raw_string(os.fspath(self.target_file))}""")
+        return own_args
 
     def progress_msg_self(self):
         the_progress_msg = f"Append {self.source_file} to {self.target_file}"
@@ -304,17 +309,19 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
     """ change owner (either user, group or both) of file or folder
         if 'path' is a folder and recursive==True, ownership will be changed recursively
     """
-    def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, recursive: bool=False, **kwargs):
+    def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, **kwargs):
         super().__init__(**kwargs)
         self.user_id: Union[int, str]  = user_id   if user_id  else -1
         self.group_id: Union[int, str] = group_id  if group_id else -1
         self.path = path
-        self.recursive = recursive
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(user_id={self.user_id}, group_id={self.group_id}, path="{os.fspath(self.path)}", recursive={self.recursive})"""
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
+        own_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
+        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        return own_args
 
     def create_run_args(self):
         run_args = list()
@@ -365,15 +372,15 @@ class Chmod(RunProcessBase, essential=True):
         self.mode = mode
         self.recursive = recursive
 
-    def __repr__(self):
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
-        if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
-        the_repr += ")"
-        return the_repr
+        own_args.append( f"""mode={the_mode}""")
+        return own_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
@@ -444,16 +451,18 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         self.group_id: Union[int, str] = group_id  if group_id else -1
         self.recursive = recursive
 
-    def __repr__(self):
+    def repr_own_args(self):
+        own_args = list()
+        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        the_repr = f"""{self.__class__.__name__}(path={utils.quoteme_raw_string(os.fspath(self.path))}, mode={the_mode}, recursive={self.recursive}"""
-        the_repr += f''', user_id={self.user_id}, group_id={self.group_id}'''
-        if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
-        the_repr += ")"
-        return the_repr
+        own_args.append( f"""mode={the_mode}""")
+
+        own_args.append( f"""user_id={utils.quoteme_raw_if_string(self.user_id)}""")
+        own_args.append( f"""group_id={utils.quoteme_raw_if_string(self.group_id)}""")
+        return own_args
 
     def progress_msg_self(self):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
@@ -476,12 +485,12 @@ class Ls(PythonBatchCommandBase, essential=True):
         for a_folder in folders_to_list:
             self.folders_to_list.append(os.fspath(a_folder))
 
-    def __repr__(self) -> str:
-        folders_to_list = self.folders_to_list
-        if len(folders_to_list) > 0:
-            folders_to_list = ', '.join(utils.quoteme_raw_string(path) for path in self.folders_to_list)
-        the_repr = f'''{self.__class__.__name__}({folders_to_list}, out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}, ls_format='{self.ls_format}')'''
-        return the_repr
+    def repr_own_args(self):
+        own_args = list()
+        own_args.extend(utils.quoteme_raw_string(path) for path in self.folders_to_list)
+        own_args.append( f"""out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}""")
+        own_args.append( f"""ls_format='{self.ls_format}'""")
+        return own_args
 
     def progress_msg_self(self) -> str:
         return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
@@ -491,43 +500,6 @@ class Ls(PythonBatchCommandBase, essential=True):
         the_listing = utils.disk_item_listing(*resolved_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
-
-
-class CUrl(RunProcessBase):
-    """ download a file using curl """
-    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
-                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
-        super().__init__()
-        self.src: os.PathLike = src
-        self.trg: os.PathLike = trg
-        self.curl_path = curl_path
-        self.connect_time_out = connect_time_out
-        self.max_time = max_time
-        self.retires = retires
-        self.retry_delay = retry_delay
-
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)},
-          trg={utils.quoteme_raw_string(self.trg)},
-          curl_path={utils.quoteme_raw_string(self.curl_path)},
-          connect_time_out={self.connect_time_out}, max_time={self.max_time}, retires={self.retires}, retry_delay={self.retry_delay})"""
-        return the_repr
-
-    def progress_msg_self(self):
-        return f"""Download '{src}' to '{self.trg}'"""
-
-    def create_run_args(self):
-        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
-        resolved_trg_path = utils.ResolvedPath(self.trg)
-        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
-                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
-                    "--retry", self.retires, "--retry-delay", self.retry_delay,
-                    "-o", resolved_trg_path, self.src]
-        # TODO
-        # download_command_parts.append("write-out")
-        # download_command_parts.append(CUrlHelper.curl_write_out_str)
-        return run_args
-
 
 # todo:
 # override PythonBatchCommandBase for all commands

@@ -30,11 +30,11 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from testPythonBatch import *
+from test_PythonBatchBase import *
 
 
 class TestPythonBatchRemove(unittest.TestCase):
-    def __init__(self, which_test="apple"):
+    def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
@@ -50,11 +50,23 @@ class TestPythonBatchRemove(unittest.TestCase):
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"RmFile.repr did not recreate RmFile object correctly: {diff_explanation}")
 
+    def test_RmFile(self):
+        pass
+
     def test_RmDir_repr(self):
         obj = RmDir(r"\just\remove\me\already")
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"RmDir.repr did not recreate RmDir object correctly: {diff_explanation}")
+
+    def test_RmDir(self):
+        pass
+
+    def test_RmFileOrDir_repr(self):
+        pass
+
+    def test_RmFileOrDir(self):
+        pass
 
     def test_remove(self):
         """ Create a folder and fill it with random files.

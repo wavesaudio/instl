@@ -22,11 +22,11 @@ from pybatch import PythonBatchCommandAccum
 from configVar import config_vars
 
 
-from testPythonBatch import *
+from test_PythonBatchBase import *
 
 
 class TestPythonBatchMac(unittest.TestCase):
-    def __init__(self, which_test="pineapple"):
+    def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
@@ -35,6 +35,22 @@ class TestPythonBatchMac(unittest.TestCase):
 
     def tearDown(self):
         self.pbt.tearDown()
+
+    def private_test_ConvertFolderOfSymlinks(self):
+        """ to enable this test give a real path as folder_of_symlinks, preferably one with symlinks..."""
+
+        if sys.platform != 'darwin':
+            return
+
+        folder_of_symlinks = Path("/Users/shai/Desktop/Tk.framework")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
+        self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_to_symlink_files")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
+        self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
     def test_MacDoc_repr(self):
         obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
@@ -120,17 +136,6 @@ class TestPythonBatchMac(unittest.TestCase):
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly: {diff_explanation}")
 
-    def test_SymlinkFileToSymlink_repr(self):
-
-        if sys.platform != 'darwin':
-            return
-
-        some_file_path = "/Pippi/Långstrump.symlink"
-        obj = SymlinkFileToSymlink(some_file_path)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not resolve SymlinkToSymlinkFile object correctly: {diff_explanation}")
-
     def test_SymlinkToSymlinkFileAndBack(self):
         """ since symlinks cannot be uploaded (or downloaded) to S3, instl replaces them with
             a .symlink file that contains the target of the original symlink.
@@ -162,7 +167,7 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
         self.pbt.batch_accum += MakeDirs(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
-            with self.pbt.batch_accum.sub_accum(CdStage(self.pbt.test_folder , test_data.original_to_symlink.name)) as symlink_test_accum:
+            with self.pbt.batch_accum.sub_accum(CdStage(test_data.original_to_symlink.name, self.pbt.test_folder)) as symlink_test_accum:
                 symlink_test_accum += CreateSymlink(test_data.symlink_to_a_original, test_data.original_to_symlink)                # symlink with full path
                 symlink_test_accum += CreateSymlink(test_data.relative_symlink_to_a_original, test_data.original_to_symlink.name)  # symlink with relative path
                 symlink_test_accum += SymlinkToSymlinkFile(test_data.symlink_to_a_original)
@@ -177,11 +182,15 @@ class TestPythonBatchMac(unittest.TestCase):
             self.assertTrue(test_data.symlink_file_of_original.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_original} should have been replaced by .symlink file")
             self.assertTrue(test_data.symlink_file_of_relative.is_file(), f"SymlinkToSymlinkFile {test_data.symlink_file_of_relative} should be replaced by .symlink file")
 
+        return
+
+        self.pbt.batch_accum.clear()
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             self.pbt.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_original)
             self.pbt.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_relative)
         self.pbt.exec_and_capture_output("SymlinkToSymlinkFile resolving symlink files")
 
+        self.pbt.batch_accum.clear()
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             # check that the absolute and relative symlinks have been created
             self.assertTrue(test_data.symlink_to_a_original.is_symlink(), f"SymlinkToSymlinkFile {test_data.symlink_to_a_original} should have been created")
@@ -199,41 +208,30 @@ class TestPythonBatchMac(unittest.TestCase):
             os.chdir(self.pbt.test_folder)  # so relative resolve of symlink will work
             self.assertTrue(test_data.original_to_symlink.samefile(an_original_from_relative_symlink), f"symlink resolved to {an_original_from_relative_symlink} not to {test_data.symlink_to_a_original} as expected")
 
-    def private_test_ConvertFolderOfSymlinks(self):
-        """ to enable this test give a real path as folder_of_symlinks, preferably one with symlinks..."""
+    def test_SymlinkFileToSymlink_repr(self):
 
         if sys.platform != 'darwin':
             return
 
-        folder_of_symlinks = Path("/Users/shai/Desktop/Tk.framework")
-
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
-        self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_to_symlink_files")
-
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
-        self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
-
-    def test_SVNClient_repr(self):
-
-        if sys.platform != 'darwin':
-            return
-
-        obj = SVNClient("checkout", "--depth", "infinity")
+        some_file_path = "/Pippi/Långstrump.symlink"
+        obj = SymlinkFileToSymlink(some_file_path)
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"SVNClient.repr did not recreate SVNClient object correctly: {diff_explanation}")
+        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not resolve SymlinkToSymlinkFile object correctly: {diff_explanation}")
 
-    def test_SVNClient(self):
+    def test_SymlinkFileToSymlink(self):
+        pass
 
-        if sys.platform != 'darwin':
-            return
+    def test_CreateSymlinkFilesInFolder_repr(self):
+        pass
 
-        svn_checkout_dir = Path("/Volumes/BonaFide/installers/testinstl/V9/svn")
+    def test_CreateSymlinkFilesInFolder(self):
+        pass
 
-        self.pbt.batch_accum.clear()
-        with self.pbt.batch_accum.sub_accum(Cd(svn_checkout_dir)) as sub_bc:
-            sub_bc += SVNClient("info")
+    def test_ResolveSymlinkFilesInFolder_repr(self):
+        pass
 
-        self.pbt.exec_and_capture_output()
+    def test_ResolveSymlinkFilesInFolder(self):
+        pass
+
+
