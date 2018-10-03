@@ -5,6 +5,7 @@ from collections import OrderedDict
 import logging
 from pathlib import Path
 import filecmp
+from typing import List
 
 from configVar import config_vars
 import utils
@@ -57,7 +58,7 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
                     if copy_owner:
                         from pybatch import Chown
                         first_wtar_file_st = os.stat(wtar_file_paths[0])
-                        Chown(first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], destination_folder, recursive=True)()
+                        Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
 
         if no_artifacts:
             for wtar_file in wtar_file_paths:
@@ -80,12 +81,10 @@ class Wtar(PythonBatchCommandBase):
         self.what_to_wtar = what_to_wtar
         self.where_to_put_wtar = where_to_put_wtar if where_to_put_wtar else None
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}(what_to_wtar={utils.quoteme_raw_string(self.what_to_wtar)}'''
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f'''what_to_wtar={utils.quoteme_raw_string(self.what_to_wtar)}''')
         if self.where_to_put_wtar:
-            the_repr += f''', where_to_put_wtar={utils.quoteme_raw_string(self.where_to_put_wtar)}'''
-        the_repr += ")"
-        return the_repr
+            all_args.append(f'''where_to_put_wtar={utils.quoteme_raw_string(self.where_to_put_wtar)}''')
 
     def progress_msg_self(self) -> str:
         return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
@@ -196,21 +195,19 @@ class Wtar(PythonBatchCommandBase):
 class Unwtar(PythonBatchCommandBase):
     """ uncompress a wtar archive
     """
-    def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False,                  copy_owner=True, **kwargs) -> None:
+    def __init__(self, what_to_unwtar: os.PathLike, where_to_unwtar=None, no_artifacts=False, copy_owner=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.what_to_unwtar = what_to_unwtar
         self.where_to_unwtar = where_to_unwtar if where_to_unwtar else None
         self.no_artifacts = no_artifacts
         self.copy_owner = copy_owner
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}(what_to_unwtar={utils.quoteme_raw_string(self.what_to_unwtar)}'''
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f'''what_to_unwtar={utils.quoteme_raw_string(self.what_to_unwtar)}''')
         if self.where_to_unwtar:
-            the_repr += f''', where_to_unwtar={utils.quoteme_raw_string(self.where_to_unwtar)}'''
+            all_args.append(f'''where_to_unwtar={utils.quoteme_raw_string(self.where_to_unwtar)}''')
         if self.no_artifacts:
-            the_repr += f''', no_artifacts=True'''
-        the_repr += ")"
-        return the_repr
+            all_args.append(f'''no_artifacts=True''')
 
     def progress_msg_self(self) -> str:
         return f"""Expand '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
@@ -294,12 +291,10 @@ class Wzip(PythonBatchCommandBase):
         self.what_to_wzip = os.fspath(what_to_wzip)
         self.where_to_put_wzip = os.fspath(where_to_put_wzip) if where_to_put_wzip else None
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.what_to_wzip)}'''
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.what_to_wzip))
         if self.where_to_put_wzip:
-            the_repr += f''', {utils.quoteme_raw_string(self.where_to_put_wzip)}'''
-        the_repr += ")"
-        return the_repr
+            all_args.append(utils.quoteme_raw_string(self.where_to_put_wzip))
 
     def progress_msg_self(self) -> str:
         return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
@@ -329,15 +324,13 @@ class Unwzip(PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.what_to_unwzip = os.fspath(what_to_unwzip)
         self.where_to_put_unwzip = os.fspath(where_to_put_unwzip) if where_to_put_unwzip else None
-        self.resolved_what_to_unwzip = None  #
+        self.resolved_what_to_unwzip = None
         self.target_unwzip_file = None
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.what_to_unwzip)}'''
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.what_to_unwzip))
         if self.where_to_put_unwzip:
-            the_repr += f''', {utils.quoteme_raw_string(self.where_to_put_unwzip)}'''
-        the_repr += ")"
-        return the_repr
+            all_args.append(utils.quoteme_raw_string(self.where_to_put_unwzip))
 
     def progress_msg_self(self) -> str:
         return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""

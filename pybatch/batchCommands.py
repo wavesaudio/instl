@@ -50,13 +50,11 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         self.num_files_per_dir = num_files_per_dir
         self.file_size = file_size
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(f"""num_levels={self.num_levels}""")
-        own_args.append(f"""num_dirs_per_level={self.num_dirs_per_level}""")
-        own_args.append(f"""num_files_per_dir={self.num_files_per_dir}""")
-        own_args.append(f"""file_size={self.file_size}""")
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""num_levels={self.num_levels}""")
+        all_args.append(f"""num_dirs_per_level={self.num_dirs_per_level}""")
+        all_args.append(f"""num_files_per_dir={self.num_files_per_dir}""")
+        all_args.append(f"""file_size={self.file_size}""")
 
     def progress_msg_self(self):
         the_progress_msg = f"create random directories and files under current dir {os.getcwd()}"
@@ -98,12 +96,10 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.cur_path = None
         self.own_progress_count = len(self.paths_to_make)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
         if not self.remove_obstacles:
-            own_args.append(f"remove_obstacles={self.remove_obstacles}")
-        return own_args
+            all_args.append(f"remove_obstacles={self.remove_obstacles}")
 
     def progress_msg_self(self):
         paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
@@ -136,10 +132,8 @@ class Touch(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.path = path
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.path}'"""
@@ -159,10 +153,8 @@ class Cd(PythonBatchCommandBase, essential=True):
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(utils.quoteme_raw_string(os.fspath(self.new_path)))
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.new_path)))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.new_path}'"""
@@ -187,15 +179,13 @@ class CdStage(Cd, essential=False):
         self.stage_name = stage_name
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
-        self.titles = titles
+        self.titles = sorted(titles)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(utils.quoteme_raw_string(self.stage_name))
-        own_args.append(utils.quoteme_raw_string(self.new_path))
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.stage_name))
+        all_args.append(utils.quoteme_raw_string(self.new_path))
         for title in self.titles:
-            own_args.append(utils.quoteme_raw_string(title))
-        return own_args
+            all_args.append(utils.quoteme_raw_string(title))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}<{self.new_path}>"""
@@ -218,14 +208,12 @@ class ChFlags(RunProcessBase, essential=True):
 
         for flag in flags:
             assert flag in self.flags_dict[sys.platform]
-        self.flags = flags
+        self.flags = sorted(flags)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
         for a_flag in self.flags:
-            own_args.append(utils.quoteme_raw_if_string(a_flag))
-        return own_args
+            all_args.append(utils.quoteme_raw_if_string(a_flag))
 
     def progress_msg_self(self):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
@@ -270,10 +258,8 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
     def __init__(self, path, **kwargs):
         super().__init__(path, "unlocked", **kwargs)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.path}'"""
@@ -286,11 +272,9 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         self.source_file = source_file
         self.target_file = target_file
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append( f"""source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}""")
-        own_args.append( f"""target_file={utils.quoteme_raw_string(os.fspath(self.target_file))}""")
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append( f"""source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}""")
+        all_args.append( f"""target_file={utils.quoteme_raw_string(os.fspath(self.target_file))}""")
 
     def progress_msg_self(self):
         the_progress_msg = f"Append {self.source_file} to {self.target_file}"
@@ -309,19 +293,17 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
     """ change owner (either user, group or both) of file or folder
         if 'path' is a folder and recursive==True, ownership will be changed recursively
     """
-    def __init__(self, user_id: Union[int, str, None], group_id: Union[int, str, None], path: os.PathLike, **kwargs):
+    def __init__(self, path: os.PathLike, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
         super().__init__(**kwargs)
+        self.path = path
         self.user_id: Union[int, str]  = user_id   if user_id  else -1
         self.group_id: Union[int, str] = group_id  if group_id else -1
-        self.path = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
-        own_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
-        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        all_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
 
     def create_run_args(self):
         run_args = list()
@@ -366,21 +348,18 @@ class Chmod(RunProcessBase, essential=True):
                   'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP},
                   'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH}}
 
-    def __init__(self, path, mode, recursive: bool=False, **kwargs):
+    def __init__(self, path, mode, **kwargs):
         super().__init__(**kwargs)
         self.path = path
         self.mode = mode
-        self.recursive = recursive
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        own_args.append( f"""mode={the_mode}""")
-        return own_args
+        all_args.append( f"""mode={the_mode}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
@@ -443,26 +422,23 @@ class Chmod(RunProcessBase, essential=True):
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
     """ change mode and owner for file or folder"""
 
-    def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], recursive: bool=False, **kwargs):
+    def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
         super().__init__(**kwargs)
         self.path = path
         self.mode = mode
         self.user_id: Union[int, str]  = user_id   if user_id  else -1
         self.group_id: Union[int, str] = group_id  if group_id else -1
-        self.recursive = recursive
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        own_args.append( f"""mode={the_mode}""")
+        all_args.append( f"""mode={the_mode}""")
 
-        own_args.append( f"""user_id={utils.quoteme_raw_if_string(self.user_id)}""")
-        own_args.append( f"""group_id={utils.quoteme_raw_if_string(self.group_id)}""")
-        return own_args
+        all_args.append( f"""user_id={utils.quoteme_raw_if_string(self.user_id)}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_if_string(self.group_id)}""")
 
     def progress_msg_self(self):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
@@ -470,7 +446,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
-        Chown(user_id=self.user_id, group_id=self.group_id, path=resolved_path, recursive=self.recursive, own_progress_count=0)()
+        Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0)()
         Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
@@ -481,16 +457,12 @@ class Ls(PythonBatchCommandBase, essential=True):
         self.ls_format = ls_format
         self.out_file = out_file
         assert self.out_file is not None
-        self.folders_to_list = list()
-        for a_folder in folders_to_list:
-            self.folders_to_list.append(os.fspath(a_folder))
+        self.folders_to_list = sorted(folders_to_list)
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.extend(utils.quoteme_raw_string(path) for path in self.folders_to_list)
-        own_args.append( f"""out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}""")
-        own_args.append( f"""ls_format='{self.ls_format}'""")
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
+        all_args.append( f"""out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}""")
+        all_args.append( f"""ls_format='{self.ls_format}'""")
 
     def progress_msg_self(self) -> str:
         return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""

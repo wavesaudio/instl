@@ -5,7 +5,7 @@ from pathlib import Path
 import shlex
 import collections
 import subprocess
-from typing import List, Any, Optional, Union
+from typing import List
 
 import utils
 from .baseClasses import PythonBatchCommandBase
@@ -41,8 +41,8 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             message += f'; STDERR: {self.stderr.decode()}'
         super().log_result(log_lvl, message, exc_val)
 
-    def repr_own_args(self):
-        raise NotImplementedError
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
 
 
 class CUrl(RunProcessBase):
@@ -58,16 +58,14 @@ class CUrl(RunProcessBase):
         self.retires = retires
         self.retry_delay = retry_delay
 
-    def repr_own_args(self):
-        own_args = list()
-        own_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
-        own_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
-        own_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
-        own_args.append( f"""connect_time_out={connect_time_out}""")
-        own_args.append( f"""max_time={self.max_time}""")
-        own_args.append( f"""retires={self.retires}""")
-        own_args.append( f"""retry_delay={self.retry_delay}""")
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
+        all_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
+        all_args.append( f"""connect_time_out={self.connect_time_out}""")
+        all_args.append( f"""max_time={self.max_time}""")
+        all_args.append( f"""retires={self.retires}""")
+        all_args.append( f"""retry_delay={self.retry_delay}""")
 
     def progress_msg_self(self):
         return f"""Download '{src}' to '{self.trg}'"""
@@ -94,14 +92,10 @@ class ShellCommand(RunProcessBase, essential=True):
         self.shell_command = shell_command
         self.message = message
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.shell_command)}"""
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.shell_command))
         if self.message:
-            the_repr += f""", message={utils.quoteme_raw_string(self.message)}"""
-        if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
-        the_repr += ")"
-        return the_repr
+            all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
 
     def progress_msg_self(self):
         if self.message:
@@ -118,28 +112,27 @@ class ShellCommand(RunProcessBase, essential=True):
 class ShellCommands(PythonBatchCommandBase, essential=True):
     """ run some shells commands in a shell """
 
-    def __init__(self, shell_commands_list, message, **kwargs):
+    def __init__(self, shell_command_list, message, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
-        if shell_commands_list is None:
-            self.shell_commands_list = list()
+        if shell_command_list is None:
+            self.shell_command_list = list()
         else:
-            assert isinstance(shell_commands_list, collections.Sequence)
-            self.shell_commands_list = shell_commands_list
-        self.own_progress_count = len(self.shell_commands_list)
+            assert isinstance(shell_command_list, collections.Sequence)
+            self.shell_command_list = shell_command_list
+        self.own_progress_count = len(self.shell_command_list)
         self.message = message
 
-    def __repr__(self):
-        quoted_shell_commands_list = ", ".join(utils.quoteme_raw_list(self.shell_commands_list))
-
-        the_repr = f"""{self.__class__.__name__}(shell_commands_list=[{quoted_shell_commands_list}], message={utils.quoteme_raw_string(self.message)})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        quoted_shell_commands_list = utils.quoteme_raw_if_list(self.shell_command_list)
+        all_args.append(f"""shell_command_list={quoted_shell_commands_list}""")
+        all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
 
     def create_run_args(self):
-        the_lines = self.shell_commands_list
+        the_lines = self.shell_command_list
         if isinstance(the_lines, str):
             the_lines = [the_lines]
         if sys.platform == 'darwin':
@@ -159,7 +152,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
-        for i, shell_command in enumerate(self.shell_commands_list):
+        for i, shell_command in enumerate(self.shell_command_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
             with ShellCommand(shell_command, f"""{self.message} #{i+1}""", own_progress_count=0) as shelli:
                 shelli()
@@ -172,15 +165,9 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.config_file = config_file
         self.shell = shell
 
-    def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, shell={self.shell}'''
-        if self.own_progress_count > 1:
-            the_repr += f''', own_progress_count={self.own_progress_count}'''
-        if not self.report_own_progress:
-            the_repr += f''', report_own_progress={self.report_own_progress}'''
-
-        the_repr += ''')'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        all_args.append(f'''shell={self.shell}''')
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.config_file}'"""

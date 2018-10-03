@@ -1,6 +1,5 @@
 import os
 import shutil
-import glob
 from typing import List
 import logging
 import utils
@@ -19,9 +18,8 @@ class RmFile(PythonBatchCommandBase, essential=True):
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
 
     def progress_msg_self(self):
         return f"""Remove file '{self.path}'"""
@@ -43,9 +41,8 @@ class RmDir(PythonBatchCommandBase, essential=True):
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
 
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
@@ -67,9 +64,8 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path))})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
 
     def progress_msg_self(self):
         return f"""Remove '{self.path}'"""
@@ -95,9 +91,9 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
         self.folder_to_remove = folder_to_remove
         self.files_to_ignore = list(files_to_ignore)
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}(folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}, files_to_ignore={self.files_to_ignore})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f'''folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}''')
+        all_args.append(f'''files_to_ignore={self.files_to_ignore}''')
 
     def progress_msg_self(self) -> str:
         return f"""Remove empty directory '{self.folder_to_remove}'"""
@@ -144,9 +140,9 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         self.pattern: os.PathLike = pattern
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}, {utils.quoteme_raw_string(self.pattern)})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path_to_folder)))
+        all_args.append(utils.quoteme_raw_string(self.pattern))
 
     def progress_msg_self(self):
         return f"""Remove pattern '{self.pattern}' from {self.path_to_folder}"""
@@ -172,15 +168,13 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
     def __init__(self, path_to_folder: os.PathLike, *patterns: List, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_folder: os.PathLike = path_to_folder
-        self.patterns = patterns
+        self.patterns = sorted(patterns)
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_folder))}"""
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path_to_folder)))
         for pattern in self.patterns:
-            the_repr += f""", {utils.quoteme_raw_string(pattern)}"""
-        the_repr += ")"
-        return the_repr
+            all_args.append(utils.quoteme_raw_string(pattern))
 
     def progress_msg_self(self):
         return f"""Remove patterns '{self.patterns}' from {self.path_to_folder}"""

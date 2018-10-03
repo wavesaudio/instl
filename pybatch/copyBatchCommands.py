@@ -2,6 +2,7 @@ import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
+from typing import List
 
 # ToDo: add unwtar ?
 
@@ -68,9 +69,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.__all_ignore_patterns = sorted(list(set(self.__global_ignore_patterns + self.local_ignore_patterns)))
         self.__all_no_hard_link_patterns = list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns))
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        params = []
+    def repr_own_args(self, all_args: List[str]) -> None:
+        params = list()
         params.append(self.unnamed__init__param(os.fspath(self.src)))
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
         params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
@@ -83,11 +83,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("copy_owner", self.copy_owner, True))
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
-        params_text = ", ".join(filter(None, params))
-        if params_text:
-            the_repr += params_text
-        the_repr += ")"
-        return the_repr
+        all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
         return f"""Copy '{os.path.expandvars(self.src)}' to '{os.path.expandvars(self.dst)}'"""

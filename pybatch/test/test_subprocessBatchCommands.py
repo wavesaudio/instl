@@ -116,7 +116,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum.clear()
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.pbt.batch_accum += MakeDirs(batches_dir)
-        self.pbt.batch_accum += ShellCommands(shell_commands_list=geronimo, message="testing ShellCommands")
+        self.pbt.batch_accum += ShellCommands(shell_command_list=geronimo, message="testing ShellCommands")
 
         self.pbt.exec_and_capture_output()
 

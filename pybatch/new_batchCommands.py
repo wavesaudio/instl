@@ -119,7 +119,7 @@ class CopyDirToDirEx(PythonBatchCommandBase, essential=True):
                           ignore_dangling_symlinks=False,
                           delete_extraneous_files=True) as cdtd:
             cdtd()
-        with Chown(user_id=self.user_id, group_id=self.group_id, path=expanded_final_dst, recursive=True) as cho:
+        with Chown(path=expanded_final_dst, user_id=self.user_id, group_id=self.group_id, recursive=True) as cho:
             cho();
         with Chmod(path=expanded_final_dst, mode="a+rw", recursive=True, ignore_all_errors=True) as chm:
             chm()

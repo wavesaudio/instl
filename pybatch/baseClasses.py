@@ -1,7 +1,7 @@
 import os
 import sys
 import abc
-from typing import Dict
+from typing import Dict, List
 import time
 from contextlib import contextmanager
 from typing import List
@@ -83,21 +83,20 @@ class PythonBatchCommandBase(abc.ABC):
         retVal.update(self.kwargs_defaults_for_subclass)
         return retVal
 
-    def repr_default_kwargs(self):
-        repr_list = list()
-        for kwarg_name, kwarg_default_value in self.get_defaults_kwargs().items():
+    def repr_default_kwargs(self, all_args):
+        for kwarg_name, kwarg_default_value in sorted(self.get_defaults_kwargs().items()):
             current_value = getattr(self, kwarg_name, kwarg_default_value)
             if current_value != kwarg_default_value:
-                repr_list.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
-        return repr_list
+                all_args.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
 
     #@abc.abstractmethod
-    def repr_own_args(self):
-        own_args = list()
-        return own_args
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
 
     def __repr__(self) -> str:
-        all_args = self.repr_own_args() + self.repr_default_kwargs()
+        all_args = list()
+        self.repr_own_args(all_args)
+        self.repr_default_kwargs(all_args)
         the_repr = f"{self.__class__.__name__}("
         the_repr += ", ".join(all_args)
         the_repr += ")"

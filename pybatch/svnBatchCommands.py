@@ -1,3 +1,4 @@
+from typing import List
 from configVar import config_vars
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
@@ -8,9 +9,9 @@ class SVNClient(RunProcessBase):
         super().__init__(**kwargs)
         self.svn_args = args
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}(*{utils.quoteme_raw_if_list(self.svn_args)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        for arg in self.svn_args:
+            all_args.append(utils.quoteme_raw_if_string(arg))
 
     def progress_msg_self(self) -> str:
         return f''''''

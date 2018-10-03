@@ -47,6 +47,7 @@ from .batchCommands import Unlock
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
 from .subprocessBatchCommands import ShellCommand
+from .subprocessBatchCommands import CUrl
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
