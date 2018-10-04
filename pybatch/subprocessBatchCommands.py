@@ -5,7 +5,7 @@ from pathlib import Path
 import shlex
 import collections
 import subprocess
-from typing import List, Any, Optional, Union
+from typing import List
 
 import utils
 from .baseClasses import PythonBatchCommandBase
@@ -41,8 +41,46 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             message += f'; STDERR: {self.stderr.decode()}'
         super().log_result(log_lvl, message, exc_val)
 
-    def __repr__(self):
-        raise NotImplementedError
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
+
+
+class CUrl(RunProcessBase):
+    """ download a file using curl """
+    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
+                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
+        super().__init__()
+        self.src: os.PathLike = src
+        self.trg: os.PathLike = trg
+        self.curl_path = curl_path
+        self.connect_time_out = connect_time_out
+        self.max_time = max_time
+        self.retires = retires
+        self.retry_delay = retry_delay
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
+        all_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
+        all_args.append( f"""connect_time_out={self.connect_time_out}""")
+        all_args.append( f"""max_time={self.max_time}""")
+        all_args.append( f"""retires={self.retires}""")
+        all_args.append( f"""retry_delay={self.retry_delay}""")
+
+    def progress_msg_self(self):
+        return f"""Download '{src}' to '{self.trg}'"""
+
+    def create_run_args(self):
+        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
+        resolved_trg_path = utils.ResolvedPath(self.trg)
+        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
+                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
+                    "--retry", self.retires, "--retry-delay", self.retry_delay,
+                    "-o", resolved_trg_path, self.src]
+        # TODO
+        # download_command_parts.append("write-out")
+        # download_command_parts.append(CUrlHelper.curl_write_out_str)
+        return run_args
 
 
 class ShellCommand(RunProcessBase, essential=True):
@@ -54,14 +92,10 @@ class ShellCommand(RunProcessBase, essential=True):
         self.shell_command = shell_command
         self.message = message
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.shell_command)}"""
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.shell_command))
         if self.message:
-            the_repr += f""", message={utils.quoteme_raw_string(self.message)}"""
-        if self.ignore_all_errors:
-            the_repr += f", ignore_all_errors={self.ignore_all_errors}"
-        the_repr += ")"
-        return the_repr
+            all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
 
     def progress_msg_self(self):
         if self.message:
@@ -78,28 +112,27 @@ class ShellCommand(RunProcessBase, essential=True):
 class ShellCommands(PythonBatchCommandBase, essential=True):
     """ run some shells commands in a shell """
 
-    def __init__(self, shell_commands_list, message, **kwargs):
+    def __init__(self, shell_command_list, message, **kwargs):
         kwargs["shell"] = True
         super().__init__(**kwargs)
-        if shell_commands_list is None:
-            self.shell_commands_list = list()
+        if shell_command_list is None:
+            self.shell_command_list = list()
         else:
-            assert isinstance(shell_commands_list, collections.Sequence)
-            self.shell_commands_list = shell_commands_list
-        self.own_progress_count = len(self.shell_commands_list)
+            assert isinstance(shell_command_list, collections.Sequence)
+            self.shell_command_list = shell_command_list
+        self.own_progress_count = len(self.shell_command_list)
         self.message = message
 
-    def __repr__(self):
-        quoted_shell_commands_list = ", ".join(utils.quoteme_raw_list(self.shell_commands_list))
-
-        the_repr = f"""{self.__class__.__name__}(shell_commands_list=[{quoted_shell_commands_list}], message={utils.quoteme_raw_string(self.message)})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        quoted_shell_commands_list = utils.quoteme_raw_if_list(self.shell_command_list)
+        all_args.append(f"""shell_command_list={quoted_shell_commands_list}""")
+        all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
 
     def create_run_args(self):
-        the_lines = self.shell_commands_list
+        the_lines = self.shell_command_list
         if isinstance(the_lines, str):
             the_lines = [the_lines]
         if sys.platform == 'darwin':
@@ -119,9 +152,9 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
-        for i, shell_command in enumerate(self.shell_commands_list):
+        for i, shell_command in enumerate(self.shell_command_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
-            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", progress_count=0) as shelli:
+            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", own_progress_count=0) as shelli:
                 shelli()
 
 
@@ -132,15 +165,9 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.config_file = config_file
         self.shell = shell
 
-    def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.config_file))}, shell={self.shell}'''
-        if self.own_progress_count > 1:
-            the_repr += f''', progress_count={self.own_progress_count}'''
-        if not self.report_own_progress:
-            the_repr += f''', report_own_progress={self.report_own_progress}'''
-
-        the_repr += ''')'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        all_args.append(f'''shell={self.shell}''')
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.config_file}'"""

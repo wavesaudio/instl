@@ -8,11 +8,11 @@ log = logging.getLogger()
 from pybatch import *
 
 
-from testPythonBatch import *
+from test_PythonBatchBase import *
 
 
 class TestPythonBatchWin(unittest.TestCase):
-    def __init__(self, which_test="pineapple"):
+    def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
@@ -21,6 +21,36 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def tearDown(self):
         self.pbt.tearDown()
+
+    def test_WinShortcut_repr(self):
+        if sys.platform == "win32":
+            obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
+            obj_recreated = eval(repr(obj))
+            diff_explanation = obj.explain_diff(obj_recreated)
+            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
+
+            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
+            obj_recreated = eval(repr(obj))
+            diff_explanation = obj.explain_diff(obj_recreated)
+            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
+
+            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
+            obj_recreated = eval(repr(obj))
+            diff_explanation = obj.explain_diff(obj_recreated)
+            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
+
+    def test_WinShortcut(self):
+        src = "C:\Program Files (x86)\Waves\Applications V10\Electric Grand 80.exe"
+        dst = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Waves\Electric Grand 80.lnk"
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += WinShortcut(dst, src)
+        self.pbt.exec_and_capture_output()
+
+    def test_BaseRegistryKey_repr(self):
+        pass
+
+    def test_BaseRegistryKey(self):
+        pass
 
     def test_ReadRegistryValue_repr(self):
         for reg_num_bits in (32, 64):
@@ -169,27 +199,3 @@ class TestPythonBatchWin(unittest.TestCase):
                 elif key.startswith('stay'):
                     stay_value = ReadRegistryValue('HKEY_LOCAL_MACHINE', test_key_path, key, reg_num_bits=reg_num_bits)()
                     self.assertEqual(stay_value, test_values[key])
-
-    def test_WinShortcut_repr(self):
-        if sys.platform == "win32":
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
-
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
-
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
-
-    def test_WinShortcut(self):
-        src = "C:\Program Files (x86)\Waves\Applications V10\Electric Grand 80.exe"
-        dst = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Waves\Electric Grand 80.lnk"
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += WinShortcut(dst, src)
-        self.pbt.exec_and_capture_output()

@@ -1,3 +1,4 @@
+from typing import List
 from .batchCommands import *
 
 
@@ -15,19 +16,12 @@ class If(PythonBatchCommandBase, essential=True):
         # Ignoring if_true/if_false - In case there's an error with one of the functions, the json will issue a serialization error
         self.non_representative__dict__keys.extend(('if_true', 'if_false'))
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        params = []
-        params.append(repr(self.condition))
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(repr(self.condition))
         if self.if_true is not None:
-            params.append(f"if_true={repr(self.if_true)}")
+            all_args.append(f"if_true={repr(self.if_true)}")
         if self.if_false is not None:
-            params.append(f"if_false={repr(self.if_false)}")
-        params_text = ", ".join(filter(None, params))
-        if params_text:
-            the_repr += params_text
-        the_repr += ")"
-        return the_repr
+            all_args.append(f"if_false={repr(self.if_false)}")
 
     def progress_msg_self(self) -> str:
         return f''''''
@@ -99,9 +93,8 @@ class IsSymlink(object):
     def __init__(self, file_path):
         self.file_path = file_path
 
-    def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.file_path)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.file_path))
 
     def __call__(self):
         retVal = Path(self.file_path).is_symlink()

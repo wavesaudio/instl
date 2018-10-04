@@ -2,6 +2,7 @@ from pathlib import Path
 import keyword
 import json
 import re
+from typing import List
 
 import utils
 
@@ -22,8 +23,8 @@ class AnonymousAccum(PythonBatchCommandBase, essential=False, call__call__=False
         super().__init__(**kwargs)
         self.i_am_anonymous=True
 
-    def __repr__(self) -> str:
-        raise NotImplementedError("AnonymousAccum.__repr__ should not be called")
+    def repr_own_args(self, all_args: List[str]) -> None:
+        raise NotImplementedError("AnonymousAccum.repr_own_args should not be called")
 
     def progress_msg_self(self) -> str:
         raise NotImplementedError("AnonymousAccum.progress_msg_self should not be called")
@@ -41,9 +42,9 @@ class RaiseException(PythonBatchCommandBase, essential=True):
         self.exception_message = exception_message
         self.non_representative__dict__keys.append('exception_type')
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({self.exception_type_name}, "{self.exception_message}")'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.exception_type_name)
+        all_args.append(utils.quoteme_raw_string(self.exception_message))
 
     def progress_msg_self(self) -> str:
         return f'''Raising exception {self.exception_type.__name__}("{self.exception_message}")'''
@@ -56,18 +57,16 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
         Stage itself preforms no action only the contained commands will be preformed
     """
-    def __init__(self, stage_name, stage_extra=None):
-        super().__init__()
+    def __init__(self, stage_name, stage_extra=None, **kwargs):
+        super().__init__(**kwargs)
         self.stage_name = stage_name
         self.stage_extra = stage_extra
         self.own_progress_count = 0
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}({utils.quoteme_raw_string(self.stage_name)}"""
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.stage_name))
         if self.stage_extra:
-            the_repr += f""", {utils.quoteme_raw_string(self.stage_extra)}"""
-        the_repr += ")"
-        return the_repr
+            all_args.append(utils.quoteme_raw_string(self.stage_extra))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}"""
@@ -92,12 +91,8 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         super().__init__(**kwargs)
         self.message = message
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.message)}'''
-        if self.own_progress_count > 1:
-            the_repr += f", progress_count={self.own_progress_count}"
-        the_repr += ')'
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.message))
 
     def progress_msg_self(self) -> str:
         return self.message
@@ -267,9 +262,8 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         error_json = json.dumps(error_dict, separators=(',\n', ': '), sort_keys=True)
         log.error(f"{error_json}")
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}("{self.name}")'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f'''"{self.name}"''')
 
     def progress_msg_self(self) -> str:
         return f''''''

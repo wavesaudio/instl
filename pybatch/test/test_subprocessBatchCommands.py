@@ -30,11 +30,11 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from testPythonBatch import *
+from test_PythonBatchBase import *
 
 
 class TestPythonBatchSubprocess(unittest.TestCase):
-    def __init__(self, which_test="apple"):
+    def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
@@ -43,6 +43,41 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def tearDown(self):
         self.pbt.tearDown()
+
+    def test_RunProcessBase_repr(self):
+        pass
+
+    def test_RunProcessBase(self):
+        pass
+
+    def test_Curl_repr(self):
+        url_from = r"http://www.google.com"
+        file_to = "/q/w/r"
+        curl_path = 'curl'
+        if sys.platform == 'win32':
+            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
+        obj = CUrl(url_from, file_to, curl_path)
+        obj_recreated = eval(repr(obj))
+        diff_explanation = obj.explain_diff(obj_recreated)
+        self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
+
+    def test_Curl(self):
+        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        with open(sample_file, 'r') as stream:
+            test_data = stream.read()
+        url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
+        to_path = self.pbt.path_inside_test_folder("curl")
+        curl_path = 'curl'
+        if sys.platform == 'win32':
+            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
+        os.makedirs(to_path, exist_ok=True)
+        downloaded_file = os.path.join(to_path, 'Sample.txt')
+        with self.pbt.batch_accum as batchi:
+            batchi += CUrl(url_from, downloaded_file, curl_path)
+        self.pbt.exec_and_capture_output("Download file")
+        with open(downloaded_file, 'r') as stream:
+            downloaded_data = stream.read()
+        self.assertEqual(test_data, downloaded_data)
 
     def test_ShellCommand_repr(self):
         for ignore_all_errors in (True, False):
@@ -55,6 +90,12 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             obj_recreated = eval(repr(obj))
             diff_explanation = obj.explain_diff(obj_recreated)
             self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+
+    def test_ShellCommand(self):
+        pass
+
+    def test_ShellCommands_repr(self):
+        pass
 
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
@@ -75,7 +116,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum.clear()
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.pbt.batch_accum += MakeDirs(batches_dir)
-        self.pbt.batch_accum += ShellCommands(shell_commands_list=geronimo, message="testing ShellCommands")
+        self.pbt.batch_accum += ShellCommands(shell_command_list=geronimo, message="testing ShellCommands")
 
         self.pbt.exec_and_capture_output()
 
@@ -177,32 +218,3 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(zip_input_copy.exists(), f"{self.pbt.which_test}: {zip_input_copy} should remain")
 
         self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
-
-    def test_Curl_repr(self):
-        url_from = r"http://www.google.com"
-        file_to = "/q/w/r"
-        curl_path = 'curl'
-        if sys.platform == 'win32':
-            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        obj = CUrl(url_from, file_to, curl_path)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
-
-    def test_Curl_download(self):
-        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
-        with open(sample_file, 'r') as stream:
-            test_data = stream.read()
-        url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
-        to_path = self.pbt.path_inside_test_folder("curl")
-        curl_path = 'curl'
-        if sys.platform == 'win32':
-            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        os.makedirs(to_path, exist_ok=True)
-        downloaded_file = os.path.join(to_path, 'Sample.txt')
-        with self.pbt.batch_accum as batchi:
-            batchi += CUrl(url_from, downloaded_file, curl_path)
-        self.pbt.exec_and_capture_output("Download file")
-        with open(downloaded_file, 'r') as stream:
-            downloaded_data = stream.read()
-        self.assertEqual(test_data, downloaded_data)

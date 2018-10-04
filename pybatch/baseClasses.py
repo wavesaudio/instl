@@ -1,7 +1,7 @@
 import os
 import sys
 import abc
-from typing import Dict
+from typing import Dict, List
 import time
 from contextlib import contextmanager
 from typing import List
@@ -42,22 +42,29 @@ class PythonBatchCommandBase(abc.ABC):
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     default_ignore_all_errors = False
 
+    kwargs_defaults = {'own_progress_count': 1,
+                       'report_own_progress': True,
+                       'ignore_all_errors': default_ignore_all_errors,
+                       'remark': None,
+                       'recursive': False}
+    kwargs_defaults_for_subclass = dict()
+
     @classmethod
-    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, **kwargs):
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults={}, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
+        cls.kwargs_defaults_for_subclass = kwargs_defaults
 
     @abc.abstractmethod
     def __init__(self, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
 
-        self.own_progress_count = kwargs.get('progress_count', 1)
-        self.report_own_progress = kwargs.get('report_own_progress', True)
-        self.ignore_all_errors =   kwargs.get('ignore_all_errors', PythonBatchCommandBase.default_ignore_all_errors)
-        self.remark = kwargs.get('remark', None)
+        for kwarg_name, kwarg_default_value in self.get_defaults_kwargs().items():
+            kwarg_value = kwargs.get(kwarg_name, kwarg_default_value)
+            setattr(self, kwarg_name, kwarg_value)
 
         self.exceptions_to_ignore = []
         self.child_batch_commands = []
@@ -70,9 +77,30 @@ class PythonBatchCommandBase(abc.ABC):
         self.current_working_dir = None
         self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
 
-    @abc.abstractmethod
+    def get_defaults_kwargs(self):
+        retVal = dict()
+        retVal.update(self.kwargs_defaults)
+        retVal.update(self.kwargs_defaults_for_subclass)
+        return retVal
+
+    def repr_default_kwargs(self, all_args):
+        for kwarg_name, kwarg_default_value in sorted(self.get_defaults_kwargs().items()):
+            current_value = getattr(self, kwarg_name, kwarg_default_value)
+            if current_value != kwarg_default_value:
+                all_args.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
+
+    #@abc.abstractmethod
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
+
     def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}(report_own_progress={self.report_own_progress}, ignore_all_errors={self.ignore_all_errors})"
+        all_args = list()
+        self.repr_own_args(all_args)
+        self.repr_default_kwargs(all_args)
+        the_repr = f"{self.__class__.__name__}("
+        the_repr += ", ".join(all_args)
+        the_repr += ")"
+
         return the_repr
 
     def __str__(self):

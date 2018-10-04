@@ -133,7 +133,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
             exec_file_paths = self.info_map_table.get_required_exec_file_paths()
         for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
-                Chmod(file_item_path, "a+x", progress_count=0)()
+                Chmod(file_item_path, "a+x", own_progress_count=0)()
 
 
 class CreateSyncFolders(InfoMapBase):

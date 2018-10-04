@@ -133,10 +133,10 @@ main_test_folder_name = "python_batch_test_results"
 
 
 class TestPythonBatch(object):
-    def __init__(self, uni_test_obj, which_test="banana"):
+    def __init__(self, uni_test_obj, which_test):
         self.uni_test_obj = uni_test_obj
         self.which_test = which_test.lstrip("test_")
-        self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, self.which_test)
+        self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, uni_test_obj.__class__.__name__, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
 

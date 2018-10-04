@@ -2,6 +2,7 @@ import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
+from typing import List
 
 # ToDo: add unwtar ?
 
@@ -47,7 +48,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
-        self.local_ignore_patterns = ignore_patterns
+        self.local_ignore_patterns = sorted(ignore_patterns)
         self.local_no_hard_link_patterns = no_hard_link_patterns
         self.hard_links = hard_links
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
@@ -65,12 +66,11 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
-        self.__all_ignore_patterns = list(set(self.__global_ignore_patterns + self.local_ignore_patterns))
+        self.__all_ignore_patterns = sorted(list(set(self.__global_ignore_patterns + self.local_ignore_patterns)))
         self.__all_no_hard_link_patterns = list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns))
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        params = []
+    def repr_own_args(self, all_args: List[str]) -> None:
+        params = list()
         params.append(self.unnamed__init__param(os.fspath(self.src)))
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
         params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
@@ -83,11 +83,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("copy_owner", self.copy_owner, True))
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
-        params_text = ", ".join(filter(None, params))
-        if params_text:
-            the_repr += params_text
-        the_repr += ")"
-        return the_repr
+        all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
         return f"""Copy '{os.path.expandvars(self.src)}' to '{os.path.expandvars(self.dst)}'"""
@@ -165,6 +161,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                 retVal = False
                 log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
+            if retVal:  # destination exists and file should be copied, so make sure it's writable
+                Chmod(dst, "u+w")()
         return retVal
 
     def should_copy_dir(self, src: Path, dst: Path):
