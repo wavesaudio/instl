@@ -45,19 +45,13 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_RmFile_repr(self):
-        obj = RmFile(r"\just\remove\me\already")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmFile.repr did not recreate RmFile object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(RmFile(r"\just\remove\me\already"))
 
     def test_RmFile(self):
         pass
 
     def test_RmDir_repr(self):
-        obj = RmDir(r"\just\remove\me\already")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmDir.repr did not recreate RmDir object correctly: {diff_explanation}")
+       self.pbt.reprs_test_runner(RmDir(r"\just\remove\me\already"))
 
     def test_RmDir(self):
         pass
@@ -93,20 +87,11 @@ class TestPythonBatchRemove(unittest.TestCase):
         with self.assertRaises(TypeError):
             obj = RemoveEmptyFolders()
 
-        obj = RemoveEmptyFolders("/per/pen/di/cular")
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = RemoveEmptyFolders("/per/pen/di/cular", [])
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await'])
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
+        list_of_objs = list()
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular"))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", []))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await']))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RemoveEmptyFolders(self):
         folder_to_remove = self.pbt.path_inside_test_folder("folder-to-remove")
@@ -139,10 +124,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not removed {file_to_stay}")
 
     def test_RmGlob_repr(self):
-        obj = RmGlob("/lo/lla/pa/loo/za", "*.pendicular")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate RmGlob object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(RmGlob("/lo/lla/pa/loo/za", "*.pendicular"))
 
     def test_RmGlob(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
@@ -169,18 +151,11 @@ class TestPythonBatchRemove(unittest.TestCase):
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
 
     def test_RmGlobs_repr(self):
-        obj = RmGlobs("/lo/lla/pa/loo/za")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
-        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
-        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular", "i*regular.??")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
+        list_of_objs = list()
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za"))
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za", "*.pendicular"))
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za", "*.pendicular", "i*regular.??"))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RmGlobs(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")

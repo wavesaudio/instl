@@ -53,20 +53,9 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
     def test_MacDoc_repr(self):
-        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"MacDoc.repr did not recreate MacDoc object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True),
+                                   MacDock("/Santa/Catalina/Island", "Santa Catalina Island", False),
+                                   MacDock("/Santa/Catalina/Island", "Santa Catalina Island", True, remove=True))
 
     def test_MacDoc(self):
         if sys.platform == "darwin":
@@ -79,10 +68,7 @@ class TestPythonBatchMac(unittest.TestCase):
 
         some_file_path = "/Pippi/Långstrump"
         some_symlink_path = "/Astrid/Anna/Emilia/Lindgren"
-        obj = CreateSymlink(some_symlink_path, some_file_path)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"CreateSymlink.repr did not recreate CreateSymlink object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(CreateSymlink(some_symlink_path, some_file_path))
 
     def test_CreateSymlink(self):
 
@@ -131,10 +117,7 @@ class TestPythonBatchMac(unittest.TestCase):
             return
 
         some_file_path = "/Pippi/Långstrump"
-        obj = SymlinkToSymlinkFile(some_file_path)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not recreate SymlinkToSymlinkFile object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(SymlinkToSymlinkFile(some_file_path))
 
     def test_SymlinkToSymlinkFileAndBack(self):
         """ since symlinks cannot be uploaded (or downloaded) to S3, instl replaces them with
@@ -214,10 +197,7 @@ class TestPythonBatchMac(unittest.TestCase):
             return
 
         some_file_path = "/Pippi/Långstrump.symlink"
-        obj = SymlinkFileToSymlink(some_file_path)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"SymlinkToSymlinkFile.repr did not resolve SymlinkToSymlinkFile object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(SymlinkFileToSymlink(some_file_path))
 
     def test_SymlinkFileToSymlink(self):
         pass

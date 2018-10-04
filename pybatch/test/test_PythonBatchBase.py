@@ -186,7 +186,7 @@ class TestPythonBatch(object):
             with self.uni_test_obj.assertRaises(expected_exception):
                 ops = exec(bc_compiled, globals(), locals())
 
-    def reprs_test_runner(self, list_of_objs):
+    def reprs_test_runner(self, *list_of_objs):
         out_file = self.path_inside_test_folder(self.which_test+".out.txt")
         with open(out_file, "w") as wfd:
             for obj in list_of_objs:

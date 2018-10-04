@@ -24,20 +24,11 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_WinShortcut_repr(self):
         if sys.platform == "win32":
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell")
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
-
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", False)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
-
-            obj = WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
+            list_of_objs = list()
+            list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell"))
+            list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell", False))
+            list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True))
+            self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_WinShortcut(self):
         src = "C:\Program Files (x86)\Waves\Applications V10\Electric Grand 80.exe"
@@ -53,17 +44,15 @@ class TestPythonBatchWin(unittest.TestCase):
         pass
 
     def test_ReadRegistryValue_repr(self):
+        list_of_objs = list()
         for reg_num_bits in (32, 64):
-            obj = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"ReadRegistryKey.repr did not recreate ReadRegistryKey object correctly: {diff_explanation}")
+            list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
         # without specifying reg_num_bits at all
-        obj = ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"ReadRegistryKey.repr did not recreate ReadRegistryKey object correctly: {diff_explanation}")
+        list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True)()
+        self.pbt.reprs_test_runner(*list_of_objs)
+            list_of_objs = list()
 
     def test_ReadRegistryValue(self):
         for reg_num_bits in (32, 64):
@@ -73,18 +62,15 @@ class TestPythonBatchWin(unittest.TestCase):
             self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_CreateRegistryKey_repr(self):
+        list_of_objs = list()
         for reg_num_bits in (32, 64):
             # without default data value
-            obj = CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', reg_num_bits=reg_num_bits)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"CreateRegistryKey.repr (without default data value) did not recreate CreateRegistryKey object correctly: {diff_explanation}")
+            list_of_objs.append(CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', reg_num_bits=reg_num_bits))
 
             # with default data value
-            obj = CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', "lolapaluza", reg_num_bits=reg_num_bits)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"CreateRegistryKey.repr (with default data value) did not recreate CreateRegistryKey object correctly: {diff_explanation}")
+            list_of_objs.append(CreateRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', "lolapaluza", reg_num_bits=reg_num_bits))
+
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_CreateRegistryKey_no_default_value(self):
         for i in range(2):
@@ -130,11 +116,10 @@ class TestPythonBatchWin(unittest.TestCase):
                 self.pbt.exec_and_capture_output(test_name=test_key_leaf)
 
     def test_CreateRegistryValues_repr(self):
+        list_of_objs = list()
         for reg_num_bits in (64, 32):
-            obj = CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', {'key1': 'val1', 'key2': 'val2'}, reg_num_bits=reg_num_bits)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"CreateRegistryKey.repr did not recreate CreateRegistryKey object correctly: {diff_explanation}")
+            list_of_objs.append(CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\Test', {'key1': 'val1', 'key2': 'val2'}, reg_num_bits=reg_num_bits))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_CreateRegistryValues(self):
         for reg_num_bits in (64, 32):
@@ -148,11 +133,10 @@ class TestPythonBatchWin(unittest.TestCase):
                 self.assertEqual(value, expected_value, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_DeleteRegistryKey_repr(self):
+        list_of_objs = list()
         for reg_num_bits in (64, 32):
-            obj = DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', reg_num_bits=reg_num_bits)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"DeleteRegistryKey.repr did not recreate DeleteRegistryKey object correctly: {diff_explanation}")
+            list_of_objs.append(DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio', reg_num_bits=reg_num_bits))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_DeleteRegistryKey(self):
         for reg_num_bits in (64, 32):
@@ -163,11 +147,10 @@ class TestPythonBatchWin(unittest.TestCase):
             self.pbt.exec_and_capture_output(expected_exception=FileNotFoundError)
 
     def test_DeleteRegistryValues_repr(self):
+        list_of_objs = list()
         for reg_num_bits in (64, 32):
-            obj = DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryValues_repr', 'key1', 'key2', reg_num_bits=reg_num_bits)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"DeleteRegistryValues.repr did not recreate DeleteRegistryValues object correctly: {diff_explanation}")
+            list_of_objs.append(DeleteRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryValues_repr', 'key1', 'key2', reg_num_bits=reg_num_bits))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_DeleteRegistryValues(self):
         for reg_num_bits in (64, 32):

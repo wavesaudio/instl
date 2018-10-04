@@ -23,24 +23,12 @@ class TestPythonBatchConditional(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_If_repr(self):
+        list_of_objs = list()
         the_condition = True
-        obj = If(the_condition, if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
-        if_repr = repr(obj)
-        print(if_repr)
-        obj_recreated = eval(if_repr)
-        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
-
-        obj = If(Path("/mama/mia/here/i/go/again").exists(), if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
-        if_repr = repr(obj)
-        print(if_repr)
-        obj_recreated = eval(if_repr)
-        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
-
-        obj = If("2 == 1+1", if_true=Touch("hootenanny"), if_false=Touch("hootebunny"))
-        if_repr = repr(obj)
-        print(if_repr)
-        obj_recreated = eval(if_repr)
-        self.assertEqual(obj, obj_recreated, "If.repr (1) did not recreate If object correctly")
+        list_of_objs.append(If(the_condition, if_true=Touch("hootenanny"), if_false=Touch("hootebunny")))
+        list_of_objs.append(If(Path("/mama/mia/here/i/go/again").exists(), if_true=Touch("hootenanny"), if_false=Touch("hootebunny")))
+        list_of_objs.append(If("2 == 1+1", if_true=Touch("hootenanny"), if_false=Touch("hootebunny")))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_IfFileExist(self):
         file_that_should_exist = self.pbt.path_inside_test_folder("should_exist")

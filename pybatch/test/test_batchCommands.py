@@ -48,9 +48,7 @@ class TestPythonBatchMain(unittest.TestCase):
         """ test that MakeDirs.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        obj = MakeDirs("a/b/c", "jane/and/jane", remove_obstacles=True)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "MakeDirs.repr did not recreate MakeDirs object correctly")
+        self.pbt.reprs_test_runner(MakeDirs("a/b/c", "jane/and/jane", remove_obstacles=True))
 
     def test_MakeDirs_1_simple(self):
         """ test MakeDirs. 2 dirs should be created side by side """
@@ -111,14 +109,10 @@ class TestPythonBatchMain(unittest.TestCase):
         pass
 
     def test_Touch_repr(self):
-        obj = Touch("/f/g/h")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj, "Touch.repr did not recreate Touch object correctly")
+        self.pbt.reprs_test_runner(Touch("/f/g/h"))
 
     def test_Cd_repr(self):
-        obj = Cd("a/b/c")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Cd.repr did not recreate Cd object correctly")
+        self.pbt.reprs_test_runner(Cd("a/b/c"))
 
     def test_Cd_and_Touch_1(self):
         """ test Cd and Touch
@@ -148,32 +142,25 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_CdStage_repr(self):
         list_of_title_lists = ((), ("t1",), ("t2", "t3"))
-        for title_list in list_of_title_lists:
-            obj = CdStage("a good stage", "/a/file/to/change", *title_list)
-            obj_recreated = eval(repr(obj))
-            self.assertEqual(obj, obj_recreated, "CdStage.repr did not recreate CdStage object correctly")
+        self.pbt.reprs_test_runner(*(CdStage("a good stage", "/a/file/to/change", *title_list) for title_list in list_of_title_lists ))
 
     def test_CdStage(self):
         pass
 
     def test_ChFlags_repr(self):
+        list_of_reprs = list()
         list_of_flag_lists = (("hidden",), ("hidden", "locked"))
+
         for flag_list in list_of_flag_lists:
-            obj = ChFlags("/a/file/to/change", *flag_list)
-            obj_recreated = eval(repr(obj))
-            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+            list_of_reprs.append(ChFlags("/a/file/to/change", *flag_list))
         for flag_list in list_of_flag_lists:
-            obj = ChFlags("/a/file/to/change", *flag_list, recursive=True)
-            obj_recreated = eval(repr(obj))
-            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+            list_of_reprs.append(ChFlags("/a/file/to/change", *flag_list, recursive=True))
         for flag_list in list_of_flag_lists:
-            obj = ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True)
-            obj_recreated = eval(repr(obj))
-            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+            list_of_reprs.append(ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True))
         for flag_list in list_of_flag_lists:
-            obj = ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True, recursive=True)
-            obj_recreated = eval(repr(obj))
-            self.assertEqual(obj, obj_recreated, "ChFlags.repr did not recreate ChFlags object correctly")
+            list_of_reprs.append(ChFlags("/a/file/to/change", *flag_list, ignore_all_errors=True, recursive=True))
+
+        self.pbt.reprs_test_runner(*list_of_reprs)
 
         with self.assertRaises(AssertionError):
             obj = ChFlags("/a/file/to/change", "hidden", "momo")
@@ -217,9 +204,7 @@ class TestPythonBatchMain(unittest.TestCase):
             self.assertTrue(os.access(test_file, os.W_OK))
 
     def test_AppendFileToFile_repr(self):
-        obj = AppendFileToFile("/a/file/to/append", "/a/file/to/appendee")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "AppendFileToFile.repr did not recreate AppendFileToFile object correctly")
+        self.pbt.reprs_test_runner(AppendFileToFile("/a/file/to/append", "/a/file/to/appendee"))
 
     def test_AppendFileToFile(self):
         source_file = self.pbt.path_inside_test_folder("source-file.txt")
@@ -253,14 +238,7 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_Chmod_repr(self):
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
-        obj = Chmod("a/b/c", new_mode, recursive=False)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is int)")
-
-        new_mode = "a-rw"
-        obj = Chmod("a/b/c", new_mode, recursive=False)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Chmod.repr did not recreate Chmod object correctly (mode is symbolic)")
+        self.pbt.reprs_test_runner(Chmod("a/b/c", new_mode, recursive=True), Chmod("a/b/c", new_mode, recursive=False))
 
     def test_Chmod_non_recursive(self):
         """ test Chmod
@@ -397,17 +375,9 @@ class TestPythonBatchMain(unittest.TestCase):
         with self.assertRaises(AssertionError):
             obj = Ls([])
 
-        obj = Ls('', out_file="empty.txt")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
-
-        obj = Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
-
-        obj = Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Ls.repr did not recreate Ls object correctly")
+        self.pbt.reprs_test_runner(Ls('', out_file="empty.txt"),
+                                   Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc'),
+                                   Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt"))
 
     def test_Ls(self):
         folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")

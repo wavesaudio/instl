@@ -36,22 +36,18 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_RsyncClone_repr(self):
+        list_of_objs = list()
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        ong = RsyncClone(dir_from, dir_to)
-        ong_recreated = eval(repr(ong))
-        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (1) did not recreate RsyncClone object correctly")
-
-        ong = RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
+        list_of_objs.append(RsyncClone(dir_from, dir_to))
+        list_of_objs.append(RsyncClone(dir_from, dir_to, symlinks_as_symlinks=False,
                  ignore_patterns=['*.a', 'b.*'],
                  hard_links=False,
                  ignore_dangling_symlinks=True,
                  delete_extraneous_files=True,
                  verbose=17,
-                 dry_run=True)
-        print(repr(ong))
-        ong_recreated = eval(repr(ong))
-        self.assertEqual(ong, ong_recreated, "RsyncClone.repr (2) did not recreate RsyncClone object correctly")
+                 dry_run=True))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RsyncClone(self):
         """ test RsyncClone (with/without using rsync's link_dest option)
@@ -107,10 +103,7 @@ class TestPythonBatchCopy(unittest.TestCase):
     def test_CopyDirToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        ong = CopyDirToDir(dir_from, dir_to, hard_links=False)
-        ong_repr = repr(ong)
-        ong_recreated = eval(ong_repr)
-        self.assertEqual(ong, ong_recreated, "CopyDirToDir.repr did not recreate CopyDirToDir object correctly")
+        self.pbt.reprs_test_runner(CopyDirToDir(dir_from, dir_to, hard_links=False))
 
     def test_CopyDirToDir(self):
         """ test CopyDirToDir (with/without using hard links)
@@ -164,10 +157,7 @@ class TestPythonBatchCopy(unittest.TestCase):
     def test_MoveDirToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        ong = MoveDirToDir(dir_from, dir_to, ignore_if_not_exist=False)
-        ong_repr = repr(ong)
-        ong_recreated = eval(ong_repr)
-        self.assertEqual(ong, ong_recreated, "MoveDirToDir.repr did not recreate MoveDirToDir object correctly")
+        self.pbt.reprs_test_runner(MoveDirToDir(dir_from, dir_to, ignore_if_not_exist=False))
 
     def test_MoveDirToDir(self):
         """ test MoveDirToDir (with/without using hard links)
@@ -239,9 +229,7 @@ class TestPythonBatchCopy(unittest.TestCase):
     def test_CopyDirContentsToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        cdctd_obj = CopyDirContentsToDir(dir_from, dir_to, link_dest=True)
-        cdctd_obj_recreated = eval(repr(cdctd_obj))
-        self.assertEqual(cdctd_obj, cdctd_obj_recreated, "CopyDirContentsToDir.repr did not recreate CopyDirContentsToDir object correctly")
+        self.pbt.reprs_test_runner(CopyDirContentsToDir(dir_from, dir_to, link_dest=True))
 
     def test_CopyDirContentsToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
@@ -291,9 +279,7 @@ class TestPythonBatchCopy(unittest.TestCase):
     def test_CopyFileToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        cftd_obj = CopyFileToDir(dir_from, dir_to, hard_links=False)
-        cftd_obj_recreated = eval(repr(cftd_obj))
-        self.assertEqual(cftd_obj, cftd_obj_recreated, "CopyFileToDir.repr did not recreate CopyFileToDir object correctly")
+        self.pbt.reprs_test_runner(CopyFileToDir(dir_from, dir_to, hard_links=False))
 
     def test_CopyFileToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains
@@ -336,9 +322,7 @@ class TestPythonBatchCopy(unittest.TestCase):
 
     def test_CopyFileToFile_repr(self):
         dir_from = r"\p\o\i"
-        cftf_obj = CopyFileToFile(dir_from, "/sugar/man", hard_links=False, copy_owner=True)
-        cftf_obj_recreated = eval(repr(cftf_obj))
-        self.assertEqual(cftf_obj, cftf_obj_recreated, "CopyFileToFile.repr did not recreate CopyFileToFile object correctly")
+        self.pbt.reprs_test_runner(CopyFileToFile(dir_from, "/sugar/man", hard_links=False, copy_owner=True))
 
     def test_CopyFileToFile(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contains

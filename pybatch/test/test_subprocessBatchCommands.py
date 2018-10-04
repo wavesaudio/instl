@@ -86,7 +86,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             for l in list_of_error_to_ignore_lists:
                 list_of_objs.append(ShellCommand("do something", ignore_all_errors=ignore_all_errors, ignore_specific_exit_codes=l))
 
-        self.pbt.reprs_test_runner(list_of_objs)
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_ShellCommand(self):
         pass

@@ -48,11 +48,7 @@ class TestPythonBatchSVN(unittest.TestCase):
 
         if sys.platform != 'darwin':
             return
-
-        obj = SVNClient("checkout", "--depth", "infinity")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"SVNClient.repr did not recreate SVNClient object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(SVNClient("checkout", "--depth", "infinity"))
 
     def test_SVNClient(self):
 

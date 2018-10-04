@@ -57,9 +57,7 @@ class TestPythonBatchReporting(unittest.TestCase):
     def test_RaiseException_repr(self):
         the_exception = ValueError
         the_message = "just a dummy exception"
-        obj = RaiseException(the_exception, the_message)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
+        self.pbt.reprs_test_runner(RaiseException(the_exception, the_message))
 
     def test_RaiseException(self):
         self.pbt.batch_accum.clear()
@@ -70,13 +68,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         """ test that Stage.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        obj = Stage("Tuti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
-
-        obj = Stage("Tuti", "Fruti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
+        self.pbt.reprs_test_runner(Stage("Tuti"), Stage("Tuti", "Fruti"))
 
     def test_Stage(self):
         pass
@@ -85,13 +77,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         """ test that Progress.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        obj = Progress("Tuti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
-
-        obj = Progress("Tuti", own_progress_count=17)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
+        self.pbt.reprs_test_runner(Progress("Tuti"), Progress("Tuti", own_progress_count=17))
 
     def test_Progress(self):
         pass
