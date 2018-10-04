@@ -12,10 +12,14 @@ from .baseClasses import PythonBatchCommandBase
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
-    def __init__(self, **kwargs):
+    def __init__(self, ignore_specific_exit_codes=(),  **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
+        if isinstance(ignore_specific_exit_codes, int):
+            self.ignore_specific_exit_codes = (ignore_specific_exit_codes,)
+        else:
+            self.ignore_specific_exit_codes = ignore_specific_exit_codes
         self.shell = kwargs.get('shell', False)
         self.stdout = ''
         self.stderr = ''
@@ -43,6 +47,13 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
+
+    def should_ignore__exit__exception(self, exc_type, exc_val, exc_tb):
+        retVal = super().should_ignore__exit__exception(exc_type, exc_val, exc_tb)
+        if not retVal:
+            if exc_type is subprocess.CalledProcessError:
+                retVal = exc_val.returncode in self.ignore_specific_exit_codes
+        return retVal
 
 
 class CUrl(RunProcessBase):
@@ -86,9 +97,9 @@ class CUrl(RunProcessBase):
 class ShellCommand(RunProcessBase, essential=True):
     """ run a single command in a shell """
 
-    def __init__(self, shell_command, message=None, **kwargs):
+    def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["shell"] = True
-        super().__init__(**kwargs)
+        super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
         self.shell_command = shell_command
         self.message = message
 
@@ -96,6 +107,11 @@ class ShellCommand(RunProcessBase, essential=True):
         all_args.append(utils.quoteme_raw_string(self.shell_command))
         if self.message:
             all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+        if self.ignore_specific_exit_codes:
+            if len(self.ignore_specific_exit_codes,) == 1:
+                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+            else:
+                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
 
     def progress_msg_self(self):
         if self.message:

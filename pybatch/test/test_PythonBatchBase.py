@@ -185,3 +185,17 @@ class TestPythonBatch(object):
         else:
             with self.uni_test_obj.assertRaises(expected_exception):
                 ops = exec(bc_compiled, globals(), locals())
+
+    def reprs_test_runner(self, list_of_objs):
+        out_file = self.path_inside_test_folder(self.which_test+".out.txt")
+        with open(out_file, "w") as wfd:
+            for obj in list_of_objs:
+                obj_repr = repr(obj)
+                obj_recreated = eval(obj_repr)
+                diff_explanation = obj.explain_diff(obj_recreated)
+                if diff_explanation:  # there was a problem
+                    wfd.write(f"X {obj_repr}\n  {repr(obj_recreated)}\n")
+                else:
+                    wfd.write(f"√ {obj_repr}\n")
+
+                self.uni_test_obj.assertEqual(obj, obj_recreated, f"{obj.__class__.__name__}.repr did not recreate the object correctly: {diff_explanation}")

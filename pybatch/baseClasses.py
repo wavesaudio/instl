@@ -47,7 +47,7 @@ class PythonBatchCommandBase(abc.ABC):
                        'ignore_all_errors': default_ignore_all_errors,
                        'remark': None,
                        'recursive': False}
-    kwargs_defaults_for_subclass = dict()
+    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults={}, **kwargs):
@@ -97,6 +97,7 @@ class PythonBatchCommandBase(abc.ABC):
         all_args = list()
         self.repr_own_args(all_args)
         self.repr_default_kwargs(all_args)
+        all_args = list(filter(lambda x: x is not None, all_args))
         the_repr = f"{self.__class__.__name__}("
         the_repr += ", ".join(all_args)
         the_repr += ")"
@@ -288,12 +289,17 @@ class PythonBatchCommandBase(abc.ABC):
         """
         pass
 
+    def should_ignore__exit__exception(self, exc_type, exc_val, exc_tb):
+        """ child classes can override for finer control on what to ignore"""
+        retVal = exc_type in self.exceptions_to_ignore
+        return retVal
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.exit_time = time.perf_counter()
         suppress_exception = False
         if exc_type is None or self.ignore_all_errors:
             suppress_exception = True
-        elif exc_type in self.exceptions_to_ignore:
+        elif self.should_ignore__exit__exception(exc_type, exc_val, exc_tb):
             self.log_result(logging.WARNING, self.warning_msg_self(), exc_val)
             suppress_exception = True
         else:

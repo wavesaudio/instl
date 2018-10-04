@@ -11,7 +11,7 @@ import ctypes
 import io
 import contextlib
 import filecmp
-import random
+import subprocess
 import string
 from collections import namedtuple
 
@@ -80,19 +80,28 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertEqual(test_data, downloaded_data)
 
     def test_ShellCommand_repr(self):
+        list_of_objs = list()
+        list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
-            obj = ShellCommand("do something", ignore_all_errors=ignore_all_errors)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+            for l in list_of_error_to_ignore_lists:
+                list_of_objs.append(ShellCommand("do something", ignore_all_errors=ignore_all_errors, ignore_specific_exit_codes=l))
 
-            obj = ShellCommand("do something", "with message", ignore_all_errors=ignore_all_errors)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(list_of_objs)
 
     def test_ShellCommand(self):
         pass
+
+    def test_ShellCommand_ignore_specific_exit_codes(self):
+        # test that exception from exit code is suppressed with ignore_specific_exit_codes
+        with self.pbt.batch_accum as batchi:
+            batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(19,))
+        self.pbt.exec_and_capture_output()
+
+        # test that exception from exit code is not suppressed when not in ignore_specific_exit_codes
+        self.pbt.batch_accum.clear()
+        with self.pbt.batch_accum as batchi:
+            batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
+        self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
     def test_ShellCommands_repr(self):
         pass
