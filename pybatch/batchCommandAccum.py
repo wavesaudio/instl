@@ -91,6 +91,9 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             PythonBatchCommandBase.total_progress += section.total_progress_count()
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
         opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
+        opening_code_lines.append(f"""if __name__ is '__main__':""")
+        opening_code_lines.append(f"""    from utils import log_utils""")
+        opening_code_lines.append(f"""    log_utils.config_logger()""")
 
         the_oc = "\n".join(opening_code_lines)
         the_oc += "\n\n"
