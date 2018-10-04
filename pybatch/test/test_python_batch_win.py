@@ -188,5 +188,8 @@ class TestPythonBatchWin(unittest.TestCase):
             self.assertEqual(obj, obj_recreated, f"WinShortcut.repr did not recreate WinShortcut object correctly: {diff_explanation}")
 
     def test_WinShortcut(self):
-        if sys.platform == "win32":
-            pass  # TBD on windows
+        src = "C:\Program Files (x86)\Waves\Applications V10\Electric Grand 80.exe"
+        dst = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Waves\Electric Grand 80.lnk"
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += WinShortcut(dst, src)
+        self.pbt.exec_and_capture_output()
