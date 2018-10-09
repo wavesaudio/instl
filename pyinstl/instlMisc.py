@@ -197,7 +197,7 @@ class InstlMisc(InstlInstanceBase):
             if "__CONFIG_FILE__" in config_vars:
                 config_file = config_vars.get("__CONFIG_FILE__").Path(resolve=True)
 
-            with Exec(py_file_path, config_file, reuse_db=False) as exec_le:
+            with Exec(py_file_path, config_file, reuse_db=False, own_progress_count=0) as exec_le:
                 exec_le()
         except Exception as ex:
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
