@@ -387,7 +387,6 @@ class ConfigVarStack:
         retVal = value_ref_re.sub(pattern, str_to_replace)
         return retVal
 
-
     def print_statistics(self):
         if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
             print(f"{len(self)} ConfigVars")
