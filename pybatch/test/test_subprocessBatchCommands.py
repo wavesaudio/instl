@@ -103,6 +103,15 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
+    def test_ScriptCommand_repr(self):
+        list_of_objs = list()
+        list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
+        for ignore_all_errors in (True, False):
+            for l in list_of_error_to_ignore_lists:
+                list_of_objs.append(ScriptCommand("do something", ignore_all_errors=ignore_all_errors, ignore_specific_exit_codes=l))
+
+        self.pbt.reprs_test_runner(*list_of_objs)
+
     def test_ShellCommands_repr(self):
         pass
 

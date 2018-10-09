@@ -16,6 +16,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     __global_ignore_patterns = list()        # files and folders matching these patterns will not be copied. Applicable for all instances of RsyncClone
     __global_no_hard_link_patterns = list()  # files and folders matching these patterns will not be hard-linked. Applicable for all instances of RsyncClone
     __global_avoid_copy_markers = list()     # if a file with one of these names exists in the folders and is identical to destination, copy will be avoided
+    __global_no_flags_patterns = list()     # if a file with one of these names exists in the destination, it's flags (hidden, system, read-only) will be removed
 
     @classmethod
     def add_global_ignore_patterns(cls, more_copy_ignore_patterns: List):
@@ -29,6 +30,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     def add_global_avoid_copy_markers(cls, more_avoid_copy_markers: List):
         cls.__global_avoid_copy_markers.extend(more_avoid_copy_markers)
 
+    @classmethod
+    def add_global_no_flags_patterns(cls, more_no_flags_patterns: List):
+        cls.__global_no_flags_patterns.extend(more_no_flags_patterns)
+
     def __init__(self,
                  src,
                  dst,
@@ -36,6 +41,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  symlinks_as_symlinks=True,
                  ignore_patterns=[],        # files and folders matching this patterns will not be copied. Applicable only for this instance of RsyncClone
                  no_hard_link_patterns=[],  # files and folders matching this patterns will not be hard-linked. Applicable only for this instance of RsyncClone
+                 no_flags_patterns=[],
                  hard_links=True,
                  ignore_dangling_symlinks=False,
                  delete_extraneous_files=False,
@@ -48,8 +54,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
-        self.local_ignore_patterns = sorted(ignore_patterns)
-        self.local_no_hard_link_patterns = no_hard_link_patterns
+        self.local_ignore_patterns = sorted(ignore_patterns.copy())
+        self.local_no_hard_link_patterns = sorted(no_hard_link_patterns.copy())
+        self.local_no_flags_patterns = sorted(no_flags_patterns.copy())
         self.hard_links = hard_links
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
         self.delete_extraneous_files = delete_extraneous_files
@@ -67,7 +74,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             self.exceptions_to_ignore.append(FileNotFoundError)
 
         self.__all_ignore_patterns = sorted(list(set(self.__global_ignore_patterns + self.local_ignore_patterns)))
-        self.__all_no_hard_link_patterns = list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns))
+        self.__all_no_hard_link_patterns = sorted(list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns)))
+        self.__all_no_flags_patterns = sorted(list(set(self.__global_no_flags_patterns + self.local_no_flags_patterns)))
 
     def repr_own_args(self, all_args: List[str]) -> None:
         params = list()
@@ -77,6 +85,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
         params.append(self.optional_named__init__param("ignore_patterns", self.local_ignore_patterns, []))
         params.append(self.optional_named__init__param("no_hard_link_patterns", self.local_no_hard_link_patterns, []))
+        params.append(self.optional_named__init__param("no_flags_patterns", self.local_no_flags_patterns, []))
         params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
         params.append(self.optional_named__init__param("ignore_dangling_symlinks", self.ignore_dangling_symlinks, False))
         params.append(self.optional_named__init__param("delete_extraneous_files", self.delete_extraneous_files, False))
@@ -111,6 +120,16 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     break
             else:
                 retVal = True
+        return retVal
+
+    def should_no_flags_file(self, file_path: Path):
+        retVal = True
+        for no_flags_pattern in self.__all_no_flags_patterns:
+            if file_path.match(no_flags_pattern):
+                log.debug(f"removing flags from {file_path} because it matches pattern {no_flags_pattern}")
+                break
+        else:
+            retVal = False
         return retVal
 
     def remove_extraneous_files(self, dst: Path, src_names):
@@ -162,7 +181,11 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 retVal = False
                 log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
             if retVal:  # destination exists and file should be copied, so make sure it's writable
-                Chmod(dst, "u+w")()
+                with Chmod(dst, "u+w") as mod_changer:
+                    mod_changer()
+                if self.should_no_flags_file(dst):
+                    with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True) as flags_changer:
+                        flags_changer()
         return retVal
 
     def should_copy_dir(self, src: Path, dst: Path):
@@ -186,11 +209,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         if self.should_copy_file(src, dst):
-            if dst.suffix in (".ico", ".ini"):
-                try:
-                    ChFlags(dst, "nohidden", "nosystem", "unlocked")()
-                except:
-                    pass
             if not self.should_hard_link_file(src):
                 log.debug(f"copy file '{src}' to '{dst}'")
                 self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)

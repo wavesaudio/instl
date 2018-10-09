@@ -251,7 +251,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
-        PythonBatchCommandBase.stage_stack.clear()
+        PythonBatchCommandBase.stage_stack.pop()
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):

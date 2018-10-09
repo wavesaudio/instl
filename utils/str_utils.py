@@ -54,7 +54,7 @@ def quoteme_raw_string(simple_string):
         if quote_mark in simple_string:
             quote_mark = quote_mark * 3
             if quote_mark in simple_string:
-                raise Exception("Oy Vey, how to quote this awful string ->{simple_string}<-")
+                raise Exception(f"Oy Vey, how to quote this awful string ->{simple_string}<-")
 
     # multiline strings need triple quotation
     if len(quote_mark) == 1 and "\n" in simple_string:

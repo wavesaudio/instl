@@ -199,7 +199,7 @@ class ChFlags(RunProcessBase, essential=True):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
-    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
+    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg', 'system': None, 'nosystem': None},
                            'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
 
     def __init__(self, path, *flags: List[str], **kwargs) -> None:
@@ -207,7 +207,7 @@ class ChFlags(RunProcessBase, essential=True):
         self.path = path
 
         for flag in flags:
-            assert flag in self.flags_dict[sys.platform]
+            assert flag in self.flags_dict[sys.platform], f"{flag} is not a valid flag"
         self.flags = sorted(flags)
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -222,7 +222,7 @@ class ChFlags(RunProcessBase, essential=True):
         path = os.fspath(utils.ResolvedPath(self.path))
         self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
 
-        per_system_flags = [self.flags_dict[sys.platform][flag] for flag in self.flags]
+        per_system_flags = list(filter(None, [self.flags_dict[sys.platform][flag] for flag in self.flags]))
         if sys.platform == 'darwin':
             retVal = self._create_run_args_mac(per_system_flags, path)
         elif sys.platform == 'win32':

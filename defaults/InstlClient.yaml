@@ -51,6 +51,11 @@ NO_HARD_LINK_PATTERNS:
     - "*Info.xml"
     - "*Info.plist"
 
+# during copy stage, if pathlib.Path.match returns true for one of these - destination file (if exist) flags such as hidden, system, read-only will be removed
+NO_FLAGS_PATTERNS:
+    - "desktop.ini"
+    - "*.ico"
+
 # during copy stage, if one of these files exists in both source and destination and has same checksum, the whole dir will not be copied
 AVOID_COPY_MARKERS:
     - Info.xml
