@@ -1,4 +1,5 @@
 import os
+import sys
 import stat
 import abc
 from pathlib import Path
@@ -20,8 +21,8 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             self.ignore_specific_exit_codes = (ignore_specific_exit_codes,)
         else:
             self.ignore_specific_exit_codes = ignore_specific_exit_codes
-        self.is_script = kwargs.get("is_script", False)
         self.shell = kwargs.get('shell', False)
+        self.script = kwargs.get('script', False)
         self.stdout = ''
         self.stderr = ''
 
@@ -33,12 +34,15 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         run_args = self.create_run_args()
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        if self.is_script:
+        if self.script:
             self.shell = True
             assert len(run_args) == 1
         elif self.shell and len(run_args) == 1:
-            run_args = shlex.split(run_args[0])
-            run_args = [p.replace(" ", r"\ ") for p in run_args]
+            if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
+                run_args = shlex.split(run_args[0])
+                run_args = [p.replace(" ", r"\ ") for p in run_args]
+            elif sys.platform == 'win32':
+                run_args = run_args[0]
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = utils.unicodify(completed_process.stdout)
         self.stderr = utils.unicodify(completed_process.stderr)
@@ -133,7 +137,7 @@ class ShellCommand(RunProcessBase, essential=True):
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
-        kwargs["is_script"] = True
+        kwargs["script"] = True
         super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
 
 

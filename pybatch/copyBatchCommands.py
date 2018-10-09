@@ -186,6 +186,11 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         if self.should_copy_file(src, dst):
+            if dst.suffix in (".ico", ".ini"):
+                try:
+                    ChFlags(dst, "nohidden", "nosystem", "unlocked")()
+                except:
+                    pass
             if not self.should_hard_link_file(src):
                 log.debug(f"copy file '{src}' to '{dst}'")
                 self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
@@ -196,6 +201,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     self.statistics['hard_links'] += 1
                 except OSError as ose:
                     log.debug(f"copy file '{src}' to '{dst}'")
+
                     self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
             if self.copy_owner and hasattr(os, 'chown'):
                 src_st = src.stat()
