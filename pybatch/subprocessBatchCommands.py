@@ -20,6 +20,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             self.ignore_specific_exit_codes = (ignore_specific_exit_codes,)
         else:
             self.ignore_specific_exit_codes = ignore_specific_exit_codes
+        self.is_script = kwargs.get("is_script", False)
         self.shell = kwargs.get('shell', False)
         self.stdout = ''
         self.stderr = ''
@@ -32,8 +33,12 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         run_args = self.create_run_args()
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        if self.shell:
-            run_args = " ".join(run_args)
+        if self.is_script:
+            self.shell = True
+            assert len(run_args) == 1
+        elif self.shell and len(run_args) == 1:
+            run_args = shlex.split(run_args[0])
+            run_args = [p.replace(" ", r"\ ") for p in run_args]
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
         self.stdout = utils.unicodify(completed_process.stdout)
         self.stderr = utils.unicodify(completed_process.stderr)
@@ -125,6 +130,13 @@ class ShellCommand(RunProcessBase, essential=True):
         return the_lines
 
 
+class ScriptCommand(ShellCommand):
+    """ run a shell script (not a specific binary)"""
+    def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
+        kwargs["is_script"] = True
+        super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
+
+
 class ShellCommands(PythonBatchCommandBase, essential=True):
     """ run some shells commands in a shell """
 
@@ -204,3 +216,29 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+
+
+class Exec(PythonBatchCommandBase, essential=True):
+    def __init__(self, python_file, config_file=None, reuse_db=True, **kwargs):
+        super().__init__(**kwargs)
+        self.python_file = python_file
+        self.config_file = config_file
+        self.reuse_db = reuse_db
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.python_file)))
+        if self.config_file is not None:
+            all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        if not self.reuse_db:
+            all_args.append(f"reuse_db={self.reuse_db}")
+
+    def progress_msg_self(self):
+        return f"""Executing '{self.python_file}'"""
+
+    def __call__(self, *args, **kwargs):
+        if self.config_file is not None:
+            self.read_yaml_file(self.config_file)
+        with utils.utf8_open(self.python_file, 'r') as rfd:
+            py_text = rfd.read()
+            py_compiled = compile(py_text, self.python_file, mode='exec', flags=0, dont_inherit=False, optimize=2)
+            exec(py_compiled, globals())

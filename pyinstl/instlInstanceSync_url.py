@@ -105,7 +105,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 dl_end_message = f"Downloading {num_files_to_download} files done"
             else:
                 dl_end_message = "Downloading 1 file done"
+
+            dl_commands += Chown(path="$(LOCAL_REPO_SYNC_DIR)", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True)
             dl_commands += Progress(dl_end_message)
+
             return dl_commands
 
     def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):

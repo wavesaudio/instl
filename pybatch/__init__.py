@@ -48,6 +48,8 @@ from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
 from .subprocessBatchCommands import ShellCommand
 from .subprocessBatchCommands import CUrl
+from .subprocessBatchCommands import ScriptCommand
+from .subprocessBatchCommands import Exec
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
