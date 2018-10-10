@@ -103,3 +103,20 @@ class IsSymlink(object):
     def __eq__(self, other):
         retVal = self.file_path == other.file_path
         return retVal
+
+
+class IsEq(object):
+    """ return True if left_thing equals right_thing
+        can be used as 'condition' for If
+    """
+    def __init__(self, left_thing, right_thing):
+        self.left_thing = left_thing
+        self.right_thing = right_thing
+
+    def __repr__(self):
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_if_string(self.left_thing)}, {utils.quoteme_raw_if_string(self.right_thing)})'''
+        return the_repr
+
+    def __call__(self):
+        retVal = self.left_thing == self.right_thing
+        return retVal

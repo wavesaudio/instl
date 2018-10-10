@@ -23,10 +23,10 @@ class MacDock(PythonBatchCommandBase):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         param_list = list()
-        param_list.append(self.named__init__param('path_to_item', self.path_to_item))
-        param_list.append(self.named__init__param('label_for_item', self.label_for_item))
-        param_list.append(self.named__init__param('restart_the_doc', self.restart_the_doc))
-        param_list.append(self.named__init__param('remove', self.remove))
+        param_list.append(self.optional_named__init__param('path_to_item', self.path_to_item, None))
+        param_list.append(self.optional_named__init__param('label_for_item', self.label_for_item, None))
+        param_list.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
+        param_list.append(self.optional_named__init__param('remove', self.remove, False))
         the_repr += ", ".join(param_list)
         the_repr += ")"
         return the_repr
@@ -50,7 +50,7 @@ class MacDock(PythonBatchCommandBase):
                     log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
-                resolved_path_to_item = utils.ResolvedPath(self.path_to_item)
+                resolved_path_to_item = os.fspath(utils.ResolvedPath(self.path_to_item))
                 dock_util_command.append(resolved_path_to_item)
                 if self.label_for_item:
                     dock_util_command.append("--label")
