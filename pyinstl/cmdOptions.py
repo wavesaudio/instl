@@ -38,6 +38,7 @@ class OptionToConfigVar:
                 else:
                     config_vars[self.var_name] = str(value)
 
+
 class CommandLineOptions(object):
     """ namespace object to give to parse_args
         holds command line options

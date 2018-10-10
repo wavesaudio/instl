@@ -59,7 +59,8 @@ class ConfigVarStack:
         self.max_cached_strings = 0
 
     def __len__(self) -> int:
-        """ From RafeKettler/magicmethods: Returns the length of the container. Part of the protocol for both immutable and mutable containers.
+        """ From RafeKettler/magicmethods: Returns the length of the container.
+                Part of the protocol for both immutable and mutable containers.
 
             :return: number of ConfigVars, if a specific ConfigVar name
             exist on multiple stack levels, all occurrences are counted.
@@ -74,7 +75,10 @@ class ConfigVarStack:
         return list(sorted(the_keys))
 
     def __getitem__(self, key: str) -> ConfigVar:
-        """From RafeKettler/magicmethods: Defines behavior for when an item is accessed, using the notation self[key]. This is also part of both the mutable and immutable container protocols. It should also raise appropriate exceptions: TypeError if the type of the key is wrong and KeyError if there is no corresponding value for the key.
+        """From RafeKettler/magicmethods: Defines behavior for when an item is accessed,
+            using the notation self[key]. This is also part of both the mutable and immutable container protocols.
+            It should also raise appropriate exceptions: TypeError if the type of the key is wrong and KeyError if
+            there is no corresponding value for the key.
 
          gets a ConfigVar object by name. if key
          exist on multiple stack levels the higher (later, inner) one is returned.
@@ -88,7 +92,9 @@ class ConfigVarStack:
             raise KeyError(f"{key}")
 
     def __setitem__(self, key: str, *values):
-        """From RafeKettler/magicmethods: Defines behavior for when an item is assigned to, using the notation self[key] = value. This is part of the mutable container protocol. Again, you should raise KeyError and TypeError where appropriate.
+        """From RafeKettler/magicmethods: Defines behavior for when an item is assigned to,
+            using the notation self[key] = value. This is part of the mutable container protocol.
+            Again, you should raise KeyError and TypeError where appropriate.
 
             sets the values for a ConfigVar on the top of the stack.
             If ConfigVar exists it's current values are replaced.
@@ -161,7 +167,8 @@ class ConfigVarStack:
          gets a ConfigVar object by name. if key
          exist on multiple stack levels the higher (later, inner) one is returned.
          if ConfigVar does not exist on any stack level a new one is created
-         so converting to str and list will work as expected, but the new ConfigVar is NOT added to self.var_list
+         so converting to str and list will work as expected,
+         but the new ConfigVar is NOT added to self.var_list
          """
         if not isinstance(key, str):
             raise TypeError(f"'key' param of get() should be str not {type(key)},  '{key}'")
@@ -184,7 +191,10 @@ class ConfigVarStack:
         if not isinstance(key, str):
             raise TypeError(f"'key' param of setdefault() should be str not {type(key)},  '{key}'")
         if key not in self:
-            self[key] = default
+            new_config_var = ConfigVar(self, key)
+            if default:
+                new_config_var.append(default)
+            self.var_list[-1][key] = new_config_var
         retVal = self[key]
         return retVal
 

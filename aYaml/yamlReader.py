@@ -23,6 +23,7 @@ import logging
 log = logging.getLogger()
 
 import utils
+import configVar
 
 
 class YamlReader(object):
@@ -33,6 +34,7 @@ class YamlReader(object):
         self.file_read_stack: List[str] = list()
         self.exception_printed = False
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
+        configVar.config_vars.setdefault("READ_YAML_FILES", None)
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
@@ -63,6 +65,7 @@ class YamlReader(object):
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(os.fspath(file_path))
                 buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+                configVar.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
                 prog_message = f"reading {os.fspath(file_path)}"
                 if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
                     prog_message += f" [{kwargs['original-path-to-file']}]"
