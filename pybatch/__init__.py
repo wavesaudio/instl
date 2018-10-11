@@ -79,7 +79,7 @@ if sys.platform == "darwin":
 from .new_batchCommands import *
 
 
-def EvalShellCommand(action_str, message):
+def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)
