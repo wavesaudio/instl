@@ -8,6 +8,7 @@ from .conditionalBatchCommands import If
 from .conditionalBatchCommands import IsFile
 from .conditionalBatchCommands import IsDir
 from .conditionalBatchCommands import IsSymlink
+from .conditionalBatchCommands import IsEq
 
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
