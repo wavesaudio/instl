@@ -50,6 +50,26 @@ class TestPythonBatchConditional(unittest.TestCase):
         self.assertTrue(file_that_should_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_false} should have been created")
         self.assertFalse(file_that_should_not_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_false} should have not been created")
 
+    def test_If_NotEq(self):
+        file_that_should_exist_if_true = self.pbt.path_inside_test_folder("should_exist_if_true")
+        self.assertFalse(file_that_should_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_true} should not exist before test")
+        file_that_should_not_exist_if_true = self.pbt.path_inside_test_folder("should_not_exist_if_true")
+        self.assertFalse(file_that_should_not_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_true} should not exist before test")
+
+        file_that_should_exist_if_false = self.pbt.path_inside_test_folder("should_exist_if_false")
+        self.assertFalse(file_that_should_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_false} should not exist before test")
+        file_that_should_not_exist_if_false = self.pbt.path_inside_test_folder("should_not_exist_if_false")
+        self.assertFalse(file_that_should_not_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_false} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += If(IsNotEq(1234, 1234), if_true=Touch(file_that_should_not_exist_if_true), if_false=Touch(file_that_should_exist_if_true))
+        self.pbt.batch_accum += If(IsNotEq("yoyo", "ma"), if_true=Touch(file_that_should_exist_if_false), if_false=Touch(file_that_should_not_exist_if_false))
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(file_that_should_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_true} should have been created")
+        self.assertFalse(file_that_should_not_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_true} should have not been created")
+        self.assertTrue(file_that_should_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_false} should have been created")
+        self.assertFalse(file_that_should_not_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_false} should have not been created")
+
     def test_IfFileExist(self):
         file_that_should_exist = self.pbt.path_inside_test_folder("should_exist")
         self.assertFalse(file_that_should_exist.exists(), f"{self.pbt.which_test}: {file_that_should_exist} should not exist before test")
