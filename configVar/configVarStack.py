@@ -409,5 +409,36 @@ class ConfigVarStack:
             print(f"{average_resolve_ms:.4}ms per resolve")
             print(f"{self.resolve_time:.3}sec total resolve time")
 
+    def shallow_resolve_str(self, val_to_resolve: str) -> str:
+        """ resolve a string without consideration for:
+            - confiVar "functions", e.g.  $(Set_Specific_Folder_Icon<...>)
+            - nested values, e.g. $(WAVES_DIR_FOR_$(TARGET_OS_SECOND_NAME))
+            - recursive values (unless the resolved value is also present in val_to_resolve the referring value)*
+
+            shallow_resolve_str is intended for resolving index.yaml templates in conjunction with private_config_vars
+
+            * if config_vars is {"A": "aaa", "B": "$(A)"}
+            shallow_resolve_str("$(B), $(A)") -> "aaa, aaa"
+            but
+            shallow_resolve_str("$(A), $(B)") -> "$(A), aaa" - since $(A) was already replaced when $(B) was resolved
+            although
+            shallow_resolve_str("$(A), $(B), $(A)") -> "aaa, aaa, aaa" - since $(A) was replaced twice
+        """
+        literal_var_re = re.compile("""(?P<var_ref>\$\((?P<var_name>[^$(]+?)\))""")
+
+        matches = literal_var_re.findall(val_to_resolve)  # will return [('$(A)', 'A'), ('$(C)', 'C')]
+        result = val_to_resolve
+        for a_match in matches:
+            result = result.replace(a_match[0], self.get(a_match[1], a_match[0]).str())
+        return result
+
+
 # This is the global variable list serving all parts of instl
 config_vars = ConfigVarStack()
+
+
+@contextmanager
+def private_config_vars():
+    p = ConfigVarStack()
+    yield p
+    del p

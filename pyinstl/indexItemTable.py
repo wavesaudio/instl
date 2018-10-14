@@ -12,7 +12,7 @@ import logging
 log = logging.getLogger()
 
 import utils
-from configVar import config_vars
+from configVar import config_vars, private_config_vars
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -546,23 +546,30 @@ class IndexItemsTable(object):
 
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
-    def read_index_node(self, a_node: yaml.MappingNode) -> None:
-        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
-        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
-                                                                  detail_name, detail_value, tag)
-                                                                  VALUES(?,?,?,?,?,?)"""
-        index_items = list()
-        items_details = list()
+    def read_index_node_helper(self, a_node: yaml.MappingNode, index_items: List, items_details: List) -> None:
+        """ read index node to index_items+items_details lists, but do not commit to DB
+            Helps read_index_node read template definitions without intermediate commits
+        """
         for IID in a_node:
             template_match = self.template_re.match(IID)
             if template_match:
                 node = self.read_index_template_node(template_match, a_node[IID])
-                self.read_index_node(node)
+                self.read_index_node_helper(node, index_items, items_details)
             else:
                 item, original_item_details = self.item_from_index_node(IID, a_node[IID])
                 index_items.append(item)
                 items_details.extend(original_item_details)
 
+    def read_index_node(self, a_node: yaml.MappingNode) -> None:
+        index_items = list()
+        items_details = list()
+
+        self.read_index_node_helper(a_node, index_items, items_details)
+
+        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
+        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
+                                                                  detail_name, detail_value, tag)
+                                                                  VALUES(?,?,?,?,?,?)"""
         with self.db.transaction() as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
@@ -579,14 +586,8 @@ class IndexItemsTable(object):
             try:
                 index_items = list()
                 items_details = list()
-                template_match = self.template_re.match(IID)
-                if template_match:
-                    node = self.read_index_template_node(template_match, a_node[IID])
-                    self.read_index_node_one_by_one(node)
-                else:
-                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-                    index_items.append(item)
-                    items_details.extend(original_item_details)
+
+                self.read_index_node_helper(a_node, index_items, items_details)
 
                 with self.db.transaction() as curs:
                     curs.executemany(insert_item_q, index_items)
@@ -605,11 +606,11 @@ class IndexItemsTable(object):
         template_text = config_vars[template_name].raw(join_sep="")
         for instance_node in instances_node.value:
             if instance_node.isSequence():
-                with config_vars.push_scope_context():
+                with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
                     arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
                     for arg, val in arg_values:
-                        config_vars[arg] = val
-                    resolved_instance = config_vars.resolve_str(template_text)
+                        pcf[arg] = val
+                    resolved_instance = pcf.shallow_resolve_str(template_text)
                     yaml_text += resolved_instance
                     #print("resolved template for ", arg_values[0][1])
         #print(yaml_text)
@@ -831,16 +832,15 @@ class IndexItemsTable(object):
             if False:  # debug code
                 for iid in iid_list:
                     try:
-                        query_vars = ((iid,),)
                         query_text = f"""
                             UPDATE index_item_t
                             SET install_status={new_status}
-                            WHERE iid == ?
+                            WHERE iid == "{iid}"
                             AND install_status={old_status}
                             AND ignore = 0
                           """
                         with self.db.transaction() as curs:
-                            curs.executemany(query_text, query_vars)
+                            curs.execute(query_text)
                     except Exception as ex:
                         print(f"failed change_status_of_iids_to_another_status {iid}: {ex}")
                         raise
