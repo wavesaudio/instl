@@ -164,3 +164,7 @@ def str_to_bool_int(the_str):
 def is_iterable_but_not_str(obj_to_check):
     retVal = hasattr(obj_to_check, '__iter__') and not isinstance(obj_to_check, str)
     return retVal
+
+
+if __name__ == "__main__":
+    a = quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"''')

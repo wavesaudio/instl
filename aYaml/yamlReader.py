@@ -36,6 +36,9 @@ class YamlReader(object):
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
         configVar.config_vars.setdefault("READ_YAML_FILES", None)
 
+    def progress(self, message: str) -> None:
+        pass
+
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
         self.specific_doc_readers["__unknown_tag__"] = self.do_nothing_node_reader

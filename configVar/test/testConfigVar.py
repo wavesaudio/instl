@@ -119,3 +119,8 @@ class TestConfigVar(unittest.TestCase):
         config_vars.print_statistics()
 
         print(str(config_vars["MANDOLIN"]))
+
+    def test_Plist_for_native_instruments(self):
+        config_vars["Plist_for_native_instruments"] = r'''ShellCommand('"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" $(__Plist_for_native_instruments_1__) $(__Plist_for_native_instruments_2__)', ignore_all_errors=True)'''
+        o = config_vars.resolve_str('$(Plist_for_native_instruments<"Aphex Vintage Exciter", "/Applications/Waves/Data/NKS FX/">)')
+        print(o)

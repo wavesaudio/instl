@@ -18,8 +18,8 @@ FIRST_NAME: ["H", "i", "l", "a"]
 FUNC_0_NO_PARAM: I'm just saying
 FUNC_0__CALL: $(FUNC_0_NO_PARAM<>)
 
-FUNC_1_WITH_POSITIONALS: With positional params name is $(__FUNC_1_WITH_POSITIONALS_2__) $(__FUNC_1_WITH_POSITIONALS_1__)
-FUNC_1__CALL: $(FUNC_1_WITH_POSITIONALS<$(LAST_NAME), $(FIRST_NAME)>)
+FUNC_1_WITH_POSITIONALS: With positional params name is $(__FUNC_1_WITH_POSITIONALS_1__) $(__FUNC_1_WITH_POSITIONALS_2__)
+FUNC_1__CALL: $(FUNC_1_WITH_POSITIONALS<$(FIRST_NAME), $(LAST_NAME)>)
 
 FUNC_2_WITH_NAMED: With named params name is $(first_name) $(last_name)
 FUNC_2__CALL1: last, first - $(FUNC_2_WITH_NAMED<last_name=Lululin, first_name=Hila>)

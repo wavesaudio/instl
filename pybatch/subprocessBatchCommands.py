@@ -41,11 +41,12 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
                 run_args = shlex.split(run_args[0])
                 run_args = [p.replace(" ", r"\ ") for p in run_args]
+                run_args = " ".join(run_args)
             elif sys.platform == 'win32':
                 run_args = run_args[0]
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-        self.stdout = utils.unicodify(completed_process.stdout)
-        self.stderr = utils.unicodify(completed_process.stderr)
+        local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+        local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
         #log.debug(completed_process.stdout)
         completed_process.check_returncode()
 
