@@ -3,7 +3,7 @@
 from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
 from pybatch import *
-
+import utils
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class InstlMisc(InstlInstanceBase):
@@ -196,6 +196,10 @@ class InstlMisc(InstlInstanceBase):
             config_file = None
             if "__CONFIG_FILE__" in config_vars:
                 config_file = config_vars.get("__CONFIG_FILE__").Path(resolve=True)
+
+            if "__MAIN_OUT_FILE__" in config_vars:
+                log_file_path = str(config_vars["__MAIN_OUT_FILE__"])
+                utils.setup_file_logging(log_file_path, )
 
             with Exec(py_file_path, config_file, reuse_db=False, own_progress_count=0) as exec_le:
                 exec_le()

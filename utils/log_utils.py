@@ -13,6 +13,7 @@ import sys
 import json
 import appdirs
 import inspect
+import pathlib
 import logging
 import logging.handlers
 from logging.config import dictConfig
@@ -192,15 +193,15 @@ def find_file_handler(log_file_path):
     return retVal
 
 
-def setup_file_logging(log_file_path, level):
+def setup_file_logging(log_file_path, level=logging.INFO):
     top_logger = logging.getLogger()
     top_logger.setLevel(debug_logging_level)
     fileLogHandler = find_file_handler(log_file_path)
     if not fileLogHandler:
+        log_file_name = pathlib.PurePath(log_file_path).name
         fileLogHandler = logging.FileHandler(log_file_path)
-        fileLogHandler.set_name("instl_debug_log_handler")
-        formatter = logging.Formatter(
-            '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
+        fileLogHandler.set_name(f"(log_file_name)_log_handler")
+        formatter = CustomFormatter()
         fileLogHandler.setFormatter(formatter)
         top_logger.addHandler(fileLogHandler)
     fileLogHandler.setLevel(level)
