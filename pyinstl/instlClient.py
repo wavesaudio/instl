@@ -118,13 +118,10 @@ class InstlClient(InstlInstanceBase):
         if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
             self.read_defaults_file(str(config_vars["REPO_TYPE"]))
 
-        if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
-            if "P4_SYNC_DIR" not in config_vars:
-                if "SYNC_BASE_URL" in config_vars:
-                    p4_sync_dir = utils.P4GetPathFromDepotPath(config_vars["SYNC_BASE_URL"].str())
-                    config_vars["P4_SYNC_DIR", "from SYNC_BASE_URL"] = p4_sync_dir
         # AUXILIARY_IIDS are iids that are not real products such as UNINSTALL_AS_... iids
-        self.auxiliary_iids.extend(list(config_vars["AUXILIARY_IIDS"]))
+        if "AUXILIARY_IIDS" not in config_vars:
+            log.warning(f"could not find configVar 'AUXILIARY_IIDS'")
+        self.auxiliary_iids.extend(list(config_vars.get("AUXILIARY_IIDS", [])))
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
