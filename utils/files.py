@@ -511,7 +511,9 @@ def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """
-    resolved_path = Path(os.path.expandvars(path_to_resolve)).resolve()
+    expanded_path = os.path.expandvars(path_to_resolve)
+    path_path = Path(expanded_path)
+    resolved_path = path_path.resolve()
     return resolved_path
 
 

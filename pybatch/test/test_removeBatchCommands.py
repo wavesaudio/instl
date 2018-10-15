@@ -57,7 +57,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         pass
 
     def test_RmFileOrDir_repr(self):
-        pass
+        self.pbt.reprs_test_runner(RmFileOrDir(r"/just/remove/me/already"))
 
     def test_RmFileOrDir(self):
         pass
@@ -180,3 +180,45 @@ class TestPythonBatchRemove(unittest.TestCase):
         for f in files_that_should_not_be_removed:
             fp = Path(folder_to_glob, f)
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+    def test_RmSymlink_repr(self):
+        self.pbt.reprs_test_runner(RmSymlink(r"/just/remove/me/already"))
+
+    def test_RmSymlink(self):
+        non_existing_path = self.pbt.path_inside_test_folder("non-existing-path")
+        self.assertFalse(non_existing_path.exists())
+        a_dir = self.pbt.path_inside_test_folder("some-dir")
+        self.assertFalse(a_dir.exists())
+        a_file = self.pbt.path_inside_test_folder("some-file")
+        self.assertFalse(a_file.exists())
+        a_dir_symlink = self.pbt.path_inside_test_folder("some-dir-symlink")
+        self.assertFalse(a_dir_symlink.exists())
+        a_file_symlink = self.pbt.path_inside_test_folder("some-file-symlink")
+        self.assertFalse(a_file_symlink.exists())
+
+        # create a file, a folder and symlinks to them
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(a_dir)
+        self.pbt.batch_accum += Touch(a_file)
+        self.pbt.batch_accum += CreateSymlink(a_dir_symlink, a_dir)
+        self.pbt.batch_accum += CreateSymlink(a_file_symlink, a_file)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(non_existing_path.exists())
+        self.assertTrue(a_dir.is_dir())
+        self.assertTrue(a_file.is_file())
+        self.assertTrue(a_dir_symlink.is_symlink())
+        self.assertTrue(a_file_symlink.is_symlink())
+
+        # remove everything with RmSymlink, but only the symlink should be actually removed
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += RmSymlink(non_existing_path)
+        self.pbt.batch_accum += RmSymlink(a_dir)
+        self.pbt.batch_accum += RmSymlink(a_file)
+        self.pbt.batch_accum += RmSymlink(a_dir_symlink)
+        self.pbt.batch_accum += RmSymlink(a_file_symlink)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(non_existing_path.exists())
+        self.assertTrue(a_dir.is_dir())
+        self.assertTrue(a_file.is_file())
+        self.assertFalse(a_dir_symlink.exists())
+        self.assertFalse(a_file_symlink.exists())
