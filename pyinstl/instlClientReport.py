@@ -2,8 +2,10 @@
 
 
 import os
-
+import io
 import json
+
+import aYaml
 from configVar import config_vars
 from .instlClient import InstlClient
 import utils
@@ -29,6 +31,11 @@ class InstlClientReport(InstlClient):
 
         if output_format == "json":
             output_text = json.dumps(self.output_data, indent=1)
+        elif output_format == "yaml":
+            io_str = io.StringIO()
+            for yaml_data in self.output_data:
+                 aYaml.writeAsYaml(yaml_data, io_str)
+            output_text = io_str.getvalue()
         else:  # output_format == "text":  text is the default format
             lines = [", ".join(line_data) for line_data in self.output_data]
             output_text = "\n".join(lines)
@@ -53,3 +60,12 @@ class InstlClientReport(InstlClient):
 
     def do_report_gal(self):
         self.get_version_of_installed_binaries()
+
+    def do_read_yaml(self):
+        config_vars["OUTPUT_FORMAT"] = "yaml"
+        config_vars_yaml_obj = config_vars.repr_for_yaml()
+        config_vars_yaml = aYaml.YamlDumpDocWrap(config_vars_yaml_obj, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
+        self.output_data.append(config_vars_yaml)
+        index_yaml_obj = self.items_table.repr_for_yaml()
+        index_yaml = aYaml.YamlDumpDocWrap(index_yaml_obj, '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
+        self.output_data.append(index_yaml)
