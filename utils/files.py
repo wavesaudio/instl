@@ -516,13 +516,21 @@ def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
 
 
 def get_main_drive_name():
-    retVal = "Unknown"
+    retVal = None
     try:
         if sys.platform == 'darwin':
-            apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
-            completed_process = subprocess.run(apple_script, stdout=subprocess.PIPE, shell=True)
-            retVal = utils.unicodify(completed_process.stdout)
-            retVal = retVal.strip("\n:")
+            for volume in os.listdir("/Volumes"):
+                volume_path = Path("/Volumes", volume)
+                if volume_path.is_symlink():
+                    resolved_volume_path = volume_path.resolve()
+                    if str(resolved_volume_path) == "/":
+                        retVal = volume
+                        break
+            else:
+                apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
+                completed_process = subprocess.run(apple_script, stdout=subprocess.PIPE, shell=True)
+                retVal = utils.unicodify(completed_process.stdout)
+                retVal = retVal.strip("\n:")
         elif sys.platform == 'win32':
             import win32api
             retVal = win32api.GetVolumeInformation("C:\\")[0]
