@@ -123,6 +123,8 @@ class InstlClient(InstlInstanceBase):
             log.warning(f"could not find configVar 'AUXILIARY_IIDS'")
         self.auxiliary_iids.extend(list(config_vars.get("AUXILIARY_IIDS", [])))
 
+        config_vars["__MAIN_DRIVE_NAME__"] = utils.get_main_drive_name()
+
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
