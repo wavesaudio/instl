@@ -34,7 +34,6 @@ from .removeBatchCommands import RmFileOrDir
 from .removeBatchCommands import RemoveEmptyFolders
 from .removeBatchCommands import RmGlob
 from .removeBatchCommands import RmGlobs
-from .removeBatchCommands import RmSymlink
 
 from .batchCommands import AppendFileToFile
 from .batchCommands import Cd
@@ -73,6 +72,7 @@ if sys.platform == "win32":
 
 if sys.platform == "darwin":
     from .batchCommandsMacOnly import CreateSymlink
+    from .batchCommandsMacOnly import RmSymlink
     from .batchCommandsMacOnly import CreateSymlinkFilesInFolder
     from .batchCommandsMacOnly import MacDock
     from .batchCommandsMacOnly import ResolveSymlinkFilesInFolder

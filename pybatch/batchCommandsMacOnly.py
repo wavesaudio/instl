@@ -85,6 +85,34 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         path_to_symlink.symlink_to(path_to_target)
 
 
+class RmSymlink(PythonBatchCommandBase, essential=True):
+    """remove a symlink not it's target
+    - It's OK is the symlink or the target does not exist
+    - but exception will be raised if path is a folder
+    """
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path: os.PathLike = path
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+
+    def progress_msg_self(self):
+        return f"""Remove symlink '{self.path}'"""
+
+    def __call__(self, *args, **kwargs):
+        expanded_path = os.path.expandvars(self.path)
+        unresolved_path = Path(expanded_path)
+        self.doing = f"""removing symlink '{unresolved_path}'"""
+        if unresolved_path.is_symlink():
+            unresolved_path.unlink()
+        elif unresolved_path.exists():
+            log.warning(f"RmSymlink, not a symlink: {unresolved_path}")
+        else:
+            log.warning(f"RmSymlink, not found: {unresolved_path}")
+
+
 class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
