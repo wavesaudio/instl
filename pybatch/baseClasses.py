@@ -85,9 +85,10 @@ class PythonBatchCommandBase(abc.ABC):
 
     def repr_default_kwargs(self, all_args):
         for kwarg_name, kwarg_default_value in sorted(self.get_defaults_kwargs().items()):
-            current_value = getattr(self, kwarg_name, kwarg_default_value)
-            if current_value != kwarg_default_value:
-                all_args.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
+            if kwarg_name not in self.non_representative__dict__keys:
+                current_value = getattr(self, kwarg_name, kwarg_default_value)
+                if current_value != kwarg_default_value:
+                    all_args.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
 
     #@abc.abstractmethod
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -273,6 +274,8 @@ class PythonBatchCommandBase(abc.ABC):
             PythonBatchCommandBase.running_progress += self.own_progress_count
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+                if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+                    log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
             self.current_working_dir =  os.getcwd()
             self.enter_self()
         except Exception as ex:

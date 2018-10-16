@@ -70,6 +70,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.last_src = None
         self.last_dst = None
 
+        if self.ignore_all_errors:
+            self.ignore_if_not_exist = True  # self.ignore_if_not_exist is passed to shutil calls that do not know about self.ignore_all_errors
+
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
@@ -81,7 +84,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params = list()
         params.append(self.unnamed__init__param(os.fspath(self.src)))
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
-        params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
+        if not self.ignore_all_errors:
+            params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
         params.append(self.optional_named__init__param("ignore_patterns", self.local_ignore_patterns, []))
         params.append(self.optional_named__init__param("no_hard_link_patterns", self.local_no_hard_link_patterns, []))
@@ -323,9 +327,13 @@ class MoveDirToDir(CopyDirToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing dir '{self.src}'"""
-        self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist)
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing dir '{self.src}'"""
+            self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist)
 
 
 class CopyDirContentsToDir(RsyncClone):
@@ -344,14 +352,18 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing contents dir '{self.src}'"""
-        if not self.dry_run:
-            for child_item in Path(self.src).iterdir():
-                if child_item.is_file():
-                    child_item.unlink()
-                elif child_item.is_dir():
-                    shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing contents dir '{self.src}'"""
+            if not self.dry_run:
+                for child_item in Path(self.src).iterdir():
+                    if child_item.is_file():
+                        child_item.unlink()
+                    elif child_item.is_dir():
+                        shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
 
 
 class CopyFileToDir(RsyncClone):
@@ -375,9 +387,13 @@ class MoveFileToDir(CopyFileToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing file '{self.src}'"""
-        self.dry_run or Path(self.src).unlink()
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing file '{self.src}'"""
+            self.dry_run or Path(self.src).unlink()
 
 
 class CopyFileToFile(RsyncClone):
@@ -402,6 +418,10 @@ class MoveFileToFile(CopyFileToFile):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing file '{self.src}'"""
-        self.dry_run or Path(self.src).unlink()
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing file '{self.src}'"""
+            self.dry_run or Path(self.src).unlink()

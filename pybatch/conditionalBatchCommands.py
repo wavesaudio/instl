@@ -46,6 +46,7 @@ class If(PythonBatchCommandBase, essential=True):
         if callable(to_do_obj):
             self.doing = f"""condition is {condition_result} calling '{repr(to_do_obj)}'"""
             if isinstance(to_do_obj, PythonBatchCommandBase) and to_do_obj.is_context_manager:
+                to_do_obj.own_progress_count = 0
                 with to_do_obj as it:
                     it()
             else:
