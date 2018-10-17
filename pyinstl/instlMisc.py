@@ -200,7 +200,8 @@ class InstlMisc(InstlInstanceBase):
 
             if "__MAIN_OUT_FILE__" in config_vars:
                 log_file_path = str(config_vars["__MAIN_OUT_FILE__"])
-                utils.setup_file_logging(log_file_path, )
+                utils.setup_file_logging(log_file_path)
+                utils.remove_log_handler("console")
 
             with Exec(py_file_path, config_file, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
                 exec_le()

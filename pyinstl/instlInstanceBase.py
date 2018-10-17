@@ -220,7 +220,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if self.the_command in self.commands_that_need_to_refresh_db_file:
                     if os.path.isfile(db_base_path):
                         utils.safe_remove_file(db_base_path)
-                        self.progress("removed db file", db_base_path)
+                        self.progress(f"removed previous db file {db_base_path}")
 
     def read_require(self, a_node, *args, **kwargs):
         del args
@@ -296,9 +296,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
-        do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
+        #do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())
+        regex = "|".join(do_not_write_vars)
+        do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
-            if identifier.lower() not in do_not_write_vars:
+            if not do_not_write_vars_regex.match(identifier):
                 in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def init_python_batch(self, in_batch_accum):
@@ -481,19 +484,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def handle_yaml_read_error(self, **kwargs):
         try:
-            path_to_file = Path(kwargs['path-to-file'])
-            the_exception = kwargs.get('exception', None)
-            main_input_file = Path(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-            date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
-            report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
-            report_file_path = Path(main_input_file.parent, report_file_name)
-            with open(report_file_path, "w") as wfd:
-                wfd.write(f"path: {path_to_file}\n\n")
-                wfd.write(f"exception: {the_exception}\n\n")
-                wfd.write(f"\ncontents: BEGIN\n\n")
-                buffer = kwargs.get('buffer', io.StringIO("unknown")).getvalue()
-                wfd.write(buffer)
-                wfd.write(f"\n\ncontents: END\n")
-            self.progress(f"""error parsing yaml file '{path_to_file}', error report written to '{report_file_path}'""")
+            yaml_read_error = f"""
+yaml_read_error:
+    original-path-to-file: {kwargs['original-path-to-file']}
+    path-to-file: {kwargs['path-to-file']}
+    exception: {kwargs['exception']}
+"""
+            log.error(yaml_read_error)
         except Exception as ex:
             pass

@@ -12,6 +12,7 @@ import logging
 log = logging.getLogger()
 
 import utils
+from aYaml import YamlReader
 from configVar import config_vars, private_config_vars
 
 # todo: these were copied from the late Install Item.py and should find a better home
@@ -587,7 +588,14 @@ class IndexItemsTable(object):
                 index_items = list()
                 items_details = list()
 
-                self.read_index_node_helper(a_node, index_items, items_details)
+                template_match = self.template_re.match(IID)
+                if template_match:
+                    node = self.read_index_template_node(template_match, a_node[IID])
+                    self.read_index_node_helper(node, index_items, items_details)
+                else:
+                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
+                    index_items.append(item)
+                    items_details.extend(original_item_details)
 
                 with self.db.transaction() as curs:
                     curs.executemany(insert_item_q, index_items)
@@ -615,6 +623,7 @@ class IndexItemsTable(object):
                     #print("resolved template for ", arg_values[0][1])
         #print(yaml_text)
         out_node = yaml.compose(yaml_text)
+        YamlReader.convert_standard_tags(out_node)
         return out_node
 
     def read_require_node(self, a_node: yaml.MappingNode):

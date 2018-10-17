@@ -43,24 +43,30 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
-no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
+#no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
+escape_quotations_re = re.compile("['\"\\\\]")
+def escape_quotations(simple_string):
+    """ escape the characters ', '. \ """
+    retVal = escape_quotations_re.sub(lambda match_obj: '\\'+match_obj.group(0), simple_string)
+    return retVal
 
 
 def quoteme_raw_string(simple_string):
     simple_string = os.fspath(simple_string)
-    quote_mark = '"'
-    if quote_mark in simple_string:
-        quote_mark = "'"
-        if quote_mark in simple_string:
-            quote_mark = quote_mark * 3
-            if quote_mark in simple_string:
-                raise Exception(f"Oy Vey, how to quote this awful string ->{simple_string}<-")
 
-    # multiline strings need triple quotation
-    if len(quote_mark) == 1 and "\n" in simple_string:
-        quote_mark = quote_mark * 3
+    possible_quote_marks = ('"', "'", '"""', "'''")
+    if "\n" in simple_string:  # multiline strings need triple quotation
+        possible_quote_marks = ('"""', "'''")
 
-    retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+    for quote_mark in possible_quote_marks:
+        # 1st priority is to create a raw string
+        if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
+            retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+            break
+    else:
+        # if all possible quotations marks are in the string do proper escaping and return non-raw string
+        retVal = "".join(('"', escape_quotations(simple_string), '"'))
+
     return retVal
 
 
@@ -69,7 +75,6 @@ def quoteme_raw_if_string(some_thing):
         return quoteme_raw_string(some_thing)
     else:
         return str(some_thing)
-    return retVal
 
 
 def quoteme_raw_dict(dict_of_things: Dict):
@@ -167,4 +172,10 @@ def is_iterable_but_not_str(obj_to_check):
 
 
 if __name__ == "__main__":
-    a = quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"''')
+    #print(quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"'''))
+    #print(quoteme_raw_string("""single-single(') triple-single(''') single-double(") single-triple(\"\"\")"""))
+
+    rere = re.compile("['\"\\\\]")
+    s = r"""A"B'C'''D'\\EFG"""
+    rs = rere.sub(lambda matchobj: '\\'+matchobj.group(0), s)
+    print(rs)

@@ -108,6 +108,9 @@ class YamlReader(object):
                 self.exception_printed = True
             raise
 
+    def handle_yaml_read_error(self, **kwargs):
+        pass
+
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
             self.read_yaml_from_node(a_node, *args, **kwargs)

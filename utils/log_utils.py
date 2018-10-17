@@ -39,16 +39,16 @@ def get_config_dict(system_log_file_path):
                 'format': '%(message)s'
             },
             'detailed': {
-                '()': CustomFormatter,
+                '()': CustomLogFormatter,
             },
             'json': {
-                '()': JsonFormatter,
+                '()': JsonLogFormatter,
                 'format': '%(message)s'
             }
         },
         'filters': {
             'parent': {
-                '()': ParentFilter,
+                '()': ParentLogFilter,
             }
         },
         'handlers': {
@@ -82,7 +82,7 @@ def get_config_dict(system_log_file_path):
     }
 
 
-class ParentFilter(logging.Filter):
+class ParentLogFilter(logging.Filter):
     '''Adds additional info to the log message - stack level, parent info: module, function name, line number.'''
     def filter(self, record):
         record.name = re.sub('.*\.', '', record.name)
@@ -100,13 +100,13 @@ class ParentFilter(logging.Filter):
         return True
 
 
-class CustomFormatter(logging.Formatter):
+class CustomLogFormatter(logging.Formatter):
     simple_format = '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s'
     detailed_format = simple_format + ' | {%(parent_mod)s.%(parent_func_name)s,%(parent_line_no)s} | {%(name)s.%(funcName)s,%(lineno)s}'
     format_for_levels = {logging.DEBUG: detailed_format, logging.ERROR: detailed_format}
 
     def __init__(self):
-        super().__init__(fmt=CustomFormatter.simple_format, datefmt='%Y-%m-%d_%H:%M:%S', style='%')
+        super().__init__(fmt=CustomLogFormatter.simple_format, datefmt='%Y-%m-%d_%H:%M:%S', style='%')
 
     def format(self, record):
 
@@ -115,7 +115,7 @@ class CustomFormatter(logging.Formatter):
         format_orig = self._style._fmt
 
         # Replace the original format with one customized by logging level
-        self._style._fmt = CustomFormatter.format_for_levels.get(record.levelno, CustomFormatter.simple_format)
+        self._style._fmt = CustomLogFormatter.format_for_levels.get(record.levelno, CustomLogFormatter.simple_format)
 
         # Call the original formatter class to do the grunt work
         result = logging.Formatter.format(self, record)
@@ -126,7 +126,7 @@ class CustomFormatter(logging.Formatter):
         return result
 
 
-class JsonFormatter(object):
+class JsonLogFormatter(object):
     ATTR_TO_JSON = ['created', 'filename', 'funcName', 'levelname', 'lineno', 'module', 'msecs', 'msg', 'name', 'pathname', 'process', 'processName', 'relativeCreated', 'thread', 'threadName']
 
     def __init__(self, **kwargs):
@@ -182,7 +182,7 @@ def setup_logging(in_app_name, in_app_author):
         debug_logging_started = True
 
 
-def find_file_handler(log_file_path):
+def find_file_log_handler(log_file_path):
     retVal = None
     top_logger = logging.getLogger()
     for handler in top_logger.handlers:
@@ -196,12 +196,12 @@ def find_file_handler(log_file_path):
 def setup_file_logging(log_file_path, level=logging.INFO):
     top_logger = logging.getLogger()
     top_logger.setLevel(debug_logging_level)
-    fileLogHandler = find_file_handler(log_file_path)
+    fileLogHandler = find_file_log_handler(log_file_path)
     if not fileLogHandler:
         log_file_name = pathlib.PurePath(log_file_path).name
         fileLogHandler = logging.FileHandler(log_file_path)
         fileLogHandler.set_name(f"(log_file_name)_log_handler")
-        formatter = CustomFormatter()
+        formatter = CustomLogFormatter()
         fileLogHandler.setFormatter(formatter)
         top_logger.addHandler(fileLogHandler)
     fileLogHandler.setLevel(level)
@@ -210,7 +210,7 @@ def setup_file_logging(log_file_path, level=logging.INFO):
 def teardown_file_logging(log_file_path, restore_level):
     top_logger = logging.getLogger()
     top_logger.setLevel(restore_level)
-    fileLogHandler = find_file_handler(log_file_path)
+    fileLogHandler = find_file_log_handler(log_file_path)
     if fileLogHandler:
         fileLogHandler.flush()
         top_logger.removeHandler(fileLogHandler)
@@ -259,3 +259,11 @@ def func_log_wrapper(logged_func):
             return retVal
         returned_func = logged_func_wrapper
     return returned_func
+
+
+def remove_log_handler(handler_to_remove_name):
+    the_logger = logging.getLogger()
+    for handler in the_logger.handlers:
+        if handler.name == handler_to_remove_name:
+            print(f"remove log handler {handler.name}")
+            the_logger.removeHandler(handler)

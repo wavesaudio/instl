@@ -53,7 +53,7 @@ class RaiseException(PythonBatchCommandBase, essential=True):
         raise self.exception_type(self.exception_message)
 
 
-class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
+class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
         Stage itself preforms no action only the contained commands will be preformed
     """
@@ -61,7 +61,6 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
         super().__init__(**kwargs)
         self.stage_name = stage_name
         self.stage_extra = stage_extra
-        self.own_progress_count = 0
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_string(self.stage_name))
@@ -102,13 +101,12 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
 
-class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
+class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ issue a message without increasing progress count
     """
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.message = message
-        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = f'''print("{self.message}")'''
@@ -121,13 +119,12 @@ class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_conte
         pass
 
 
-class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False):
+class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ write a remark in code
     """
     def __init__(self, remark, **kwargs) -> None:
         super().__init__(**kwargs)
         self.remark = remark
-        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = f'''# {self.remark}'''
@@ -140,12 +137,11 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
         pass
 
 
-class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
+class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
 
     def __init__(self, some_python_code, **kwargs) -> None:
         super().__init__(**kwargs)
         self.some_python_code = some_python_code
-        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = self.some_python_code
@@ -158,7 +154,7 @@ class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=Fal
         pass
 
 
-class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False):
+class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ creates a python variable assignment, e.g.
         x = y
     """
@@ -168,7 +164,6 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
         self.var_name = var_name
         self.var_values = var_values
-        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = ""
@@ -198,7 +193,7 @@ class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False
         pass
 
 
-class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False):
+class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ creates a configVar assignment, e.g.
         config_vars["x"] = y
     """
@@ -208,7 +203,6 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
         assert not keyword.iskeyword(var_name), f"{var_name} is not a python key word"
         self.var_name = var_name
         self.var_values = var_values
-        self.own_progress_count = 0
 
     def __repr__(self) -> str:
         the_repr = ""
@@ -235,10 +229,9 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
         pass
 
 
-class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
+class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
-        self.own_progress_count = 0
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):

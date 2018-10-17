@@ -39,9 +39,10 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             assert len(run_args) == 1
         elif self.shell and len(run_args) == 1:
             if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
-                run_args = shlex.split(run_args[0])
-                run_args = [p.replace(" ", r"\ ") for p in run_args]
-                run_args = " ".join(run_args)
+                #run_args = shlex.split(run_args[0])
+                #run_args = [p.replace(" ", r"\ ") for p in run_args]
+                #run_args = " ".join(run_args)
+                run_args = run_args[0]
             elif sys.platform == 'win32':
                 run_args = run_args[0]
         completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)

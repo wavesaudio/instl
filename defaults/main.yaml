@@ -72,6 +72,7 @@ DONT_WRITE_CONFIG_VARS:
     - INFO_MAP_SIG
     - PUBLIC_KEY
     - SVN_REVISION
+    - .+_template
 
 --- !define_Win
 
