@@ -89,7 +89,8 @@ REMOVE_PREVIOUS_SOURCES: yes
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
     - .DS_Store
-    - "Icon\x0D"
+# temp disable - Icon\x0D does not render properly in python batch
+#    - "Icon\x0D"
 
 --- !define_Win
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
