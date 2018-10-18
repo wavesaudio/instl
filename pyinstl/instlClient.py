@@ -468,18 +468,17 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
-        target_folder_path_resolved = config_vars.resolve_str(target_folder_path)
-        if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
+        target_folder_path_resolved = utils.ResolvedPath(config_vars.resolve_str(target_folder_path))
+        if target_folder_path_resolved.is_dir():  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                retVal += Cd(target_folder_path)
-                # todo: conditional CD - if fails to not do other instructions
-                retVal += Progress(f"remove previous versions {target_folder_path} ...")
+                with self.batch_accum.sub_accum(Cd(target_folder_path)) as remove_prev_section:
+                    remove_prev_section += Progress(f"remove previous versions {target_folder_path}")
 
-                for previous_source in previous_sources:
-                    retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+                    for previous_source in previous_sources:
+                        remove_prev_section += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
         return retVal
 
     def create_remove_previous_sources_instructions_for_source(self, folder, source):
