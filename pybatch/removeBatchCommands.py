@@ -82,20 +82,18 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
             shutil.rmtree(resolved_path)
 
 
-class RemoveEmptyFolders(PythonBatchCommandBase, essential=True):
+class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults={"files_to_ignore": []}):
     """ remove all empty directories under and including 'folder_to_remove'
     - it's OK if the path does not exist.
     - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
     it will be considered empty and will be removed
     """
-    def __init__(self, folder_to_remove: os.PathLike, files_to_ignore: List = [], **kwargs) -> None:
+    def __init__(self, folder_to_remove: os.PathLike, files_to_ignore=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_remove = folder_to_remove
-        self.files_to_ignore = list(files_to_ignore)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''folder_to_remove={utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}''')
-        all_args.append(f'''files_to_ignore={self.files_to_ignore}''')
+        all_args.append(f'''{utils.quoteme_raw_string(os.fspath(self.folder_to_remove))}''')
 
     def progress_msg_self(self) -> str:
         return f"""Remove empty directory '{self.folder_to_remove}'"""

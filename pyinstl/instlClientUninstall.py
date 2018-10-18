@@ -103,7 +103,7 @@ class InstlClientUninstall(InstlClientRemove):
             # uninstall might be done with index.yaml that is pre-python-batch.
             # And in any case uninstall should stop because any one commands failed/
             self.batch_accum.set_current_section("begin")
-            self.batch_accum += PythonDoSomething('''PythonBatchCommandBase.set_default_ignore_all_errors(True)''')
+            self.batch_accum += PythonDoSomething('''PythonBatchCommandBase.set_base_kwargs_default("ignore_all_errors", True)''')
         else:
             log.info("nothing to uninstall")
 

@@ -7,13 +7,3 @@ LS_FORMAT_FOR_WTAR: 'WSCpf'
 WTAR_IGNORE_FILES:
     -  .svn
     - .DS_Store
-
---- !define_Mac
-REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
-    - .DS_Store
-    - "Icon\x0D"
-
---- !define_Win
-REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
-    - desktop.ini
-    - Folder.ico

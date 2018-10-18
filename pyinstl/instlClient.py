@@ -83,7 +83,8 @@ class InstlClient(InstlInstanceBase):
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        self.progress("calculate install items")
+        command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove'}
+        self.progress(f"""calculate {command_title.get(self.fixed_command, "install")} items""")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
         #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
@@ -474,7 +475,7 @@ class InstlClient(InstlInstanceBase):
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                with self.batch_accum.sub_accum(Cd(target_folder_path)) as remove_prev_section:
+                with retVal.sub_accum(Cd(target_folder_path)) as remove_prev_section:
                     remove_prev_section += Progress(f"remove previous versions {target_folder_path}")
 
                     for previous_source in previous_sources:

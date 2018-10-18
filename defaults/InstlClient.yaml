@@ -85,3 +85,13 @@ SPECIAL_BUILD_IN_IIDS:
 
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
+
+--- !define_Mac
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - .DS_Store
+    - "Icon\x0D"
+
+--- !define_Win
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - desktop.ini
+    - Folder.ico

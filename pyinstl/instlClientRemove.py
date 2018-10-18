@@ -58,10 +58,9 @@ class InstlClientRemove(InstlClient):
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
                             _, source_leaf = os.path.split(source[0])
-                            with iid_accum_transaction.sub_accum(Stage("Remove", source_leaf)) as source_accum_transaction:
-                                source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
-                                source_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
-                                source_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
+                            iid_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_remove_item")
+                            iid_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
+                            iid_accum_transaction += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_remove_item")
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('post_remove_from_folder', items_in_folder)
 

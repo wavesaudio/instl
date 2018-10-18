@@ -40,11 +40,10 @@ class PythonBatchCommandBase(abc.ABC):
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
-    default_ignore_all_errors = False
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
-                       'ignore_all_errors': default_ignore_all_errors,
+                       'ignore_all_errors': False,
                        'remark': None,
                        'recursive': False}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
@@ -109,8 +108,12 @@ class PythonBatchCommandBase(abc.ABC):
         return f"{self.__class__.__name__} {PythonBatchCommandBase.instance_counter}"
 
     @classmethod
-    def set_default_ignore_all_errors(cls, new_default_ignore_all_errors):
-        PythonBatchCommandBase.default_ignore_all_errors = new_default_ignore_all_errors
+    def set_base_kwargs_default(cls, default_name, new_default_value):
+        cls.kwargs_defaults[default_name] = new_default_value
+
+    @classmethod
+    def set_class_kwargs_default(cls, default_name, new_default_value):
+        cls.kwargs_defaults_for_subclass[default_name] = new_default_value
 
     def stage_str(self) -> str:
         return ""
