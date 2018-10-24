@@ -76,6 +76,7 @@ class YamlReader(object):
                     prog_message += f" [{actual_file_path}]"
                 self.progress(prog_message)
                 buffer = io.StringIO(buffer)     # turn text to a stream
+                buffer.name = actual_file_path
                 kwargs['path-to-file'] = os.fspath(file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
