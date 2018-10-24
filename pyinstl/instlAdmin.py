@@ -908,16 +908,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.verify_index_to_repo()
 
-    def do_read_yaml(self):
-        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-        if "__MAIN_OUT_FILE__" in config_vars:
-            define_yaml = aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
-            index_yaml = aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
-            out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-            with open(out_file_path, "w") as wfd:
-                aYaml.writeAsYaml(define_yaml, wfd)
-                aYaml.writeAsYaml(index_yaml, wfd)
-
     def do_depend(self):
         from . import installItemGraph
 

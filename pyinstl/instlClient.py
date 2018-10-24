@@ -83,7 +83,7 @@ class InstlClient(InstlInstanceBase):
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove'}
+        command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove', 'read_yaml': 'yaml', "report_versions": "report"}
         self.progress(f"""calculate {command_title.get(self.fixed_command, "install")} items""")
         self.calculate_install_items()
         self.read_defines_for_active_iids()

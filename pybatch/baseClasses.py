@@ -77,12 +77,21 @@ class PythonBatchCommandBase(abc.ABC):
         self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
 
     def get_defaults_kwargs(self):
+        """ get all the __init__(kwargs) for a sub class.
+            these include kwargs for the base calls and any new or overriding
+            kwargs defined for the the deriving class
+        """
         retVal = dict()
         retVal.update(self.kwargs_defaults)
         retVal.update(self.kwargs_defaults_for_subclass)
         return retVal
 
     def repr_default_kwargs(self, all_args):
+        """ get a text representation of the __init__(kwargs) for a sub class.
+            returns a list of text values in the form "x=y". args that
+            are listed in self.non_representative__dict__keys will not be included
+            also e
+        """
         for kwarg_name, kwarg_default_value in sorted(self.get_defaults_kwargs().items()):
             if kwarg_name not in self.non_representative__dict__keys:
                 current_value = getattr(self, kwarg_name, kwarg_default_value)
