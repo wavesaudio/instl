@@ -490,82 +490,87 @@ class IndexItemsTable(object):
                       "not_inherit_details": utils.quoteme_single_list_for_sql(self.not_inherit_details)})
         return query_text
 
-    def read_item_details_from_node(self, the_iid, the_node, the_os='common') -> List:
+    def read_item_details_from_node(self, the_iid, the_node, the_os='common', **kwargs) -> List:
         details = list()
         # go through the raw yaml nodes instead of doing "for detail_name in the_node".
         # this is to overcome index.yaml with maps that have two keys with the same name.
         # Although it's not valid yaml some index.yaml versions have this problem.
         for detail_node in the_node.value:
-            detail_name = detail_node[0].value
-            if detail_name in IndexItemsTable.os_names_to_num:
-                os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name)
-                details.extend(os_specific_details)
-            elif detail_name == 'actions':
-                actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os)
-                details.extend(actions_details)
-            elif detail_name.startswith("define"):
-                self.defines_for_iids[the_iid] = detail_node[1]
-                self.defines_for_iids[the_iid].tag = "!"+detail_name
-            else:
-                for details_line in detail_node[1]:
-                    tag = details_line.tag if details_line.tag[0] == '!' else None
-                    value = details_line.value
-                    if detail_name in ("install_sources", "previous_sources") and tag is None:
-                        tag = '!dir'
-                    elif detail_name == "guid":
-                        value = value.lower()
-
-                    if detail_name == "install_sources":
-                        if value.startswith('/'):  # absolute path
-                            new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
-                                            detail_name, value[1:],tag)
-                            details.append(new_detail)
-                        else:  # relative path
-                            # because 'common' is in both groups this will create 2 index_item_detail_t
-                            # if OS is 'common', and 1 otherwise
-                            count_insertions = 0
-                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
-                                             ('common', 'Win', 'Win32', 'Win64')):
-                                if the_os in os_group:
-                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
-                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
-                                    new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
-                                                    detail_name, "/".join((path_prefix_os, value)), tag)
-                                    details.append(new_detail)
-                                    count_insertions += 1
-                            assert count_insertions < 3, f"count_insertions: {count_insertions}"
+            with kwargs['node-stack'](detail_node):
+                detail_name = detail_node[0].value
+                with kwargs['node-stack'](detail_node[1]):
+                    if detail_name in IndexItemsTable.os_names_to_num:
+                        os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name, **kwargs)
+                        details.extend(os_specific_details)
+                    elif detail_name == 'actions':
+                        actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os, **kwargs)
+                        details.extend(actions_details)
+                    elif detail_name.startswith("define"):
+                        self.defines_for_iids[the_iid] = detail_node[1]
+                        self.defines_for_iids[the_iid].tag = "!"+detail_name
                     else:
-                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
-                        details.append(new_detail)
+                        for details_line in detail_node[1]:
+                            with kwargs['node-stack'](details_line):
+                                tag = details_line.tag if details_line.tag[0] == '!' else None
+                                value = details_line.value
+                                if detail_name in ("install_sources", "previous_sources") and tag is None:
+                                    tag = '!dir'
+                                elif detail_name == "guid":
+                                    value = value.lower()
+
+                                if detail_name == "install_sources":
+                                    if value.startswith('/'):  # absolute path
+                                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
+                                                        detail_name, value[1:],tag)
+                                        details.append(new_detail)
+                                    else:  # relative path
+                                        # because 'common' is in both groups this will create 2 index_item_detail_t
+                                        # if OS is 'common', and 1 otherwise
+                                        count_insertions = 0
+                                        for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
+                                                         ('common', 'Win', 'Win32', 'Win64')):
+                                            if the_os in os_group:
+                                                item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                                path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                                assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
+                                                new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
+                                                                detail_name, "/".join((path_prefix_os, value)), tag)
+                                                details.append(new_detail)
+                                                count_insertions += 1
+                                        assert count_insertions < 3, f"count_insertions: {count_insertions}"
+                                else:
+                                    new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
+                                    details.append(new_detail)
         return details
 
-    def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode) -> ((str, bool), List):
+    def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode, **kwargs) -> ((str, bool), List):
         item = (the_iid, True)
-        original_details = self.read_item_details_from_node(the_iid, the_node)
+        original_details = self.read_item_details_from_node(the_iid, the_node, **kwargs)
         return item, original_details
 
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
-    def read_index_node_helper(self, a_node: yaml.MappingNode, index_items: List, items_details: List) -> None:
+    def read_index_node_helper(self, a_node: yaml.MappingNode, index_items: List, items_details: List, **kwargs) -> None:
         """ read index node to index_items+items_details lists, but do not commit to DB
             Helps read_index_node read template definitions without intermediate commits
+            :param **kwargs:
         """
         for IID in a_node:
             template_match = self.template_re.match(IID)
-            if template_match:
-                node = self.read_index_template_node(template_match, a_node[IID])
-                self.read_index_node_helper(node, index_items, items_details)
-            else:
-                item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-                index_items.append(item)
-                items_details.extend(original_item_details)
+            with kwargs['node-stack'](a_node[IID]):
+                if template_match:
+                    node = self.read_index_template_node(template_match, a_node[IID])
+                    self.read_index_node_helper(node, index_items, items_details, **kwargs)
+                else:
+                    item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
+                    index_items.append(item)
+                    items_details.extend(original_item_details)
 
-    def read_index_node(self, a_node: yaml.MappingNode) -> None:
+    def read_index_node(self, a_node: yaml.MappingNode, **kwargs) -> None:
         index_items = list()
         items_details = list()
 
-        self.read_index_node_helper(a_node, index_items, items_details)
+        self.read_index_node_helper(a_node, index_items, items_details, **kwargs)
 
         insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
@@ -577,7 +582,7 @@ class IndexItemsTable(object):
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
-    def read_index_node_one_by_one(self, a_node: yaml.MappingNode) -> None:
+    def read_index_node_one_by_one(self, a_node: yaml.MappingNode, **kwargs) -> None:
         """ for debugging problems with reading index.yaml use read_index_node_one_by_one instead of read_index_node"""
         insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
@@ -585,23 +590,24 @@ class IndexItemsTable(object):
                                                                   VALUES(?,?,?,?,?,?)"""
         for IID in a_node:
             try:
-                index_items = list()
-                items_details = list()
+                with kwargs['node-stack'](a_node[IID]):
+                    index_items = list()
+                    items_details = list()
 
-                template_match = self.template_re.match(IID)
-                if template_match:
-                    node = self.read_index_template_node(template_match, a_node[IID])
-                    self.read_index_node_helper(node, index_items, items_details)
-                else:
-                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-                    index_items.append(item)
-                    items_details.extend(original_item_details)
+                    template_match = self.template_re.match(IID)
+                    if template_match:
+                        node = self.read_index_template_node(template_match, a_node[IID])
+                        self.read_index_node_helper(node, index_items, items_details, )
+                    else:
+                        item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
+                        index_items.append(item)
+                        items_details.extend(original_item_details)
 
-                with self.db.transaction() as curs:
-                    curs.executemany(insert_item_q, index_items)
-                    curs.executemany(insert_item_detail_q, items_details)
-                    curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
-                    curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+                    with self.db.transaction() as curs:
+                        curs.executemany(insert_item_q, index_items)
+                        curs.executemany(insert_item_detail_q, items_details)
+                        curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
+                        curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
             except Exception as ex:
                 print(f"failed reading {IID}: {ex}")
                 raise
@@ -626,14 +632,15 @@ class IndexItemsTable(object):
         YamlReader.convert_standard_tags(out_node)
         return out_node
 
-    def read_require_node(self, a_node: yaml.MappingNode):
+    def read_require_node(self, a_node: yaml.MappingNode, **kwargs):
         require_items = dict()
         if a_node.isMapping():
             all_iids = self.get_all_iids()
             for IID in a_node:
-                require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
-                if require_details:
-                    require_items[IID] = require_details
+                with kwargs['node-stack'](a_node[IID]):
+                    require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
+                    if require_details:
+                        require_items[IID] = require_details
 
             query_text1 = """
                 INSERT INTO index_item_detail_t
