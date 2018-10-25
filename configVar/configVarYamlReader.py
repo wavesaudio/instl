@@ -49,31 +49,46 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier.startswith("__if"):  # __if__, __ifdef__, __ifndef__
-                    self.read_conditional_node(identifier, contents, *args, **kwargs)
-                elif identifier == '__include__':
-                    self.read_include_node(contents, *args, **kwargs)
-                elif identifier == "__include_if_exist__":
-                    kwargs.update({'ignore_if_not_exist': True})
-                    self.read_include_node(contents, *args, **kwargs)
-                elif identifier == "__environment__":
-                    contents_list = [c.value for c in contents]
-                    config_vars.read_environment(contents_list)
-                elif self._allow_reading_of_internal_vars or not internal_identifier_re.match(
-                        identifier):  # do not read internal state identifiers
-                    config_vars[identifier] = [item.value for item in contents]
-                    #if contents.tag == '!non_freeze':
-                    #    new_var.non_freeze = True
+                with kwargs['node-stack'](contents):
+                    if identifier.startswith("__if"):  # __if__, __ifdef__, __ifndef__
+                        self.read_conditional_node(identifier, contents, *args, **kwargs)
+                    elif identifier == '__include__':
+                        self.read_include_node(contents, *args, **kwargs)
+                    elif identifier == "__include_if_exist__":
+                        kwargs.update({'ignore_if_not_exist': True})
+                        self.read_include_node(contents, *args, **kwargs)
+                    elif identifier == "__environment__":
+                        contents_list = [c.value for c in contents]
+                        config_vars.read_environment(contents_list)
+                    elif self._allow_reading_of_internal_vars or not internal_identifier_re.match(
+                            identifier):  # do not read internal state identifiers
+                        #config_vars[identifier] = [item.value for item in contents]
+                        values = list()
+                        for item in contents:
+                            with kwargs['node-stack'](item):
+                                if isinstance(item.value, (str, int)):
+                                    values.append(item.value)
+                                else:
+                                    raise TypeError(f"Values for configVar {identifier} should be of type str or int not {type(item.value)}")
+                        config_vars[identifier] = values
 
     def read_defines_if_not_exist(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
         if a_node.isMapping():
             for identifier, contents in a_node.items():
-                if identifier in ("__include__", "__include_if_exist__"):
-                    raise ValueError("!define_if_not_exist doc cannot except __include__ and __include_if_exist__")
-                if self._allow_reading_of_internal_vars or not internal_identifier_re.match(identifier):  # do not read internal state identifiers
-                    if identifier not in config_vars:
-                        config_vars[identifier] = [item.value for item in contents]
+                with kwargs['node-stack'](contents):
+                    if identifier in ("__include__", "__include_if_exist__"):
+                        raise ValueError("!define_if_not_exist doc cannot except __include__ and __include_if_exist__")
+                    if self._allow_reading_of_internal_vars or not internal_identifier_re.match(identifier):  # do not read internal state identifiers
+                        if identifier not in config_vars:
+                            values = list()
+                            for item in contents:
+                                with kwargs['node-stack'](item):
+                                    if isinstance(item.value, (str, int)):
+                                        values.append(item.value)
+                                    else:
+                                        raise TypeError(f"Values for configVar {identifier} should be of type str or int not {type(item.value)}")
+                            config_vars[identifier] = values
 
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
@@ -88,15 +103,15 @@ class ConfigVarYamlReader(aYaml.YamlReader):
             if_type = match['if_type']
             if if_type == "def":     # __ifdef__: if configVar is defined
                 if condition in config_vars:
-                    self.read_defines(contents)
+                    self.read_defines(contents, **kwargs)
             elif if_type == "ndef":  # __ifndef__: if configVar is not defined
                 if condition not in config_vars:
-                    self.read_defines(contents)
+                    self.read_defines(contents, **kwargs)
             elif if_type == "":      # "__if__: eval the condition
                 resolved_condition = config_vars.resolve_str(condition)
                 condition_result = eval(resolved_condition)
                 if condition_result:
-                    self.read_defines(contents)
+                    self.read_defines(contents, **kwargs)
         else:
             log.warning(f"unknown conditional {identifier}")
 

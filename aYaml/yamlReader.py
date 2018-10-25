@@ -16,6 +16,7 @@
 import os
 import io
 import yaml
+from contextlib import contextmanager
 import urllib.error
 
 from typing import Callable, Dict, List, Tuple
@@ -25,6 +26,29 @@ log = logging.getLogger()
 import utils
 import configVar
 
+
+class YamlNodeStack(object):
+    """ keep a stack of currently read yaml nodes
+        so in case of error exact location can be reported
+    """
+    def __init__(self):
+        self.node_stack = list()
+
+    def __str__(self):
+        return str(self.node_stack)
+
+    @contextmanager
+    def __call__(self, *args, **kwargs):
+        self.node_stack.append(args[0])
+        yield
+        self.node_stack.pop()
+
+    @property
+    def start_mark(self):
+        if len(self.node_stack) > 0:
+            return str(self.node_stack[-1].start_mark)
+        else:
+            return "unknown"
 
 class YamlReader(object):
     def __init__(self) -> None:
@@ -76,9 +100,10 @@ class YamlReader(object):
                     prog_message += f" [{actual_file_path}]"
                 self.progress(prog_message)
                 buffer = io.StringIO(buffer)     # turn text to a stream
-                buffer.name = actual_file_path
-                kwargs['path-to-file'] = os.fspath(file_path)
+                buffer.name = actual_file_path   # so yaml parser knows the name of the file for error report
+                kwargs['path-to-file'] = os.fspath(actual_file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
+                kwargs['node-stack'] = YamlNodeStack()
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
                 self.file_read_stack.pop()
                 # now read the __post tags if any
@@ -106,6 +131,8 @@ class YamlReader(object):
             if not self.exception_printed:      # avoid recursive printing of error message
                 read_file_history = "\n->\n".join(self.file_read_stack)
                 log.error(f"""Exception reading file: {read_file_history}""")
+                kwargs['exception'] = ex
+                self.handle_yaml_read_error(**kwargs)
                 self.exception_printed = True
             raise
 
@@ -114,7 +141,8 @@ class YamlReader(object):
 
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
-            self.read_yaml_from_node(a_node, *args, **kwargs)
+            with kwargs['node-stack'](a_node):
+                self.read_yaml_from_node(a_node, *args, **kwargs)
 
     def read_yaml_from_node(self, the_node, *args, **kwargs):
         YamlReader.convert_standard_tags(the_node)

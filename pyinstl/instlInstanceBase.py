@@ -224,7 +224,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_require(self, a_node, *args, **kwargs):
         del args
-        self.items_table.read_require_node(a_node)
+        self.items_table.read_require_node(a_node, **kwargs)
 
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open(file_path, "w") as wfd:
@@ -413,8 +413,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        self.items_table.read_index_node(a_node)
-        #self.items_table.read_index_node_one_by_one(a_node)  # for debugging reading index.yaml
+        self.items_table.read_index_node(a_node, **kwargs)
+        #self.items_table.read_index_node_one_by_one(a_node, **kwargs)  # for debugging reading index.yaml
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 
@@ -486,12 +486,16 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def handle_yaml_read_error(self, **kwargs):
         try:
+            the_node_stack = kwargs.get('node-stack', "unknown")
+            position_in_file = getattr(the_node_stack, "start_mark", "unknown")
             yaml_read_error = f"""
 yaml_read_error:
-    original-path-to-file: {kwargs['original-path-to-file']}
-    path-to-file: {kwargs['path-to-file']}
-    exception: {kwargs['exception']}
+    position-in-file: {position_in_file}
+    exception: {kwargs.get('exception', '')}
 """
+            original_path_to_file = kwargs.get('original-path-to-file', '')
+            if original_path_to_file not in yaml_read_error:
+                yaml_read_error = f"{yaml_read_error}\n    original-path-to-file: {original_path_to_file}"
             log.error(yaml_read_error)
         except Exception as ex:
             pass
