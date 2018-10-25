@@ -3,6 +3,7 @@
 
 import os
 import sqlite3
+import io
 from collections import OrderedDict
 from collections import defaultdict
 import re
@@ -559,7 +560,7 @@ class IndexItemsTable(object):
             template_match = self.template_re.match(IID)
             with kwargs['node-stack'](a_node[IID]):
                 if template_match:
-                    node = self.read_index_template_node(template_match, a_node[IID])
+                    node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
                     self.read_index_node_helper(node, index_items, items_details, **kwargs)
                 else:
                     item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
@@ -596,8 +597,8 @@ class IndexItemsTable(object):
 
                     template_match = self.template_re.match(IID)
                     if template_match:
-                        node = self.read_index_template_node(template_match, a_node[IID])
-                        self.read_index_node_helper(node, index_items, items_details, )
+                        node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                        self.read_index_node_helper(node, index_items, items_details, **kwargs)
                     else:
                         item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
                         index_items.append(item)
@@ -612,23 +613,26 @@ class IndexItemsTable(object):
                 print(f"failed reading {IID}: {ex}")
                 raise
 
-    def read_index_template_node(self, template_match, instances_node):
-        yaml_text = "--- !index\n"
+    def read_index_template_node(self, template_match, instances_node, **kwargs):
         template_name = template_match['template_name']
         template_args = template_match['template_args'].split(',')
         template_args = [a.strip() for a in template_args]
         template_text = config_vars[template_name].raw(join_sep="")
+        yaml_text = "--- !index\n"
         for instance_node in instances_node.value:
-            if instance_node.isSequence():
-                with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
-                    arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
-                    for arg, val in arg_values:
-                        pcf[arg] = val
-                    resolved_instance = pcf.shallow_resolve_str(template_text)
-                    yaml_text += resolved_instance
-                    #print("resolved template for ", arg_values[0][1])
-        #print(yaml_text)
-        out_node = yaml.compose(yaml_text)
+            with kwargs['node-stack'](instance_node):
+                if instance_node.isSequence():
+                    with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
+                        arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
+                        for arg, val in arg_values:
+                            pcf[arg] = val
+                        resolved_instance = pcf.shallow_resolve_str(template_text)
+                        yaml_text += resolved_instance
+                        #print("resolved template for ", arg_values[0][1])
+            #print(yaml_text)
+        yaml_stream = io.StringIO(yaml_text)  # convert the test to stream so 'name' attrib can be set,
+        yaml_stream.name = template_name      # which is useful for error reporting
+        out_node = yaml.compose(yaml_stream)
         YamlReader.convert_standard_tags(out_node)
         return out_node
 
