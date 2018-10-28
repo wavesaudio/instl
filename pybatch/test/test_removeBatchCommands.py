@@ -89,8 +89,8 @@ class TestPythonBatchRemove(unittest.TestCase):
 
         list_of_objs = list()
         list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular"))
-        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", []))
-        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await']))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", files_to_ignore=[]))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", files_to_ignore=['async', 'await']))
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RemoveEmptyFolders(self):

@@ -88,7 +88,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults
     - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
     it will be considered empty and will be removed
     """
-    def __init__(self, folder_to_remove: os.PathLike, files_to_ignore=None, **kwargs) -> None:
+    def __init__(self, folder_to_remove: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_remove = folder_to_remove
 

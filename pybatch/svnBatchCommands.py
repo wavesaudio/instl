@@ -16,7 +16,7 @@ class SVNClient(RunProcessBase):
     def progress_msg_self(self) -> str:
         return f''''''
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         svn_client = config_vars.get("SVN_CLIENT_PATH", "svn").str()
-        run_args = [svn_client] + list(self.svn_args)
-        return run_args
+        run_args.append(svn_client)
+        run_args.extend(list(self.svn_args))
