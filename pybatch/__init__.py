@@ -23,6 +23,7 @@ from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
 from .reportingBatchCommands import Stage
 from .reportingBatchCommands import ConfigVarAssign
+from .reportingBatchCommands import ConfigVarPrint
 from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
@@ -60,6 +61,7 @@ from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
 from .info_mapBatchCommands import CreateSyncFolders
 
 from .svnBatchCommands import SVNClient
+from .svnBatchCommands import SVNLastRepoRev
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

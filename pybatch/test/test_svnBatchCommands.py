@@ -48,7 +48,7 @@ class TestPythonBatchSVN(unittest.TestCase):
 
         if sys.platform != 'darwin':
             return
-        self.pbt.reprs_test_runner(SVNClient("checkout", "--depth", "infinity"))
+        self.pbt.reprs_test_runner(SVNClient("checkout"))
 
     def test_SVNClient(self):
 
@@ -62,3 +62,24 @@ class TestPythonBatchSVN(unittest.TestCase):
             sub_bc += SVNClient("info")
 
         self.pbt.exec_and_capture_output()
+
+    def test_SVNLastRepoRev_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+        self.pbt.reprs_test_runner(SVNLastRepoRev("pararam_1", "pararam_2"))
+
+    def test_SVNLastRepoRev(self):
+
+        if sys.platform != 'darwin':
+            return
+
+    def test_SVNLastRepoRev(self):
+        self.pbt.batch_accum.clear()
+        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
+        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
+
+        self.pbt.batch_accum += SVNLastRepoRev("SVN_REPO_URL", "__LAST_REPO__")
+        self.pbt.batch_accum += ConfigVarPrint("__LAST_REPO_REV__")
+        self.pbt.exec_and_capture_output()
+

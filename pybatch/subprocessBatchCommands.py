@@ -51,6 +51,10 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
         #log.debug(completed_process.stdout)
         completed_process.check_returncode()
+        self.handle_completed_process(completed_process)
+
+    def handle_completed_process(self, completed_process):
+        pass
 
     def log_result(self, log_lvl, message, exc_val):
         if self.stderr:
@@ -164,7 +168,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
 
-    def create_run_args(self, run_args) -> None:
+    def get_run_args(self, run_args) -> None:
         the_lines = self.shell_command_list
         if isinstance(the_lines, str):
             the_lines = [the_lines]

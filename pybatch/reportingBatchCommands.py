@@ -4,6 +4,7 @@ import json
 import re
 from typing import List
 
+from configVar import config_vars
 import utils
 
 from .baseClasses import *
@@ -227,6 +228,25 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
 
     def __call__(self, *args, **kwargs) -> None:
         pass
+
+
+class ConfigVarPrint(PythonBatchCommandBase, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 1}):
+    """
+    """
+    def __init__(self, var_name, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.var_name = var_name
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(self.var_name))
+
+    def progress_msg_self(self) -> str:
+        resolved = config_vars[self.var_name].str()
+        return resolved
+
+    def __call__(self, *args, **kwargs) -> None:
+        resolved = config_vars[self.var_name].str()
+        print(resolved)
 
 
 class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):

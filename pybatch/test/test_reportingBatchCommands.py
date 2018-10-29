@@ -130,6 +130,21 @@ class TestPythonBatchReporting(unittest.TestCase):
     def test_ConfigVarAssign(self):
         pass
 
+    def test_ConfigVarPrint_repr(self):
+        """ test that ConfigVarPrint.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        self.pbt.reprs_test_runner(ConfigVarPrint("Avi Balali $(NIKMAT_HATRACTOR)"))
+
+    def test_ConfigVarPrint(self):
+        self.pbt.batch_accum.clear()
+        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
+        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
+
+        self.pbt.batch_accum += SVNLastRepoRev("SVN_REPO_URL", "__LAST_REPO__")
+        self.pbt.batch_accum += ConfigVarPrint("__LAST_REPO_REV__")
+        self.pbt.exec_and_capture_output()
+
     def test_PythonBatchRuntime_repr(self):
         pass
 
