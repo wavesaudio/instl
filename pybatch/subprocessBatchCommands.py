@@ -27,11 +27,12 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         self.stderr = ''
 
     @abc.abstractmethod
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
-        run_args = self.create_run_args()
+        run_args = list()
+        self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
         if self.script:
@@ -92,17 +93,16 @@ class CUrl(RunProcessBase):
     def progress_msg_self(self):
         return f"""Download '{src}' to '{self.trg}'"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
         resolved_trg_path = utils.ResolvedPath(self.trg)
-        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
+        run_args.extend([resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
                     "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
                     "--retry", self.retires, "--retry-delay", self.retry_delay,
-                    "-o", resolved_trg_path, self.src]
+                    "-o", resolved_trg_path, self.src])
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
-        return run_args
 
 
 class ShellCommand(RunProcessBase, essential=True):
@@ -130,10 +130,9 @@ class ShellCommand(RunProcessBase, essential=True):
         else:
             return f"""running {self.shell_command}"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         resolved_shell_command = os.path.expandvars(self.shell_command)
-        the_lines = [resolved_shell_command]
-        return the_lines
+        run_args.append(resolved_shell_command)
 
 
 class ScriptCommand(ShellCommand):
@@ -165,7 +164,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
 
-    def create_run_args(self):
+    def create_run_args(self, run_args) -> None:
         the_lines = self.shell_command_list
         if isinstance(the_lines, str):
             the_lines = [the_lines]
@@ -180,9 +179,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
             batch_file.write(commands_text)
         os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
-        run_args = list()
         run_args.append(batch_file.name)
-        return run_args
 
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
