@@ -6,7 +6,7 @@ from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
 
 
-class SVNClient(RunProcessBase):
+class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity", "repo_rev": -1}):
     def __init__(self, command, **kwargs) -> None:
         super().__init__(**kwargs)
         self.command = command
@@ -21,28 +21,31 @@ class SVNClient(RunProcessBase):
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
         run_args.append(self.command)
 
+    def url_with_repo_rev(self):
+        if self.repo_rev == -1:
+            retVal = self.url
+        else:
+            retVal = f"{self.url}@{self.repo_rev}"
+        return retVal
+
 
 class SVNLastRepoRev(SVNClient):
     """ get the last repository revision from a url to SVN repository
         the result is placed in a configVar
         :url_param: url to svn repository
-        :reply_param: the name of the configVar where the last repository revision is placed
+        :reply_config_var: the name of the configVar where the last repository revision is placed
     """
     revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
 
-    def __init__(self, url_param, reply_param, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__("info", **kwargs)
-        self.url_param = url_param
-        self.reply_param = reply_param
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_single(self.url_param))
-        all_args.append(utils.quoteme_single(self.reply_param))
+        pass
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)
-        url = config_vars[self.url_param]
-        run_args.append(url)
+        run_args.append(self.url)
 
     def handle_completed_process(self, completed_process):
         info_as_io = io.StringIO(utils.unicodify(completed_process.stdout))
@@ -52,5 +55,23 @@ class SVNLastRepoRev(SVNClient):
                 last_repo_rev = int(match["revision"])
                 break
         else:
-            raise ValueError(f"Could not find last repo rev for {self.url_param}")
-        config_vars["__LAST_REPO_REV__"] = str(last_repo_rev)
+            raise ValueError(f"Could not find last repo rev for {self.url}")
+        if self.reply_config_var:
+            config_vars[self.reply_config_var] = str(last_repo_rev)
+
+
+class SVNCheckout(SVNClient):
+
+    def __init__(self,where, **kwargs):
+        super().__init__("checkout", **kwargs)
+        self.where = where
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("where", self.where))
+
+    def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
+        run_args.append(self.url_with_repo_rev())
+        run_args.append(self.where)
+        run_args.append("--depth")
+        run_args.append(self.depth)

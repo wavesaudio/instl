@@ -45,7 +45,8 @@ class PythonBatchCommandBase(abc.ABC):
                        'report_own_progress': True,
                        'ignore_all_errors': False,
                        'remark': None,
-                       'recursive': False}
+                       'recursive': False,
+                       "reply_config_var": None}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
@@ -55,7 +56,7 @@ class PythonBatchCommandBase(abc.ABC):
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
-        cls.kwargs_defaults_for_subclass = kwargs_defaults
+        cls.kwargs_defaults_for_subclass.update(kwargs_defaults)
 
     @abc.abstractmethod
     def __init__(self, **kwargs):

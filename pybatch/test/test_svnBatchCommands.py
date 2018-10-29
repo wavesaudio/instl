@@ -67,19 +67,43 @@ class TestPythonBatchSVN(unittest.TestCase):
 
         if sys.platform != 'darwin':
             return
-        self.pbt.reprs_test_runner(SVNLastRepoRev("pararam_1", "pararam_2"))
+        self.pbt.reprs_test_runner(SVNLastRepoRev(url="http://svn.apache.org/repos/asf/spamassassin/trunk", reply_config_var="__LAST_REPO_REV__"))
 
     def test_SVNLastRepoRev(self):
 
         if sys.platform != 'darwin':
             return
 
-    def test_SVNLastRepoRev(self):
         self.pbt.batch_accum.clear()
-        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
-        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
-
-        self.pbt.batch_accum += SVNLastRepoRev("SVN_REPO_URL", "__LAST_REPO__")
+        self.pbt.batch_accum += SVNLastRepoRev(url="http://svn.apache.org/repos/asf/spamassassin/trunk", reply_config_var="__LAST_REPO_REV__")
         self.pbt.batch_accum += ConfigVarPrint("__LAST_REPO_REV__")
         self.pbt.exec_and_capture_output()
+
+    def test_SVNCheckout_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+        self.pbt.reprs_test_runner(SVNCheckout(url="http://svn.apache.org/repos/asf/spamassassin/trunk", where="somewhere"))
+
+    def test_SVNCheckout(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        checkout_folder_1 = self.pbt.path_inside_test_folder("checkout-folder-1")
+        self.assertFalse(checkout_folder_1.exists(), f"{self.pbt.which_test}: {checkout_folder_1} should not exist before test")
+        some_folder_that_should_be_there_after_checkout_1 = checkout_folder_1.joinpath("powered_by").resolve()
+        self.assertFalse(some_folder_that_should_be_there_after_checkout_1.exists(), f"{self.pbt.which_test}: {some_folder_that_should_be_there_after_checkout_1} should not exist before test")
+
+        checkout_folder_2 = self.pbt.path_inside_test_folder("checkout-folder-2")
+        self.assertFalse(checkout_folder_2.exists(), f"{self.pbt.which_test}: {checkout_folder_2} should not exist before test")
+        some_file_that_should_be_there_after_checkout_2 = checkout_folder_2.joinpath("apache-header.txt").resolve()
+        self.assertFalse(some_file_that_should_be_there_after_checkout_2.exists(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_1), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates")
+        self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_2), url="http://svn.apache.org/repos/asf/camel/trunk/etc", depth="files")
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(some_folder_that_should_be_there_after_checkout_1.exists(), f"{self.pbt.which_test}: {some_folder_that_should_be_there_after_checkout_1} should exist after test")
+        self.assertTrue(some_file_that_should_be_there_after_checkout_2.is_file(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should exist after test")
 
