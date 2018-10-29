@@ -63,6 +63,7 @@ from .info_mapBatchCommands import CreateSyncFolders
 from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev
 from .svnBatchCommands import SVNCheckout
+from .svnBatchCommands import SVNInfo
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

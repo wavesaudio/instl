@@ -90,6 +90,7 @@ class TestPythonBatchSVN(unittest.TestCase):
         if sys.platform != 'darwin':
             return
 
+        out_file_1 = self.pbt.path_inside_test_folder("out-file-1")
         checkout_folder_1 = self.pbt.path_inside_test_folder("checkout-folder-1")
         self.assertFalse(checkout_folder_1.exists(), f"{self.pbt.which_test}: {checkout_folder_1} should not exist before test")
         some_folder_that_should_be_there_after_checkout_1 = checkout_folder_1.joinpath("powered_by").resolve()
@@ -101,9 +102,40 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertFalse(some_file_that_should_be_there_after_checkout_2.exists(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should not exist before test")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_1), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates")
+        self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_1), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates", out_file=os.fspath(out_file_1))
         self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_2), url="http://svn.apache.org/repos/asf/camel/trunk/etc", depth="files")
         self.pbt.exec_and_capture_output()
         self.assertTrue(some_folder_that_should_be_there_after_checkout_1.exists(), f"{self.pbt.which_test}: {some_folder_that_should_be_there_after_checkout_1} should exist after test")
         self.assertTrue(some_file_that_should_be_there_after_checkout_2.is_file(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should exist after test")
 
+    def test_SVNInfo_repr(self):
+
+        if sys.platform != 'darwin':
+            return
+        self.pbt.reprs_test_runner(SVNInfo(url="http://svn.apache.org/repos/asf/spamassassin/trunk", out_file="somewhere"))
+
+    def test_SVNInfo(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        info_file = self.pbt.path_inside_test_folder("info-file")
+        self.assertFalse(info_file.exists(), f"{self.pbt.which_test}: {info_file} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += SVNInfo(out_file=os.fspath(info_file), url="http://svn.apache.org/repos/asf/spamassassin/trunk")
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(info_file.is_file(), f"{self.pbt.which_test}: {info_file} should exist after test")
+
+    def test_SVNPropList(self):
+
+        if sys.platform != 'darwin':
+            return
+
+        proplist_file = self.pbt.path_inside_test_folder("proplist-file")
+        self.assertFalse(proplist_file.exists(), f"{self.pbt.which_test}: {proplist_file} should not exist before test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += SVNClient(command="proplist", out_file=os.fspath(proplist_file), url="https://github.com/wavesaudio/instl.git")
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(proplist_file.is_file(), f"{self.pbt.which_test}: {proplist_file} should exist after test")

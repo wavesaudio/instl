@@ -12,7 +12,7 @@ import utils
 from .baseClasses import PythonBatchCommandBase
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True, kwargs_defaults={"in_file": None, "out_file": None, "err_file": None}):
     def __init__(self, ignore_specific_exit_codes=(),  **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
@@ -46,10 +46,33 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                 run_args = run_args[0]
             elif sys.platform == 'win32':
                 run_args = run_args[0]
-        completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-        local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
-        local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
-        #log.debug(completed_process.stdout)
+        if self.out_file:
+            out_stream = open(self.out_file, "w")
+        else:
+            out_stream = subprocess.PIPE
+        if self.in_file:
+            in_stream = open(self.in_file, "r")
+        else:
+            in_stream = None
+        if self.err_file:
+            err_stream = open(self.err_file, "w")
+        else:
+            err_stream = subprocess.PIPE
+        completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
+
+        if self.in_file:
+            in_stream.close()
+
+        if self.out_file is None:
+            local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+        else:
+            out_stream.close()
+
+        if self.err_file is None:
+            local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
+        else:
+            err_stream.close()
+
         completed_process.check_returncode()
         self.handle_completed_process(completed_process)
 

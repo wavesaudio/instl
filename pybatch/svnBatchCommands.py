@@ -20,6 +20,9 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
     def get_run_args(self, run_args) -> None:
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
         run_args.append(self.command)
+        run_args.append(self.url_with_repo_rev())
+        run_args.append("--depth")
+        run_args.append(self.depth)
 
     def url_with_repo_rev(self):
         if self.repo_rev == -1:
@@ -67,11 +70,27 @@ class SVNCheckout(SVNClient):
         self.where = where
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.named__init__param("where", self.where))
+        all_args.append(self.named__init__param("where", os.fspath(self.where)))
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)
         run_args.append(self.url_with_repo_rev())
         run_args.append(self.where)
+        run_args.append("--depth")
+        run_args.append(self.depth)
+
+
+class SVNInfo(SVNClient):
+
+    def __init__(self, out_file, **kwargs):
+        super().__init__("info", **kwargs)
+        self.out_file = out_file
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
+
+    def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
+        run_args.append(self.url_with_repo_rev())
         run_args.append("--depth")
         run_args.append(self.depth)
