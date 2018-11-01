@@ -59,7 +59,7 @@ def quoteme_raw_string(simple_string):
         possible_quote_marks = ('"""', "'''")
 
     for quote_mark in possible_quote_marks:
-        # 1st priority is to create a raw string
+        # 1st priority is to create a raw string. Strings that end with the quotation mark cannot be raw.
         if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
             retVal = "".join(('r', quote_mark, simple_string, quote_mark))
             break
@@ -70,9 +70,12 @@ def quoteme_raw_string(simple_string):
     return retVal
 
 
+types_that_do_not_need_quotation = (int, float, bool)
+
+
 def quoteme_raw_if_string(some_thing):
-    if isinstance(some_thing, str):
-        return quoteme_raw_string(some_thing)
+    if not isinstance(some_thing, types_that_do_not_need_quotation):
+        return quoteme_raw_string(str(some_thing))
     else:
         return str(some_thing)
 
