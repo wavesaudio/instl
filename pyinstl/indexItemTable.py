@@ -557,6 +557,11 @@ class IndexItemsTable(object):
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
     def read_index_node(self, a_node):
+        if var_stack.ResolveVarToBool("DEBUG_INDEX_DB"):
+            print("DEBUG_INDEX_DB is true reading index one by one")
+            self.read_index_node_one_by_one(a_node)
+            return
+
         index_items = list()
         items_details = list()
         for IID in a_node:
@@ -578,6 +583,36 @@ class IndexItemsTable(object):
             curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+
+    def read_index_node_one_by_one(self, a_node):
+
+        with self.db.transaction() as curs:
+            curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
+            curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+
+        insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
+        insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
+                                                                  detail_name, detail_value, tag)
+                                                                  VALUES(?,?,?,?,?,?)"""
+        for IID in a_node:
+            try:
+                index_items = list()
+                items_details = list()
+                template_match = self.template_re.match(IID)
+                if template_match:
+                    node = self.read_index_template_node(template_match, a_node[IID])
+                    self.read_index_node_one_by_one(node)
+                else:
+                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
+                    index_items.append(item)
+                    items_details.extend(original_item_details)
+
+                with self.db.transaction() as curs:
+                    curs.executemany(insert_item_q, index_items)
+                    curs.executemany(insert_item_detail_q, items_details)
+            except Exception as ex:
+                print("failed reading {}: {}".format(IID, ex))
+                raise
 
     def read_index_template_node(self, template_match, instances_node):
         yaml_text = "--- !index\n"
@@ -822,12 +857,28 @@ class IndexItemsTable(object):
                 curs.execute(query_text)
 
     def change_status_of_all_iids(self, new_status):
-        query_text = """
-            UPDATE index_item_t
-            SET install_status=:new_status
-        """
-        with self.db.transaction() as curs:
-            curs.execute(query_text, {'new_status': new_status})
+
+        if var_stack.ResolveVarToBool("DEBUG_INDEX_DB"):
+            all_iids = self.get_all_iids()
+            for IID in all_iids:
+                try:
+                    query_text = """
+                        UPDATE index_item_t
+                        SET install_status=:new_status
+                        WHERE iid == :IID
+                    """
+                    with self.db.transaction() as curs:
+                        curs.execute(query_text, {'new_status': new_status, "IID": IID})
+                except Exception as ex:
+                    print("failed change status of {}: {}".format(IID, ex))
+                    raise
+        else:
+            query_text = """
+                UPDATE index_item_t
+                SET install_status=:new_status
+            """
+            with self.db.transaction() as curs:
+                curs.execute(query_text, {'new_status': new_status})
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
