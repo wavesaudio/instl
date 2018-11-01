@@ -568,6 +568,11 @@ class IndexItemsTable(object):
                     items_details.extend(original_item_details)
 
     def read_index_node(self, a_node: yaml.MappingNode, **kwargs) -> None:
+        if bool(config_vars.get("DEBUG_INDEX_DB", False)):
+            print("DEBUG_INDEX_DB is true reading index one by one")
+            self.read_index_node_one_by_one(a_node)
+            return
+
         index_items = list()
         items_details = list()
 
@@ -838,18 +843,7 @@ class IndexItemsTable(object):
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
         if iid_list:
-            if True:  # release code
-                query_vars = ((iid,) for iid in iid_list)
-                query_text = f"""
-                    UPDATE index_item_t
-                    SET install_status={new_status}
-                    WHERE iid == ?
-                    AND install_status={old_status}
-                    AND ignore = 0
-                  """
-                with self.db.transaction() as curs:
-                    curs.executemany(query_text, query_vars)
-            if False:  # debug code
+            if bool(config_vars.get("DEBUG_INDEX_DB", False)):  # debug code
                 for iid in iid_list:
                     try:
                         query_text = f"""
@@ -864,6 +858,17 @@ class IndexItemsTable(object):
                     except Exception as ex:
                         print(f"failed change_status_of_iids_to_another_status {iid}: {ex}")
                         raise
+            else:  # release code
+                query_vars = ((iid,) for iid in iid_list)
+                query_text = f"""
+                    UPDATE index_item_t
+                    SET install_status={new_status}
+                    WHERE iid == ?
+                    AND install_status={old_status}
+                    AND ignore = 0
+                  """
+                with self.db.transaction() as curs:
+                    curs.executemany(query_text, query_vars)
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
@@ -878,12 +883,28 @@ class IndexItemsTable(object):
                 curs.execute(query_text)
 
     def change_status_of_all_iids(self, new_status):
-        query_text = """
-            UPDATE index_item_t
-            SET install_status=:new_status
-        """
-        with self.db.transaction() as curs:
-            curs.execute(query_text, {'new_status': new_status})
+
+        if bool(config_vars.get("DEBUG_INDEX_DB", False)):
+            all_iids = self.get_all_iids()
+            for IID in all_iids:
+                try:
+                    query_text = """
+                        UPDATE index_item_t
+                        SET install_status=:new_status
+                        WHERE iid == :IID
+                    """
+                    with self.db.transaction() as curs:
+                        curs.execute(query_text, {'new_status': new_status, "IID": IID})
+                except Exception as ex:
+                    print("failed change status of {}: {}".format(IID, ex))
+                    raise
+        else:
+            query_text = """
+                UPDATE index_item_t
+                SET install_status=:new_status
+            """
+            with self.db.transaction() as curs:
+                curs.execute(query_text, {'new_status': new_status})
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:
