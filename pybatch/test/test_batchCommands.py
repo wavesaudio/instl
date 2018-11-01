@@ -409,3 +409,7 @@ class TestPythonBatchMain(unittest.TestCase):
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
         print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))
+
+    def test_FileSizes_repr(self):
+        self.pbt.reprs_test_runner(FileSizes('rumba', out_file="empty.txt"))
+

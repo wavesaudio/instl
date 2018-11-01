@@ -46,6 +46,8 @@ from .batchCommands import MakeRandomDirs
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
+from .batchCommands import Ls
+from .batchCommands import FileSizes
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
@@ -64,6 +66,7 @@ from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev
 from .svnBatchCommands import SVNCheckout
 from .svnBatchCommands import SVNInfo
+from .svnBatchCommands import SVNPropList
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut

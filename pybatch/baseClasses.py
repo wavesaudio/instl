@@ -47,16 +47,18 @@ class PythonBatchCommandBase(abc.ABC):
                        'remark': None,
                        'recursive': False,
                        "reply_config_var": None}
-    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
-    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults={}, **kwargs):
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
-        cls.kwargs_defaults_for_subclass.update(kwargs_defaults)
+        if not hasattr(cls, "kwargs_defaults_for_subclass"):
+            cls.kwargs_defaults_for_subclass = dict()
+        if kwargs_defaults is not None:
+            cls.kwargs_defaults_for_subclass.update(kwargs_defaults)
 
     @abc.abstractmethod
     def __init__(self, **kwargs):

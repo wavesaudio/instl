@@ -462,7 +462,37 @@ class Ls(PythonBatchCommandBase, essential=True):
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
 
-# todo:
-# override PythonBatchCommandBase for all commands
-# time measurements
-# InstlAdmin
+
+class FileSizes(PythonBatchCommandBase, essential=True):
+    """ create a list of files in a folder and their sizes
+        format is csv: partial-path-to-file, size-of-file
+        useful for admin commands
+    """
+
+    def __init__(self, folder_to_scan, out_file, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.folder_to_scan = folder_to_scan
+        self.out_file = out_file
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.folder_to_scan)))
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.out_file)))
+
+    def progress_msg_self(self) -> str:
+        return f"""File sizes in {self.folder_to_scan}"""
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.compile_exclude_regexi()
+        with open(self.out_file, "w") as wfd:
+            if os.path.isfile(self.folder_to_scan):
+                file_size = os.path.getsize(self.folder_to_scan)
+                wfd.write(f"{self.folder_to_scan}, {file_size}\n")
+            else:
+                folder_to_scan_name_len = len(self.folder_to_scan)+1 # +1 for the last '\'
+                if not self.compiled_forbidden_folder_regex.search(self.folder_to_scan):
+                    for root, dirs, files in utils.excluded_walk(self.folder_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
+                        for a_file in files:
+                            full_path = os.path.join(root, a_file)
+                            file_size = os.path.getsize(full_path)
+                            partial_path = full_path[folder_to_scan_name_len:]
+                            wfd.write(f"{partial_path}, {file_size}\n")

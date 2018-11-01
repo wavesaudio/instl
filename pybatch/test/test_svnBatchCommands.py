@@ -93,12 +93,12 @@ class TestPythonBatchSVN(unittest.TestCase):
         out_file_1 = self.pbt.path_inside_test_folder("out-file-1")
         checkout_folder_1 = self.pbt.path_inside_test_folder("checkout-folder-1")
         self.assertFalse(checkout_folder_1.exists(), f"{self.pbt.which_test}: {checkout_folder_1} should not exist before test")
-        some_folder_that_should_be_there_after_checkout_1 = checkout_folder_1.joinpath("powered_by").resolve()
+        some_folder_that_should_be_there_after_checkout_1 = checkout_folder_1.joinpath("trunk", "powered_by").resolve()
         self.assertFalse(some_folder_that_should_be_there_after_checkout_1.exists(), f"{self.pbt.which_test}: {some_folder_that_should_be_there_after_checkout_1} should not exist before test")
 
         checkout_folder_2 = self.pbt.path_inside_test_folder("checkout-folder-2")
         self.assertFalse(checkout_folder_2.exists(), f"{self.pbt.which_test}: {checkout_folder_2} should not exist before test")
-        some_file_that_should_be_there_after_checkout_2 = checkout_folder_2.joinpath("apache-header.txt").resolve()
+        some_file_that_should_be_there_after_checkout_2 = checkout_folder_2.joinpath("etc", "apache-header.txt").resolve()
         self.assertFalse(some_file_that_should_be_there_after_checkout_2.exists(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should not exist before test")
 
         self.pbt.batch_accum.clear()

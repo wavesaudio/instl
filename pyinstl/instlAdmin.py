@@ -15,7 +15,6 @@ import zlib
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
-from .batchAccumulator import BatchAccumulator
 from configVar import config_vars
 from svnTree import SVNTable
 from pybatch import *
@@ -44,7 +43,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_command(self):
         self.set_default_variables()
-        self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
+        #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
 
@@ -121,28 +120,10 @@ class InstlAdmin(InstlInstanceBase):
         return retVal
 
     def get_last_repo_rev(self):
-        retVal = 0
-        revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
         repo_url = config_vars["SVN_REPO_URL"].str()
-        if os.path.isdir(repo_url):
-            svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", os.curdir]
-        else:
-            svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", repo_url]
-        with utils.ChangeDirIfExists(repo_url):
-            proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            my_stdout, my_stderr = proc.communicate()
-            my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
-            if proc.returncode != 0 or my_stderr != "":
-                raise ValueError(f"Could not read info from svn: {my_stderr} {proc.returncode}")
-            info_as_io = io.StringIO(my_stdout)
-            for line in info_as_io:
-                match = revision_line_re.match(line)
-                if match:
-                    retVal = int(match["revision"])
-                    break
-        if retVal <= 0:
-            raise ValueError(f"Could not find last repo rev for {repo_url}")
-        config_vars["__LAST_REPO_REV__"] = str(retVal)
+        with SVNLastRepoRev(url=repo_url, reply_config_var="__LAST_REPO_REV__") as lrr:
+            lrr()
+        retVal = int(config_vars["__LAST_REPO_REV__"])
         return retVal
 
     def do_create_links(self):
@@ -181,16 +162,16 @@ class InstlAdmin(InstlInstanceBase):
                 continue
             if self.needToCreatelinksForRevision(revision):
                 yes_need_link_nums.append(str(revision))
-                save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
-                self.batch_accum += self.platform_helper.save_dir(save_dir_var)
+                #save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
+                #self.batch_accum += self.platform_helper.save_dir(save_dir_var)
                 config_vars["__CURR_REPO_REV__"] = str(revision)
                 config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(revision)
-                accum = BatchAccumulator()
-                accum.set_current_section('links')
-                self.create_links_for_revision(accum)
-                revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
-                self.batch_accum += revision_lines
-                self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
+                #accum = BatchAccumulator()
+                #accum.set_current_section('links')
+                self.create_links_for_revision(revision)
+                #revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
+                #self.batch_accum += revision_lines
+                #self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
             else:
                 no_need_link_nums.append(str(revision))
 
@@ -211,64 +192,54 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def create_links_for_revision(self, accum):
-        assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
-        base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
-        revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
-        revision_instl_folder_path = revision_folder_path + "/instl"
+    def create_links_for_revision(self, revision: int):
+        with self.batch_accum.sub_accum(Stage(f"create links for revision {revision}")) as accum:
+            assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
+            base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
+            revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
+            revision_instl_folder_path = revision_folder_path + "/instl"
 
-        # sync revision __CURR_REPO_REV__ from SVN to Base folder
-        accum += Echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-        checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"' + "$(SVN_REPO_URL)@$(__CURR_REPO_REV__)" + '"',
-                                  '"' + base_folder_path + '"', "--depth", "infinity"]
-        accum += " ".join(checkout_command_parts)
-        accum += Progress("Create links for revision $(__CURR_REPO_REV__)")
+            # sync revision __CURR_REPO_REV__ from SVN to Base folder
+            accum += SVNCheckout(url="$(__CURR_REPO_REV__)", repo_rev=revision, where=base_folder_path)
+                #accum += Echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
+                #checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"' + "$(SVN_REPO_URL)@$(__CURR_REPO_REV__)" + '"',
+                #                          '"' + base_folder_path + '"', "--depth", "infinity"]
+                #accum += " ".join(checkout_command_parts)
+                #accum += Progress("Create links for revision $(__CURR_REPO_REV__)")
 
-        # copy Base folder to revision folder
-        accum += self.platform_helper.mkdir(revision_folder_path)
-        accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
-                                                                         config_vars.resolve_str(revision_folder_path),
-                                                                         link_dest=True, ignore_patterns=".svn", preserve_dest_files=False)
-        accum += Progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
+            # copy Base folder to revision folder
+            accum += Progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
+            accum += MakeDirs(revision_folder_path)
+                #accum += self.platform_helper.mkdir(revision_folder_path)
+            accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
+                                                                             config_vars.resolve_str(revision_folder_path),
+                                                                             link_dest=True, ignore_patterns=".svn", preserve_dest_files=False)
 
-        # get info from SVN for all files in revision
-        self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
+            # get info from SVN for all files in revision
+            self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
 
-        accum += self.platform_helper.pushd(revision_folder_path)
-        # create depend file
-        accum += Progress("Create dependencies file ...")
-        create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
-                                            "--out", "instl/index-dependencies.yaml"]
-        accum += " ".join(create_depend_file_command_parts)
-        accum += Progress("Create dependencies file done")
+            accum += self.platform_helper.pushd(revision_folder_path)
+            # create depend file
+            accum += Progress("Create dependencies file ...")
+            create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
+                                                "--out", "instl/index-dependencies.yaml"]
+            accum += " ".join(create_depend_file_command_parts)
+            accum += Progress("Create dependencies file done")
 
-        # create repo-rev file
-        accum += Progress("Create repo-rev file ...")
-        create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
-                                              "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
-        accum += " ".join(create_repo_rev_file_command_parts)
-        accum += Progress("Create repo-rev file done")
+            # create repo-rev file
+            accum += Progress("Create repo-rev file ...")
+            create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
+                                                  "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
+            accum += " ".join(create_repo_rev_file_command_parts)
+            accum += Progress("Create repo-rev file done")
 
-        if False:  # disabled creating and uploading the .txt version of the files, was not that useful and took long time to upload
-            # create text versions of info and yaml files, so they can be displayed in browser
-            if config_vars["__CURRENT_OS__"].str() == "Linux":
-                accum += " ".join(("find", "instl", "-type", "f", "-regextype", "posix-extended",
-                                   "-regex", "'.*(yaml|info|props)'", "-print0", "|",
-                                   "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
-            elif config_vars["__CURRENT_OS__"].str() == "Mac":
-                accum += " ".join(("find", "-E", "instl", "-type", "f",
-                                   "-regex", "'.*(yaml|info|props)'", "-print0", "|",
-                                   "xargs", "-0", "-I{}", "cp", "-f", '"{}"', '"{}.txt"'))
-            else:
-                raise EnvironmentError("instl admin commands can only run under Mac or Linux")
+            accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
+            accum += Progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
+            accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
+            accum += Progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
 
-        accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
-        accum += Progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
-        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
-        accum += Progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
-
-        accum += self.platform_helper.popd()
-        accum += Echo("done create-links version $(__CURR_REPO_REV__)")
+            accum += self.platform_helper.popd()
+            accum += Echo("done create-links version $(__CURR_REPO_REV__)")
 
     def do_up2s3(self):
         min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
@@ -1098,22 +1069,25 @@ class InstlAdmin(InstlInstanceBase):
 
     def create_info_map(self, svn_folder, results_folder, accum):
 
-        accum += self.platform_helper.mkdir(results_folder)
+        accum += MakeDirs(results_folder)
+            #accum += self.platform_helper.mkdir(results_folder)
         info_map_info_path = os.path.join(results_folder, "info_map.info")
         info_map_props_path = os.path.join(results_folder, "info_map.props")
         info_map_file_sizes_path = os.path.join(results_folder, "info_map.file-sizes")
         full_info_map_file_path = config_vars.resolve_str(os.path.join(results_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
 
-        accum += self.platform_helper.pushd(svn_folder)
+        with accum.sub_accum(Cd(svn_folder)) as svn_folder_accum:
+            svn_folder_accum += Progress("Get info from svn to" +os.path.join(results_folder, "info_map.info" ))
+                #accum += self.platform_helper.pushd(svn_folder)
+            svn_folder_accum += SVNInfo(url=".", out_file=info_map_info_path)
+                #info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", info_map_info_path]
+                #accum += " ".join(info_command_parts)
 
-        info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", info_map_info_path]
-        accum += " ".join(info_command_parts)
-        accum += Progress("Get info from svn to" +os.path.join(results_folder, "info_map.info" ))
-
-        # get properties from SVN for all files in revision
-        props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", info_map_props_path]
-        accum += " ".join(props_command_parts)
-        accum += Progress("Get props from svn to"+os.path.join(results_folder, "info_map.props"))
+            # get properties from SVN for all files in revision
+            svn_folder_accum += SVNPropList(url=".", out_file=info_map_info_path)
+                #props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", info_map_props_path]
+                #accum += " ".join(props_command_parts)
+                #accum += Progress("Get props from svn to"+os.path.join(results_folder, "info_map.props"))
 
         # get sizes of all files
         file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
