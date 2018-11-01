@@ -443,15 +443,17 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
 
 class Ls(PythonBatchCommandBase, essential=True):
     """ create a listing for one or more folders, similar to unix ls command"""
-    def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
+    def __init__(self, *folders_to_list, out_file, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
-        assert self.out_file is not None
+        assert out_file is not None
+        self.out_file = out_file
         self.folders_to_list = sorted(folders_to_list)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
-        all_args.append( f"""ls_format='{self.ls_format}'""")
+        all_args.append(f"""out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}""")
+        all_args.append(f"""ls_format='{self.ls_format}'""")
 
     def progress_msg_self(self) -> str:
         return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
