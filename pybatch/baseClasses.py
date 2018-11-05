@@ -165,7 +165,7 @@ class PythonBatchCommandBase(abc.ABC):
     def optional_named__init__param(self, name, value, default=None):
         param_repr = None
         if value != default:
-            value_str = utils.quoteme_raw_if_string(value)
+            value_str = utils.quoteme_raw_if_list(value)
             param_repr = f"{name}={value_str}"
         return param_repr
 
