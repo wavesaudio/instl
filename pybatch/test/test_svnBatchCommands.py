@@ -75,9 +75,13 @@ class TestPythonBatchSVN(unittest.TestCase):
             return
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += SVNLastRepoRev(url="http://svn.apache.org/repos/asf/spamassassin/trunk", reply_config_var="__LAST_REPO_REV__")
+        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
+        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
+        config_vars["__LAST_REPO_REV__"] = -12345
+        self.pbt.batch_accum += SVNLastRepoRev(url=str(config_vars["SVN_REPO_URL"]), reply_config_var="__LAST_REPO_REV__")
         self.pbt.batch_accum += ConfigVarPrint("__LAST_REPO_REV__")
         self.pbt.exec_and_capture_output()
+        self.assertGreater(int(config_vars["__LAST_REPO_REV__"]), 1845907, f"configVar __LAST_REPO_REV__ ({int(config_vars['__LAST_REPO_REV__'])}) was not set to proper value")
 
     def test_SVNCheckout_repr(self):
 

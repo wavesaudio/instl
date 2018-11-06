@@ -246,7 +246,7 @@ class ConfigVarPrint(PythonBatchCommandBase, call__call__=True, is_context_manag
 
     def __call__(self, *args, **kwargs) -> None:
         resolved = config_vars[self.var_name].str()
-        print(resolved)
+        log.info(resolved)
 
 
 class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):

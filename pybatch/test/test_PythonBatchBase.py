@@ -172,9 +172,11 @@ class TestPythonBatch(object):
         test_name = f"{self.sub_test_counter}_{test_name}"
 
         bc_repr = repr(self.batch_accum)
-        self.write_file_in_test_folder(test_name+".py", bc_repr)
-        bc_compiled = compile(bc_repr, test_name+".py", 'exec')
-        utils.config_logger(self.path_inside_test_folder(f'{test_name}_output.txt'))
+        self.python_batch_file_name = test_name+".py"
+        self.write_file_in_test_folder(self.python_batch_file_name, bc_repr)
+        bc_compiled = compile(bc_repr, self.python_batch_file_name, 'exec')
+        self.output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
+        utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:

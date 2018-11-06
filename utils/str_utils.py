@@ -79,6 +79,20 @@ def quoteme_raw_if_string(some_thing):
     else:
         return str(some_thing)
 
+def quoteme_raw_by_type(some_thing):
+    retVal = None
+    if isinstance(some_thing, types_that_do_not_need_quotation):
+        retVal = str(some_thing)
+    elif isinstance(some_thing, str):
+        retVal = quoteme_raw_string(some_thing)
+    elif isinstance(some_thing, collections.Sequence):
+       retVal = "".join(("[", ",".join(quoteme_raw_by_type(t) for t in some_thing),"]"))
+    elif isinstance(some_thing, collections.Mapping):
+        item_strs = list()
+        for k, v in sorted(some_thing.items()):
+            item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v)}""")
+        retVal = "".join(("{", ",".join(item_strs),"}"))
+    return retVal
 
 def quoteme_raw_dict(dict_of_things: Dict):
     item_strs = list()
