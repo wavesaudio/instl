@@ -446,7 +446,6 @@ class Ls(PythonBatchCommandBase, essential=True):
     def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
-        assert self.out_file is not None
         self.folders_to_list = sorted(folders_to_list)
 
     def repr_own_args(self, all_args: List[str]) -> None:
