@@ -32,7 +32,7 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
         return retVal
 
 
-class SVNLastRepoRev(SVNClient):
+class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty"}):
     """ get the last repository revision from a url to SVN repository
         the result is placed in a configVar
         :url_param: url to svn repository

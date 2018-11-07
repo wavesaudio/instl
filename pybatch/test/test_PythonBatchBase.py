@@ -153,7 +153,7 @@ class TestPythonBatch(object):
                     os.chmod(os.path.join(root, f), Chmod.all_read_write, **kwargs)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
-        self.batch_accum.set_current_section("pre")
+        self.batch_accum.set_current_section("prepare")
 
     def tearDown(self):
         pass
@@ -171,6 +171,8 @@ class TestPythonBatch(object):
             test_name = self.which_test
         test_name = f"{self.sub_test_counter}_{test_name}"
 
+
+        config_vars["__MAIN_COMMAND__"] = f"{self.which_test} test #{self.sub_test_counter};"
         bc_repr = repr(self.batch_accum)
         self.python_batch_file_name = test_name+".py"
         self.write_file_in_test_folder(self.python_batch_file_name, bc_repr)

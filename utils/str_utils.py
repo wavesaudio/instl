@@ -85,6 +85,8 @@ def quoteme_raw_by_type(some_thing):
         retVal = str(some_thing)
     elif isinstance(some_thing, str):
         retVal = quoteme_raw_string(some_thing)
+    elif isinstance(some_thing, os.PathLike):
+        retVal = quoteme_raw_by_type(os.fspath(some_thing))
     elif isinstance(some_thing, collections.Sequence):
        retVal = "".join(("[", ",".join(quoteme_raw_by_type(t) for t in some_thing),"]"))
     elif isinstance(some_thing, collections.Mapping):
