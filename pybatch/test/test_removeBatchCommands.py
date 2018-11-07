@@ -186,15 +186,10 @@ class TestPythonBatchRemove(unittest.TestCase):
 
     def test_RmSymlink(self):
         non_existing_path = self.pbt.path_inside_test_folder("non-existing-path")
-        self.assertFalse(non_existing_path.exists())
         a_dir = self.pbt.path_inside_test_folder("some-dir")
-        self.assertFalse(a_dir.exists())
         a_file = self.pbt.path_inside_test_folder("some-file")
-        self.assertFalse(a_file.exists())
         a_dir_symlink = self.pbt.path_inside_test_folder("some-dir-symlink")
-        self.assertFalse(a_dir_symlink.exists())
         a_file_symlink = self.pbt.path_inside_test_folder("some-file-symlink")
-        self.assertFalse(a_file_symlink.exists())
 
         # create a file, a folder and symlinks to them
         self.pbt.batch_accum.clear()

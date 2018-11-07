@@ -67,7 +67,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         #    test_data = stream.read()
         url_from = 'https://en.wikipedia.org/wiki/Static_web_page'
         to_path = self.pbt.path_inside_test_folder("Static_web_page")
-        self.assertFalse(to_path.exists(), f"{to_path} should not exist before the test")
 
         if sys.platform == 'win32':
             curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
@@ -120,7 +119,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
-        self.assertFalse(batches_dir.exists(), f"{self.pbt.which_test}: {batches_dir} should not exist before test")
         # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
         #     shell_command_010_184()
         if sys.platform == 'darwin':
@@ -149,11 +147,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
-        self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
         ls_output = self.pbt.path_inside_test_folder("ls.out.txt")
-        self.assertFalse(ls_output.exists(), f"{self.pbt.which_test}: {ls_output} should not exist before test")
         ps_output = self.pbt.path_inside_test_folder("ps.out.txt")
-        self.assertFalse(ps_output.exists(), f"{self.pbt.which_test}: {ps_output} should not exist before test")
 
         with open(test_file, "w") as wfd:
             if sys.platform == 'darwin':
@@ -188,14 +183,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ParallelRun_no_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
-        self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
-
         zip_input = self.pbt.path_inside_test_folder("zip_in")
-        self.assertFalse(zip_input.exists(), f"{self.pbt.which_test}: {zip_input} should not exist before test")
         zip_output = self.pbt.path_inside_test_folder("zip_in.bz2")
-        self.assertFalse(zip_output.exists(), f"{self.pbt.which_test}: {zip_output} should not exist before test")
         zip_input_copy = self.pbt.path_inside_test_folder("zip_in.copy")
-        self.assertFalse(zip_input_copy.exists(), f"{self.pbt.which_test}: {zip_input_copy} should not exist before test")
 
         # create a file to zip
         with open(zip_input, "w") as wfd:

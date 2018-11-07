@@ -74,10 +74,7 @@ class SVNCheckout(SVNClient):
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)
-        run_args.append(self.url_with_repo_rev())
         run_args.append(self.where)
-        run_args.append("--depth")
-        run_args.append(self.depth)
 
 
 class SVNInfo(SVNClient):

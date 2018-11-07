@@ -67,16 +67,9 @@ class TestPythonBatchCopy(unittest.TestCase):
 
         """
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
-
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -118,19 +111,15 @@ class TestPythonBatchCopy(unittest.TestCase):
             the same file.
         """
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
 
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
 
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
         copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -174,31 +163,24 @@ class TestPythonBatchCopy(unittest.TestCase):
             In order to be able to check the copy the test first copy from one folder to the second and then moves the second to a third folder
         """
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
 
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
 
         dir_to_move_to_no_hard_links = self.pbt.path_inside_test_folder("move-target-no-hard-links")
         moved_dir_no_hard_links = dir_to_move_to_no_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_move_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_move_to_no_hard_links} should not exist before test")
 
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         dir_to_move_to_with_hard_links = self.pbt.path_inside_test_folder("move-target-with-hard-links")
         moved_dir_with_hard_links = dir_to_move_to_with_hard_links.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_move_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_move_to_with_hard_links} should not exist before test")
 
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
         copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         dir_to_move_to_with_ignore = self.pbt.path_inside_test_folder("move-target-with-ignore")
         moved_dir_with_ignore = dir_to_move_to_with_ignore.joinpath("copy-src").resolve()
-        self.assertFalse(dir_to_move_to_with_ignore.exists(), f"{self.pbt.which_test}: {dir_to_move_to_with_ignore} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -236,16 +218,9 @@ class TestPythonBatchCopy(unittest.TestCase):
             should be copied - not the source dir itself.
         """
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
-
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
-
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
-        self.assertFalse(dir_to_copy_to_with_ignore.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_ignore} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -287,14 +262,9 @@ class TestPythonBatchCopy(unittest.TestCase):
         """
         file_name = "hootenanny"
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
-
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
-        self.assertFalse(dir_to_copy_to_no_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_no_hard_links} should not exist before test")
-
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
-        self.assertFalse(dir_to_copy_to_with_hard_links.exists(), f"{self.pbt.which_test}: {dir_to_copy_to_with_hard_links} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -330,19 +300,12 @@ class TestPythonBatchCopy(unittest.TestCase):
         """
         file_name = "hootenanny"
         dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
-        self.assertFalse(dir_to_copy_from.exists(), f"{self.pbt.which_test}: {dir_to_copy_from} should not exist before test")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
-
         target_dir_no_hard_links = self.pbt.path_inside_test_folder("target_dir_no_hard_links")
-        self.assertFalse(target_dir_no_hard_links.exists(), f"{self.pbt.which_test}: {target_dir_no_hard_links} should not exist before test")
         target_file_no_hard_links = target_dir_no_hard_links.joinpath(file_name).resolve()
-
         target_dir_with_hard_links = self.pbt.path_inside_test_folder("target_dir_with_hard_links")
-        self.assertFalse(target_dir_with_hard_links.exists(), f"{self.pbt.which_test}: {target_dir_with_hard_links} should not exist before test")
         target_file_with_hard_links = target_dir_with_hard_links.joinpath(file_name).resolve()
-
         target_dir_with_different_name = self.pbt.path_inside_test_folder("target_dir_with_different_name")
-        self.assertFalse(target_dir_with_different_name.exists(), f"{self.pbt.which_test}: {target_dir_with_different_name} should not exist before test")
         target_file_different_name_without_hard_links = target_dir_with_different_name.joinpath("Scrooge").resolve()
         target_file_different_name_with_hard_links = target_dir_with_different_name.joinpath("Ebenezer").resolve()
 

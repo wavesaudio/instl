@@ -158,8 +158,11 @@ class TestPythonBatch(object):
     def tearDown(self):
         pass
 
-    def path_inside_test_folder(self, name):
-        return self.test_folder.joinpath(name).resolve()
+    def path_inside_test_folder(self, name, assert_not_exist=True):
+        retVal = self.test_folder.joinpath(name).resolve()
+        if assert_not_exist:
+            self.uni_test_obj.assertFalse(retVal.exists(), f"{self.which_test}: {retVal} should not exist before test")
+        return retVal
 
     def write_file_in_test_folder(self, file_name, contents):
         with open(self.path_inside_test_folder(file_name), "w") as wfd:
