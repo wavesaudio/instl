@@ -441,7 +441,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
-class Ls(PythonBatchCommandBase, essential=True):
+class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
     def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)

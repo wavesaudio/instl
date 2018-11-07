@@ -47,22 +47,32 @@ class PythonBatchCommandBase(abc.ABC):
                        'remark': None,
                        'recursive': False,
                        "reply_config_var": None}
-    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
-    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults={}, **kwargs):
+    def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
-        cls.kwargs_defaults_for_subclass.update(kwargs_defaults)
+
+        parent_kwargs_defaults = {}
+        if hasattr(cls, "kwargs_defaults"):
+            parent_kwargs_defaults.update(cls.kwargs_defaults)
+
+        # create a new, unique kwargs_defaults for the class, that will override the parent class' kwargs_defaults. To keep the values from parent class create a copy named parent_kwargs_defaults.
+        # Beware, simply doing cls.kwargs_defaults.update(parent_kwargs_defaults) will update the parent class kwargs_defaults, and this will effect other classes inheriting from that base
+        cls.kwargs_defaults = parent_kwargs_defaults
+        if kwargs_defaults:
+            cls.kwargs_defaults.update(kwargs_defaults)
+
+        #print(f"{cls.__name__}: {parent_kwargs_defaults}/{cls.kwargs_defaults}")
 
     @abc.abstractmethod
     def __init__(self, **kwargs):
         PythonBatchCommandBase.instance_counter += 1
 
-        for kwarg_name, kwarg_default_value in self.get_defaults_kwargs().items():
+        for kwarg_name, kwarg_default_value in self.kwargs_defaults.items():
             kwarg_value = kwargs.get(kwarg_name, kwarg_default_value)
             setattr(self, kwarg_name, kwarg_value)
 
@@ -77,27 +87,17 @@ class PythonBatchCommandBase(abc.ABC):
         self.current_working_dir = None
         self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
 
-    def get_defaults_kwargs(self):
-        """ get all the __init__(kwargs) for a sub class.
-            these include kwargs for the base calls and any new or overriding
-            kwargs defined for the the deriving class
-        """
-        retVal = dict()
-        retVal.update(self.kwargs_defaults)
-        retVal.update(self.kwargs_defaults_for_subclass)
-        return retVal
-
     def repr_default_kwargs(self, all_args):
         """ get a text representation of the __init__(kwargs) for a sub class.
             returns a list of text values in the form "x=y". args that
             are listed in self.non_representative__dict__keys will not be included
             also e
         """
-        for kwarg_name, kwarg_default_value in sorted(self.get_defaults_kwargs().items()):
+        for kwarg_name, kwarg_default_value in sorted(self.kwargs_defaults.items()):
             if kwarg_name not in self.non_representative__dict__keys:
                 current_value = getattr(self, kwarg_name, kwarg_default_value)
                 if current_value != kwarg_default_value:
-                    all_args.append(f"""{kwarg_name}={utils.quoteme_raw_if_string(current_value)}""")
+                    all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(current_value)}""")
 
     #@abc.abstractmethod
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -118,12 +118,8 @@ class PythonBatchCommandBase(abc.ABC):
         return f"{self.__class__.__name__} {PythonBatchCommandBase.instance_counter}"
 
     @classmethod
-    def set_base_kwargs_default(cls, default_name, new_default_value):
+    def set_a_kwargs_default(cls, default_name, new_default_value):
         cls.kwargs_defaults[default_name] = new_default_value
-
-    @classmethod
-    def set_class_kwargs_default(cls, default_name, new_default_value):
-        cls.kwargs_defaults_for_subclass[default_name] = new_default_value
 
     def stage_str(self) -> str:
         return ""

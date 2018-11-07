@@ -62,22 +62,25 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
     def test_Curl(self):
-        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
-        with open(sample_file, 'r') as stream:
-            test_data = stream.read()
-        url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
-        to_path = self.pbt.path_inside_test_folder("curl")
-        curl_path = 'curl'
+        #sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        #with open(sample_file, 'r') as stream:
+        #    test_data = stream.read()
+        url_from = 'https://en.wikipedia.org/wiki/Static_web_page'
+        to_path = self.pbt.path_inside_test_folder("Static_web_page")
+        self.assertFalse(to_path.exists(), f"{to_path} should not exist before the test")
+
         if sys.platform == 'win32':
             curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        os.makedirs(to_path, exist_ok=True)
-        downloaded_file = os.path.join(to_path, 'Sample.txt')
-        with self.pbt.batch_accum as batchi:
-            batchi += CUrl(url_from, downloaded_file, curl_path)
-        self.pbt.exec_and_capture_output("Download file")
-        with open(downloaded_file, 'r') as stream:
+        else:
+            curl_path = shutil.which("curl")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
+        self.pbt.exec_and_capture_output()
+
+        with open(to_path, 'r') as stream:
             downloaded_data = stream.read()
-        self.assertEqual(test_data, downloaded_data)
+        self.assertIn("A static web page", downloaded_data)
 
     def test_ShellCommand_repr(self):
         list_of_objs = list()
