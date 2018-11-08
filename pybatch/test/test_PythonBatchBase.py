@@ -157,7 +157,8 @@ class TestPythonBatch(object):
         self.batch_accum.set_current_section("prepare")
 
     def tearDown(self):
-        pass
+        if self.output_file_name:
+            utils.teardown_file_logging(self.output_file_name)
 
     def path_inside_test_folder(self, name, assert_not_exist=True):
         retVal = self.test_folder.joinpath(name).resolve()
@@ -183,8 +184,11 @@ class TestPythonBatch(object):
         bc_compiled = compile(bc_repr, self.python_batch_file_name, 'exec')
         output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
         if output_file_name != self.output_file_name:
+            if self.output_file_name:
+                utils.teardown_file_logging(self.output_file_name)
             self.output_file_name = output_file_name
-            utils.config_logger(self.output_file_name)
+            utils.setup_file_logging(self.output_file_name, level=logging.INFO)
+            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:

@@ -41,6 +41,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.sections = dict()
         if self.current_section:
             self.set_current_section(self.current_section)
+        PythonBatchCommandBase.running_progress = 0
 
     def set_current_section(self, section_name):
         if section_name in PythonBatchCommandAccum.section_order:

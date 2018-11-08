@@ -361,9 +361,6 @@ class TestPythonBatchMain(unittest.TestCase):
         pass
 
     def test_Ls_repr(self):
-        with self.assertRaises(AssertionError):
-            obj = Ls([])
-
         self.pbt.reprs_test_runner(Ls('rumba', out_file="empty.txt"),
                                    Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc'),
                                    Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt"))
