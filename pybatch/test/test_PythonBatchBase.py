@@ -139,6 +139,7 @@ class TestPythonBatch(object):
         self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, uni_test_obj.__class__.__name__, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
+        self.output_file_name = None
 
     def setUp(self):
         """ for each test create it's own test sub-fold"""
@@ -180,8 +181,10 @@ class TestPythonBatch(object):
         self.python_batch_file_name = test_name+".py"
         self.write_file_in_test_folder(self.python_batch_file_name, bc_repr)
         bc_compiled = compile(bc_repr, self.python_batch_file_name, 'exec')
-        self.output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
-        utils.config_logger(self.output_file_name)
+        output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
+        if output_file_name != self.output_file_name:
+            self.output_file_name = output_file_name
+            utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:
