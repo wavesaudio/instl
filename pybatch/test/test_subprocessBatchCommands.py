@@ -195,14 +195,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         with open(test_file, "w") as wfd:
             if sys.platform == 'darwin':
                 wfd.write(f"""# first, do the zip\n""")
-                wfd.write(f"""bzip2 --compress {zip_input}\n""")
+                wfd.write(f"""bzip2 --compress -f {zip_input}\n""")
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             # save a copy of the input file
-            sub_bc += CopyFileToFile(zip_input, zip_input_copy)
+            sub_bc += CopyFileToFile(zip_input, zip_input_copy, hard_links=False)
             # zip the input file, bzip2 will remove it
             sub_bc += ParallelRun(test_file, False)
 
