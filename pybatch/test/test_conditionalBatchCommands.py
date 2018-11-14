@@ -32,14 +32,10 @@ class TestPythonBatchConditional(unittest.TestCase):
 
     def test_If_Eq(self):
         file_that_should_exist_if_true = self.pbt.path_inside_test_folder("should_exist_if_true")
-        self.assertFalse(file_that_should_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_true} should not exist before test")
         file_that_should_not_exist_if_true = self.pbt.path_inside_test_folder("should_not_exist_if_true")
-        self.assertFalse(file_that_should_not_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_true} should not exist before test")
 
         file_that_should_exist_if_false = self.pbt.path_inside_test_folder("should_exist_if_false")
-        self.assertFalse(file_that_should_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_false} should not exist before test")
         file_that_should_not_exist_if_false = self.pbt.path_inside_test_folder("should_not_exist_if_false")
-        self.assertFalse(file_that_should_not_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_false} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += If(IsEq(1234, 1234), if_true=Touch(file_that_should_exist_if_true), if_false=Touch(file_that_should_not_exist_if_true))
@@ -52,14 +48,10 @@ class TestPythonBatchConditional(unittest.TestCase):
 
     def test_If_NotEq(self):
         file_that_should_exist_if_true = self.pbt.path_inside_test_folder("should_exist_if_true")
-        self.assertFalse(file_that_should_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_true} should not exist before test")
         file_that_should_not_exist_if_true = self.pbt.path_inside_test_folder("should_not_exist_if_true")
-        self.assertFalse(file_that_should_not_exist_if_true.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_true} should not exist before test")
 
         file_that_should_exist_if_false = self.pbt.path_inside_test_folder("should_exist_if_false")
-        self.assertFalse(file_that_should_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_exist_if_false} should not exist before test")
         file_that_should_not_exist_if_false = self.pbt.path_inside_test_folder("should_not_exist_if_false")
-        self.assertFalse(file_that_should_not_exist_if_false.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_if_false} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += If(IsNotEq(1234, 1234), if_true=Touch(file_that_should_not_exist_if_true), if_false=Touch(file_that_should_exist_if_true))
@@ -72,13 +64,9 @@ class TestPythonBatchConditional(unittest.TestCase):
 
     def test_IfFileExist(self):
         file_that_should_exist = self.pbt.path_inside_test_folder("should_exist")
-        self.assertFalse(file_that_should_exist.exists(), f"{self.pbt.which_test}: {file_that_should_exist} should not exist before test")
         file_that_should_not_exist = self.pbt.path_inside_test_folder("should_not_exist")
-        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not exist before test")
         file_touched_if_exist = self.pbt.path_inside_test_folder("touched_if_exist")
-        self.assertFalse(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should not exist before test")
         file_touched_if_not_exist = self.pbt.path_inside_test_folder("touched_if_not_exist")
-        self.assertFalse(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += Touch(file_that_should_exist)
@@ -93,11 +81,8 @@ class TestPythonBatchConditional(unittest.TestCase):
 
     def test_If_2_is_1_plus_1(self):
         file_that_should_not_exist = self.pbt.path_inside_test_folder("should_not_exist")
-        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not exist before test")
         file_touched_if_exist = self.pbt.path_inside_test_folder("touched_if_exist")
-        self.assertFalse(file_touched_if_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_exist} should not exist before test")
         file_touched_if_not_exist = self.pbt.path_inside_test_folder("touched_if_not_exist")
-        self.assertFalse(file_touched_if_not_exist.exists(), f"{self.pbt.which_test}: {file_touched_if_not_exist} should not exist before test")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += If("2 == 1+1", if_true=Touch(file_touched_if_exist), if_false=Touch(file_that_should_not_exist))

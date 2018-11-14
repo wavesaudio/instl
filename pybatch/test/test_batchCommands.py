@@ -52,10 +52,8 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_MakeDirs_1_simple(self):
         """ test MakeDirs. 2 dirs should be created side by side """
-        dir_to_make_1 = self.pbt.test_folder.joinpath(self.pbt.which_test+"_1").resolve()
-        dir_to_make_2 = self.pbt.test_folder.joinpath(self.pbt.which_test+"_2").resolve()
-        self.assertFalse(dir_to_make_1.exists(), f"{self.pbt.which_test}: before test {dir_to_make_1} should not exist")
-        self.assertFalse(dir_to_make_2.exists(), f"{self.pbt.which_test}: before test {dir_to_make_2} should not exist")
+        dir_to_make_1 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_1")
+        dir_to_make_2 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_2")
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_make_1, dir_to_make_2, remove_obstacles=True)
@@ -72,8 +70,6 @@ class TestPythonBatchMain(unittest.TestCase):
             Since remove_obstacles=True the file should be removed and directory created in it's place.
         """
         dir_to_make = self.pbt.path_inside_test_folder("file-that-should-be-dir")
-        self.assertFalse(dir_to_make.exists(), f"{self.pbt.which_test}: {dir_to_make} should not exist before test")
-
         touch(dir_to_make)
         self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file before test")
 
@@ -90,8 +86,6 @@ class TestPythonBatchMain(unittest.TestCase):
             Since remove_obstacles=False the file should not be removed and FileExistsError raised.
         """
         dir_to_make = self.pbt.path_inside_test_folder("file-that-should-not-be-dir")
-        self.assertFalse(dir_to_make.exists(), f"{self.pbt.which_test}: {dir_to_make} should not exist before test")
-
         touch(dir_to_make)
         self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file")
 
@@ -122,8 +116,6 @@ class TestPythonBatchMain(unittest.TestCase):
         """
         dir_to_make = self.pbt.path_inside_test_folder("cd-here")
         file_to_touch = dir_to_make.joinpath("touch-me").resolve()
-        self.assertFalse(file_to_touch.exists(), f"{self.pbt.which_test}: before test {file_to_touch} should not exist")
-
         cwd_before = os.getcwd()
         self.assertNotEqual(dir_to_make, cwd_before, f"{self.pbt.which_test}: before test {dir_to_make} should not be current working directory")
 
@@ -167,7 +159,6 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_ChFlags_and_Unlock(self):
         test_file = self.pbt.path_inside_test_folder("chflags-me")
-        self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
 
         self.pbt.batch_accum.clear()
         # On Windows, we must hide the file last or we won't be able to change additional flags
@@ -208,9 +199,7 @@ class TestPythonBatchMain(unittest.TestCase):
 
     def test_AppendFileToFile(self):
         source_file = self.pbt.path_inside_test_folder("source-file.txt")
-        self.assertFalse(source_file.exists(), f"{self.pbt.which_test}: {source_file} should not exist before test")
         target_file = self.pbt.path_inside_test_folder("target-file.txt")
-        self.assertFalse(target_file.exists(), f"{self.pbt.which_test}: {target_file} should not exist before test")
 
         content_1 = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(124))
         content_2 = ''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(125))
@@ -372,9 +361,6 @@ class TestPythonBatchMain(unittest.TestCase):
         pass
 
     def test_Ls_repr(self):
-        with self.assertRaises(AssertionError):
-            obj = Ls([])
-
         self.pbt.reprs_test_runner(Ls('rumba', out_file="empty.txt"),
                                    Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc'),
                                    Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt"))

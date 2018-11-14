@@ -29,7 +29,7 @@ def camel_to_snake_case(identifier):
 
 class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
-    section_order = ("pre", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
+    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -41,6 +41,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.sections = dict()
         if self.current_section:
             self.set_current_section(self.current_section)
+        PythonBatchCommandBase.running_progress = 0
 
     def set_current_section(self, section_name):
         if section_name in PythonBatchCommandAccum.section_order:

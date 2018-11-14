@@ -140,10 +140,12 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.batch_accum.clear()
         #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
         config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
-
-        self.pbt.batch_accum += SVNLastRepoRev("SVN_REPO_URL", "__LAST_REPO__")
-        self.pbt.batch_accum += ConfigVarPrint("__LAST_REPO_REV__")
+        config_vars["SOME_VAR_TO_PRINT"] = -12345
+        self.pbt.batch_accum += ConfigVarPrint("SOME_VAR_TO_PRINT")
         self.pbt.exec_and_capture_output()
+
+        with open(self.pbt.output_file_name, "r") as rfd:
+            self.assertIn(str(config_vars["SOME_VAR_TO_PRINT"]), rfd.read())
 
     def test_PythonBatchRuntime_repr(self):
         pass

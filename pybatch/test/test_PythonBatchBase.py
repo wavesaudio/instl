@@ -139,6 +139,7 @@ class TestPythonBatch(object):
         self.test_folder = Path(__file__).joinpath(os.pardir, os.pardir, os.pardir).resolve().joinpath(main_test_folder_name, uni_test_obj.__class__.__name__, self.which_test)
         self.batch_accum: PythonBatchCommandAccum = PythonBatchCommandAccum()
         self.sub_test_counter = 0
+        self.output_file_name = None
 
     def setUp(self):
         """ for each test create it's own test sub-fold"""
@@ -153,13 +154,17 @@ class TestPythonBatch(object):
                     os.chmod(os.path.join(root, f), Chmod.all_read_write, **kwargs)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
-        self.batch_accum.set_current_section("pre")
+        self.batch_accum.set_current_section("prepare")
 
     def tearDown(self):
-        pass
+        if self.output_file_name:
+            utils.teardown_file_logging(self.output_file_name)
 
-    def path_inside_test_folder(self, name):
-        return self.test_folder.joinpath(name).resolve()
+    def path_inside_test_folder(self, name, assert_not_exist=True):
+        retVal = self.test_folder.joinpath(name).resolve()
+        if assert_not_exist:
+            self.uni_test_obj.assertFalse(retVal.exists(), f"{self.which_test}: {retVal} should not exist before test")
+        return retVal
 
     def write_file_in_test_folder(self, file_name, contents):
         with open(self.path_inside_test_folder(file_name), "w") as wfd:
@@ -171,10 +176,19 @@ class TestPythonBatch(object):
             test_name = self.which_test
         test_name = f"{self.sub_test_counter}_{test_name}"
 
+
+        config_vars["__MAIN_COMMAND__"] = f"{self.which_test} test #{self.sub_test_counter};"
         bc_repr = repr(self.batch_accum)
-        self.write_file_in_test_folder(test_name+".py", bc_repr)
-        bc_compiled = compile(bc_repr, test_name+".py", 'exec')
-        utils.config_logger(self.path_inside_test_folder(f'{test_name}_output.txt'))
+        self.python_batch_file_name = test_name+".py"
+        self.write_file_in_test_folder(self.python_batch_file_name, bc_repr)
+        bc_compiled = compile(bc_repr, self.python_batch_file_name, 'exec')
+        output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
+        if output_file_name != self.output_file_name:
+            if self.output_file_name:
+                utils.teardown_file_logging(self.output_file_name)
+            self.output_file_name = output_file_name
+            utils.setup_file_logging(self.output_file_name, level=logging.INFO)
+            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:

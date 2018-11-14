@@ -118,15 +118,22 @@ class CUrl(RunProcessBase):
         all_args.append( f"""retry_delay={self.retry_delay}""")
 
     def progress_msg_self(self):
-        return f"""Download '{src}' to '{self.trg}'"""
+        return f"""Download '{self.src}' to '{self.trg}'"""
 
     def get_run_args(self, run_args) -> None:
         resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
-        resolved_trg_path = utils.ResolvedPath(self.trg)
-        run_args.extend([resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
-                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
-                    "--retry", self.retires, "--retry-delay", self.retry_delay,
-                    "-o", resolved_trg_path, self.src])
+        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        run_args.extend([resolved_curl_path,
+                         "--insecure",
+                         "--fail",
+                         "--raw",
+                         "--silent",
+                         "--show-error",
+                         "--connect-timeout", self.connect_time_out,
+                         "--max-time", self.max_time,
+                         "--retry", self.retires,
+                         "--retry-delay", self.retry_delay,
+                         "-o", resolved_trg_path, self.src])
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)

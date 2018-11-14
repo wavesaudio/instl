@@ -75,25 +75,25 @@ class TestPythonBatchMac(unittest.TestCase):
         if sys.platform != 'darwin':
             return
 
-        a_file_to_symlink = self.pbt.path_inside_test_folder("symlink_me_file")
-        symlink_to_a_file = self.pbt.path_inside_test_folder("symlink_of_a_file")
-        relative_symlink_to_a_file = self.pbt.path_inside_test_folder("relative_symlink_of_a_file")
-        a_folder_to_symlink = self.pbt.path_inside_test_folder("symlink_me_folder")
-        symlink_to_a_folder = self.pbt.path_inside_test_folder("symlink_of_a_folder")
-        relative_symlink_to_a_folder = self.pbt.path_inside_test_folder("relative_symlink_of_a_folder")
+        a_file_to_symlink_to = self.pbt.path_inside_test_folder("a_file_to_symlink_to")
+        symlink_to_a_file = self.pbt.path_inside_test_folder("symlink_to_a_file")
+        relative_symlink_to_a_file = self.pbt.path_inside_test_folder("relative_symlink_to_a_file")
+        a_folder_to_symlink_to = self.pbt.path_inside_test_folder("a_folder_to_symlink_to")
+        symlink_to_a_folder = self.pbt.path_inside_test_folder("symlink_to_a_folder")
+        relative_symlink_to_a_folder = self.pbt.path_inside_test_folder("relative_symlink_to_a_folder")
 
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as iSubSub:
-            iSubSub += Touch(a_file_to_symlink)
-            iSubSub += MakeDirs(a_folder_to_symlink)
-            iSubSub += CreateSymlink(symlink_to_a_file, a_file_to_symlink)
-            iSubSub += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink)
-            iSubSub += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink.name)
-            iSubSub += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink.name)
+            iSubSub += Touch(a_file_to_symlink_to)
+            iSubSub += MakeDirs(a_folder_to_symlink_to)
+            iSubSub += CreateSymlink(symlink_to_a_file, a_file_to_symlink_to)
+            iSubSub += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink_to)
+            iSubSub += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink_to.name)
+            iSubSub += CreateSymlink(relative_symlink_to_a_folder, a_folder_to_symlink_to.name)
         self.pbt.exec_and_capture_output("CreateSymlink")
 
-        self.assertFalse(os.path.islink(a_file_to_symlink), f"CreateSymlink {a_file_to_symlink} should be a file not a symlink")
-        self.assertFalse(os.path.islink(a_folder_to_symlink), f"CreateSymlink {a_folder_to_symlink} should be a file not a symlink")
+        self.assertFalse(os.path.islink(a_file_to_symlink_to), f"CreateSymlink {a_file_to_symlink_to} should be a file not a symlink")
+        self.assertFalse(os.path.islink(a_folder_to_symlink_to), f"CreateSymlink {a_folder_to_symlink_to} should be a file not a symlink")
         self.assertTrue(os.path.islink(symlink_to_a_file), f"CreateSymlink {symlink_to_a_file} should be a symlink")
         self.assertTrue(os.path.islink(symlink_to_a_folder), f"CreateSymlink {symlink_to_a_folder} should be a symlink")
         self.assertTrue(os.path.islink(relative_symlink_to_a_file), f"CreateSymlink {relative_symlink_to_a_file} should be a symlink")
@@ -102,14 +102,14 @@ class TestPythonBatchMac(unittest.TestCase):
         # check the absolute symlinks
         a_file_original_from_symlink = os.readlink(symlink_to_a_file)
         a_folder_original_from_symlink = os.readlink(symlink_to_a_folder)
-        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_symlink), f"symlink resolved to {a_file_original_from_symlink} not to {a_file_to_symlink} as expected")
-        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_symlink), f"symlink resolved to {a_folder_original_from_symlink} not to {a_folder_to_symlink} as expected")
+        self.assertTrue(a_file_to_symlink_to.samefile(a_file_original_from_symlink), f"symlink resolved to {a_file_original_from_symlink} not to {a_file_to_symlink_to} as expected")
+        self.assertTrue(a_folder_to_symlink_to.samefile(a_folder_original_from_symlink), f"symlink resolved to {a_folder_original_from_symlink} not to {a_folder_to_symlink_to} as expected")
 
         # check the relative symlinks
-        a_file_original_from_relative_symlink = self.pbt.path_inside_test_folder(os.readlink(relative_symlink_to_a_file))
-        a_folder_original_from_relative_symlink = self.pbt.path_inside_test_folder(os.readlink(relative_symlink_to_a_folder))
-        self.assertTrue(a_file_to_symlink.samefile(a_file_original_from_relative_symlink), f"symlink resolved to {a_file_original_from_relative_symlink} not to {a_file_to_symlink} as expected")
-        self.assertTrue(a_folder_to_symlink.samefile(a_folder_original_from_relative_symlink), f"symlink resolved to {a_folder_original_from_relative_symlink} not to {a_folder_to_symlink} as expected")
+        a_file_original_from_relative_symlink = self.pbt.path_inside_test_folder(os.readlink(relative_symlink_to_a_file), assert_not_exist=False)
+        a_folder_original_from_relative_symlink = self.pbt.path_inside_test_folder(os.readlink(relative_symlink_to_a_folder), assert_not_exist=False)
+        self.assertTrue(a_file_to_symlink_to.samefile(a_file_original_from_relative_symlink), f"symlink resolved to {a_file_original_from_relative_symlink} not to {a_file_to_symlink_to} as expected")
+        self.assertTrue(a_folder_to_symlink_to.samefile(a_folder_original_from_relative_symlink), f"symlink resolved to {a_folder_original_from_relative_symlink} not to {a_folder_to_symlink_to} as expected")
 
     def test_SymlinkToSymlinkFile_repr(self):
 
