@@ -114,21 +114,6 @@ def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
     return True
 
 
-def is_hidden(filepath):
-    name = os.path.basename(os.path.abspath(filepath))
-    return name.startswith('.') or has_hidden_attribute(filepath)
-
-
-def has_hidden_attribute(filepath):
-    try:
-        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
-        assert attrs != -1
-        result = bool(attrs & 2)
-    except (AttributeError, AssertionError):
-        result = False
-    return result
-
-
 main_test_folder_name = "python_batch_test_results"
 
 
