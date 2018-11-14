@@ -11,7 +11,7 @@ FULL_NAME_WITH(parentheses): The name is Hila Lululin
 FULL_NAME_WITH_ARRAY: With named array name is Hila Lululin
 FUNC_0_NO_PARAM: I'm just saying
 FUNC_0__CALL: I'm just saying
-FUNC_1_WITH_POSITIONALS: With positional params name is $(__FUNC_1_WITH_POSITIONALS_2__) $(__FUNC_1_WITH_POSITIONALS_1__)
+FUNC_1_WITH_POSITIONALS: With positional params name is $(__FUNC_1_WITH_POSITIONALS_1__) $(__FUNC_1_WITH_POSITIONALS_2__)
 FUNC_1__CALL: With positional params name is Hila Lululin
 FUNC_2_WITH_NAMED: With named params name is $(first_name) $(last_name)
 FUNC_2__CALL1: last, first - With named params name is Hila Lululin
@@ -19,5 +19,6 @@ FUNC_2__CALL2: first, last - With named params name is Hila Lululin
 LAST_NAME:
     - Lulu
     - lin
+READ_YAML_FILES: /p4client/dev_central/ProAudio/XPlatform/CopyProtect/instl/configVar/test/test_input.yaml
 WIERD_NAME_WITH(parentheses): Hila Lululin
 

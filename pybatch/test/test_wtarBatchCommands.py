@@ -45,29 +45,14 @@ class TestPythonBatchWtar(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_Wtar_Unwtar_repr(self):
-        obj = Wtar("/the/memphis/belle")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
-
-        obj = Wtar("/the/memphis/belle", None)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
-
-        obj = Wtar("/the/memphis/belle", "robota")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wtar.repr did not recreate Wtar object correctly")
-
-        obj = Unwtar("/the/memphis/belle")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
-
-        obj = Unwtar("/the/memphis/belle", None)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
-
-        obj = Unwtar("/the/memphis/belle", "robota", no_artifacts=True)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Unwtar.repr did not recreate Unwtar object correctly")
+        list_of_objs = list()
+        list_of_objs.append(Wtar("/the/memphis/belle"))
+        list_of_objs.append(Wtar("/the/memphis/belle", None))
+        list_of_objs.append(Wtar("/the/memphis/belle", "robota"))
+        list_of_objs.append(Unwtar("/the/memphis/belle"))
+        list_of_objs.append(Unwtar("/the/memphis/belle", None))
+        list_of_objs.append(Unwtar("/the/memphis/belle", "robota", no_artifacts=True))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_Wtar_Unwtar(self):
         folder_to_wtar = self.pbt.path_inside_test_folder("folder-to-wtar")
@@ -105,40 +90,20 @@ class TestPythonBatchWtar(unittest.TestCase):
         self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), f"{self.pbt.which_test} : before wtar and after unwtar dirs are not the same")
 
     def test_Wzip_repr(self):
-        obj = Wzip("/the/memphis/belle")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
-
-        obj = Wzip("/the/memphis/belle", None)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
-
-        obj = Wzip("/the/memphis/belle", "robota")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
-
-        obj = Unwzip("/the/memphis/belle")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
-
-        obj = Unwzip("/the/memphis/belle", None)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Unwzip.repr did not recreate Unwzip object correctly")
-
-        obj = Unwzip("/the/memphis/belle", "robota")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Wzip.repr did not recreate Wzip object correctly")
+        list_of_objs = list()
+        list_of_objs.append(Wzip("/the/memphis/belle"))
+        list_of_objs.append(Wzip("/the/memphis/belle", None))
+        list_of_objs.append(Wzip("/the/memphis/belle", "robota"))
+        list_of_objs.append(Unwzip("/the/memphis/belle"))
+        list_of_objs.append(Unwzip("/the/memphis/belle", None))
+        list_of_objs.append(Unwzip("/the/memphis/belle", "robota"))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_Wzip(self):
         wzip_input = self.pbt.path_inside_test_folder("wzip_in")
-        self.assertFalse(wzip_input.exists(), f"{self.pbt.which_test}: {wzip_input} should not exist before test")
         wzip_output = self.pbt.path_inside_test_folder("wzip_in.wzip")
-        self.assertFalse(wzip_output.exists(), f"{self.pbt.which_test}: {wzip_output} should not exist before test")
-
         unwzip_target_folder = self.pbt.path_inside_test_folder("unwzip_target")
-        self.assertFalse(unwzip_target_folder.exists(), f"{self.pbt.which_test}: {unwzip_target_folder} should not exist before test")
         unwzip_target_file = self.pbt.path_inside_test_folder("wzip_in")
-        self.assertFalse(unwzip_target_file.exists(), f"{self.pbt.which_test}: {unwzip_target_file} should not exist before test")
 
         # create a file to zip
         with open(wzip_input, "w") as wfd:

@@ -26,7 +26,7 @@ class CopyBase(RunProcessBase, essential=True):
         return the_progress_msg
 
     @abc.abstractmethod
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         raise NotImplemented()
 
     @abc.abstractmethod
@@ -41,8 +41,7 @@ class RsyncCopyBase(CopyBase):
         #    trg = os.fspath(trg) + "/"
         super().__init__(src, trg, *args, **kwargs)
 
-    def create_run_args(self):
-        run_args = list()
+    def get_run_args(self, run_args) -> None:
         ignore_spec = self.create_ignore_spec(self.ignore_patterns)
         if not self.preserve_dest_files:
             delete_spec = "--delete"
@@ -58,7 +57,6 @@ class RsyncCopyBase(CopyBase):
         run_args.extend([self.src, self.trg])
         if self.ignore_if_not_exist:
             run_args.extend(["||", "true"])
-        return run_args
 
     def create_ignore_spec(self, ignore_patterns: bool) -> None:
         retVal = []
@@ -111,8 +109,8 @@ class RoboCopyBase(CopyBase):
             # else:
             #     raise subprocess.SubprocessError(f'{self.RETURN_CODES[e.returncode]}') from e
 
-    def create_run_args(self):
-        run_args = ['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS', '/256']
+    def get_run_args(self, run_args) -> None:
+        run_args.extend(['robocopy', '/E', '/R:9', '/W:1', '/NS', '/NC', '/NFL', '/NDL', '/NP', '/NJS', '/256'])
         if not self.preserve_dest_files:
             run_args.append('/purge')
         if self.copy_file:
@@ -122,7 +120,6 @@ class RoboCopyBase(CopyBase):
         else:
             run_args.extend((self.src, self.trg))
         run_args.extend(self.create_ignore_spec(self.ignore_patterns))
-        return run_args
 
     def create_ignore_spec(self, ignore_patterns: bool):
         try:

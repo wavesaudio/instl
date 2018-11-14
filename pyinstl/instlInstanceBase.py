@@ -62,7 +62,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
-    commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove','doit', 'report-versions']
+    commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove','doit', 'report-versions', 'exec', 'read-yaml']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -220,11 +220,11 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 if self.the_command in self.commands_that_need_to_refresh_db_file:
                     if os.path.isfile(db_base_path):
                         utils.safe_remove_file(db_base_path)
-                        self.progress("removed db file", db_base_path)
+                        self.progress(f"removed previous db file {db_base_path}")
 
     def read_require(self, a_node, *args, **kwargs):
         del args
-        self.items_table.read_require_node(a_node)
+        self.items_table.read_require_node(a_node, **kwargs)
 
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open(file_path, "w") as wfd:
@@ -296,9 +296,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
-        do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
+        #do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())
+        regex = "|".join(do_not_write_vars)
+        do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
-            if identifier.lower() not in do_not_write_vars:
+            if not do_not_write_vars_regex.match(identifier):
                 in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def init_python_batch(self, in_batch_accum):
@@ -306,9 +309,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_ignore_patterns(config_vars.get("COPY_IGNORE_PATTERNS", []).list())''')
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_hard_link_patterns(config_vars.get("NO_HARD_LINK_PATTERNS", []).list())''')
+        in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_flags_patterns(config_vars.get("NO_FLAGS_PATTERNS", []).list())''')
 
         if "__REPAIR_INSTALLED_ITEMS__" not in list(config_vars.get("MAIN_INSTALL_TARGETS", ["__REPAIR_INSTALLED_ITEMS__"])):
             in_batch_accum += PythonDoSomething('''RsyncClone.add_global_avoid_copy_markers(config_vars.get("AVOID_COPY_MARKERS", []).list())''')
+
+        in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:
@@ -407,8 +413,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        self.items_table.read_index_node(a_node)
-        #self.items_table.read_index_node_one_by_one(a_node)  # for debugging reading index.yaml
+        self.items_table.read_index_node(a_node, **kwargs)
+        #self.items_table.read_index_node_one_by_one(a_node, **kwargs)  # for debugging reading index.yaml
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 
@@ -480,19 +486,16 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def handle_yaml_read_error(self, **kwargs):
         try:
-            path_to_file = Path(kwargs['path-to-file'])
-            the_exception = kwargs.get('exception', None)
-            main_input_file = Path(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-            date_stamp = time.strftime("%Y-%m-%d_%H.%M.%S")
-            report_file_name = f"yaml_read_error_{date_stamp}_{path_to_file.name}"
-            report_file_path = Path(main_input_file.parent, report_file_name)
-            with open(report_file_path, "w") as wfd:
-                wfd.write(f"path: {path_to_file}\n\n")
-                wfd.write(f"exception: {the_exception}\n\n")
-                wfd.write(f"\ncontents: BEGIN\n\n")
-                buffer = kwargs.get('buffer', io.StringIO("unknown")).getvalue()
-                wfd.write(buffer)
-                wfd.write(f"\n\ncontents: END\n")
-            self.progress(f"""error parsing yaml file '{path_to_file}', error report written to '{report_file_path}'""")
+            the_node_stack = kwargs.get('node-stack', "unknown")
+            position_in_file = getattr(the_node_stack, "start_mark", "unknown")
+            yaml_read_error = f"""
+yaml_read_error:
+    position-in-file: {position_in_file}
+    exception: {kwargs.get('exception', '')}
+"""
+            original_path_to_file = kwargs.get('original-path-to-file', '')
+            if original_path_to_file not in yaml_read_error:
+                yaml_read_error = f"{yaml_read_error}\n    original-path-to-file: {original_path_to_file}"
+            log.error(yaml_read_error)
         except Exception as ex:
             pass

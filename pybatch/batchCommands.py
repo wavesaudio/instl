@@ -199,7 +199,7 @@ class ChFlags(RunProcessBase, essential=True):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
-    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg'},
+    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg', 'system': None, 'nosystem': None},
                            'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
 
     def __init__(self, path, *flags: List[str], **kwargs) -> None:
@@ -207,7 +207,7 @@ class ChFlags(RunProcessBase, essential=True):
         self.path = path
 
         for flag in flags:
-            assert flag in self.flags_dict[sys.platform]
+            assert flag in self.flags_dict[sys.platform], f"{flag} is not a valid flag"
         self.flags = sorted(flags)
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -218,28 +218,24 @@ class ChFlags(RunProcessBase, essential=True):
     def progress_msg_self(self):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         path = os.fspath(utils.ResolvedPath(self.path))
         self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
 
-        per_system_flags = [self.flags_dict[sys.platform][flag] for flag in self.flags]
+        per_system_flags = list(filter(None, [self.flags_dict[sys.platform][flag] for flag in self.flags]))
         if sys.platform == 'darwin':
-            retVal = self._create_run_args_mac(per_system_flags, path)
+            self._create_run_args_mac(per_system_flags, path, run_args)
         elif sys.platform == 'win32':
-            retVal = self._create_run_args_win(per_system_flags, path)
-        return retVal
+            self._create_run_args_win(per_system_flags, path, run_args)
 
-    def _create_run_args_win(self, flags, path):
-        run_args = list()
+    def _create_run_args_win(self, flags, path, run_args) -> None:
         run_args.append("attrib")
         if self.recursive:
             run_args.extend(('/S', '/D'))
         run_args.extend(flags)
         run_args.append(os.fspath(path))
-        return run_args
 
-    def _create_run_args_mac(self, flags, path):
-        run_args = list()
+    def _create_run_args_mac(self, flags, path, run_args) -> None:
         run_args.append("chflags")
         if self.ignore_all_errors:
             run_args.append("-f")
@@ -248,7 +244,6 @@ class ChFlags(RunProcessBase, essential=True):
         joint_flags = ",".join(flags)  # on mac the flags must be separated by commas
         run_args.append(joint_flags)
         run_args.append(os.fspath(path))
-        return run_args
 
 
 class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True}):
@@ -305,8 +300,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         all_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
         all_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
 
-    def create_run_args(self):
-        run_args = list()
+    def get_run_args(self, run_args) -> None:
         run_args.append("chown")
         run_args.append("-f")
         if self.recursive:
@@ -319,7 +313,6 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         run_args.append(user_and_group)
         the_path = os.fspath(utils.ResolvedPath(self.path))
         run_args.append(the_path)
-        return run_args
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
@@ -382,8 +375,7 @@ class Chmod(RunProcessBase, essential=True):
                 flags |= Chmod.who_2_perm[w][p]
         return flags, match.group('op')
 
-    def create_run_args(self):
-        run_args = list()
+    def get_run_args(self, run_args) -> None:
         if sys.platform == 'darwin':
             run_args.append("chmod")
             if self.ignore_all_errors:
@@ -396,7 +388,6 @@ class Chmod(RunProcessBase, essential=True):
             if self.recursive:
                 run_args.append('/s')
         run_args.append(utils.ResolvedPath(self.path))
-        return run_args
 
     def __call__(self, *args, **kwargs):
         # os.chmod is not recursive so call the system's chmod
@@ -450,18 +441,15 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
-class Ls(PythonBatchCommandBase, essential=True):
+class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
-    def __init__(self, *folders_to_list, out_file=None, ls_format='*', **kwargs) -> None:
+    def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
         self.ls_format = ls_format
-        self.out_file = out_file
-        assert self.out_file is not None
         self.folders_to_list = sorted(folders_to_list)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
-        all_args.append( f"""out_file={utils.quoteme_raw_string(os.fspath(self.out_file))}""")
         all_args.append( f"""ls_format='{self.ls_format}'""")
 
     def progress_msg_self(self) -> str:

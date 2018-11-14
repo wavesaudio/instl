@@ -5,6 +5,7 @@ import string
 from collections import namedtuple
 from typing import Optional, Callable, Dict
 
+
 def params_to_dict(params_text) -> Dict:
     retVal = {}
     if params_text:

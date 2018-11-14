@@ -16,6 +16,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     __global_ignore_patterns = list()        # files and folders matching these patterns will not be copied. Applicable for all instances of RsyncClone
     __global_no_hard_link_patterns = list()  # files and folders matching these patterns will not be hard-linked. Applicable for all instances of RsyncClone
     __global_avoid_copy_markers = list()     # if a file with one of these names exists in the folders and is identical to destination, copy will be avoided
+    __global_no_flags_patterns = list()     # if a file with one of these names exists in the destination, it's flags (hidden, system, read-only) will be removed
 
     @classmethod
     def add_global_ignore_patterns(cls, more_copy_ignore_patterns: List):
@@ -29,6 +30,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
     def add_global_avoid_copy_markers(cls, more_avoid_copy_markers: List):
         cls.__global_avoid_copy_markers.extend(more_avoid_copy_markers)
 
+    @classmethod
+    def add_global_no_flags_patterns(cls, more_no_flags_patterns: List):
+        cls.__global_no_flags_patterns.extend(more_no_flags_patterns)
+
     def __init__(self,
                  src,
                  dst,
@@ -36,6 +41,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  symlinks_as_symlinks=True,
                  ignore_patterns=[],        # files and folders matching this patterns will not be copied. Applicable only for this instance of RsyncClone
                  no_hard_link_patterns=[],  # files and folders matching this patterns will not be hard-linked. Applicable only for this instance of RsyncClone
+                 no_flags_patterns=[],
                  hard_links=True,
                  ignore_dangling_symlinks=False,
                  delete_extraneous_files=False,
@@ -48,8 +54,9 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
-        self.local_ignore_patterns = sorted(ignore_patterns)
-        self.local_no_hard_link_patterns = no_hard_link_patterns
+        self.local_ignore_patterns = sorted(ignore_patterns.copy())
+        self.local_no_hard_link_patterns = sorted(no_hard_link_patterns.copy())
+        self.local_no_flags_patterns = sorted(no_flags_patterns.copy())
         self.hard_links = hard_links
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
         self.delete_extraneous_files = delete_extraneous_files
@@ -63,20 +70,26 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.last_src = None
         self.last_dst = None
 
+        if self.ignore_all_errors:
+            self.ignore_if_not_exist = True  # self.ignore_if_not_exist is passed to shutil calls that do not know about self.ignore_all_errors
+
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
         self.__all_ignore_patterns = sorted(list(set(self.__global_ignore_patterns + self.local_ignore_patterns)))
-        self.__all_no_hard_link_patterns = list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns))
+        self.__all_no_hard_link_patterns = sorted(list(set(self.__global_no_hard_link_patterns + self.local_no_hard_link_patterns)))
+        self.__all_no_flags_patterns = sorted(list(set(self.__global_no_flags_patterns + self.local_no_flags_patterns)))
 
     def repr_own_args(self, all_args: List[str]) -> None:
         params = list()
         params.append(self.unnamed__init__param(os.fspath(self.src)))
         params.append(self.unnamed__init__param(os.fspath(self.dst)))
-        params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
+        if not self.ignore_all_errors:
+            params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
         params.append(self.optional_named__init__param("ignore_patterns", self.local_ignore_patterns, []))
         params.append(self.optional_named__init__param("no_hard_link_patterns", self.local_no_hard_link_patterns, []))
+        params.append(self.optional_named__init__param("no_flags_patterns", self.local_no_flags_patterns, []))
         params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
         params.append(self.optional_named__init__param("ignore_dangling_symlinks", self.ignore_dangling_symlinks, False))
         params.append(self.optional_named__init__param("delete_extraneous_files", self.delete_extraneous_files, False))
@@ -111,6 +124,16 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     break
             else:
                 retVal = True
+        return retVal
+
+    def should_no_flags_file(self, file_path: Path):
+        retVal = True
+        for no_flags_pattern in self.__all_no_flags_patterns:
+            if file_path.match(no_flags_pattern):
+                log.debug(f"removing flags from {file_path} because it matches pattern {no_flags_pattern}")
+                break
+        else:
+            retVal = False
         return retVal
 
     def remove_extraneous_files(self, dst: Path, src_names):
@@ -162,7 +185,11 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 retVal = False
                 log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
             if retVal:  # destination exists and file should be copied, so make sure it's writable
-                Chmod(dst, "u+w")()
+                with Chmod(dst, "u+w", own_progress_count=0) as mod_changer:
+                    mod_changer()
+                if self.should_no_flags_file(dst):
+                    with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
+                        flags_changer()
         return retVal
 
     def should_copy_dir(self, src: Path, dst: Path):
@@ -196,6 +223,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     self.statistics['hard_links'] += 1
                 except OSError as ose:
                     log.debug(f"copy file '{src}' to '{dst}'")
+
                     self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
             if self.copy_owner and hasattr(os, 'chown'):
                 src_st = src.stat()
@@ -299,9 +327,13 @@ class MoveDirToDir(CopyDirToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing dir '{self.src}'"""
-        self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist)
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing dir '{self.src}'"""
+            self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist)
 
 
 class CopyDirContentsToDir(RsyncClone):
@@ -320,14 +352,18 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing contents dir '{self.src}'"""
-        if not self.dry_run:
-            for child_item in Path(self.src).iterdir():
-                if child_item.is_file():
-                    child_item.unlink()
-                elif child_item.is_dir():
-                    shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing contents dir '{self.src}'"""
+            if not self.dry_run:
+                for child_item in Path(self.src).iterdir():
+                    if child_item.is_file():
+                        child_item.unlink()
+                    elif child_item.is_dir():
+                        shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
 
 
 class CopyFileToDir(RsyncClone):
@@ -351,9 +387,13 @@ class MoveFileToDir(CopyFileToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing file '{self.src}'"""
-        self.dry_run or Path(self.src).unlink()
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing file '{self.src}'"""
+            self.dry_run or Path(self.src).unlink()
 
 
 class CopyFileToFile(RsyncClone):
@@ -378,6 +418,10 @@ class MoveFileToFile(CopyFileToFile):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__(*args, **kwargs)
-        self.doing = f"""removing file '{self.src}'"""
-        self.dry_run or Path(self.src).unlink()
+        try:
+            super().__call__(*args, **kwargs)
+        except Exception as ex:
+            raise
+        else:  # do not attempt remove if copy did not work
+            self.doing = f"""removing file '{self.src}'"""
+            self.dry_run or Path(self.src).unlink()

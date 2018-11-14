@@ -45,25 +45,19 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_RmFile_repr(self):
-        obj = RmFile(r"\just\remove\me\already")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmFile.repr did not recreate RmFile object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(RmFile(r"\just\remove\me\already"))
 
     def test_RmFile(self):
         pass
 
     def test_RmDir_repr(self):
-        obj = RmDir(r"\just\remove\me\already")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmDir.repr did not recreate RmDir object correctly: {diff_explanation}")
+       self.pbt.reprs_test_runner(RmDir(r"\just\remove\me\already"))
 
     def test_RmDir(self):
         pass
 
     def test_RmFileOrDir_repr(self):
-        pass
+        self.pbt.reprs_test_runner(RmFileOrDir(r"/just/remove/me/already"))
 
     def test_RmFileOrDir(self):
         pass
@@ -93,20 +87,11 @@ class TestPythonBatchRemove(unittest.TestCase):
         with self.assertRaises(TypeError):
             obj = RemoveEmptyFolders()
 
-        obj = RemoveEmptyFolders("/per/pen/di/cular")
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = RemoveEmptyFolders("/per/pen/di/cular", [])
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
-
-        obj = RemoveEmptyFolders("/per/pen/di/cular", ['async', 'await'])
-        obj_recreated =eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RemoveEmptyFolders.repr did not recreate MacDoc object correctly: {diff_explanation}")
+        list_of_objs = list()
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular"))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", files_to_ignore=[]))
+        list_of_objs.append(RemoveEmptyFolders("/per/pen/di/cular", files_to_ignore=['async', 'await']))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RemoveEmptyFolders(self):
         folder_to_remove = self.pbt.path_inside_test_folder("folder-to-remove")
@@ -139,10 +124,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not removed {file_to_stay}")
 
     def test_RmGlob_repr(self):
-        obj = RmGlob("/lo/lla/pa/loo/za", "*.pendicular")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlob.repr did not recreate RmGlob object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(RmGlob("/lo/lla/pa/loo/za", "*.pendicular"))
 
     def test_RmGlob(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
@@ -169,18 +151,11 @@ class TestPythonBatchRemove(unittest.TestCase):
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
 
     def test_RmGlobs_repr(self):
-        obj = RmGlobs("/lo/lla/pa/loo/za")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
-        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
-        obj = RmGlobs("/lo/lla/pa/loo/za", "*.pendicular", "i*regular.??")
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"RmGlobs.repr did not recreate RmGlobs object correctly: {diff_explanation}")
+        list_of_objs = list()
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za"))
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za", "*.pendicular"))
+        list_of_objs.append(RmGlobs("/lo/lla/pa/loo/za", "*.pendicular", "i*regular.??"))
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RmGlobs(self):
         folder_to_glob = self.pbt.path_inside_test_folder("folder-to-glob")
@@ -205,3 +180,40 @@ class TestPythonBatchRemove(unittest.TestCase):
         for f in files_that_should_not_be_removed:
             fp = Path(folder_to_glob, f)
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+    def test_RmSymlink_repr(self):
+        self.pbt.reprs_test_runner(RmSymlink(r"/just/remove/me/already"))
+
+    def test_RmSymlink(self):
+        non_existing_path = self.pbt.path_inside_test_folder("non-existing-path")
+        a_dir = self.pbt.path_inside_test_folder("some-dir")
+        a_file = self.pbt.path_inside_test_folder("some-file")
+        a_dir_symlink = self.pbt.path_inside_test_folder("some-dir-symlink")
+        a_file_symlink = self.pbt.path_inside_test_folder("some-file-symlink")
+
+        # create a file, a folder and symlinks to them
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(a_dir)
+        self.pbt.batch_accum += Touch(a_file)
+        self.pbt.batch_accum += CreateSymlink(a_dir_symlink, a_dir)
+        self.pbt.batch_accum += CreateSymlink(a_file_symlink, a_file)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(non_existing_path.exists())
+        self.assertTrue(a_dir.is_dir())
+        self.assertTrue(a_file.is_file())
+        self.assertTrue(a_dir_symlink.is_symlink())
+        self.assertTrue(a_file_symlink.is_symlink())
+
+        # remove everything with RmSymlink, but only the symlink should be actually removed
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += RmSymlink(non_existing_path)
+        self.pbt.batch_accum += RmSymlink(a_dir)
+        self.pbt.batch_accum += RmSymlink(a_file)
+        self.pbt.batch_accum += RmSymlink(a_dir_symlink)
+        self.pbt.batch_accum += RmSymlink(a_file_symlink)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(non_existing_path.exists())
+        self.assertTrue(a_dir.is_dir())
+        self.assertTrue(a_file.is_file())
+        self.assertFalse(a_dir_symlink.exists())
+        self.assertFalse(a_file_symlink.exists())

@@ -61,21 +61,20 @@ ZLIB_COMPRESSION_LEVEL: 8  # 8 was tested to be the fastest zlib level to decomp
 
 # ConfigVars that should not be written to batch file
 DONT_WRITE_CONFIG_VARS:
-    - INFO_MAP_SIG
-    - INDEX_SIG
-    - PUBLIC_KEY
+    - __CREDENTIALS__
+    - __HELP_SUBJECT__
+    - __INSTL_DATA_FOLDER__
+    - __INSTL_DEFAULTS_FOLDER__
+    - __USER_TEMP_DIR__
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
-    - __CREDENTIALS__
+    - INDEX_SIG
+    - INFO_MAP_SIG
+    - PUBLIC_KEY
     - SVN_REVISION
-
---- !define_Mac
-MKDIR_CMD: mkdir_with_owner
-BATCH_EXT: sh
+    - .+_template
 
 --- !define_Win
-MKDIR_CMD: mkdir
-BATCH_EXT: bat
 
 XCOPY_PATH: xcopy.exe
 ROBOCOPY_PATH: robocopy.exe

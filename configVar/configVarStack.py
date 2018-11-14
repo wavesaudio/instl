@@ -59,7 +59,8 @@ class ConfigVarStack:
         self.max_cached_strings = 0
 
     def __len__(self) -> int:
-        """ From RafeKettler/magicmethods: Returns the length of the container. Part of the protocol for both immutable and mutable containers.
+        """ From RafeKettler/magicmethods: Returns the length of the container.
+                Part of the protocol for both immutable and mutable containers.
 
             :return: number of ConfigVars, if a specific ConfigVar name
             exist on multiple stack levels, all occurrences are counted.
@@ -74,7 +75,10 @@ class ConfigVarStack:
         return list(sorted(the_keys))
 
     def __getitem__(self, key: str) -> ConfigVar:
-        """From RafeKettler/magicmethods: Defines behavior for when an item is accessed, using the notation self[key]. This is also part of both the mutable and immutable container protocols. It should also raise appropriate exceptions: TypeError if the type of the key is wrong and KeyError if there is no corresponding value for the key.
+        """From RafeKettler/magicmethods: Defines behavior for when an item is accessed,
+            using the notation self[key]. This is also part of both the mutable and immutable container protocols.
+            It should also raise appropriate exceptions: TypeError if the type of the key is wrong and KeyError if
+            there is no corresponding value for the key.
 
          gets a ConfigVar object by name. if key
          exist on multiple stack levels the higher (later, inner) one is returned.
@@ -88,7 +92,9 @@ class ConfigVarStack:
             raise KeyError(f"{key}")
 
     def __setitem__(self, key: str, *values):
-        """From RafeKettler/magicmethods: Defines behavior for when an item is assigned to, using the notation self[key] = value. This is part of the mutable container protocol. Again, you should raise KeyError and TypeError where appropriate.
+        """From RafeKettler/magicmethods: Defines behavior for when an item is assigned to,
+            using the notation self[key] = value. This is part of the mutable container protocol.
+            Again, you should raise KeyError and TypeError where appropriate.
 
             sets the values for a ConfigVar on the top of the stack.
             If ConfigVar exists it's current values are replaced.
@@ -161,7 +167,8 @@ class ConfigVarStack:
          gets a ConfigVar object by name. if key
          exist on multiple stack levels the higher (later, inner) one is returned.
          if ConfigVar does not exist on any stack level a new one is created
-         so converting to str and list will work as expected, but the new ConfigVar is NOT added to self.var_list
+         so converting to str and list will work as expected,
+         but the new ConfigVar is NOT added to self.var_list
          """
         if not isinstance(key, str):
             raise TypeError(f"'key' param of get() should be str not {type(key)},  '{key}'")
@@ -184,7 +191,10 @@ class ConfigVarStack:
         if not isinstance(key, str):
             raise TypeError(f"'key' param of setdefault() should be str not {type(key)},  '{key}'")
         if key not in self:
-            self[key] = default
+            new_config_var = ConfigVar(self, key)
+            if default:
+                new_config_var.append(default)
+            self.var_list[-1][key] = new_config_var
         retVal = self[key]
         return retVal
 
@@ -387,7 +397,6 @@ class ConfigVarStack:
         retVal = value_ref_re.sub(pattern, str_to_replace)
         return retVal
 
-
     def print_statistics(self):
         if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
             print(f"{len(self)} ConfigVars")
@@ -400,5 +409,36 @@ class ConfigVarStack:
             print(f"{average_resolve_ms:.4}ms per resolve")
             print(f"{self.resolve_time:.3}sec total resolve time")
 
+    def shallow_resolve_str(self, val_to_resolve: str) -> str:
+        """ resolve a string without consideration for:
+            - confiVar "functions", e.g.  $(Set_Specific_Folder_Icon<...>)
+            - nested values, e.g. $(WAVES_DIR_FOR_$(TARGET_OS_SECOND_NAME))
+            - recursive values (unless the resolved value is also present in val_to_resolve the referring value)*
+
+            shallow_resolve_str is intended for resolving index.yaml templates in conjunction with private_config_vars
+
+            * if config_vars is {"A": "aaa", "B": "$(A)"}
+            shallow_resolve_str("$(B), $(A)") -> "aaa, aaa"
+            but
+            shallow_resolve_str("$(A), $(B)") -> "$(A), aaa" - since $(A) was already replaced when $(B) was resolved
+            although
+            shallow_resolve_str("$(A), $(B), $(A)") -> "aaa, aaa, aaa" - since $(A) was replaced twice
+        """
+        literal_var_re = re.compile("""(?P<var_ref>\$\((?P<var_name>[^$(]+?)\))""")
+
+        matches = literal_var_re.findall(val_to_resolve)  # will return [('$(A)', 'A'), ('$(C)', 'C')]
+        result = val_to_resolve
+        for a_match in matches:
+            result = result.replace(a_match[0], self.get(a_match[1], a_match[0]).str())
+        return result
+
+
 # This is the global variable list serving all parts of instl
 config_vars = ConfigVarStack()
+
+
+@contextmanager
+def private_config_vars():
+    p = ConfigVarStack()
+    yield p
+    del p

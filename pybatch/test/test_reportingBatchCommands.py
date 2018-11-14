@@ -57,9 +57,7 @@ class TestPythonBatchReporting(unittest.TestCase):
     def test_RaiseException_repr(self):
         the_exception = ValueError
         the_message = "just a dummy exception"
-        obj = RaiseException(the_exception, the_message)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "RaiseException.repr (1) did not recreate RsyncClone object correctly")
+        self.pbt.reprs_test_runner(RaiseException(the_exception, the_message))
 
     def test_RaiseException(self):
         self.pbt.batch_accum.clear()
@@ -70,13 +68,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         """ test that Stage.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        obj = Stage("Tuti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
-
-        obj = Stage("Tuti", "Fruti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Stage.repr did not recreate Stage object correctly")
+        self.pbt.reprs_test_runner(Stage("Tuti"), Stage("Tuti", "Fruti"))
 
     def test_Stage(self):
         pass
@@ -85,13 +77,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         """ test that Progress.__repr__ is implemented correctly to fully
             reconstruct the object
         """
-        obj = Progress("Tuti")
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
-
-        obj = Progress("Tuti", own_progress_count=17)
-        obj_recreated = eval(repr(obj))
-        self.assertEqual(obj, obj_recreated, "Progress.repr did not recreate Progress object correctly")
+        self.pbt.reprs_test_runner(Progress("Tuti"), Progress("Tuti", own_progress_count=17))
 
     def test_Progress(self):
         pass
@@ -143,6 +129,23 @@ class TestPythonBatchReporting(unittest.TestCase):
 
     def test_ConfigVarAssign(self):
         pass
+
+    def test_ConfigVarPrint_repr(self):
+        """ test that ConfigVarPrint.__repr__ is implemented correctly to fully
+            reconstruct the object
+        """
+        self.pbt.reprs_test_runner(ConfigVarPrint("Avi Balali $(NIKMAT_HATRACTOR)"))
+
+    def test_ConfigVarPrint(self):
+        self.pbt.batch_accum.clear()
+        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
+        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
+        config_vars["SOME_VAR_TO_PRINT"] = -12345
+        self.pbt.batch_accum += ConfigVarPrint("SOME_VAR_TO_PRINT")
+        self.pbt.exec_and_capture_output()
+
+        with open(self.pbt.output_file_name, "r") as rfd:
+            self.assertIn(str(config_vars["SOME_VAR_TO_PRINT"]), rfd.read())
 
     def test_PythonBatchRuntime_repr(self):
         pass

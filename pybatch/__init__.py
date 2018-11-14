@@ -8,6 +8,8 @@ from .conditionalBatchCommands import If
 from .conditionalBatchCommands import IsFile
 from .conditionalBatchCommands import IsDir
 from .conditionalBatchCommands import IsSymlink
+from .conditionalBatchCommands import IsEq
+from .conditionalBatchCommands import IsNotEq
 
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
@@ -21,6 +23,7 @@ from .reportingBatchCommands import Progress
 from .reportingBatchCommands import Remark
 from .reportingBatchCommands import Stage
 from .reportingBatchCommands import ConfigVarAssign
+from .reportingBatchCommands import ConfigVarPrint
 from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
@@ -48,6 +51,8 @@ from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
 from .subprocessBatchCommands import ShellCommand
 from .subprocessBatchCommands import CUrl
+from .subprocessBatchCommands import ScriptCommand
+from .subprocessBatchCommands import Exec
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
@@ -56,6 +61,9 @@ from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
 from .info_mapBatchCommands import CreateSyncFolders
 
 from .svnBatchCommands import SVNClient
+from .svnBatchCommands import SVNLastRepoRev
+from .svnBatchCommands import SVNCheckout
+from .svnBatchCommands import SVNInfo
 
 if sys.platform == "win32":
     from .batchCommandsWinOnly import WinShortcut
@@ -68,6 +76,7 @@ if sys.platform == "win32":
 
 if sys.platform == "darwin":
     from .batchCommandsMacOnly import CreateSymlink
+    from .batchCommandsMacOnly import RmSymlink
     from .batchCommandsMacOnly import CreateSymlinkFilesInFolder
     from .batchCommandsMacOnly import MacDock
     from .batchCommandsMacOnly import ResolveSymlinkFilesInFolder
@@ -77,7 +86,7 @@ if sys.platform == "darwin":
 from .new_batchCommands import *
 
 
-def EvalShellCommand(action_str, message):
+def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)

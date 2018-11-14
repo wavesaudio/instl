@@ -11,7 +11,7 @@ import ctypes
 import io
 import contextlib
 import filecmp
-import random
+import subprocess
 import string
 from collections import namedtuple
 
@@ -62,44 +62,63 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
     def test_Curl(self):
-        sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
-        with open(sample_file, 'r') as stream:
-            test_data = stream.read()
-        url_from = 'https://www.sample-videos.com/text/Sample-text-file-10kb.txt'
-        to_path = self.pbt.path_inside_test_folder("curl")
-        curl_path = 'curl'
+        #sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
+        #with open(sample_file, 'r') as stream:
+        #    test_data = stream.read()
+        url_from = 'https://en.wikipedia.org/wiki/Static_web_page'
+        to_path = self.pbt.path_inside_test_folder("Static_web_page")
+
         if sys.platform == 'win32':
             curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        os.makedirs(to_path, exist_ok=True)
-        downloaded_file = os.path.join(to_path, 'Sample.txt')
-        with self.pbt.batch_accum as batchi:
-            batchi += CUrl(url_from, downloaded_file, curl_path)
-        self.pbt.exec_and_capture_output("Download file")
-        with open(downloaded_file, 'r') as stream:
+        else:
+            curl_path = shutil.which("curl")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
+        self.pbt.exec_and_capture_output()
+
+        with open(to_path, 'r') as stream:
             downloaded_data = stream.read()
-        self.assertEqual(test_data, downloaded_data)
+        self.assertIn("A static web page", downloaded_data)
 
     def test_ShellCommand_repr(self):
+        list_of_objs = list()
+        list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
-            obj = ShellCommand("do something", ignore_all_errors=ignore_all_errors)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+            for l in list_of_error_to_ignore_lists:
+                list_of_objs.append(ShellCommand("do something", ignore_all_errors=ignore_all_errors, ignore_specific_exit_codes=l))
 
-            obj = ShellCommand("do something", "with message", ignore_all_errors=ignore_all_errors)
-            obj_recreated = eval(repr(obj))
-            diff_explanation = obj.explain_diff(obj_recreated)
-            self.assertEqual(obj, obj_recreated, f"ShellCommand.repr did not recreate ShellCommand object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_ShellCommand(self):
         pass
+
+    def test_ShellCommand_ignore_specific_exit_codes(self):
+        # test that exception from exit code is suppressed with ignore_specific_exit_codes
+        with self.pbt.batch_accum as batchi:
+            batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(19,))
+        self.pbt.exec_and_capture_output()
+
+        # test that exception from exit code is not suppressed when not in ignore_specific_exit_codes
+        self.pbt.batch_accum.clear()
+        with self.pbt.batch_accum as batchi:
+            batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
+        self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
+
+    def test_ScriptCommand_repr(self):
+        list_of_objs = list()
+        list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
+        for ignore_all_errors in (True, False):
+            for l in list_of_error_to_ignore_lists:
+                list_of_objs.append(ScriptCommand("do something", ignore_all_errors=ignore_all_errors, ignore_specific_exit_codes=l))
+
+        self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_ShellCommands_repr(self):
         pass
 
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
-        self.assertFalse(batches_dir.exists(), f"{self.pbt.which_test}: {batches_dir} should not exist before test")
         # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
         #     shell_command_010_184()
         if sys.platform == 'darwin':
@@ -128,11 +147,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
-        self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
         ls_output = self.pbt.path_inside_test_folder("ls.out.txt")
-        self.assertFalse(ls_output.exists(), f"{self.pbt.which_test}: {ls_output} should not exist before test")
         ps_output = self.pbt.path_inside_test_folder("ps.out.txt")
-        self.assertFalse(ps_output.exists(), f"{self.pbt.which_test}: {ps_output} should not exist before test")
 
         with open(test_file, "w") as wfd:
             if sys.platform == 'darwin':
@@ -167,14 +183,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ParallelRun_no_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
-        self.assertFalse(test_file.exists(), f"{self.pbt.which_test}: {test_file} should not exist before test")
-
         zip_input = self.pbt.path_inside_test_folder("zip_in")
-        self.assertFalse(zip_input.exists(), f"{self.pbt.which_test}: {zip_input} should not exist before test")
         zip_output = self.pbt.path_inside_test_folder("zip_in.bz2")
-        self.assertFalse(zip_output.exists(), f"{self.pbt.which_test}: {zip_output} should not exist before test")
         zip_input_copy = self.pbt.path_inside_test_folder("zip_in.copy")
-        self.assertFalse(zip_input_copy.exists(), f"{self.pbt.which_test}: {zip_input_copy} should not exist before test")
 
         # create a file to zip
         with open(zip_input, "w") as wfd:
@@ -184,14 +195,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         with open(test_file, "w") as wfd:
             if sys.platform == 'darwin':
                 wfd.write(f"""# first, do the zip\n""")
-                wfd.write(f"""bzip2 --compress {zip_input}\n""")
+                wfd.write(f"""bzip2 --compress -f {zip_input}\n""")
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             # save a copy of the input file
-            sub_bc += CopyFileToFile(zip_input, zip_input_copy)
+            sub_bc += CopyFileToFile(zip_input, zip_input_copy, hard_links=False)
             # zip the input file, bzip2 will remove it
             sub_bc += ParallelRun(test_file, False)
 

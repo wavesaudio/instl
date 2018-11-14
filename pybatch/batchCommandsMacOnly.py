@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from typing import List
+
 import logging
 log = logging.getLogger()
 
@@ -20,16 +22,11 @@ class MacDock(PythonBatchCommandBase):
         self.restart_the_doc = restart_the_doc
         self.remove = remove
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        param_list = list()
-        param_list.append(self.named__init__param('path_to_item', self.path_to_item))
-        param_list.append(self.named__init__param('label_for_item', self.label_for_item))
-        param_list.append(self.named__init__param('restart_the_doc', self.restart_the_doc))
-        param_list.append(self.named__init__param('remove', self.remove))
-        the_repr += ", ".join(param_list)
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item, None))
+        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item, None))
+        all_args.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
+        all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
     def progress_msg_self(self) -> str:
         return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
@@ -50,7 +47,7 @@ class MacDock(PythonBatchCommandBase):
                     log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
-                resolved_path_to_item = utils.ResolvedPath(self.path_to_item)
+                resolved_path_to_item = os.fspath(utils.ResolvedPath(self.path_to_item))
                 dock_util_command.append(resolved_path_to_item)
                 if self.label_for_item:
                     dock_util_command.append("--label")
@@ -86,6 +83,34 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
             pass
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
         path_to_symlink.symlink_to(path_to_target)
+
+
+class RmSymlink(PythonBatchCommandBase, essential=True):
+    """remove a symlink not it's target
+    - It's OK is the symlink or the target does not exist
+    - but exception will be raised if path is a folder
+    """
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path: os.PathLike = path
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+
+    def progress_msg_self(self):
+        return f"""Remove symlink '{self.path}'"""
+
+    def __call__(self, *args, **kwargs):
+        expanded_path = os.path.expandvars(self.path)
+        unresolved_path = Path(expanded_path)
+        self.doing = f"""removing symlink '{unresolved_path}'"""
+        if unresolved_path.is_symlink():
+            unresolved_path.unlink()
+        elif unresolved_path.exists():
+            log.warning(f"RmSymlink, not a symlink: {unresolved_path}")
+        else:
+            log.warning(f"RmSymlink, not found: {unresolved_path}")
 
 
 class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):

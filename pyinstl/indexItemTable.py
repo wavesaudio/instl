@@ -3,6 +3,7 @@
 
 import os
 import sqlite3
+import io
 from collections import OrderedDict
 from collections import defaultdict
 import re
@@ -12,7 +13,8 @@ import logging
 log = logging.getLogger()
 
 import utils
-from configVar import config_vars
+from aYaml import YamlReader
+from configVar import config_vars, private_config_vars
 
 # todo: these were copied from the late Install Item.py and should find a better home
 os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
@@ -489,87 +491,104 @@ class IndexItemsTable(object):
                       "not_inherit_details": utils.quoteme_single_list_for_sql(self.not_inherit_details)})
         return query_text
 
-    def read_item_details_from_node(self, the_iid, the_node, the_os='common') -> List:
+    def read_item_details_from_node(self, the_iid, the_node, the_os='common', **kwargs) -> List:
         details = list()
         # go through the raw yaml nodes instead of doing "for detail_name in the_node".
         # this is to overcome index.yaml with maps that have two keys with the same name.
         # Although it's not valid yaml some index.yaml versions have this problem.
         for detail_node in the_node.value:
-            detail_name = detail_node[0].value
-            if detail_name in IndexItemsTable.os_names_to_num:
-                os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name)
-                details.extend(os_specific_details)
-            elif detail_name == 'actions':
-                actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os)
-                details.extend(actions_details)
-            elif detail_name.startswith("define"):
-                self.defines_for_iids[the_iid] = detail_node[1]
-                self.defines_for_iids[the_iid].tag = "!"+detail_name
-            else:
-                for details_line in detail_node[1]:
-                    tag = details_line.tag if details_line.tag[0] == '!' else None
-                    value = details_line.value
-                    if detail_name in ("install_sources", "previous_sources") and tag is None:
-                        tag = '!dir'
-                    elif detail_name == "guid":
-                        value = value.lower()
-
-                    if detail_name == "install_sources":
-                        if value.startswith('/'):  # absolute path
-                            new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
-                                            detail_name, value[1:],tag)
-                            details.append(new_detail)
-                        else:  # relative path
-                            # because 'common' is in both groups this will create 2 index_item_detail_t
-                            # if OS is 'common', and 1 otherwise
-                            count_insertions = 0
-                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
-                                             ('common', 'Win', 'Win32', 'Win64')):
-                                if the_os in os_group:
-                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
-                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
-                                    new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
-                                                    detail_name, "/".join((path_prefix_os, value)), tag)
-                                    details.append(new_detail)
-                                    count_insertions += 1
-                            assert count_insertions < 3, f"count_insertions: {count_insertions}"
+            with kwargs['node-stack'](detail_node):
+                detail_name = detail_node[0].value
+                with kwargs['node-stack'](detail_node[1]):
+                    if detail_name in IndexItemsTable.os_names_to_num:
+                        os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name, **kwargs)
+                        details.extend(os_specific_details)
+                    elif detail_name == 'actions':
+                        actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os, **kwargs)
+                        details.extend(actions_details)
+                    elif detail_name.startswith("define"):
+                        self.defines_for_iids[the_iid] = detail_node[1]
+                        self.defines_for_iids[the_iid].tag = "!"+detail_name
                     else:
-                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
-                        details.append(new_detail)
+                        for details_line in detail_node[1]:
+                            with kwargs['node-stack'](details_line):
+                                tag = details_line.tag if details_line.tag[0] == '!' else None
+                                value = details_line.value
+                                if detail_name in ("install_sources", "previous_sources") and tag is None:
+                                    tag = '!dir'
+                                elif detail_name == "guid":
+                                    value = value.lower()
+
+                                if detail_name == "install_sources":
+                                    if value.startswith('/'):  # absolute path
+                                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
+                                                        detail_name, value[1:],tag)
+                                        details.append(new_detail)
+                                    else:  # relative path
+                                        # because 'common' is in both groups this will create 2 index_item_detail_t
+                                        # if OS is 'common', and 1 otherwise
+                                        count_insertions = 0
+                                        for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
+                                                         ('common', 'Win', 'Win32', 'Win64')):
+                                            if the_os in os_group:
+                                                item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                                path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                                assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
+                                                new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
+                                                                detail_name, "/".join((path_prefix_os, value)), tag)
+                                                details.append(new_detail)
+                                                count_insertions += 1
+                                        assert count_insertions < 3, f"count_insertions: {count_insertions}"
+                                else:
+                                    new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
+                                    details.append(new_detail)
         return details
 
-    def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode) -> ((str, bool), List):
+    def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode, **kwargs) -> ((str, bool), List):
         item = (the_iid, True)
-        original_details = self.read_item_details_from_node(the_iid, the_node)
+        original_details = self.read_item_details_from_node(the_iid, the_node, **kwargs)
         return item, original_details
 
     template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
-    def read_index_node(self, a_node: yaml.MappingNode) -> None:
+    def read_index_node_helper(self, a_node: yaml.MappingNode, index_items: List, items_details: List, **kwargs) -> None:
+        """ read index node to index_items+items_details lists, but do not commit to DB
+            Helps read_index_node read template definitions without intermediate commits
+            :param **kwargs:
+        """
+        for IID in a_node:
+            template_match = self.template_re.match(IID)
+            with kwargs['node-stack'](a_node[IID]):
+                if template_match:
+                    node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                    self.read_index_node_helper(node, index_items, items_details, **kwargs)
+                else:
+                    item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
+                    index_items.append(item)
+                    items_details.extend(original_item_details)
+
+    def read_index_node(self, a_node: yaml.MappingNode, **kwargs) -> None:
+        if bool(config_vars.get("DEBUG_INDEX_DB", False)):
+            print("DEBUG_INDEX_DB is true reading index one by one")
+            self.read_index_node_one_by_one(a_node)
+            return
+
+        index_items = list()
+        items_details = list()
+
+        self.read_index_node_helper(a_node, index_items, items_details, **kwargs)
+
         insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
                                                                   detail_name, detail_value, tag)
                                                                   VALUES(?,?,?,?,?,?)"""
-        index_items = list()
-        items_details = list()
-        for IID in a_node:
-            template_match = self.template_re.match(IID)
-            if template_match:
-                node = self.read_index_template_node(template_match, a_node[IID])
-                self.read_index_node(node)
-            else:
-                item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-                index_items.append(item)
-                items_details.extend(original_item_details)
-
         with self.db.transaction() as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
             curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
 
-    def read_index_node_one_by_one(self, a_node: yaml.MappingNode) -> None:
+    def read_index_node_one_by_one(self, a_node: yaml.MappingNode, **kwargs) -> None:
         """ for debugging problems with reading index.yaml use read_index_node_one_by_one instead of read_index_node"""
         insert_item_q =        """INSERT INTO index_item_t(iid, from_index) VALUES(?, ?)"""
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
@@ -577,53 +596,60 @@ class IndexItemsTable(object):
                                                                   VALUES(?,?,?,?,?,?)"""
         for IID in a_node:
             try:
-                index_items = list()
-                items_details = list()
-                template_match = self.template_re.match(IID)
-                if template_match:
-                    node = self.read_index_template_node(template_match, a_node[IID])
-                    self.read_index_node_one_by_one(node)
-                else:
-                    item, original_item_details = self.item_from_index_node(IID, a_node[IID])
-                    index_items.append(item)
-                    items_details.extend(original_item_details)
+                with kwargs['node-stack'](a_node[IID]):
+                    index_items = list()
+                    items_details = list()
 
-                with self.db.transaction() as curs:
-                    curs.executemany(insert_item_q, index_items)
-                    curs.executemany(insert_item_detail_q, items_details)
-                    curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
-                    curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
+                    template_match = self.template_re.match(IID)
+                    if template_match:
+                        node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                        self.read_index_node_helper(node, index_items, items_details, **kwargs)
+                    else:
+                        item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
+                        index_items.append(item)
+                        items_details.extend(original_item_details)
+
+                    with self.db.transaction() as curs:
+                        curs.executemany(insert_item_q, index_items)
+                        curs.executemany(insert_item_detail_q, items_details)
+                        curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
+                        curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
             except Exception as ex:
                 print(f"failed reading {IID}: {ex}")
                 raise
 
-    def read_index_template_node(self, template_match, instances_node):
-        yaml_text = "--- !index\n"
+    def read_index_template_node(self, template_match, instances_node, **kwargs):
         template_name = template_match['template_name']
         template_args = template_match['template_args'].split(',')
         template_args = [a.strip() for a in template_args]
         template_text = config_vars[template_name].raw(join_sep="")
+        yaml_text = "--- !index\n"
         for instance_node in instances_node.value:
-            if instance_node.isSequence():
-                with config_vars.push_scope_context():
-                    arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
-                    for arg, val in arg_values:
-                        config_vars[arg] = val
-                    resolved_instance = config_vars.resolve_str(template_text)
-                    yaml_text += resolved_instance
-                    #print("resolved template for ", arg_values[0][1])
-        #print(yaml_text)
-        out_node = yaml.compose(yaml_text)
+            with kwargs['node-stack'](instance_node):
+                if instance_node.isSequence():
+                    with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
+                        arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
+                        for arg, val in arg_values:
+                            pcf[arg] = val
+                        resolved_instance = pcf.shallow_resolve_str(template_text)
+                        yaml_text += resolved_instance
+                        #print("resolved template for ", arg_values[0][1])
+            #print(yaml_text)
+        yaml_stream = io.StringIO(yaml_text)  # convert the test to stream so 'name' attrib can be set,
+        yaml_stream.name = template_name      # which is useful for error reporting
+        out_node = yaml.compose(yaml_stream)
+        YamlReader.convert_standard_tags(out_node)
         return out_node
 
-    def read_require_node(self, a_node: yaml.MappingNode):
+    def read_require_node(self, a_node: yaml.MappingNode, **kwargs):
         require_items = dict()
         if a_node.isMapping():
             all_iids = self.get_all_iids()
             for IID in a_node:
-                require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
-                if require_details:
-                    require_items[IID] = require_details
+                with kwargs['node-stack'](a_node[IID]):
+                    require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
+                    if require_details:
+                        require_items[IID] = require_details
 
             query_text1 = """
                 INSERT INTO index_item_detail_t
@@ -817,7 +843,22 @@ class IndexItemsTable(object):
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
         if iid_list:
-            if True:  # release code
+            if bool(config_vars.get("DEBUG_INDEX_DB", False)):  # debug code
+                for iid in iid_list:
+                    try:
+                        query_text = f"""
+                            UPDATE index_item_t
+                            SET install_status={new_status}
+                            WHERE iid == "{iid}"
+                            AND install_status={old_status}
+                            AND ignore = 0
+                          """
+                        with self.db.transaction() as curs:
+                            curs.execute(query_text)
+                    except Exception as ex:
+                        print(f"failed change_status_of_iids_to_another_status {iid}: {ex}")
+                        raise
+            else:  # release code
                 query_vars = ((iid,) for iid in iid_list)
                 query_text = f"""
                     UPDATE index_item_t
@@ -828,22 +869,6 @@ class IndexItemsTable(object):
                   """
                 with self.db.transaction() as curs:
                     curs.executemany(query_text, query_vars)
-            if False:  # debug code
-                for iid in iid_list:
-                    try:
-                        query_vars = ((iid,),)
-                        query_text = f"""
-                            UPDATE index_item_t
-                            SET install_status={new_status}
-                            WHERE iid == ?
-                            AND install_status={old_status}
-                            AND ignore = 0
-                          """
-                        with self.db.transaction() as curs:
-                            curs.executemany(query_text, query_vars)
-                    except Exception as ex:
-                        print(f"failed change_status_of_iids_to_another_status {iid}: {ex}")
-                        raise
 
     def change_status_of_iids(self, new_status, iid_list):
         if iid_list:
@@ -858,12 +883,28 @@ class IndexItemsTable(object):
                 curs.execute(query_text)
 
     def change_status_of_all_iids(self, new_status):
-        query_text = """
-            UPDATE index_item_t
-            SET install_status=:new_status
-        """
-        with self.db.transaction() as curs:
-            curs.execute(query_text, {'new_status': new_status})
+
+        if bool(config_vars.get("DEBUG_INDEX_DB", False)):
+            all_iids = self.get_all_iids()
+            for IID in all_iids:
+                try:
+                    query_text = """
+                        UPDATE index_item_t
+                        SET install_status=:new_status
+                        WHERE iid == :IID
+                    """
+                    with self.db.transaction() as curs:
+                        curs.execute(query_text, {'new_status': new_status, "IID": IID})
+                except Exception as ex:
+                    print("failed change status of {}: {}".format(IID, ex))
+                    raise
+        else:
+            query_text = """
+                UPDATE index_item_t
+                SET install_status=:new_status
+            """
+            with self.db.transaction() as curs:
+                curs.execute(query_text, {'new_status': new_status})
 
     def get_iids_by_status(self, min_status, max_status=None):
         if max_status is None:

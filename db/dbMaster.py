@@ -103,27 +103,31 @@ class DBMaster(object):
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:
+                #self.progress(f"created new db file {self.db_file_path}")
                 self.exec_script_file("create-tables.ddl")
                 self.exec_script_file("init-values.ddl")
                 self.exec_script_file("create-indexes.ddl")
+            else:
+                pass
+                #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
         self.set_db_pragma("user_version", self.top_user_version)
-        #self.__conn.set_authorizer(self.authorizer)
-        #self.__conn.set_progress_handler(self.progress, 8)
+        #self.__conn.set_authorizer(self.authorizer_handler_sqlite3)
+        #self.__conn.set_progress_handler(self.progress_handler_sqlite3, 8)
         self.__conn.row_factory = sqlite3.Row
-        self.__conn.set_trace_callback(self.tracer)
+        self.__conn.set_trace_callback(self.trace_handler_sqlite3)
 
-    def authorizer(self, *args, **kwargs):
+    def authorizer_handler_sqlite3(self, *args, **kwargs):
         """ callback for sqlite3.connection.set_authorizer"""
         return sqlite3.SQLITE_OK
 
-    def progress(self):
+    def progress_handler_sqlite3(self):
         """ callback for sqlite3.connection.set_progress_handler"""
         self.logger.debug('DB progress')
 
-    def tracer(self, statement):
+    def trace_handler_sqlite3(self, statement):
         """ callback for sqlite3.connection.set_trace_callback"""
         self.logger.debug('DB statement %s' % (statement))
 

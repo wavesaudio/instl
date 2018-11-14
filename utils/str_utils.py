@@ -43,34 +43,58 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
-no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
+#no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
+escape_quotations_re = re.compile("['\"\\\\]")
+def escape_quotations(simple_string):
+    """ escape the characters ', '. \ """
+    retVal = escape_quotations_re.sub(lambda match_obj: '\\'+match_obj.group(0), simple_string)
+    return retVal
 
 
 def quoteme_raw_string(simple_string):
     simple_string = os.fspath(simple_string)
-    quote_mark = '"'
-    if quote_mark in simple_string:
-        quote_mark = "'"
-        if quote_mark in simple_string:
-            quote_mark = quote_mark * 3
-            if quote_mark in simple_string:
-                raise Exception("Oy Vey, how to quote this awful string ->{simple_string}<-")
 
-    # multiline strings need triple quotation
-    if len(quote_mark) == 1 and "\n" in simple_string:
-        quote_mark = quote_mark * 3
+    possible_quote_marks = ('"', "'", '"""', "'''")
+    if "\n" in simple_string:  # multiline strings need triple quotation
+        possible_quote_marks = ('"""', "'''")
 
-    retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+    for quote_mark in possible_quote_marks:
+        # 1st priority is to create a raw string. Strings that end with the quotation mark cannot be raw.
+        if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
+            retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+            break
+    else:
+        # if all possible quotations marks are in the string do proper escaping and return non-raw string
+        retVal = "".join(('"', escape_quotations(simple_string), '"'))
+
     return retVal
+
+
+types_that_do_not_need_quotation = (int, float, bool)
 
 
 def quoteme_raw_if_string(some_thing):
-    if isinstance(some_thing, str):
-        return quoteme_raw_string(some_thing)
+    if not isinstance(some_thing, types_that_do_not_need_quotation):
+        return quoteme_raw_string(str(some_thing))
     else:
         return str(some_thing)
-    return retVal
 
+def quoteme_raw_by_type(some_thing):
+    retVal = None
+    if isinstance(some_thing, types_that_do_not_need_quotation):
+        retVal = str(some_thing)
+    elif isinstance(some_thing, str):
+        retVal = quoteme_raw_string(some_thing)
+    elif isinstance(some_thing, os.PathLike):
+        retVal = quoteme_raw_by_type(os.fspath(some_thing))
+    elif isinstance(some_thing, collections.Sequence):
+       retVal = "".join(("[", ",".join(quoteme_raw_by_type(t) for t in some_thing),"]"))
+    elif isinstance(some_thing, collections.Mapping):
+        item_strs = list()
+        for k, v in sorted(some_thing.items()):
+            item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v)}""")
+        retVal = "".join(("{", ",".join(item_strs),"}"))
+    return retVal
 
 def quoteme_raw_dict(dict_of_things: Dict):
     item_strs = list()
@@ -164,3 +188,13 @@ def str_to_bool_int(the_str):
 def is_iterable_but_not_str(obj_to_check):
     retVal = hasattr(obj_to_check, '__iter__') and not isinstance(obj_to_check, str)
     return retVal
+
+
+if __name__ == "__main__":
+    #print(quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"'''))
+    #print(quoteme_raw_string("""single-single(') triple-single(''') single-double(") single-triple(\"\"\")"""))
+
+    rere = re.compile("['\"\\\\]")
+    s = r"""A"B'C'''D'\\EFG"""
+    rs = rere.sub(lambda matchobj: '\\'+matchobj.group(0), s)
+    print(rs)

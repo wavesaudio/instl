@@ -27,23 +27,30 @@ class If(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        condition = self.condition
-        if isinstance(condition, str):
-            condition = eval(condition)
+        condition_obj = self.condition
+        if isinstance(condition_obj, str):
+            condition = eval(condition_obj)
+        else:
+            condition = condition_obj
 
         if callable(condition):
-            condition = condition()
+            condition_result = condition()
         else:
-            condition = bool(condition)
+            condition_result = bool(condition)
 
-        if condition:
-            if callable(self.if_true):
-                self.doing = f"""condition is True calling '{repr(self.if_true)}'"""
-                self.if_true()
+        if condition_result:
+            to_do_obj = self.if_true
         else:
-            if callable(self.if_false):
-                self.doing = f"""condition is False calling '{repr(self.if_false)}'"""
-                self.if_false()
+            to_do_obj = self.if_false
+
+        if callable(to_do_obj):
+            self.doing = f"""condition is {condition_result} calling '{repr(to_do_obj)}'"""
+            if isinstance(to_do_obj, PythonBatchCommandBase) and to_do_obj.is_context_manager:
+                to_do_obj.own_progress_count = 0
+                with to_do_obj as it:
+                    it()
+            else:
+                to_do_obj()
 
 
 class IsFile(object):
@@ -102,4 +109,41 @@ class IsSymlink(object):
 
     def __eq__(self, other):
         retVal = self.file_path == other.file_path
+        return retVal
+
+
+class IsEq(object):
+    """ return True if left_thing equals right_thing
+        can be used as 'condition' for If
+    """
+    def __init__(self, left_thing, right_thing):
+        self.left_thing = left_thing
+        self.right_thing = right_thing
+
+    def __repr__(self):
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_if_string(self.left_thing)}, {utils.quoteme_raw_if_string(self.right_thing)})'''
+        return the_repr
+
+    def __call__(self):
+        left = self.left_thing
+        if isinstance(left, str):
+            left = os.path.expandvars(left)
+
+        right = self.right_thing
+        if isinstance(right, str):
+            right = os.path.expandvars(right)
+
+        retVal = left == right
+        return retVal
+
+
+class IsNotEq(IsEq):
+    """ return True if left_thing is not equals to right_thing
+        can be used as 'condition' for If
+    """
+    def __init__(self, left_thing, right_thing):
+        super().__init__(left_thing, right_thing)
+
+    def __call__(self):
+        retVal = not super().__call__()
         return retVal

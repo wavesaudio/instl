@@ -16,6 +16,7 @@
 import os
 import io
 import yaml
+from contextlib import contextmanager
 import urllib.error
 
 from typing import Callable, Dict, List, Tuple
@@ -23,7 +24,31 @@ import logging
 log = logging.getLogger()
 
 import utils
+import configVar
 
+
+class YamlNodeStack(object):
+    """ keep a stack of currently read yaml nodes
+        so in case of error exact location can be reported
+    """
+    def __init__(self):
+        self.node_stack = list()
+
+    def __str__(self):
+        return str(self.node_stack)
+
+    @contextmanager
+    def __call__(self, *args, **kwargs):
+        self.node_stack.append(args[0])
+        yield
+        self.node_stack.pop()
+
+    @property
+    def start_mark(self):
+        if len(self.node_stack) > 0:
+            return str(self.node_stack[-1].start_mark)
+        else:
+            return "unknown"
 
 class YamlReader(object):
     def __init__(self) -> None:
@@ -33,6 +58,10 @@ class YamlReader(object):
         self.file_read_stack: List[str] = list()
         self.exception_printed = False
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
+        configVar.config_vars.setdefault("READ_YAML_FILES", None)
+
+    def progress(self, message: str) -> None:
+        pass
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
@@ -63,6 +92,7 @@ class YamlReader(object):
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(os.fspath(file_path))
                 buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
+                configVar.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
                 prog_message = f"reading {os.fspath(file_path)}"
                 if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
                     prog_message += f" [{kwargs['original-path-to-file']}]"
@@ -70,8 +100,10 @@ class YamlReader(object):
                     prog_message += f" [{actual_file_path}]"
                 self.progress(prog_message)
                 buffer = io.StringIO(buffer)     # turn text to a stream
-                kwargs['path-to-file'] = os.fspath(file_path)
+                buffer.name = actual_file_path   # so yaml parser knows the name of the file for error report
+                kwargs['path-to-file'] = os.fspath(actual_file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
+                kwargs['node-stack'] = YamlNodeStack()
                 self.read_yaml_from_stream(buffer, *args, **kwargs)
                 self.file_read_stack.pop()
                 # now read the __post tags if any
@@ -99,12 +131,18 @@ class YamlReader(object):
             if not self.exception_printed:      # avoid recursive printing of error message
                 read_file_history = "\n->\n".join(self.file_read_stack)
                 log.error(f"""Exception reading file: {read_file_history}""")
+                kwargs['exception'] = ex
+                self.handle_yaml_read_error(**kwargs)
                 self.exception_printed = True
             raise
 
+    def handle_yaml_read_error(self, **kwargs):
+        pass
+
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
-            self.read_yaml_from_node(a_node, *args, **kwargs)
+            with kwargs['node-stack'](a_node):
+                self.read_yaml_from_node(a_node, *args, **kwargs)
 
     def read_yaml_from_node(self, the_node, *args, **kwargs):
         YamlReader.convert_standard_tags(the_node)

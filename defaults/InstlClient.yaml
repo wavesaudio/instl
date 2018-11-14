@@ -21,8 +21,6 @@ REQUIRED_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/required_info_map.txt
 TO_SYNC_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/to_sync_info_map.txt
 LOCAL_REPO_REV_BOOKKEEPING_DIR: $(LOCAL_REPO_BOOKKEEPING_DIR)/$(REPO_REV)
 LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH: $(LOCAL_REPO_REV_BOOKKEEPING_DIR)/remote_info_map.txt
-XCOPY_EXCLUDE_FILE_NAME: xcopy-exclude.txt
-XCOPY_EXCLUDE_FILE_PATH: $(LOCAL_REPO_SYNC_DIR)/$(XCOPY_EXCLUDE_FILE_NAME)
 
 # VENDOR_DIR_NAME should be overridden by the index.yaml file to reflect the specific vendor that created the install
 VENDOR_DIR_NAME: ACME
@@ -53,6 +51,11 @@ NO_HARD_LINK_PATTERNS:
     - "*Info.xml"
     - "*Info.plist"
 
+# during copy stage, if pathlib.Path.match returns true for one of these - destination file (if exist) flags such as hidden, system, read-only will be removed
+NO_FLAGS_PATTERNS:
+    - "desktop.ini"
+    - "*.ico"
+
 # during copy stage, if one of these files exists in both source and destination and has same checksum, the whole dir will not be copied
 AVOID_COPY_MARKERS:
     - Info.xml
@@ -82,3 +85,14 @@ SPECIAL_BUILD_IN_IIDS:
 
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
+
+--- !define_Mac
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - .DS_Store
+# temp disable - Icon\x0D does not render properly in python batch
+#    - "Icon\x0D"
+
+--- !define_Win
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - desktop.ini
+    - Folder.ico

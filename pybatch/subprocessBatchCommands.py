@@ -1,4 +1,5 @@
 import os
+import sys
 import stat
 import abc
 from pathlib import Path
@@ -11,30 +12,72 @@ import utils
 from .baseClasses import PythonBatchCommandBase
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True):
-    def __init__(self, **kwargs):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True, kwargs_defaults={"in_file": None, "out_file": None, "err_file": None}):
+    def __init__(self, ignore_specific_exit_codes=(),  **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
+        if isinstance(ignore_specific_exit_codes, int):
+            self.ignore_specific_exit_codes = (ignore_specific_exit_codes,)
+        else:
+            self.ignore_specific_exit_codes = ignore_specific_exit_codes
         self.shell = kwargs.get('shell', False)
+        self.script = kwargs.get('script', False)
         self.stdout = ''
         self.stderr = ''
 
     @abc.abstractmethod
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
-        run_args = self.create_run_args()
+        run_args = list()
+        self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        if self.shell:
-            run_args = " ".join(run_args)
-        completed_process = subprocess.run(run_args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=self.shell)
-        self.stdout = utils.unicodify(completed_process.stdout)
-        self.stderr = utils.unicodify(completed_process.stderr)
-        #log.debug(completed_process.stdout)
+        if self.script:
+            self.shell = True
+            assert len(run_args) == 1
+        elif self.shell and len(run_args) == 1:
+            if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
+                #run_args = shlex.split(run_args[0])
+                #run_args = [p.replace(" ", r"\ ") for p in run_args]
+                #run_args = " ".join(run_args)
+                run_args = run_args[0]
+            elif sys.platform == 'win32':
+                run_args = run_args[0]
+        if self.out_file:
+            out_stream = open(self.out_file, "w")
+        else:
+            out_stream = subprocess.PIPE
+        if self.in_file:
+            in_stream = open(self.in_file, "r")
+        else:
+            in_stream = None
+        if self.err_file:
+            err_stream = open(self.err_file, "w")
+        else:
+            err_stream = subprocess.PIPE
+        completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
+
+        if self.in_file:
+            in_stream.close()
+
+        if self.out_file is None:
+            local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+        else:
+            out_stream.close()
+
+        if self.err_file is None:
+            local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
+        else:
+            err_stream.close()
+
         completed_process.check_returncode()
+        self.handle_completed_process(completed_process)
+
+    def handle_completed_process(self, completed_process):
+        pass
 
     def log_result(self, log_lvl, message, exc_val):
         if self.stderr:
@@ -43,6 +86,13 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
+
+    def should_ignore__exit__exception(self, exc_type, exc_val, exc_tb):
+        retVal = super().should_ignore__exit__exception(exc_type, exc_val, exc_tb)
+        if not retVal:
+            if exc_type is subprocess.CalledProcessError:
+                retVal = exc_val.returncode in self.ignore_specific_exit_codes
+        return retVal
 
 
 class CUrl(RunProcessBase):
@@ -68,27 +118,33 @@ class CUrl(RunProcessBase):
         all_args.append( f"""retry_delay={self.retry_delay}""")
 
     def progress_msg_self(self):
-        return f"""Download '{src}' to '{self.trg}'"""
+        return f"""Download '{self.src}' to '{self.trg}'"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
-        resolved_trg_path = utils.ResolvedPath(self.trg)
-        run_args = [resolved_curl_path, "--insecure", "--fail", "--raw", "--silent", "--show-error", "--compressed",
-                    "--connect-timeout", self.connect_time_out, "--max-time", self.max_time,
-                    "--retry", self.retires, "--retry-delay", self.retry_delay,
-                    "-o", resolved_trg_path, self.src]
+        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        run_args.extend([resolved_curl_path,
+                         "--insecure",
+                         "--fail",
+                         "--raw",
+                         "--silent",
+                         "--show-error",
+                         "--connect-timeout", self.connect_time_out,
+                         "--max-time", self.max_time,
+                         "--retry", self.retires,
+                         "--retry-delay", self.retry_delay,
+                         "-o", resolved_trg_path, self.src])
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
-        return run_args
 
 
 class ShellCommand(RunProcessBase, essential=True):
     """ run a single command in a shell """
 
-    def __init__(self, shell_command, message=None, **kwargs):
+    def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["shell"] = True
-        super().__init__(**kwargs)
+        super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
         self.shell_command = shell_command
         self.message = message
 
@@ -96,6 +152,11 @@ class ShellCommand(RunProcessBase, essential=True):
         all_args.append(utils.quoteme_raw_string(self.shell_command))
         if self.message:
             all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+        if self.ignore_specific_exit_codes:
+            if len(self.ignore_specific_exit_codes,) == 1:
+                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+            else:
+                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
 
     def progress_msg_self(self):
         if self.message:
@@ -103,10 +164,16 @@ class ShellCommand(RunProcessBase, essential=True):
         else:
             return f"""running {self.shell_command}"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         resolved_shell_command = os.path.expandvars(self.shell_command)
-        the_lines = [resolved_shell_command]
-        return the_lines
+        run_args.append(resolved_shell_command)
+
+
+class ScriptCommand(ShellCommand):
+    """ run a shell script (not a specific binary)"""
+    def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
+        kwargs["script"] = True
+        super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
 
 
 class ShellCommands(PythonBatchCommandBase, essential=True):
@@ -131,7 +198,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
 
-    def create_run_args(self):
+    def get_run_args(self, run_args) -> None:
         the_lines = self.shell_command_list
         if isinstance(the_lines, str):
             the_lines = [the_lines]
@@ -146,9 +213,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
             batch_file.write(commands_text)
         os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
-        run_args = list()
         run_args.append(batch_file.name)
-        return run_args
 
     def __call__(self, *args, **kwargs):
         # TODO: optimize by calling all the commands at once
@@ -188,3 +253,29 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+
+
+class Exec(PythonBatchCommandBase, essential=True):
+    def __init__(self, python_file, config_file=None, reuse_db=True, **kwargs):
+        super().__init__(**kwargs)
+        self.python_file = python_file
+        self.config_file = config_file
+        self.reuse_db = reuse_db
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.python_file)))
+        if self.config_file is not None:
+            all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        if not self.reuse_db:
+            all_args.append(f"reuse_db={self.reuse_db}")
+
+    def progress_msg_self(self):
+        return f"""Executing '{self.python_file}'"""
+
+    def __call__(self, *args, **kwargs):
+        if self.config_file is not None:
+            self.read_yaml_file(self.config_file)
+        with utils.utf8_open(self.python_file, 'r') as rfd:
+            py_text = rfd.read()
+            py_compiled = compile(py_text, self.python_file, mode='exec', flags=0, dont_inherit=False, optimize=2)
+            exec(py_compiled, globals())

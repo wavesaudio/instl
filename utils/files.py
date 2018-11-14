@@ -9,6 +9,7 @@ import stat
 import fnmatch
 from contextlib import contextmanager
 import ssl
+import subprocess
 from pathlib import Path
 import logging
 log = logging.getLogger()
@@ -510,5 +511,31 @@ def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """
-    resolved_path = Path(os.path.expandvars(path_to_resolve)).resolve()
+    expanded_path = os.path.expandvars(path_to_resolve)
+    path_path = Path(expanded_path)
+    resolved_path = path_path.resolve()
     return resolved_path
+
+
+def get_main_drive_name():
+    retVal = None
+    try:
+        if sys.platform == 'darwin':
+            for volume in os.listdir("/Volumes"):
+                volume_path = Path("/Volumes", volume)
+                if volume_path.is_symlink():
+                    resolved_volume_path = volume_path.resolve()
+                    if str(resolved_volume_path) == "/":
+                        retVal = volume
+                        break
+            else:
+                apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
+                completed_process = subprocess.run(apple_script, stdout=subprocess.PIPE, shell=True)
+                retVal = utils.unicodify(completed_process.stdout)
+                retVal = retVal.strip("\n:")
+        elif sys.platform == 'win32':
+            import win32api
+            retVal = win32api.GetVolumeInformation("C:\\")[0]
+    except:
+        pass
+    return retVal

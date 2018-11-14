@@ -83,7 +83,8 @@ class InstlClient(InstlInstanceBase):
 
         self.resolve_defined_paths()
         self.batch_accum.set_current_section('begin')
-        self.progress("calculate install items")
+        command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove', 'read_yaml': 'yaml', "report_versions": "report"}
+        self.progress(f"""calculate {command_title.get(self.fixed_command, "install")} items""")
         self.calculate_install_items()
         self.read_defines_for_active_iids()
         #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
@@ -118,13 +119,12 @@ class InstlClient(InstlInstanceBase):
         if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
             self.read_defaults_file(str(config_vars["REPO_TYPE"]))
 
-        if str(config_vars.get("REPO_TYPE", "URL")) == "P4":
-            if "P4_SYNC_DIR" not in config_vars:
-                if "SYNC_BASE_URL" in config_vars:
-                    p4_sync_dir = utils.P4GetPathFromDepotPath(config_vars["SYNC_BASE_URL"].str())
-                    config_vars["P4_SYNC_DIR", "from SYNC_BASE_URL"] = p4_sync_dir
         # AUXILIARY_IIDS are iids that are not real products such as UNINSTALL_AS_... iids
-        self.auxiliary_iids.extend(list(config_vars["AUXILIARY_IIDS"]))
+        if "AUXILIARY_IIDS" not in config_vars:
+            log.warning(f"could not find configVar 'AUXILIARY_IIDS'")
+        self.auxiliary_iids.extend(list(config_vars.get("AUXILIARY_IIDS", [])))
+
+        config_vars["__MAIN_DRIVE_NAME__"] = utils.get_main_drive_name()
 
     def repr_for_yaml(self, what=None):
         """ Create representation of self suitable for printing as yaml.
@@ -288,11 +288,12 @@ class InstlClient(InstlInstanceBase):
                 name_and_version = self.name_and_version_for_iid(iid=IID)
                 action_description = self.action_type_to_progress_message[action_type]
                 previous_iid = IID
-            actions = config_vars.resolve_str_to_list(an_action)
-            for action in actions:
-                actions_of_iid_count += 1
-                message = f"{name_and_version} {action_description} {actions_of_iid_count}"
-                retVal += EvalShellCommand(action, message)
+            if an_action:  # ~ was specified in yaml
+                actions = config_vars.resolve_str_to_list(an_action)
+                for action in actions:
+                    actions_of_iid_count += 1
+                    message = f"{name_and_version} {action_description} {actions_of_iid_count}"
+                    retVal += EvalShellCommand(action, message)
         return retVal
 
     def create_require_file_instructions(self):
@@ -468,18 +469,17 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
-        target_folder_path_resolved = config_vars.resolve_str(target_folder_path)
-        if os.path.isdir(target_folder_path_resolved):  # no need to remove previous sources if folder does not exist
+        target_folder_path_resolved = utils.ResolvedPath(config_vars.resolve_str(target_folder_path))
+        if target_folder_path_resolved.is_dir():  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
 
             if len(previous_sources) > 0:
-                retVal += Cd(target_folder_path)
-                # todo: conditional CD - if fails to not do other instructions
-                retVal += Progress(f"remove previous versions {target_folder_path} ...")
+                with retVal.sub_accum(Cd(target_folder_path)) as remove_prev_section:
+                    remove_prev_section += Progress(f"remove previous versions {target_folder_path}")
 
-                for previous_source in previous_sources:
-                    retVal += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
+                    for previous_source in previous_sources:
+                        remove_prev_section += self.create_remove_previous_sources_instructions_for_source(target_folder_path, previous_source)
         return retVal
 
     def create_remove_previous_sources_instructions_for_source(self, folder, source):
@@ -545,7 +545,7 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
-    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal'):
+    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml'):
         from .instlClientReport import InstlClientReport
         retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":
