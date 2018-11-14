@@ -37,7 +37,6 @@ def dos_escape(some_string):
     return retVal
 
 
-# === classes with tests ===
 class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     """ MakeRandomDirs is intended for use during tests - not for production
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
@@ -63,11 +62,7 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     def make_random_dirs_recursive(self, num_levels: int):
         for i_file in range(self.num_files_per_dir):
             random_file_name = ''.join(random.choice(string.ascii_lowercase) for i in range(8))
-            if self.file_size == 0:
-                touch(random_file_name)
-            else:
-                with open(random_file_name, "w") as wfd:
-                    wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+            MakeRandomDataFile(random_file_name, self.file_size)()
         if num_levels > 0:
             for i_dir in range(self.num_dirs_per_level):
                 random_dir_name = ''.join(random.choice(string.ascii_uppercase) for i in range(8))
@@ -495,3 +490,29 @@ class FileSizes(PythonBatchCommandBase, essential=True):
                             file_size = os.path.getsize(full_path)
                             partial_path = full_path[folder_to_scan_name_len:]
                             wfd.write(f"{partial_path}, {file_size}\n")
+
+
+class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
+    """ MakeRandomDataFile is intended for use during tests - not for production
+        Will create a file with random data of the requested size
+    """
+
+    def __init__(self, file_path: int, file_size: int) -> None:
+        super().__init__()
+        self.file_path = file_path
+        self.file_size = file_size
+        if self.file_size < 0:
+            raise ValueError(f"MakeRandomDataFile file_size cannot be negative")
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_path={utils.quoteme_raw_string(os.fspath(self.file_path))}""")
+        all_args.append(f"""file_size={self.file_size}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"create file with {self.file_size} bytes of random data {self.file_path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        with open(self.file_path, "w") as wfd:
+            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+

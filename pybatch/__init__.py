@@ -43,6 +43,7 @@ from .batchCommands import Chmod
 from .batchCommands import Chown
 from .batchCommands import MakeDirs
 from .batchCommands import MakeRandomDirs
+from .batchCommands import MakeRandomDataFile
 from .batchCommands import touch
 from .batchCommands import Touch
 from .batchCommands import Unlock
