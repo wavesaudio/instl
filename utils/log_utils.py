@@ -203,6 +203,7 @@ def setup_file_logging(log_file_path, level=logging.INFO):
         fileLogHandler.set_name(f"(log_file_name)_log_handler")
         formatter = CustomLogFormatter()
         fileLogHandler.setFormatter(formatter)
+        fileLogHandler.addFilter(ParentLogFilter())
         top_logger.addHandler(fileLogHandler)
     fileLogHandler.setLevel(level)
 
@@ -212,7 +213,7 @@ def teardown_file_logging(log_file_path, restore_level):
     top_logger.setLevel(restore_level)
     fileLogHandler = find_file_log_handler(log_file_path)
     if fileLogHandler:
-        fileLogHandler.flush()
+        fileLogHandler.close()
         top_logger.removeHandler(fileLogHandler)
         del fileLogHandler
         os.remove(log_file_path)
