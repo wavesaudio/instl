@@ -7,7 +7,7 @@ from typing import List
 # ToDo: add unwtar ?
 
 
-from .batchCommands import *
+from .fileSystemBatchCommands import *
 log = logging.getLogger()
 
 

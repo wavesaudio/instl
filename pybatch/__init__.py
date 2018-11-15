@@ -36,19 +36,19 @@ from .removeBatchCommands import RemoveEmptyFolders
 from .removeBatchCommands import RmGlob
 from .removeBatchCommands import RmGlobs
 
-from .batchCommands import AppendFileToFile
-from .batchCommands import Cd
-from .batchCommands import ChFlags
-from .batchCommands import Chmod
-from .batchCommands import Chown
-from .batchCommands import MakeDirs
-from .batchCommands import MakeRandomDirs
-from .batchCommands import MakeRandomDataFile
-from .batchCommands import touch
-from .batchCommands import Touch
-from .batchCommands import Unlock
-from .batchCommands import Ls
-from .batchCommands import FileSizes
+from .fileSystemBatchCommands import AppendFileToFile
+from .fileSystemBatchCommands import Cd
+from .fileSystemBatchCommands import ChFlags
+from .fileSystemBatchCommands import Chmod
+from .fileSystemBatchCommands import Chown
+from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeRandomDirs
+from .fileSystemBatchCommands import MakeRandomDataFile
+from .fileSystemBatchCommands import touch
+from .fileSystemBatchCommands import Touch
+from .fileSystemBatchCommands import Unlock
+from .fileSystemBatchCommands import Ls
+from .fileSystemBatchCommands import FileSizes
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
@@ -70,22 +70,22 @@ from .svnBatchCommands import SVNInfo
 from .svnBatchCommands import SVNPropList
 
 if sys.platform == "win32":
-    from .batchCommandsWinOnly import WinShortcut
-    from .batchCommandsWinOnly import BaseRegistryKey
-    from .batchCommandsWinOnly import ReadRegistryValue
-    from .batchCommandsWinOnly import CreateRegistryKey
-    from .batchCommandsWinOnly import CreateRegistryValues
-    from .batchCommandsWinOnly import DeleteRegistryKey
-    from .batchCommandsWinOnly import DeleteRegistryValues
+    from .WinOnlyBatchCommands import WinShortcut
+    from .WinOnlyBatchCommands import BaseRegistryKey
+    from .WinOnlyBatchCommands import ReadRegistryValue
+    from .WinOnlyBatchCommands import CreateRegistryKey
+    from .WinOnlyBatchCommands import CreateRegistryValues
+    from .WinOnlyBatchCommands import DeleteRegistryKey
+    from .WinOnlyBatchCommands import DeleteRegistryValues
 
 if sys.platform == "darwin":
-    from .batchCommandsMacOnly import CreateSymlink
-    from .batchCommandsMacOnly import RmSymlink
-    from .batchCommandsMacOnly import CreateSymlinkFilesInFolder
-    from .batchCommandsMacOnly import MacDock
-    from .batchCommandsMacOnly import ResolveSymlinkFilesInFolder
-    from .batchCommandsMacOnly import SymlinkFileToSymlink
-    from .batchCommandsMacOnly import SymlinkToSymlinkFile
+    from .MacOnlyBatchCommands import CreateSymlink
+    from .MacOnlyBatchCommands import RmSymlink
+    from .MacOnlyBatchCommands import CreateSymlinkFilesInFolder
+    from .MacOnlyBatchCommands import MacDock
+    from .MacOnlyBatchCommands import ResolveSymlinkFilesInFolder
+    from .MacOnlyBatchCommands import SymlinkFileToSymlink
+    from .MacOnlyBatchCommands import SymlinkToSymlinkFile
 
 from .new_batchCommands import *
 

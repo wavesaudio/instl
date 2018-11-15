@@ -12,10 +12,10 @@ import utils
 
 
 from .baseClasses import PythonBatchCommandBase
-from .batchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDirs
 
 from db import DBManager
-from .batchCommands import Chmod
+from .fileSystemBatchCommands import Chmod
 
 """
     batch commands that need access to the db and the info_map table

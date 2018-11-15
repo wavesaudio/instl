@@ -33,7 +33,7 @@ config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 from test_PythonBatchBase import *
 
 
-class TestPythonBatchMain(unittest.TestCase):
+class TestPythonBatchFileSystem(unittest.TestCase):
     def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)

@@ -7,7 +7,7 @@ from configVar import config_vars
 import collections
 import zlib
 
-from .batchCommands import *
+from .fileSystemBatchCommands import *
 from .copyBatchCommands import *
 
 """
