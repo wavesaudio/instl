@@ -121,7 +121,7 @@ class IsEq(object):
         self.right_thing = right_thing
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_if_string(self.left_thing)}, {utils.quoteme_raw_if_string(self.right_thing)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.left_thing)}, {utils.quoteme_raw_if_string(self.right_thing)})'''
         return the_repr
 
     def __call__(self):

@@ -151,11 +151,11 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
     def unnamed__init__param(self, value):
-        value_str = utils.quoteme_raw_if_string(value)
+        value_str = utils.quoteme_raw_by_type(value)
         return value_str
 
     def named__init__param(self, name, value):
-        value_str = utils.quoteme_raw_if_string(value)
+        value_str = utils.quoteme_raw_by_type(value)
         param_repr = f"{name}={value_str}"
         return param_repr
 

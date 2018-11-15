@@ -56,6 +56,7 @@ class TestPythonBatchSVN(unittest.TestCase):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
     def setUp(self):
         self.pbt.setUp()
 
@@ -63,16 +64,9 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.pbt.tearDown()
 
     def test_SVNClient_repr(self):
-
-        if sys.platform != 'darwin':
-            return
         self.pbt.reprs_test_runner(SVNClient("checkout"))
 
     def test_SVNClient(self):
-
-        if sys.platform != 'darwin':
-            return
-
         svn_url = "https://svn.apache.org/repos/asf/subversion/trunk"
         svn_info_out_file = self.pbt.path_inside_test_folder("svn_info.txt")
         self.pbt.batch_accum.clear()
@@ -86,16 +80,9 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertIn(svn_url, downloaded_data)
 
     def test_SVNLastRepoRev_repr(self):
-
-        if sys.platform != 'darwin':
-            return
         self.pbt.reprs_test_runner(SVNLastRepoRev(url="http://svn.apache.org/repos/asf/spamassassin/trunk", reply_config_var="__LAST_REPO_REV__"))
 
     def test_SVNLastRepoRev(self):
-
-        if sys.platform != 'darwin':
-            return
-
         self.pbt.batch_accum.clear()
         #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
         config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
@@ -106,16 +93,9 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertGreater(int(config_vars["__LAST_REPO_REV__"]), 1845907, f"configVar __LAST_REPO_REV__ ({int(config_vars['__LAST_REPO_REV__'])}) was not set to proper value")
 
     def test_SVNCheckout_repr(self):
-
-        if sys.platform != 'darwin':
-            return
         self.pbt.reprs_test_runner(SVNCheckout(url="http://svn.apache.org/repos/asf/spamassassin/trunk", where="somewhere"))
 
     def test_SVNCheckout(self):
-
-        if sys.platform != 'darwin':
-            return
-
         out_file_1 = self.pbt.path_inside_test_folder("out-file-1")
         checkout_folder_1 = self.pbt.path_inside_test_folder("checkout-folder-1")
         some_folder_that_should_be_there_after_checkout_1 = checkout_folder_1.joinpath("powered_by").resolve()
@@ -134,16 +114,9 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertTrue(some_file_that_should_be_there_after_checkout_2.is_file(), f"{self.pbt.which_test}: {some_file_that_should_be_there_after_checkout_2} should exist after test")
 
     def test_SVNInfo_repr(self):
-
-        if sys.platform != 'darwin':
-            return
         self.pbt.reprs_test_runner(SVNInfo(url="http://svn.apache.org/repos/asf/spamassassin/trunk", out_file="somewhere"))
 
     def test_SVNInfo(self):
-
-        if sys.platform != 'darwin':
-            return
-
         info_file = self.pbt.path_inside_test_folder("info-file")
 
         self.pbt.batch_accum.clear()
@@ -152,10 +125,6 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertTrue(info_file.is_file(), f"{self.pbt.which_test}: {info_file} should exist after test")
 
     def test_SVNPropList(self):
-
-        if sys.platform != 'darwin':
-            return
-
         proplist_file = self.pbt.path_inside_test_folder("proplist-file")
 
         self.pbt.batch_accum.clear()
@@ -164,7 +133,4 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.assertTrue(proplist_file.is_file(), f"{self.pbt.which_test}: {proplist_file} should exist after test")
 
     def test_SVNCheckout_repr(self):
-
-        if sys.platform != 'darwin':
-            return
         self.pbt.reprs_test_runner(SVNCheckout(where="here", url="http://svn.apache.org/repos/asf/spamassassin/trunk", out_file="somewhere"))
