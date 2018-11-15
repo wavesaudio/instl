@@ -30,6 +30,8 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 log = logging.getLogger(__name__)
 
+running_on_Mac = sys.platform == 'darwin'
+running_on_Win = sys.platform == 'win32'
 
 @contextlib.contextmanager
 def capture_stdout(in_new_stdout=None):
@@ -208,8 +210,8 @@ class TestPythonBatch(object):
                 obj_recreated = eval(obj_repr)
                 diff_explanation = obj.explain_diff(obj_recreated)
                 if diff_explanation:  # there was a problem
-                    wfd.write(f"X {obj_repr}\n  {repr(obj_recreated)}\n")
+                    wfd.write(f"X  {obj_repr}\n  {repr(obj_recreated)}\n")
                 else:
-                    wfd.write(f"√ {obj_repr}\n")
+                    wfd.write(f"OK {obj_repr}\n")
 
                 self.uni_test_obj.assertEqual(obj, obj_recreated, f"{obj.__class__.__name__}.repr did not recreate the object correctly: {diff_explanation}")
