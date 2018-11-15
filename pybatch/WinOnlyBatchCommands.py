@@ -181,7 +181,7 @@ class CreateRegistryValues(BaseRegistryKey):
     def __repr__(self) -> str:
         the_repr = f"{self.__class__.__name__}("
         the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
-        the_repr += f", value_dict={utils.quoteme_raw_dict(self.value_dict)}"
+        the_repr += f", value_dict={utils.quoteme_raw_by_type(self.value_dict)}"
         the_repr += ")"
         return the_repr
 

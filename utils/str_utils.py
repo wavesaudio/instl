@@ -79,6 +79,7 @@ def quoteme_raw_if_string(some_thing):
     else:
         return str(some_thing)
 
+
 def quoteme_raw_by_type(some_thing):
     retVal = None
     if isinstance(some_thing, types_that_do_not_need_quotation):
@@ -96,13 +97,6 @@ def quoteme_raw_by_type(some_thing):
         retVal = "".join(("{", ",".join(item_strs),"}"))
     return retVal
 
-def quoteme_raw_dict(dict_of_things: Dict):
-    item_strs = list()
-    for k, v in dict_of_things.items():
-        item_strs.append(f"""{quoteme_raw_string(k)}:{quoteme_raw_string(v)}""")
-    dict_as_str = "".join(("{", ",".join(item_strs),"}"))
-    return dict_as_str
-
 
 def quoteme_raw_list(list_of_things):
     retVal = [quoteme_raw_if_string(something) for something in list_of_things]
@@ -117,7 +111,7 @@ def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
             retVal = quoteme_raw_if_string(list_of_things[0])
         else:
             retVal = quoteme_raw_list(list_of_things)
-            retVal = "".join(("[", ", ".join(retVal), "]"))
+            retVal = "".join(("[", ",".join(retVal), "]"))
     else:
         retVal = quoteme_raw_if_string(list_of_things)
     return retVal
@@ -142,6 +136,7 @@ def unquoteme(to_unquote):
     if has_quotations:
         retVal = has_quotations['the_unquoted_text']
     return retVal
+
 
 def unicodify(in_something, encoding='utf-8'):
     if in_something is not None:

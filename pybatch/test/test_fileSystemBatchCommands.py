@@ -414,6 +414,6 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         the_code =r'''ShellCommand(r'"taskkill.exe" /im "eMotion LV1.exe" /t /f', ignore_all_errors=True)'''
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
-        print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))
+        print(utils.quoteme_raw_by_type({r"a\b": "1", "bbb": "••°°••"}))
 
 

@@ -208,7 +208,7 @@ class ChFlags(RunProcessBase, essential=True):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
         for a_flag in self.flags:
-            all_args.append(utils.quoteme_raw_if_string(a_flag))
+            all_args.append(utils.quoteme_raw_by_type(a_flag))
 
     def progress_msg_self(self):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
@@ -423,8 +423,8 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
             the_mode = utils.quoteme_double(the_mode)
         all_args.append( f"""mode={the_mode}""")
 
-        all_args.append( f"""user_id={utils.quoteme_raw_if_string(self.user_id)}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_if_string(self.group_id)}""")
+        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def progress_msg_self(self):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
