@@ -101,14 +101,9 @@ class TestPythonBatchWtar(unittest.TestCase):
 
     def test_Wzip(self):
         wzip_input = self.pbt.path_inside_test_folder("wzip_in")
-        self.assertFalse(wzip_input.exists(), f"{self.pbt.which_test}: {wzip_input} should not exist before test")
         wzip_output = self.pbt.path_inside_test_folder("wzip_in.wzip")
-        self.assertFalse(wzip_output.exists(), f"{self.pbt.which_test}: {wzip_output} should not exist before test")
-
         unwzip_target_folder = self.pbt.path_inside_test_folder("unwzip_target")
-        self.assertFalse(unwzip_target_folder.exists(), f"{self.pbt.which_test}: {unwzip_target_folder} should not exist before test")
         unwzip_target_file = self.pbt.path_inside_test_folder("wzip_in")
-        self.assertFalse(unwzip_target_file.exists(), f"{self.pbt.which_test}: {unwzip_target_file} should not exist before test")
 
         # create a file to zip
         with open(wzip_input, "w") as wfd:

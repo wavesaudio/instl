@@ -187,7 +187,7 @@ def find_file_log_handler(log_file_path):
     top_logger = logging.getLogger()
     for handler in top_logger.handlers:
         if hasattr(handler, 'stream'):
-            if handler.stream.name == log_file_path:
+            if handler.stream.name == os.fspath(log_file_path):
                 retVal = handler
                 break
     return retVal
@@ -198,9 +198,9 @@ def setup_file_logging(log_file_path, level=logging.INFO):
     top_logger.setLevel(debug_logging_level)
     fileLogHandler = find_file_log_handler(log_file_path)
     if not fileLogHandler:
-        log_file_name = pathlib.PurePath(log_file_path).name
         fileLogHandler = logging.FileHandler(log_file_path)
         fileLogHandler.set_name(f"(log_file_name)_log_handler")
+        fileLogHandler.previous_level = level
         formatter = CustomLogFormatter()
         fileLogHandler.setFormatter(formatter)
         fileLogHandler.addFilter(ParentLogFilter())
@@ -208,15 +208,15 @@ def setup_file_logging(log_file_path, level=logging.INFO):
     fileLogHandler.setLevel(level)
 
 
-def teardown_file_logging(log_file_path, restore_level):
+def teardown_file_logging(log_file_path):
+    return
     top_logger = logging.getLogger()
-    top_logger.setLevel(restore_level)
     fileLogHandler = find_file_log_handler(log_file_path)
     if fileLogHandler:
+        top_logger.setLevel(fileLogHandler.previous_level)
         fileLogHandler.close()
         top_logger.removeHandler(fileLogHandler)
         del fileLogHandler
-        os.remove(log_file_path)
     global debug_logging_started
     debug_logging_started = False
 
