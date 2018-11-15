@@ -32,6 +32,24 @@ config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 from test_PythonBatchBase import *
 
+"""
+    Tests in the file are preformed against apache.org SVN servers.
+    This is done to make sure the python-batch svn code is general and does not depend on any
+    peculiarities of particular private svn server.
+    
+    However apache.org SVN servers require manual confirmation of the server certificate.
+    
+    To do that run the following command on the machien where the test will run:
+    
+    svn info https://svn.apache.org/repos/asf/subversion/trunk --depth=immediates
+    
+    if the question comes up:
+    
+    (R)eject, accept (t)emporarily or accept (p)ermanently?
+    
+    choose p
+    
+"""
 
 class TestPythonBatchSVN(unittest.TestCase):
     def __init__(self, which_test):
