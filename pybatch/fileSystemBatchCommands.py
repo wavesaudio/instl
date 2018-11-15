@@ -457,20 +457,18 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
             wfd.write(the_listing)
 
 
-class FileSizes(PythonBatchCommandBase, essential=True):
+class FileSizes(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
     """ create a list of files in a folder and their sizes
         format is csv: partial-path-to-file, size-of-file
         useful for admin commands
     """
 
-    def __init__(self, folder_to_scan, out_file, **kwargs) -> None:
+    def __init__(self, folder_to_scan, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_scan = folder_to_scan
-        self.out_file = out_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_string(os.fspath(self.folder_to_scan)))
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.out_file)))
 
     def progress_msg_self(self) -> str:
         return f"""File sizes in {self.folder_to_scan}"""

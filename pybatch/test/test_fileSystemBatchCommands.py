@@ -392,6 +392,18 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def test_FileSizes_repr(self):
         self.pbt.reprs_test_runner(FileSizes('rumba', out_file="empty.txt"))
 
+    def test_FileSizes(self):
+        folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")
+        random_data_file_1 = (self.pbt.path_inside_test_folder("random_data_file_1"), 999)
+        random_data_file_2 = (self.pbt.path_inside_test_folder("random_data_file_2"), 888)
+        list_file = self.pbt.path_inside_test_folder("list_file")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_1[0], random_data_file_1[1])
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_2[0], random_data_file_2[1])
+        self.pbt.batch_accum += FileSizes(folder_to_list, out_file=list_file)
+        self.pbt.exec_and_capture_output()
+
     def test_MakeRandomDataFile_repr(self):
         self.pbt.reprs_test_runner(MakeRandomDataFile('rumba', file_size=1234))
         with self.assertRaises(ValueError):
@@ -400,7 +412,6 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def test_MakeRandomDataFile(self):
         random_data_file_1: Path = (self.pbt.path_inside_test_folder("random_data_file_1"), 1799)
         random_data_file_zero = (self.pbt.path_inside_test_folder("random_data_file_zero"), 0)
-        random_data_file_negative = (self.pbt.path_inside_test_folder("random_data_file_negative"), -19)
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeRandomDataFile(random_data_file_1[0], random_data_file_1[1])
