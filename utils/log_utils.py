@@ -203,6 +203,7 @@ def setup_file_logging(log_file_path, level=logging.INFO):
         fileLogHandler.previous_level = level
         formatter = CustomLogFormatter()
         fileLogHandler.setFormatter(formatter)
+        fileLogHandler.addFilter(ParentLogFilter())
         top_logger.addHandler(fileLogHandler)
     fileLogHandler.setLevel(level)
 

@@ -37,7 +37,6 @@ def dos_escape(some_string):
     return retVal
 
 
-# === classes with tests ===
 class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     """ MakeRandomDirs is intended for use during tests - not for production
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
@@ -63,11 +62,7 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
     def make_random_dirs_recursive(self, num_levels: int):
         for i_file in range(self.num_files_per_dir):
             random_file_name = ''.join(random.choice(string.ascii_lowercase) for i in range(8))
-            if self.file_size == 0:
-                touch(random_file_name)
-            else:
-                with open(random_file_name, "w") as wfd:
-                    wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+            MakeRandomDataFile(random_file_name, self.file_size)()
         if num_levels > 0:
             for i_dir in range(self.num_dirs_per_level):
                 random_dir_name = ''.join(random.choice(string.ascii_uppercase) for i in range(8))
@@ -213,7 +208,7 @@ class ChFlags(RunProcessBase, essential=True):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
         for a_flag in self.flags:
-            all_args.append(utils.quoteme_raw_if_string(a_flag))
+            all_args.append(utils.quoteme_raw_by_type(a_flag))
 
     def progress_msg_self(self):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
@@ -428,8 +423,8 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
             the_mode = utils.quoteme_double(the_mode)
         all_args.append( f"""mode={the_mode}""")
 
-        all_args.append( f"""user_id={utils.quoteme_raw_if_string(self.user_id)}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_if_string(self.group_id)}""")
+        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def progress_msg_self(self):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
@@ -461,7 +456,63 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
 
-# todo:
-# override PythonBatchCommandBase for all commands
-# time measurements
-# InstlAdmin
+
+class FileSizes(PythonBatchCommandBase, essential=True):
+    """ create a list of files in a folder and their sizes
+        format is csv: partial-path-to-file, size-of-file
+        useful for admin commands
+    """
+
+    def __init__(self, folder_to_scan, out_file, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.folder_to_scan = folder_to_scan
+        self.out_file = out_file
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.folder_to_scan)))
+        all_args.append(utils.quoteme_raw_string(os.fspath(self.out_file)))
+
+    def progress_msg_self(self) -> str:
+        return f"""File sizes in {self.folder_to_scan}"""
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.compile_exclude_regexi()
+        with open(self.out_file, "w") as wfd:
+            if os.path.isfile(self.folder_to_scan):
+                file_size = os.path.getsize(self.folder_to_scan)
+                wfd.write(f"{self.folder_to_scan}, {file_size}\n")
+            else:
+                folder_to_scan_name_len = len(self.folder_to_scan)+1 # +1 for the last '\'
+                if not self.compiled_forbidden_folder_regex.search(self.folder_to_scan):
+                    for root, dirs, files in utils.excluded_walk(self.folder_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
+                        for a_file in files:
+                            full_path = os.path.join(root, a_file)
+                            file_size = os.path.getsize(full_path)
+                            partial_path = full_path[folder_to_scan_name_len:]
+                            wfd.write(f"{partial_path}, {file_size}\n")
+
+
+class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
+    """ MakeRandomDataFile is intended for use during tests - not for production
+        Will create a file with random data of the requested size
+    """
+
+    def __init__(self, file_path: int, file_size: int) -> None:
+        super().__init__()
+        self.file_path = file_path
+        self.file_size = file_size
+        if self.file_size < 0:
+            raise ValueError(f"MakeRandomDataFile file_size cannot be negative")
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_path={utils.quoteme_raw_string(os.fspath(self.file_path))}""")
+        all_args.append(f"""file_size={self.file_size}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"create file with {self.file_size} bytes of random data {self.file_path}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        with open(self.file_path, "w") as wfd:
+            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+

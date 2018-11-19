@@ -33,7 +33,7 @@ config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 from test_PythonBatchBase import *
 
 
-class TestPythonBatchMain(unittest.TestCase):
+class TestPythonBatchFileSystem(unittest.TestCase):
     def __init__(self, which_test):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
@@ -404,9 +404,31 @@ class TestPythonBatchMain(unittest.TestCase):
             redundant_accum += Wzip("dummy no real path")
         self.assertGreater(self.pbt.batch_accum.total_progress_count(), 0, f"{self.pbt.which_test}: a Stage with essential command should not discarded")
 
+    def test_FileSizes_repr(self):
+        self.pbt.reprs_test_runner(FileSizes('rumba', out_file="empty.txt"))
+
+    def test_MakeRandomDataFile_repr(self):
+        self.pbt.reprs_test_runner(MakeRandomDataFile('rumba', file_size=1234))
+        with self.assertRaises(ValueError):
+            MakeRandomDataFile('rumba', file_size=-123)
+
+    def test_MakeRandomDataFile(self):
+        random_data_file_1: Path = (self.pbt.path_inside_test_folder("random_data_file_1"), 1799)
+        random_data_file_zero = (self.pbt.path_inside_test_folder("random_data_file_zero"), 0)
+        random_data_file_negative = (self.pbt.path_inside_test_folder("random_data_file_negative"), -19)
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_1[0], random_data_file_1[1])
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_zero[0], random_data_file_zero[1])
+        self.pbt.exec_and_capture_output()
+        self.assertEqual(random_data_file_1[1], os.path.getsize(random_data_file_1[0]))
+        self.assertEqual(random_data_file_zero[1], os.path.getsize(random_data_file_zero[0]))
+
     def test_something(self):
         #the_code = """If(IsFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\"), if_true=CopyFileToFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/Common/Utilities/V9/remove_leftovers.py\", \"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\", hard_links=False, ignore_if_not_exist=True))"""
         the_code =r'''ShellCommand(r'"taskkill.exe" /im "eMotion LV1.exe" /t /f', ignore_all_errors=True)'''
         the_obj = eval(the_code)
         the_repr = repr(the_obj)
-        print(utils.quoteme_raw_dict({r"a\b": "1", "bbb": "••°°••"}))
+        print(utils.quoteme_raw_by_type({r"a\b": "1", "bbb": "••°°••"}))
+
+

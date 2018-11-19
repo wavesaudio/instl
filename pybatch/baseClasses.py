@@ -47,6 +47,7 @@ class PythonBatchCommandBase(abc.ABC):
                        'remark': None,
                        'recursive': False,
                        "reply_config_var": None}
+    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
@@ -150,11 +151,11 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
     def unnamed__init__param(self, value):
-        value_str = utils.quoteme_raw_if_string(value)
+        value_str = utils.quoteme_raw_by_type(value)
         return value_str
 
     def named__init__param(self, name, value):
-        value_str = utils.quoteme_raw_if_string(value)
+        value_str = utils.quoteme_raw_by_type(value)
         param_repr = f"{name}={value_str}"
         return param_repr
 

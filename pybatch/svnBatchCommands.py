@@ -91,3 +91,19 @@ class SVNInfo(SVNClient):
         run_args.append(self.url_with_repo_rev())
         run_args.append("--depth")
         run_args.append(self.depth)
+
+
+class SVNPropList(SVNClient):
+
+    def __init__(self, out_file, **kwargs):
+        super().__init__("proplist", **kwargs)
+        self.out_file = out_file
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        pass
+
+    def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
+        run_args.append(self.url_with_repo_rev())
+        run_args.append("--depth")
+        run_args.append(self.depth)
