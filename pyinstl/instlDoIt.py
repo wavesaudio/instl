@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import os
 import utils
 import logging
 log = logging.getLogger()
@@ -8,6 +8,7 @@ log = logging.getLogger()
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from .indexItemTable import IndexItemsTable
+from pybatch import *
 
 
 class InstlDoIt(InstlInstanceBase):
@@ -56,6 +57,7 @@ class InstlDoIt(InstlInstanceBase):
 
     def do_doit(self):
         for doit_stage in ("pre_doit", "doit", "post_doit"):
+            self.batch_accum.set_current_section(doit_stage)
             for IID in self.full_doit_order:
                 self.doit_for_iid(IID, doit_stage)
 
@@ -73,7 +75,7 @@ class InstlDoIt(InstlInstanceBase):
             self.batch_accum += Progress(name+"...")
         num_actions = len(action_list)
         for i in range(num_actions):
-            self.batch_accum += action_list[i]
+            self.batch_accum += EvalShellCommand(action_list[i], name)
             if i != num_actions - 1:
                 self.batch_accum += Progress(name + " "+str(i+1))
         if len(action_list) > 0:

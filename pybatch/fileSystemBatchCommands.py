@@ -357,7 +357,7 @@ class Chmod(RunProcessBase, essential=True):
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)$""")
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
         match = symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
