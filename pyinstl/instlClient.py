@@ -283,6 +283,7 @@ class InstlClient(InstlInstanceBase):
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
         for IID, an_action in iid_and_action:
+            log.debug(f'Marking action {an_action} on - {IID}')
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)
@@ -407,6 +408,7 @@ class InstlClient(InstlInstanceBase):
 
         items_to_update = list()
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+            log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
