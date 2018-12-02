@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Dict, List
 import winreg
 from win32com.client import Dispatch
 
@@ -76,32 +76,26 @@ class BaseRegistryKey(PythonBatchCommandBase):
         if self.ignore_if_not_exist:
             self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}("
-        the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        self.positional_members_repr(all_args)
+        self.named_members_repr(all_args)
 
-    def positional_members_repr(self) -> str:
+    def positional_members_repr(self, all_args: List[str]) -> None:
         """ helper function to create repr for BaseRegistryKey common to all subclasses """
-        members_repr = list()
-        members_repr.append(utils.quoteme_double(self.top_key))
-        members_repr.append(utils.quoteme_raw_string(self.sub_key))
+        all_args.append(utils.quoteme_double(self.top_key))
+        all_args.append(utils.quoteme_raw_string(self.sub_key))
         if self.value_name is not None:
-            members_repr.append(utils.quoteme_raw_string(self.value_name))
+            all_args.append(utils.quoteme_raw_string(self.value_name))
         if self.value_data is not None:
-            members_repr.append(utils.quoteme_raw_string(self.value_data))
-        return members_repr
+            all_args.append(utils.quoteme_raw_string(self.value_data))
 
-    def named_members_repr(self) -> str:
-        members_repr = list()
+    def named_members_repr(self, all_args: List[str]) -> None:
         if self.data_type != 'REG_SZ':
-            members_repr.append(f"data_type={utils.quoteme_double(self.data_type)}")
+            all_args.append(f"data_type={utils.quoteme_double(self.data_type)}")
         if self.reg_num_bits != 64:
-            members_repr.append(f"reg_num_bits={self.reg_num_bits}")
+            all_args.append(f"reg_num_bits={self.reg_num_bits}")
         if self.ignore_if_not_exist is not False:
-            members_repr.append(f"ignore_if_not_exist={self.ignore_if_not_exist}")
-        return members_repr
+            all_args.append(f"ignore_if_not_exist={self.ignore_if_not_exist}")
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.top_key}, {self.sub_key}, {self.data_type}, {self.reg_num_bits}"
@@ -147,6 +141,8 @@ class ReadRegistryValue(BaseRegistryKey):
                 self.the_value = str(key_val)
         finally:
             self._close_key()
+        if self.reply_environ_var is not None:
+            os.environ[self.reply_environ_var] = self.the_value
         return self.the_value
 
 
@@ -178,12 +174,9 @@ class CreateRegistryValues(BaseRegistryKey):
         self.value_dict = value_dict
         self.permission_flag = winreg.KEY_ALL_ACCESS
 
-    def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}("
-        the_repr += ", ".join(self.positional_members_repr()+self.named_members_repr())
-        the_repr += f", value_dict={utils.quoteme_raw_by_type(self.value_dict)}"
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        super().repr_own_args(all_args)
+        all_args.append(f"value_dict={utils.quoteme_raw_by_type(self.value_dict)}")
 
     def progress_msg_self(self) -> str:
         return f"Creating values {self.sub_key} -> {self.value_dict}"
@@ -224,11 +217,10 @@ class DeleteRegistryValues(BaseRegistryKey):
         self.permission_flag = winreg.KEY_ALL_ACCESS
         self.exceptions_to_ignore.append(FileNotFoundError)
 
-    def __repr__(self) -> str:
-        the_repr = f"{self.__class__.__name__}("
-        the_repr += ", ".join(self.positional_members_repr() + utils.quoteme_raw_list(self.values) + self.named_members_repr())
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        self.positional_members_repr(all_args)
+        all_args.extend(utils.quoteme_raw_list(self.values))
+        self.named_members_repr(all_args)
 
     def progress_msg_self(self) -> str:
         return f"Deleting values {self.sub_key} -> {self.values}"

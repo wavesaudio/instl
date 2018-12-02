@@ -46,7 +46,8 @@ class PythonBatchCommandBase(abc.ABC):
                        'ignore_all_errors': False,
                        'remark': None,
                        'recursive': False,
-                       "reply_config_var": None}
+                       "reply_config_var": None,
+                       "reply_environ_var": None}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod

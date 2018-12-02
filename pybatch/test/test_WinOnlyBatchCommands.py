@@ -46,17 +46,21 @@ class TestPythonBatchWin(unittest.TestCase):
     def test_ReadRegistryValue_repr(self):
         list_of_objs = list()
         for reg_num_bits in (32, 64):
-            list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True))
+            list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True, reply_environ_var="ReadRegistryValue_expected_value"))
         # without specifying reg_num_bits at all
         list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True))
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_ReadRegistryValue(self):
         for reg_num_bits in (32, 64):
-                expected_value = r'C:\ProgramData\Microsoft\Windows NT\MSFax'
-                with ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True) as rrv:
-                    value = rrv()
-                self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
+            self.pbt.batch_accum.clear()
+            value = None
+            expected_value = r'Consolas'
+            self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Notepad\DefaultFonts', 'lfFaceName', reg_num_bits=reg_num_bits, ignore_if_not_exist=True, reply_environ_var="ReadRegistryValue_expected_value")
+            self.pbt.exec_and_capture_output()
+            #self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
+            value_from_environ = os.environ["ReadRegistryValue_expected_value"]
+            self.assertEqual(expected_value, value_from_environ, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_CreateRegistryKey_repr(self):
         list_of_objs = list()
