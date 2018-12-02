@@ -81,7 +81,10 @@ class ConfigVar:
         :return: a single string that is resolved representation of the values.
                 if self.values is empty an empty string is returned
         """
-        retVal = self.join(sep='')
+        if len(self.values) == 1 and self.values[0] is None:
+            retVal = None
+        else:
+            retVal = self.join(sep='')
         return retVal
 
     def __fspath__(self) -> str:

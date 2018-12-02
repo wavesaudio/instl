@@ -28,6 +28,7 @@ from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
+from .reportingBatchCommands import ResolveConfigVarsInFile
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
