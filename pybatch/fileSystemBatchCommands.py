@@ -135,8 +135,11 @@ class Touch(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        with open(resolved_path, 'a') as tfd:
-            os.utime(resolved_path, None)
+        if resolved_path.is_dir():
+            os.utime(resolved_path)
+        else:
+            with open(resolved_path, 'a') as tfd:
+                os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase, essential=True):

@@ -126,10 +126,10 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
     """
     def __init__(self, remark, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.remark = remark
+        self.remark_text = remark
 
     def __repr__(self) -> str:
-        the_repr = f'''# {self.remark}'''
+        the_repr = f'''# {self.remark_text}'''
         return the_repr
 
     def progress_msg_self(self) -> str:
