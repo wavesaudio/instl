@@ -147,6 +147,8 @@ class ReadRegistryValue(BaseRegistryKey):
                 self.the_value = str(key_val)
         finally:
             self._close_key()
+        if self.reply_environ_var is not None:
+            os.environ[self.reply_environ_var] = self.the_value
         return self.the_value
 
 

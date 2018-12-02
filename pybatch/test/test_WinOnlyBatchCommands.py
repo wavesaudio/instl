@@ -53,10 +53,12 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_ReadRegistryValue(self):
         for reg_num_bits in (32, 64):
-                expected_value = r'C:\ProgramData\Microsoft\Windows NT\MSFax'
-                with ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True) as rrv:
-                    value = rrv()
-                self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
+            expected_value = r'C:\ProgramData\Microsoft\Windows NT\MSFax'
+            with ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True, reply_environ_var="ReadRegistryValue_expected_value") as rrv:
+                value = rrv()
+            self.assertEqual(expected_value, value, f"ReadRegistryKey values {expected_value} != {value}")
+            value_from_environ = os.environ["ReadRegistryValue_expected_value"]
+            self.assertEqual(expected_value, value_from_environ, f"ReadRegistryKey values {expected_value} != {value}")
 
     def test_CreateRegistryKey_repr(self):
         list_of_objs = list()
