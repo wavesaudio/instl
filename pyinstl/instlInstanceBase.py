@@ -90,6 +90,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
+        self.update_mode = False
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -311,7 +312,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_hard_link_patterns(config_vars.get("NO_HARD_LINK_PATTERNS", []).list())''')
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_flags_patterns(config_vars.get("NO_FLAGS_PATTERNS", []).list())''')
 
-        if "__REPAIR_INSTALLED_ITEMS__" not in list(config_vars.get("MAIN_INSTALL_TARGETS", ["__REPAIR_INSTALLED_ITEMS__"])):
+        if not self.update_mode:
             in_batch_accum += PythonDoSomething('''RsyncClone.add_global_avoid_copy_markers(config_vars.get("AVOID_COPY_MARKERS", []).list())''')
 
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
