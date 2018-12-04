@@ -298,7 +298,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
         #do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
-        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
+        if not bool(config_vars.get("WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE", "no")):
+            do_not_write_vars += list(os.environ.keys())
+
         regex = "|".join(do_not_write_vars)
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():

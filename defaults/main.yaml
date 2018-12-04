@@ -86,3 +86,6 @@ CMD_TOOLS_TO_FIND_INTERNAL:
 --- !define
 BATCH_EXT: py
 DB_FILE_EXT: sqlite
+
+# should configVars read from __environment__ be written to batch file created by instl?
+WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE: no
