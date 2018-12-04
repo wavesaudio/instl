@@ -205,7 +205,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return retVal
 
     def copy_file_to_file(self, src: Path, dst: Path, follow_symlinks=True):
-        """ copy the file src to the file dst. dst should either be an existing file
+        """ copy the file resource_source_file to the file dst. dst should either be an existing file
             or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
             is assumed to exist
         """

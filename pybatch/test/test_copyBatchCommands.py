@@ -66,7 +66,7 @@ class TestPythonBatchCopy(unittest.TestCase):
             rsync command is correct but running it from python changes something.
 
         """
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
@@ -110,16 +110,16 @@ class TestPythonBatchCopy(unittest.TestCase):
                 - All mirrored files should have the same inode number - meaning they are hard links to
             the same file.
         """
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
 
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
-        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
+        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
-        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
+        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
-        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
+        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -162,25 +162,25 @@ class TestPythonBatchCopy(unittest.TestCase):
 
             In order to be able to check the copy the test first copy from one folder to the second and then moves the second to a third folder
         """
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
 
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
-        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-src").resolve()
+        copied_dir_no_hard_links = dir_to_copy_to_no_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_move_to_no_hard_links = self.pbt.path_inside_test_folder("move-target-no-hard-links")
-        moved_dir_no_hard_links = dir_to_move_to_no_hard_links.joinpath("copy-src").resolve()
+        moved_dir_no_hard_links = dir_to_move_to_no_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
-        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-src").resolve()
+        copied_dir_with_hard_links = dir_to_copy_to_with_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_move_to_with_hard_links = self.pbt.path_inside_test_folder("move-target-with-hard-links")
-        moved_dir_with_hard_links = dir_to_move_to_with_hard_links.joinpath("copy-src").resolve()
+        moved_dir_with_hard_links = dir_to_move_to_with_hard_links.joinpath("copy-resource_source_file").resolve()
 
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
-        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-src").resolve()
+        copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
         dir_to_move_to_with_ignore = self.pbt.path_inside_test_folder("move-target-with-ignore")
-        moved_dir_with_ignore = dir_to_move_to_with_ignore.joinpath("copy-src").resolve()
+        moved_dir_with_ignore = dir_to_move_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
@@ -217,7 +217,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
             should be copied - not the source dir itself.
         """
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
@@ -261,7 +261,7 @@ class TestPythonBatchCopy(unittest.TestCase):
             one file that is copied by it's full path.
         """
         file_name = "hootenanny"
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
@@ -299,7 +299,7 @@ class TestPythonBatchCopy(unittest.TestCase):
             one file that is copied by it's full path and target is a full path to a file.
         """
         file_name = "hootenanny"
-        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-src")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("copy-resource_source_file")
         file_to_copy = dir_to_copy_from.joinpath(file_name).resolve()
         target_dir_no_hard_links = self.pbt.path_inside_test_folder("target_dir_no_hard_links")
         target_file_no_hard_links = target_dir_no_hard_links.joinpath(file_name).resolve()

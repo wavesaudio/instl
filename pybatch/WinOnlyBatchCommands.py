@@ -5,6 +5,7 @@ from win32com.client import Dispatch
 
 
 from .baseClasses import PythonBatchCommandBase
+from .subprocessBatchCommands import RunProcessBase
 import utils
 
 
@@ -235,3 +236,41 @@ class DeleteRegistryValues(BaseRegistryKey):
                     pass  # Value does not exists
         finally:
             self._close_key()
+
+
+class ResHacker(RunProcessBase):
+    """ add a resource using ResHacker """
+    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type, resource_name) -> None:
+        super().__init__()
+        self.reshacker_path = reshacker_path
+        self.trg: os.PathLike = trg
+        self.resource_source_file: os.PathLike = resource_source_file
+        self.resource_type = resource_type
+        self.resource_name = resource_name
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
+        all_args.append(f"""resource_source_file={utils.quoteme_raw_by_type(self.resource_source_file)}""")
+        all_args.append( f"""resource_type={utils.quoteme_raw_by_type(self.resource_type)}""")
+        all_args.append( f"""resource_name={utils.quoteme_raw_by_type(self.resource_name)}""")
+
+    def progress_msg_self(self):
+        return f"""Add resource '{self.resource_type}/{self.resource_name}' to '{self.trg}'"""
+
+    def get_run_args(self, run_args) -> None:
+        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        resolved_resource_source_file = os.fspath(utils.ResolvedPath(self.resource_source_file))
+        run_args.extend([resolved_reshacker_path,
+                         "-open",
+                         resolved_trg_path,
+                         "-save",
+                         resolved_trg_path,
+                         "-resource",
+                         resolved_resource_source_file,
+                         "-action"
+                         "addoverwrite",
+                         "-mask"
+                         f"""{self.resource_type},{self.resource_name},0"""])
+
