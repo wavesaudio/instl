@@ -135,8 +135,11 @@ class Touch(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        with open(resolved_path, 'a') as tfd:
-            os.utime(resolved_path, None)
+        if resolved_path.is_dir():
+            os.utime(resolved_path)
+        else:
+            with open(resolved_path, 'a') as tfd:
+                os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase, essential=True):
@@ -357,7 +360,7 @@ class Chmod(RunProcessBase, essential=True):
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)$""")
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
         match = symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")

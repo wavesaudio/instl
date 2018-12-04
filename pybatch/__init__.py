@@ -28,6 +28,7 @@ from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
+from .reportingBatchCommands import ResolveConfigVarsInFile
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
@@ -77,6 +78,7 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import CreateRegistryValues
     from .WinOnlyBatchCommands import DeleteRegistryKey
     from .WinOnlyBatchCommands import DeleteRegistryValues
+    from .WinOnlyBatchCommands import ResHacker
 
 if sys.platform == "darwin":
     from .MacOnlyBatchCommands import CreateSymlink
@@ -98,7 +100,7 @@ def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
         retVal = eval(action_str, globals(), locals())
         if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
             raise TypeError(f"{retVal} is not PythonBatchCommandBase")
-        retVal.remark = f"""evaled {message}"""
+        #retVal.remark = f"""evaled {message}"""
     except (SyntaxError, TypeError, NameError) as ex:
         retVal = ShellCommand(action_str, message)
     return retVal

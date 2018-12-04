@@ -183,3 +183,24 @@ class TestPythonBatchWin(unittest.TestCase):
                 elif key.startswith('stay'):
                     stay_value = ReadRegistryValue('HKEY_LOCAL_MACHINE', test_key_path, key, reg_num_bits=reg_num_bits)()
                     self.assertEqual(stay_value, test_values[key])
+
+    def test_ResHacker_repr(self):
+        list_of_objs = list()
+        list_of_objs.append(ResHacker('reshacker_path', 'exec_path', 'resource_source_path', 'res_type','res_id'))
+        self.pbt.reprs_test_runner(*list_of_objs)
+
+    def test_ResHacker(self):
+        return # these tests are still with hard coded paths
+        reshacker_path = r"C:\p4client\ProAudio\dev_main\ProAudio\bin\Win\ResHacker5.1.6\ResourceHacker.exe"
+        original_exe = r"C:\p4client\ProAudio\dev_main\ProAudio\VisualStudioBuildProducts\plugin-host\x64\Release\Products\plugin-host.exe"
+        copied_exe = self.pbt.path_inside_test_folder("CODEX.exe")
+        icon_file = r"C:\p4client\ProAudio\dev_main\ProAudio\XPlatform\Apps\plugin-host\Resources\Win\CODEX.ico"
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += CopyFileToFile(original_exe, copied_exe)
+        self.pbt.batch_accum += ResHacker(reshacker_path=reshacker_path,
+                                              trg=copied_exe,
+                                              resource_source_file=icon_file,
+                                              resource_type="ICONGROUP",
+                                              resource_name="IDI_ICON1")
+        self.pbt.exec_and_capture_output()

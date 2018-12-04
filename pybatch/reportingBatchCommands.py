@@ -5,6 +5,7 @@ import re
 from typing import List
 
 from configVar import config_vars
+from configVar import ConfigVarYamlReader
 import utils
 
 from .baseClasses import *
@@ -125,10 +126,10 @@ class Remark(PythonBatchCommandBase, call__call__=False, is_context_manager=Fals
     """
     def __init__(self, remark, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.remark = remark
+        self.remark_text = remark
 
     def __repr__(self) -> str:
-        the_repr = f'''# {self.remark}'''
+        the_repr = f'''# {self.remark_text}'''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -280,3 +281,29 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
 
     def __call__(self, *args, **kwargs) -> None:
         pass
+
+
+class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
+    def __init__(self, unresolved_file, resolved_file, config_file=None, **kwargs):
+        super().__init__(**kwargs)
+        self.unresolved_file = unresolved_file
+        self.resolved_file = resolved_file
+        self.config_file = config_file
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
+        all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
+        all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
+
+    def progress_msg_self(self) -> str:
+        return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        if self.config_file is not None:
+            reader = ConfigVarYamlReader()
+            reader.read_yaml_file(self.config_file)
+        with utils.utf8_open(self.unresolved_file, "r") as rfd:
+            text_to_resolve = rfd.read()
+        resolved_text = config_vars.resolve_str(text_to_resolve)
+        with utils.utf8_open(self.resolved_file, "w") as wfd:
+            wfd.write(resolved_text)
