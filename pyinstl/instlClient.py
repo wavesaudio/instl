@@ -190,6 +190,8 @@ class InstlClient(InstlInstanceBase):
         config_vars["__MAIN_UPDATE_IIDS__"] = sorted(update_iids)
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids)
 
+        self.update_mode = "__REPAIR_INSTALLED_ITEMS__" in self.main_install_targets
+
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # mark ignored iids, so all subsequent operations not act on these iids
@@ -422,7 +424,7 @@ class InstlClient(InstlInstanceBase):
                     # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
                     # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
                     need_to_sync = True
-                    if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+                    if not self.update_mode:
                         info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
                         if info_xml_item:
                             info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
