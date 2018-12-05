@@ -70,17 +70,14 @@ class InstlDoIt(InstlInstanceBase):
         except:
             name = IID
 
-        if len(action_list) > 0:
-            self.batch_accum += Remark(f"--- Begin {IID} {name}")
-            self.batch_accum += Progress(name+"...")
-        num_actions = len(action_list)
-        for i in range(num_actions):
-            self.batch_accum += EvalShellCommand(action_list[i], name)
-            if i != num_actions - 1:
-                self.batch_accum += Progress(name + " "+str(i+1))
-        if len(action_list) > 0:
-            self.batch_accum += Progress(name + ". done")
-            self.batch_accum += Remark(f"--- End {IID} {name}")
+        with self.batch_accum.sub_accum(Stage(name+"...")) as iid_accum:
+            if len(action_list) > 0:
+                iid_accum += Remark(f"--- Begin {IID} {name}")
+            num_actions = len(action_list)
+            for i in range(num_actions):
+                iid_accum += EvalShellCommand(action_list[i], name)
+            if len(action_list) > 0:
+                iid_accum += Remark(f"--- End {IID} {name}")
 
     def calculate_full_doit_order(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.

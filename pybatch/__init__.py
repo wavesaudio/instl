@@ -16,6 +16,7 @@ from .copyBatchCommands import CopyDirToDir
 from .copyBatchCommands import CopyFileToDir
 from .copyBatchCommands import CopyFileToFile
 from .copyBatchCommands import MoveDirToDir
+from .copyBatchCommands import RenameFile
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo

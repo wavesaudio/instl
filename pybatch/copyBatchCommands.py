@@ -425,3 +425,7 @@ class MoveFileToFile(CopyFileToFile):
         else:  # do not attempt remove if copy did not work
             self.doing = f"""removing file '{self.src}'"""
             self.dry_run or Path(self.src).unlink()
+
+
+class RenameFile(MoveFileToFile):
+    pass
