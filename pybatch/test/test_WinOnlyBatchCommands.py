@@ -186,7 +186,7 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_ResHacker_repr(self):
         list_of_objs = list()
-        list_of_objs.append(ResHacker('reshacker_path', 'exec_path', 'resource_source_path', 'res_type','res_id'))
+        list_of_objs.append(ResHackerAddResource('reshacker_path', 'exec_path', 'resource_source_path', 'res_type', 'res_id'))
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_ResHacker(self):
@@ -198,9 +198,9 @@ class TestPythonBatchWin(unittest.TestCase):
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += CopyFileToFile(original_exe, copied_exe)
-        self.pbt.batch_accum += ResHacker(reshacker_path=reshacker_path,
-                                              trg=copied_exe,
-                                              resource_source_file=icon_file,
-                                              resource_type="ICONGROUP",
-                                              resource_name="IDI_ICON1")
+        self.pbt.batch_accum += ResHackerAddResource(reshacker_path=reshacker_path,
+                                                     trg=copied_exe,
+                                                     resource_source_file=icon_file,
+                                                     resource_type="ICONGROUP",
+                                                     resource_name="IDI_ICON1")
         self.pbt.exec_and_capture_output()

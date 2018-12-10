@@ -214,7 +214,7 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
                 try:
                     adjusted_values.append(int(val))
                 except:
-                    adjusted_values.append(utils.quoteme_raw_string(val))
+                    adjusted_values.append(utils.quoteme_raw_by_type(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''config_vars['{self.var_name}'] = {adjusted_values[0]}'''
             else:
@@ -284,7 +284,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
 
 
 class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
-    def __init__(self, unresolved_file, resolved_file, config_file=None, **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_file=None, **kwargs):
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
         self.resolved_file = resolved_file
@@ -292,7 +292,8 @@ class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
-        all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
+        if self.resolved_file is not None:
+            all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
         all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
 
     def progress_msg_self(self) -> str:
@@ -300,10 +301,27 @@ class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         if self.config_file is not None:
-            reader = ConfigVarYamlReader()
+            reader = ConfigVarYamlReader(config_vars)
             reader.read_yaml_file(self.config_file)
         with utils.utf8_open(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
-        with utils.utf8_open(self.resolved_file, "w") as wfd:
+        output_file = self.resolved_file if self.resolved_file is not None else self.unresolved_file
+        with utils.utf8_open(output_file, "w") as wfd:
             wfd.write(resolved_text)
+
+
+class ReadConfigVarsFromFile(PythonBatchCommandBase, essential=True):
+    def __init__(self, file_to_read, **kwargs):
+        super().__init__(**kwargs)
+        self.file_to_read = file_to_read
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.file_to_read))
+
+    def progress_msg_self(self) -> str:
+        return f'''reading configVars from {self.file_to_read}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        reader = ConfigVarYamlReader(config_vars)
+        reader.read_yaml_file(self.file_to_read)

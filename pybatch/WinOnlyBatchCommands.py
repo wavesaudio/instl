@@ -238,8 +238,8 @@ class DeleteRegistryValues(BaseRegistryKey):
             self._close_key()
 
 
-class ResHacker(RunProcessBase):
-    """ add a resource using ResHacker """
+class ResHackerAddResource(RunProcessBase):
+    """ add a resource using ResHackerAddResource """
     def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type, resource_name) -> None:
         super().__init__()
         self.reshacker_path = reshacker_path
@@ -260,8 +260,14 @@ class ResHacker(RunProcessBase):
 
     def get_run_args(self, run_args) -> None:
         resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        if not os.path.isfile(resolved_reshacker_path):
+            raise FileNotFoundError(resolved_reshacker_path)
         resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        if not os.path.isfile(resolved_trg_path):
+            raise FileNotFoundError(resolved_trg_path)
         resolved_resource_source_file = os.fspath(utils.ResolvedPath(self.resource_source_file))
+        if not os.path.isfile(resolved_resource_source_file):
+            raise FileNotFoundError(resolved_resource_source_file)
         run_args.extend([resolved_reshacker_path,
                          "-open",
                          resolved_trg_path,
@@ -269,8 +275,8 @@ class ResHacker(RunProcessBase):
                          resolved_trg_path,
                          "-resource",
                          resolved_resource_source_file,
-                         "-action"
+                         "-action",
                          "addoverwrite",
-                         "-mask"
+                         "-mask",
                          f"""{self.resource_type},{self.resource_name},0"""])
 

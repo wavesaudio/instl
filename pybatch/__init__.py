@@ -30,6 +30,7 @@ from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
+from .reportingBatchCommands import ReadConfigVarsFromFile
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
@@ -79,7 +80,7 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import CreateRegistryValues
     from .WinOnlyBatchCommands import DeleteRegistryKey
     from .WinOnlyBatchCommands import DeleteRegistryValues
-    from .WinOnlyBatchCommands import ResHacker
+    from .WinOnlyBatchCommands import ResHackerAddResource
 
 if sys.platform == "darwin":
     from .MacOnlyBatchCommands import CreateSymlink

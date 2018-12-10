@@ -130,7 +130,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
+        translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)
 
     def do_mac_dock(self):

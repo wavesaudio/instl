@@ -59,12 +59,12 @@ def quoteme_raw_string(simple_string):
         possible_quote_marks = ('"""', "'''")
 
     for quote_mark in possible_quote_marks:
-        # 1st priority is to create a raw string. Strings that end with the quotation mark cannot be raw.
-        if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
+        # 1st priority is to create a raw string. Strings that end with the quotation mark or with \ cannot be raw.
+        if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1] and simple_string[-1] != '\\':
             retVal = "".join(('r', quote_mark, simple_string, quote_mark))
             break
     else:
-        # if all possible quotations marks are in the string do proper escaping and return non-raw string
+        # if all possible quotations marks are present in the string - do proper escaping and return non-raw string
         retVal = "".join(('"', escape_quotations(simple_string), '"'))
 
     return retVal

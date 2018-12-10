@@ -71,7 +71,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        ConfigVarYamlReader.__init__(self)
+        ConfigVarYamlReader.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
