@@ -28,8 +28,9 @@ class RmFile(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        self.doing = f"""removing file '{resolved_path}'"""
-        resolved_path.unlink()
+        if resolved_path.exists():
+            self.doing = f"""removing file '{resolved_path}'"""
+            resolved_path.unlink()
 
 
 class RmDir(PythonBatchCommandBase, essential=True):
@@ -51,9 +52,9 @@ class RmDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        self.doing = f"""removing folder '{resolved_path}'"""
-        #assert not os.fspath(resolved_path).startswith("/p4client")
-        shutil.rmtree(resolved_path)
+        if resolved_path.exists():
+            self.doing = f"""removing folder '{resolved_path}'"""
+            shutil.rmtree(resolved_path)
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
