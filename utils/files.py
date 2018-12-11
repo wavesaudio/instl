@@ -90,12 +90,12 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None):
+def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
         # calling read_file_or_url
-        return read_file_or_url(save_to_path, encoding=encoding)
+        return read_file_or_url(save_to_path, config_vars, encoding=encoding)
     match = protocol_header_re.match(os.fspath(in_file_or_url))
     actual_file_path = in_file_or_url
     if not match:  # it's a local file
@@ -115,7 +115,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
         with open(actual_file_path, "r", encoding=encoding) as rdf:
             buffer = rdf.read()
     else:
-        session = connection_factory().get_session(in_file_or_url)
+        session = connection_factory(config_vars).get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
@@ -128,7 +128,7 @@ def read_file_or_url(in_file_or_url, path_searcher=None, encoding='utf-8', save_
 
 class open_for_read_file_or_url(object):
 
-    def __init__(self, in_file_or_url, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False) -> None:
+    def __init__(self, in_file_or_url, config_vars, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False) -> None:
         self.local_file_path = None
         self.url = None
         self.custom_headers = None
@@ -152,7 +152,7 @@ class open_for_read_file_or_url(object):
         else:
             self.url = in_file_or_url
             if translate_url_callback is not None:
-                self.url, self.custom_headers = translate_url_callback(self.url)
+                self.url, self.custom_headers = translate_url_callback(self.url, config_vars)
             self._actual_path = self.url
 
     def __enter__(self):
@@ -197,12 +197,12 @@ class open_for_read_file_or_url(object):
         return self._actual_path
 
 
-def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum=None, encoding='utf-8'):
+def read_from_file_or_url(in_url, config_vars, translate_url_callback=None, expected_checksum=None, encoding='utf-8'):
     """ Read a file from local disk or url. Check checksum if given.
         If test against either sig or checksum fails - raise IOError.
         Return: file contents.
     """
-    with open_for_read_file_or_url(in_url, translate_url_callback, encoding=encoding) as open_file:
+    with open_for_read_file_or_url(in_url, config_vars, translate_url_callback, encoding=encoding) as open_file:
         contents_buffer = open_file.fd.read()
         if encoding is not None:  # when reading from url we're not sure what the encoding is
             contents_buffer = utils.unicodify(contents_buffer, encoding=encoding)
@@ -219,7 +219,7 @@ def read_from_file_or_url(in_url, translate_url_callback=None, expected_checksum
     return contents_buffer
 
 
-def download_and_cache_file_or_url(in_url, cache_folder: Path, translate_url_callback=None, expected_checksum=None):
+def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, translate_url_callback=None, expected_checksum=None):
     """ download file to given cache folder
         if checksum is supplied and the a file with that checksum exists in cache folder - download can be avoided
         otherwise download the file
@@ -241,7 +241,7 @@ def download_and_cache_file_or_url(in_url, cache_folder: Path, translate_url_cal
             safe_remove_file(cached_file_path)
 
     if not cached_file_path.is_file():  # need to download
-        contents_buffer = read_from_file_or_url(in_url, translate_url_callback, expected_checksum, encoding=None)
+        contents_buffer = read_from_file_or_url(in_url, config_vars, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
                 make_open_file_read_write_for_all(wfd)
@@ -249,12 +249,12 @@ def download_and_cache_file_or_url(in_url, cache_folder: Path, translate_url_cal
     return cached_file_path
 
 
-def download_from_file_or_url(in_url, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
+def download_from_file_or_url(in_url, config_vars, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
     """
         download a file from url and place it on a target path. Possibly also decompressed .wzip files.
         """
 
-    cached_file_path = download_and_cache_file_or_url(in_url=in_url, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    cached_file_path = download_and_cache_file_or_url(in_url=in_url, config_vars=config_vars, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
     if not in_target_path:
         in_target_path = cache_folder
     if in_target_path:

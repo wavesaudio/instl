@@ -271,6 +271,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
                 try:
                     file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
+                                                                config_vars=config_vars,
                                                                 in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
                                                                 cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),

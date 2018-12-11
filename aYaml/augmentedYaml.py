@@ -412,7 +412,7 @@ if __name__ == "__main__":
     try:
         import utils
         for afile in sys.argv[1:]:
-            with utils.open_for_read_file_or_url(afile) as open_file:
+            with utils.open_for_read_file_or_url(afile, config_vars=None) as open_file:
                 for a_node in yaml.compose_all(open_file.fd):
                     a_node_as_tdw = nodeToYamlDumpWrap(a_node)
                     docWrap = YamlDumpDocWrap(a_node_as_tdw)

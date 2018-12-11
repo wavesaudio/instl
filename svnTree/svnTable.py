@@ -336,7 +336,7 @@ class SVNTable(object):
             a_format = map_info_extension_to_format[extension[1:]]
         self.comments.append(f"Original file {in_file}")
         if a_format in list(self.read_func_by_format.keys()):
-            with utils.open_for_read_file_or_url(in_file) as open_file:
+            with utils.open_for_read_file_or_url(in_file, config_vars=config_vars) as open_file:
                 if disable_indexes_during_read:
                     self.drop_indexes()
                 self.read_func_by_format[a_format](open_file.fd)
