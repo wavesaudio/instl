@@ -61,7 +61,7 @@ class IsFile(object):
         self.file_path = file_path
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.file_path)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.file_path)})'''
         return the_repr
 
     def __call__(self):
@@ -81,7 +81,7 @@ class IsDir(object):
         self.file_path = file_path
 
     def __repr__(self):
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.file_path)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.file_path)})'''
         return the_repr
 
     def __call__(self):
@@ -101,7 +101,7 @@ class IsSymlink(object):
         self.file_path = file_path
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(self.file_path))
+        all_args.append(utils.quoteme_raw_by_type(self.file_path))
 
     def __call__(self):
         retVal = Path(self.file_path).is_symlink()

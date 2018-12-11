@@ -82,7 +82,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
         opening_code_lines.append(f"""import os""")
         opening_code_lines.append(f"""import sys""")
-        opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_string(instl_folder)})""")
+        opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_by_type(instl_folder)})""")
         opening_code_lines.append(f"""import logging""")
         opening_code_lines.append(f"""log = logging.getLogger()""")
         opening_code_lines.append(f"""from pybatch import *""")

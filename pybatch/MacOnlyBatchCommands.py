@@ -67,7 +67,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         self.path_to_target = path_to_target
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_symlink))}, {utils.quoteme_raw_string(os.fspath(self.path_to_target))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.path_to_symlink)}, {utils.quoteme_raw_by_type(self.path_to_target)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -96,7 +96,7 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""Remove symlink '{self.path}'"""
@@ -123,7 +123,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         self.symlink_to_convert = symlink_to_convert
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_to_convert))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -151,7 +151,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         self.symlink_file_to_convert = os.fspath(symlink_file_to_convert)
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_file_to_convert))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_file_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -182,7 +182,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.folder_to_convert)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
@@ -224,7 +224,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.report_own_progress = False
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.folder_to_convert))}'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)}'''
         if self.own_progress_count > 1:
             the_repr += f''', own_progress_count={self.own_progress_count}'''
         the_repr += ')'

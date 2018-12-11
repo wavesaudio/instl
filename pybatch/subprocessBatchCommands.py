@@ -109,9 +109,9 @@ class CUrl(RunProcessBase):
         self.retry_delay = retry_delay
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
-        all_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
-        all_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
+        all_args.append(f"""src={utils.quoteme_raw_by_type(self.src)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
+        all_args.append(f"""curl_path={utils.quoteme_raw_by_type(self.curl_path)}""")
         all_args.append( f"""connect_time_out={self.connect_time_out}""")
         all_args.append( f"""max_time={self.max_time}""")
         all_args.append( f"""retires={self.retires}""")
@@ -149,9 +149,9 @@ class ShellCommand(RunProcessBase, essential=True):
         self.message = message
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(self.shell_command))
+        all_args.append(utils.quoteme_raw_by_type(self.shell_command))
         if self.message:
-            all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+            all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
         if self.ignore_specific_exit_codes:
             if len(self.ignore_specific_exit_codes,) == 1:
                 all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
@@ -193,7 +193,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def repr_own_args(self, all_args: List[str]) -> None:
         quoted_shell_commands_list = utils.quoteme_raw_if_list(self.shell_command_list)
         all_args.append(f"""shell_command_list={quoted_shell_commands_list}""")
-        all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+        all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
@@ -231,7 +231,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        all_args.append(utils.quoteme_raw_by_type(self.config_file))
         all_args.append(f'''shell={self.shell}''')
 
     def progress_msg_self(self):
@@ -263,9 +263,9 @@ class Exec(PythonBatchCommandBase, essential=True):
         self.reuse_db = reuse_db
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.python_file)))
+        all_args.append(utils.quoteme_raw_by_type(self.python_file))
         if self.config_file is not None:
-            all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+            all_args.append(utils.quoteme_raw_by_type(self.config_file))
         if not self.reuse_db:
             all_args.append(f"reuse_db={self.reuse_db}")
 

@@ -14,8 +14,7 @@ from pathlib import Path
 import logging
 log = logging.getLogger()
 
-import pyinstl.connectionBase
-#from pyinstl import connection_factory
+from pyinstl import connectionBase
 import zlib
 import urllib.request, urllib.error, urllib.parse
 
@@ -115,7 +114,7 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
         with open(actual_file_path, "r", encoding=encoding) as rdf:
             buffer = rdf.read()
     else:
-        session = connection_factory(config_vars).get_session(in_file_or_url)
+        session = connectionBase.connection_factory(config_vars).get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
