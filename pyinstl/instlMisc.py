@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
@@ -130,7 +130,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
+        translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)
 
     def do_mac_dock(self):
@@ -176,20 +176,11 @@ class InstlMisc(InstlInstanceBase):
         print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
-        config_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
-        if not config_file.is_file():
-            raise FileNotFoundError(config_file, config_vars["__CONFIG_FILE__"].raw())
+        config_file = config_vars.get("__CONFIG_FILE__", None).str()
         input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
-        if not input_file.is_file():
-            raise FileNotFoundError(input_file, config_vars["__MAIN_INPUT_FILE__"].raw())
-        self.read_yaml_file(config_file)
-        with utils.utf8_open(input_file, "r") as rfd:
-            text_to_resolve = rfd.read()
-        resolved_text = config_vars.resolve_str(text_to_resolve)
         output_file = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        with utils.utf8_open(output_file, "w") as wfd:
-            wfd.write(resolved_text)
+        ResolveConfigVarsInFile(input_file, output_file, config_file=config_file)()
 
     def do_exec(self):
         try:

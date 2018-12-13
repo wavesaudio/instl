@@ -92,12 +92,12 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.own_progress_count = len(self.paths_to_make)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
+        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.paths_to_make)
         if not self.remove_obstacles:
             all_args.append(f"remove_obstacles={self.remove_obstacles}")
 
     def progress_msg_self(self):
-        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
+        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_by_type(path)) for path in self.paths_to_make)
         titula = "directory" if len(self.paths_to_make) == 1 else "directories"
         the_progress_msg = f"Create {titula} {paths}"
         return the_progress_msg
@@ -128,15 +128,18 @@ class Touch(PythonBatchCommandBase, essential=True):
         self.path = path
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
-        with open(resolved_path, 'a') as tfd:
-            os.utime(resolved_path, None)
+        if resolved_path.is_dir():
+            os.utime(resolved_path)
+        else:
+            with open(resolved_path, 'a') as tfd:
+                os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase, essential=True):
@@ -149,7 +152,7 @@ class Cd(PythonBatchCommandBase, essential=True):
         self.old_path: os.PathLike = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.new_path)))
+        all_args.append(utils.quoteme_raw_by_type(self.new_path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.new_path}'"""
@@ -177,10 +180,10 @@ class CdStage(Cd, essential=False):
         self.titles = sorted(titles)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(self.stage_name))
-        all_args.append(utils.quoteme_raw_string(self.new_path))
+        all_args.append(utils.quoteme_raw_by_type(self.stage_name))
+        all_args.append(utils.quoteme_raw_by_type(self.new_path))
         for title in self.titles:
-            all_args.append(utils.quoteme_raw_string(title))
+            all_args.append(utils.quoteme_raw_by_type(title))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}<{self.new_path}>"""
@@ -206,7 +209,7 @@ class ChFlags(RunProcessBase, essential=True):
         self.flags = sorted(flags)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
         for a_flag in self.flags:
             all_args.append(utils.quoteme_raw_by_type(a_flag))
 
@@ -249,7 +252,7 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
         super().__init__(path, "unlocked", **kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.path}'"""
@@ -263,8 +266,8 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         self.target_file = target_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}""")
-        all_args.append( f"""target_file={utils.quoteme_raw_string(os.fspath(self.target_file))}""")
+        all_args.append( f"""source_file={utils.quoteme_raw_by_type(self.source_file)}""")
+        all_args.append( f"""target_file={utils.quoteme_raw_by_type(self.target_file)}""")
 
     def progress_msg_self(self):
         the_progress_msg = f"Append {self.source_file} to {self.target_file}"
@@ -291,9 +294,9 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
-        all_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def get_run_args(self, run_args) -> None:
         run_args.append("chown")
@@ -342,7 +345,7 @@ class Chmod(RunProcessBase, essential=True):
         self.mode = mode
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
@@ -357,7 +360,7 @@ class Chmod(RunProcessBase, essential=True):
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)$""")
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
         match = symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
@@ -416,7 +419,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         self.group_id: Union[int, str] = group_id  if group_id else -1
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
@@ -444,7 +447,7 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
         self.folders_to_list = sorted(folders_to_list)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
+        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.folders_to_list)
         all_args.append( f"""ls_format='{self.ls_format}'""")
 
     def progress_msg_self(self) -> str:
@@ -469,8 +472,8 @@ class FileSizes(PythonBatchCommandBase, essential=True):
         self.out_file = out_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.folder_to_scan)))
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.out_file)))
+        all_args.append(utils.quoteme_raw_by_type(self.folder_to_scan))
+        all_args.append(utils.quoteme_raw_by_type(self.out_file))
 
     def progress_msg_self(self) -> str:
         return f"""File sizes in {self.folder_to_scan}"""
@@ -505,7 +508,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
             raise ValueError(f"MakeRandomDataFile file_size cannot be negative")
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""file_path={utils.quoteme_raw_string(os.fspath(self.file_path))}""")
+        all_args.append(f"""file_path={utils.quoteme_raw_by_type(self.file_path)}""")
         all_args.append(f"""file_size={self.file_size}""")
 
     def progress_msg_self(self):

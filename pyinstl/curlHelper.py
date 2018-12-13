@@ -33,7 +33,7 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
         if verbatim:
             translated_url = url
         else:
-            translated_url = connectionBase.connection_factory().translate_url(url)
+            translated_url = connectionBase.connection_factory(config_vars).translate_url(url)
         self.urls_to_download.append((translated_url, path, size))
 
     def get_num_urls_to_download(self):

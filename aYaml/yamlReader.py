@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 """ YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally
@@ -24,7 +24,6 @@ import logging
 log = logging.getLogger()
 
 import utils
-import configVar
 
 
 class YamlNodeStack(object):
@@ -50,15 +49,17 @@ class YamlNodeStack(object):
         else:
             return "unknown"
 
+
 class YamlReader(object):
-    def __init__(self) -> None:
+    def __init__(self, config_vars) -> None:
+        self.config_vars = config_vars
         self.path_searcher = None
         self.url_translator = None
         self.specific_doc_readers: Dict[str, Callable] = dict()
         self.file_read_stack: List[str] = list()
         self.exception_printed = False
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
-        configVar.config_vars.setdefault("READ_YAML_FILES", None)
+        self.config_vars.setdefault("READ_YAML_FILES", None)
 
     def progress(self, message: str) -> None:
         pass
@@ -91,8 +92,8 @@ class YamlReader(object):
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(os.fspath(file_path))
-                buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
-                configVar.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
+                buffer, actual_file_path = utils.read_file_or_url(file_path, config_vars=self.config_vars, path_searcher=self.path_searcher)
+                self.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
                 prog_message = f"reading {os.fspath(file_path)}"
                 if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
                     prog_message += f" [{kwargs['original-path-to-file']}]"

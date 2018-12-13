@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import os
 import sys
@@ -190,6 +190,8 @@ class InstlClient(InstlInstanceBase):
         config_vars["__MAIN_UPDATE_IIDS__"] = sorted(update_iids)
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids)
 
+        self.update_mode = "__REPAIR_INSTALLED_ITEMS__" in self.main_install_targets
+
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # mark ignored iids, so all subsequent operations not act on these iids
@@ -283,6 +285,7 @@ class InstlClient(InstlInstanceBase):
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
         for IID, an_action in iid_and_action:
+            log.debug(f'Marking action {an_action} on - {IID}')
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)
@@ -407,6 +410,7 @@ class InstlClient(InstlInstanceBase):
 
         items_to_update = list()
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+            log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
@@ -420,7 +424,7 @@ class InstlClient(InstlInstanceBase):
                     # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
                     # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
                     need_to_sync = True
-                    if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+                    if not self.update_mode:
                         info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
                         if info_xml_item:
                             info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))

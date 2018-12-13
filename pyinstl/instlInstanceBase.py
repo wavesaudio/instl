@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -71,7 +71,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        ConfigVarYamlReader.__init__(self)
+        ConfigVarYamlReader.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
@@ -90,6 +90,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
+        self.update_mode = False
 
     def progress(self, *messages):
         if self.total_self_progress:
@@ -270,6 +271,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
                 try:
                     file_path = utils.download_from_file_or_url(in_url=resolved_file_url,
+                                                                config_vars=config_vars,
                                                                 in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
                                                                 cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
@@ -297,7 +299,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def create_variables_assignment(self, in_batch_accum):
         in_batch_accum.set_current_section("assign")
         #do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
-        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
+        if not bool(config_vars.get("WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE", "no")):
+            do_not_write_vars += list(os.environ.keys())
+
         regex = "|".join(do_not_write_vars)
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
@@ -311,7 +316,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_hard_link_patterns(config_vars.get("NO_HARD_LINK_PATTERNS", []).list())''')
         in_batch_accum += PythonDoSomething('''RsyncClone.add_global_no_flags_patterns(config_vars.get("NO_FLAGS_PATTERNS", []).list())''')
 
-        if "__REPAIR_INSTALLED_ITEMS__" not in list(config_vars.get("MAIN_INSTALL_TARGETS", ["__REPAIR_INSTALLED_ITEMS__"])):
+        if not self.update_mode:
             in_batch_accum += PythonDoSomething('''RsyncClone.add_global_avoid_copy_markers(config_vars.get("AVOID_COPY_MARKERS", []).list())''')
 
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')

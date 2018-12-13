@@ -29,7 +29,7 @@ def camel_to_snake_case(identifier):
 
 class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
-    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "end", "post")
+    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "pre_doit", "doit", "post_doit", "end", "post")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -82,7 +82,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""# Creation time: {self.creation_time}""")
         opening_code_lines.append(f"""import os""")
         opening_code_lines.append(f"""import sys""")
-        opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_string(instl_folder)})""")
+        opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_by_type(instl_folder)})""")
         opening_code_lines.append(f"""import logging""")
         opening_code_lines.append(f"""log = logging.getLogger()""")
         opening_code_lines.append(f"""from pybatch import *""")
@@ -132,21 +132,27 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
             else:
                 running_progress_count += batch_items.own_progress_count
                 if batch_items.call__call__ is False and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}{_remark_helper(running_progress_count, batch_items.remark)}\n""")
+                    text_to_write = f"""{indent_str}{repr(batch_items)}{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
-                    io_str.write(f"""{indent_str}with {repr(batch_items)}:{_remark_helper(running_progress_count, batch_items.remark)}\n""")
+                    text_to_write = f"""{indent_str}with {repr(batch_items)}:{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    io_str.write(text_to_write)
                     if batch_items.child_batch_commands:
                         _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
                     else:
-                        io_str.write(f"""{indent_str}{single_indent}pass\n""")
+                        text_to_write = f"""{indent_str}{single_indent}pass\n"""
+                        io_str.write(text_to_write)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
-                    io_str.write(f"""{indent_str}{repr(batch_items)}(){_remark_helper(running_progress_count, batch_items.remark)}\n""")
+                    text_to_write = f"""{indent_str}{repr(batch_items)}(){_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
                     obj_name = _create_unique_obj_name(batch_items, running_progress_count)
-                    io_str.write(f"""{indent_str}with {repr(batch_items)} as {obj_name}:{_remark_helper(running_progress_count, batch_items.remark)}\n""")
-                    io_str.write(f"""{indent_str}{single_indent}{obj_name}()\n""")
+                    text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    io_str.write(text_to_write)
+                    text_to_write = f"""{indent_str}{single_indent}{obj_name}()\n"""
+                    io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
         prolog_str = io.StringIO()

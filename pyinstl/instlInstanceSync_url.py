@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 from collections import defaultdict
 import urllib
@@ -41,7 +41,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             COOKIE_FOR_SYNC_URLS to the text of the cookie
         """
         net_loc = urllib.parse.urlparse(sync_base_url).netloc
-        the_cookie = connectionBase.connection_factory().get_cookie(net_loc)
+        the_cookie = connectionBase.connection_factory(config_vars).get_cookie(net_loc)
         if the_cookie:
             # the_cookie is actually a tuple ('Cookie', cookie_text)
             # we only need the second part

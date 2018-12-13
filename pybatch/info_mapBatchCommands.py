@@ -30,7 +30,7 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_string(self.info_map_file)}'''
+            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
         the_repr += ")"
         return the_repr
 
@@ -58,7 +58,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_string(self.info_map_file)}'''
+            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
         if self.print_report:
             the_repr += f''', print_report={self.print_report}'''
         if self.raise_on_bad_checksum:
@@ -114,7 +114,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_string(self.info_map_file)}'''
+            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
         the_repr += ")"
         return the_repr
 
@@ -143,7 +143,7 @@ class CreateSyncFolders(InfoMapBase):
     def __repr__(self) -> str:
         the_repr = f'''{self.__class__.__name__}('''
         if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_string(self.info_map_file)}'''
+            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
         the_repr += ")"
         return the_repr
 

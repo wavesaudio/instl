@@ -152,3 +152,37 @@ class TestPythonBatchReporting(unittest.TestCase):
 
     def test_PythonBatchRuntime(self):
         pass
+
+    def test_ResolveConfigVarsInFile_repr(self):
+        self.pbt.reprs_test_runner(ResolveConfigVarsInFile("source", "target"), ResolveConfigVarsInFile("source", "target", config_file="I'm a config file"))
+
+    def test_ResolveConfigVarsInFile(self):
+        if "BANANA" in config_vars:
+            del config_vars["BANANA"]
+        if "STEVE" in config_vars:
+            del config_vars["STEVE"]
+        unresolved_file = self.pbt.path_inside_test_folder("unresolved_file")
+        resolve_file = self.pbt.path_inside_test_folder("resolve_file")
+        config_file = self.pbt.path_inside_test_folder("config_file")
+
+        config_text = """
+--- !define
+STEVE: Jobs
+        """
+        with config_file.open("w") as wfd:
+            wfd.write(config_text)
+
+        unresolved_text = "li li li, hamizvada lu sheli $(BANANA)!, $(STEVE)!"
+        resolved_text = "li li li, hamizvada lu sheli Rama!, Jobs!"
+        with unresolved_file.open("w") as wfd:
+            wfd.write(unresolved_text)
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file, config_file=config_file)
+        self.pbt.exec_and_capture_output()
+
+        with resolve_file.open("r") as rfd:
+            resolved_text_from_File = rfd.read()
+            self.assertEqual(resolved_text_from_File, resolved_text_from_File)
+
+
