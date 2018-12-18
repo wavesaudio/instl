@@ -185,4 +185,20 @@ STEVE: Jobs
             resolved_text_from_File = rfd.read()
             self.assertEqual(resolved_text_from_File, resolved_text_from_File)
 
+    def test_EnvironVarAssign_repr(self):
+        obj = EnvironVarAssign("hila", "lulu lin")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, 'os.environ["hila"]="lulu lin"', "EnvironVarAssign.repr did not recreate Remark object correctly")
 
+    def test_EnvironVarAssign(self):
+        var_name = "hila"
+        var_value = "lulu lin"
+        if var_name in os.environ:  # del value from previous test run
+            del os.environ[var_name]
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += EnvironVarAssign(var_name, var_value)
+        self.pbt.exec_and_capture_output()
+
+        self.assertTrue(var_name in os.environ, f"EnvironVarAssign.repr did not set environment variable '{var_name}' at all")
+        self.assertEqual(os.environ[var_name], var_value, f"EnvironVarAssign.repr did not set environment variable '{var_name}' correctly")
