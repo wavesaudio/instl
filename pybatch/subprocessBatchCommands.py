@@ -112,10 +112,10 @@ class CUrl(RunProcessBase):
         all_args.append(f"""src={utils.quoteme_raw_by_type(self.src)}""")
         all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
         all_args.append(f"""curl_path={utils.quoteme_raw_by_type(self.curl_path)}""")
-        all_args.append( f"""connect_time_out={self.connect_time_out}""")
-        all_args.append( f"""max_time={self.max_time}""")
-        all_args.append( f"""retires={self.retires}""")
-        all_args.append( f"""retry_delay={self.retry_delay}""")
+        all_args.append(f"""connect_time_out={self.connect_time_out}""")
+        all_args.append(f"""max_time={self.max_time}""")
+        all_args.append(f"""retires={self.retires}""")
+        all_args.append(f"""retry_delay={self.retry_delay}""")
 
     def progress_msg_self(self):
         return f"""Download '{self.src}' to '{self.trg}'"""

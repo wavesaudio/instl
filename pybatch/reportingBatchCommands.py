@@ -325,3 +325,15 @@ class ReadConfigVarsFromFile(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(self.file_to_read)
+
+
+class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+    """ assigns an environment variable
+    """
+    def __init__(self, var_name, var_value, **kwargs) -> None:
+        assert var_name.isidentifier(), f"{var_name} is not a valid identifier"
+        self.var_name = var_name
+        self.var_value = var_value
+        the_repr = f'''os.environ["{self.var_name}"]="{self.var_value}"'''
+        super().__init__(the_repr, **kwargs)
+

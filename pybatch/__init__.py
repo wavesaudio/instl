@@ -10,6 +10,10 @@ from .conditionalBatchCommands import IsDir
 from .conditionalBatchCommands import IsSymlink
 from .conditionalBatchCommands import IsEq
 from .conditionalBatchCommands import IsNotEq
+from .conditionalBatchCommands import IsConfigVarEq
+from .conditionalBatchCommands import IsConfigVarNotEq
+from .conditionalBatchCommands import IsEnvironVarEq
+from .conditionalBatchCommands import IsEnvironVarNotEq
 
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
@@ -31,6 +35,7 @@ from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
+from .reportingBatchCommands import EnvironVarAssign
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile

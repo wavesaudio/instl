@@ -118,3 +118,42 @@ class TestPythonBatchConditional(unittest.TestCase):
 
     def test_IsSymlink(self):
         pass
+
+    def test_IsConfigVarEq_repr(self):
+        list_of_objs = list()
+        list_of_remarks = list()
+        for var in ['WZLIB_EXTENSION','NON_EXISTING_VAR']:
+            for expected in ['.wzip','Momo']:
+                for default in ["ben 1", "ben 2", None]:
+                    list_of_objs.append(IsConfigVarEq(var, expected, default))
+                    list_of_remarks.append(", ".join(("IsConfigVarEq", var, expected, str(default))))
+                    list_of_objs.append(IsConfigVarNotEq(var, expected, default))
+                    list_of_remarks.append(", ".join(("IsConfigVarNotEq", var, expected, str(default))))
+        self.pbt.reprs_test_runner(*list_of_objs, remark_list=list_of_remarks)
+
+    def test_IsConfigVarEq(self):
+        file_that_should_not_exist = self.pbt.path_inside_test_folder("should_not_exist")
+        file_touched_if_var_eq = self.pbt.path_inside_test_folder("touched_if_var_eq")
+        file_touched_if_not_var_eq = self.pbt.path_inside_test_folder("touched_if_not_var_eq")
+
+        file_that_should_not_exist_w_default = self.pbt.path_inside_test_folder("should_not_exist_w_default")
+        file_touched_if_var_eq_w_default = self.pbt.path_inside_test_folder("touched_if_var_eq_w_default")
+        file_touched_if_not_var_eq_w_default = self.pbt.path_inside_test_folder("touched_if_not_var_eq_w_default")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ConfigVarAssign("BOO", "MOO")
+        self.pbt.batch_accum += If(IsConfigVarEq("BOO", "MOO"), if_true=Touch(file_touched_if_var_eq), if_false=Touch(file_that_should_not_exist))
+        self.pbt.batch_accum += If(IsConfigVarEq("BOO", "YOOOO"), if_true=Touch(file_that_should_not_exist), if_false=Touch(file_touched_if_not_var_eq))
+
+        self.pbt.batch_accum += If(IsConfigVarEq("POO", "MOO", "MOO"), if_true=Touch(file_touched_if_var_eq_w_default), if_false=Touch(file_that_should_not_exist_w_default))
+        self.pbt.batch_accum += If(IsConfigVarEq("POO", "MOO", "YOOOO"), if_true=Touch(file_that_should_not_exist_w_default), if_false=Touch(file_touched_if_not_var_eq_w_default))
+
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(file_touched_if_var_eq.exists(), f"{self.pbt.which_test}: {file_touched_if_var_eq} should have been created")
+        self.assertFalse(file_that_should_not_exist.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist} should not have been created")
+        self.assertTrue(file_touched_if_not_var_eq.exists(), f"{self.pbt.which_test}: {file_touched_if_not_var_eq} should have been created")
+
+        self.assertTrue(file_touched_if_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_var_eq_w_default} should have been created")
+        self.assertFalse(file_that_should_not_exist_w_default.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_w_default} should not have been created")
+        self.assertTrue(file_touched_if_not_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_not_var_eq_w_default} should have been created")
+
