@@ -1,6 +1,7 @@
 import os
 import sys
 import abc
+import inspect
 from typing import Dict, List
 import time
 from contextlib import contextmanager
@@ -68,7 +69,14 @@ class PythonBatchCommandBase(abc.ABC):
         if kwargs_defaults:
             cls.kwargs_defaults.update(kwargs_defaults)
 
-        #print(f"{cls.__name__}: {parent_kwargs_defaults}/{cls.kwargs_defaults}")
+    @classmethod
+    def get_derived_class_names(cls):
+        """ get list of names of classes deriving from this class """
+        retVal = list()
+        pybatch_module_name = '.'.join(cls.__module__.split('.')[:-1])
+        for name, obj in inspect.getmembers(sys.modules[pybatch_module_name], lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch_module_name)):
+            retVal.append(name)
+        return retVal
 
     @abc.abstractmethod
     def __init__(self, **kwargs):

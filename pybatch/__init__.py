@@ -99,7 +99,7 @@ if sys.platform == "darwin":
 from .new_batchCommands import *
 
 
-def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
+def EvalShellCommand(action_str: str, message: str, python_batch_names=None) -> PythonBatchCommandBase:
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)
@@ -107,7 +107,12 @@ def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
         retVal = eval(action_str, globals(), locals())
         if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
             raise TypeError(f"{retVal} is not PythonBatchCommandBase")
-        #retVal.remark = f"""evaled {message}"""
     except (SyntaxError, TypeError, NameError) as ex:
         retVal = ShellCommand(action_str, message)
+        # check that it's not a pybatch command
+        if python_batch_names:
+            assumed_command_name = action_str[:action_str.find('(')]
+            if assumed_command_name in python_batch_names:
+                log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
+
     return retVal

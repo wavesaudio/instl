@@ -284,6 +284,7 @@ class InstlClient(InstlInstanceBase):
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
+        python_batch_names = PythonBatchCommandBase.get_derived_class_names()
         for IID, an_action in iid_and_action:
             log.debug(f'Marking action {an_action} on - {IID}')
             if IID != previous_iid:  # avoid multiple progress messages for same iid
@@ -296,7 +297,7 @@ class InstlClient(InstlInstanceBase):
                 for action in actions:
                     actions_of_iid_count += 1
                     message = f"{name_and_version} {action_description} {actions_of_iid_count}"
-                    retVal += EvalShellCommand(action, message)
+                    retVal += EvalShellCommand(action, message, python_batch_names)
         return retVal
 
     def create_require_file_instructions(self):

@@ -18,6 +18,7 @@ import io
 import yaml
 from contextlib import contextmanager
 import urllib.error
+import json
 
 from typing import Callable, Dict, List, Tuple
 import logging
@@ -105,7 +106,10 @@ class YamlReader(object):
                 kwargs['path-to-file'] = os.fspath(actual_file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
                 kwargs['node-stack'] = YamlNodeStack()
-                self.read_yaml_from_stream(buffer, *args, **kwargs)
+                if os.fspath(file_path).lower().endswith(".json"):
+                    self.read_json_from_stream(buffer, *args, **kwargs)
+                else:
+                    self.read_yaml_from_stream(buffer, *args, **kwargs)
                 self.file_read_stack.pop()
                 # now read the __post tags if any
                 if len(self.file_read_stack) == 0:  # first file done reading
@@ -144,6 +148,21 @@ class YamlReader(object):
         for a_node in yaml.compose_all(the_stream):
             with kwargs['node-stack'](a_node):
                 self.read_yaml_from_node(a_node, *args, **kwargs)
+
+    def read_json_from_stream(self, the_stream, *args, **kwargs):
+        json_obj = json.load(the_stream)
+        if isinstance(json_obj, dict):
+            for identifier, contents in json_obj.items():
+                if not isinstance(identifier, str):
+                    raise TypeError(f"configVar key {identifier} should be of type str not {type(identifier)}")
+                values = list()
+                if isinstance(contents, (str, int)):
+                    values.append(contents)
+                elif isinstance(contents, (list, tuple)):
+                    values.extend([item for item in contents if isinstance(item, (str, int))])
+                else:
+                    raise TypeError(f"configVar values for {identifier} should be of type str, int or list not {type(contents)}")
+                self.config_vars[identifier] = values
 
     def read_yaml_from_node(self, the_node, *args, **kwargs):
         YamlReader.convert_standard_tags(the_node)
