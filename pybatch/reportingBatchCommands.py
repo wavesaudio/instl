@@ -287,12 +287,15 @@ class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
     def __init__(self, unresolved_file, resolved_file=None, config_file=None, **kwargs):
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
-        self.resolved_file = resolved_file
+        if resolved_file:
+            self.resolved_file = resolved_file
+        else:
+            self.resolved_file = self.unresolved_file
         self.config_file = config_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
-        if self.resolved_file is not None:
+        if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
         all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
 
@@ -306,8 +309,7 @@ class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
         with utils.utf8_open(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
-        output_file = self.resolved_file if self.resolved_file is not None else self.unresolved_file
-        with utils.utf8_open(output_file, "w") as wfd:
+        with utils.utf8_open(self.resolved_file, "w") as wfd:
             wfd.write(resolved_text)
 
 
