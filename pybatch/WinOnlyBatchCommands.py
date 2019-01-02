@@ -238,9 +238,36 @@ class DeleteRegistryValues(BaseRegistryKey):
             self._close_key()
 
 
+class ResHackerCompileResource(RunProcessBase):
+    """ add a resource using ResHackerAddResource """
+    def __init__(self, reshacker_path: os.PathLike, rc_file_path: os.PathLike) -> None:
+        super().__init__()
+        self.reshacker_path = reshacker_path
+        self.rc_file_path: os.PathLike = rc_file_path
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
+        all_args.append(f"""rc_file_path={utils.quoteme_raw_by_type(self.rc_file_path)}""")
+
+    def progress_msg_self(self):
+        return f"""Compile resource '{self.rc_file_path}'"""
+
+    def get_run_args(self, run_args) -> None:
+        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        if not os.path.isfile(resolved_reshacker_path):
+            raise FileNotFoundError(resolved_reshacker_path)
+        resolved_rc_file_path = os.fspath(utils.ResolvedPath(self.rc_file_path))
+        run_args.extend([resolved_reshacker_path,
+                         "-open",
+                         self.rc_file_path,
+                         "-action",
+                         "compile"
+                         ])
+
+
 class ResHackerAddResource(RunProcessBase):
     """ add a resource using ResHackerAddResource """
-    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type, resource_name) -> None:
+    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type=None, resource_name=None) -> None:
         super().__init__()
         self.reshacker_path = reshacker_path
         self.trg: os.PathLike = trg
@@ -252,12 +279,16 @@ class ResHackerAddResource(RunProcessBase):
         all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
         all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
         all_args.append(f"""resource_source_file={utils.quoteme_raw_by_type(self.resource_source_file)}""")
-        all_args.append( f"""resource_type={utils.quoteme_raw_by_type(self.resource_type)}""")
-        all_args.append( f"""resource_name={utils.quoteme_raw_by_type(self.resource_name)}""")
+        if self.resource_type:
+            all_args.append( f"""resource_type={utils.quoteme_raw_by_type(self.resource_type)}""")
+        if self.resource_name:
+            all_args.append( f"""resource_name={utils.quoteme_raw_by_type(self.resource_name)}""")
 
     def progress_msg_self(self):
-        return f"""Add resource '{self.resource_type}/{self.resource_name}' to '{self.trg}'"""
-
+        if self.resource_type and self.resource_name:
+            return f"""Add resource '{self.resource_type}/{self.resource_name}' to '{self.trg}'"""
+        else:
+            return f"""Add resource {self.resource_source_file} to '{self.trg}'"""
     def get_run_args(self, run_args) -> None:
         resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
         if not os.path.isfile(resolved_reshacker_path):
@@ -276,7 +307,6 @@ class ResHackerAddResource(RunProcessBase):
                          "-resource",
                          resolved_resource_source_file,
                          "-action",
-                         "addoverwrite",
-                         "-mask",
-                         f"""{self.resource_type},{self.resource_name},0"""])
-
+                         "addoverwrite"])
+        if self.resource_type and self.resource_name:
+            run_args.extend(["-mask", f"""{self.resource_type},{self.resource_name},0"""])
