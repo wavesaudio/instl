@@ -1,4 +1,5 @@
 import os
+import stat
 import shutil
 from pathlib import Path
 from typing import List
@@ -50,11 +51,17 @@ class RmDir(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
 
+    def on_rm_error(self, func, path, exc_info):
+        # path contains the path of the file that couldn't be removed
+        # let's just assume that it's read-only and unlink it.
+        os.chmod(path, stat.S_IWRITE)
+        os.unlink(path)
+
     def __call__(self, *args, **kwargs):
         resolved_path = utils.ResolvedPath(self.path)
         if resolved_path.exists():
             self.doing = f"""removing folder '{resolved_path}'"""
-            shutil.rmtree(resolved_path)
+            shutil.rmtree(resolved_path, onerror=self.on_rm_error)
 
 
 class RmFileOrDir(PythonBatchCommandBase, essential=True):
