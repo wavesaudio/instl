@@ -9,7 +9,7 @@ from .subprocessBatchCommands import RunProcessBase
 import utils
 
 
-class WinShortcut(PythonBatchCommandBase):
+class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False}):
     """ create a shortcut (windows only)"""
     def __init__(self, shortcut_path: os.PathLike, target_path: os.PathLike, run_as_admin=False, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -17,12 +17,9 @@ class WinShortcut(PythonBatchCommandBase):
         self.target_path = target_path
         self.run_as_admin = run_as_admin
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.shortcut_path)}, {utils.quoteme_raw_by_type(self.target_path)}'''
-        if self.run_as_admin:
-            the_repr += ''', run_as_admin=True'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
+        all_args.append(self.unnamed__init__param(os.fspath(self.target_path)))
 
     def progress_msg_self(self) -> str:
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
