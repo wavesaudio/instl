@@ -10,6 +10,8 @@ from configVar import config_vars
 from .indexItemTable import IndexItemsTable
 from pybatch import *
 
+# to do: under doit command all copy... python-batch should default to hard-links=False
+
 
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars) -> None:

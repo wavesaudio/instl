@@ -187,3 +187,6 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
             for item in list_to_remove:
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
+
+
+# todo: class EmptyDir that will remove all contents from dir
