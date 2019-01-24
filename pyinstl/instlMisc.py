@@ -72,7 +72,7 @@ class InstlMisc(InstlInstanceBase):
         if "__MAIN_OUT_FILE__" in config_vars:
             where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
-        Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
+        Wtar(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
     def do_unwtar(self):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
