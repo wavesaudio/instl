@@ -797,3 +797,23 @@ def clock(func):
             log.debug(msg)
         return result
     return clocked
+
+
+def partition_list(in_list, partition_condition):
+    """ divide a list to sub lists according to partition_condition
+        e.g. partition_list([1,2,3,0,4,5,6], lambda x: x==0) will return:
+    """
+
+    list_of_lists = []
+
+    cur_list = []
+    for i in in_list:
+        if partition_condition(i):
+            if cur_list:
+                list_of_lists.append(cur_list)
+                cur_list = []
+        else:
+            cur_list.append(i)
+    if cur_list:
+        list_of_lists.append(cur_list)
+    return list_of_lists

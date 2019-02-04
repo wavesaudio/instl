@@ -9,6 +9,8 @@ import logging
 from itertools import repeat
 from concurrent import futures
 
+import utils
+
 log = logging.getLogger()
 
 exit_val = 0
@@ -19,8 +21,13 @@ def run_processes_in_parallel(commands, shell=False):
     global exit_val
     try:
         install_signal_handlers()
-        with futures.ThreadPoolExecutor(len(commands)) as executor:
-            list(executor.map(run_process, commands, repeat(shell), repeat(process_list)))
+
+        lists_of_command_lists = utils.partition_list(commands, lambda c: c[0] == "wait")
+
+        for command_list in lists_of_command_lists:
+            with futures.ThreadPoolExecutor(len(command_list)) as executor:
+                list(executor.map(run_process, command_list, repeat(shell), repeat(process_list)))
+
         exit_val = 0
         killall_and_exit()
     except Exception as e:
