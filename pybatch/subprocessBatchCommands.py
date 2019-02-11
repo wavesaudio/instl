@@ -31,6 +31,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         run_args = list()
         self.get_run_args(run_args)
         run_args = list(map(str, run_args))
@@ -216,6 +217,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         run_args.append(batch_file.name)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_command_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
@@ -238,6 +240,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         return f"""{self.__class__.__name__} '{self.config_file}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
         resolved_config_file = utils.ResolvedPath(self.config_file)
         self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
@@ -273,6 +276,7 @@ class Exec(PythonBatchCommandBase, essential=True):
         return f"""Executing '{self.python_file}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.config_file is not None:
             self.read_yaml_file(self.config_file)
         with utils.utf8_open(self.python_file, 'r') as rfd:

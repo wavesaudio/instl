@@ -82,7 +82,7 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
-        pass
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
@@ -153,7 +153,7 @@ class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=Fal
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        pass
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
@@ -266,6 +266,16 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
         PythonBatchCommandBase.stage_stack.pop()
+
+        if PythonBatchCommandBase.call_timings:
+            PythonBatchCommandBase.call_timings["total"] = time_diff*1000
+            timing_file_path = Path(str(config_vars['__MAIN_OUT_FILE__'])).with_suffix(".timings")
+            with open(timing_file_path, "w") as wfd:
+                print("global called_as_timings", file=wfd)
+                print("called_as_timings = {", file=wfd)
+                for name, timing in PythonBatchCommandBase.call_timings.items():
+                    print(f"'{name}': {timing},", file=wfd)
+                print("}", file=wfd)
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):
@@ -280,7 +290,7 @@ class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=Fa
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        pass
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
 class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
@@ -303,6 +313,7 @@ class ResolveConfigVarsInFile(PythonBatchCommandBase, essential=True):
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.config_file is not None:
             reader = ConfigVarYamlReader(config_vars)
             reader.read_yaml_file(self.config_file)
@@ -325,6 +336,7 @@ class ReadConfigVarsFromFile(PythonBatchCommandBase, essential=True):
         return f'''reading configVars from {self.file_to_read}'''
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(self.file_to_read)
 

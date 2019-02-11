@@ -188,7 +188,7 @@ class InstlClientCopy(InstlClient):
         if len(wtar_items) > 0:
             retVal += Unwtar(source_path_abs, os.curdir)
             #self.unwtar_instructions.append((source_path_abs, '.'))
-            retVal += Unlock(os.curdir, recursive=True)
+            #retVal += Unlock(os.curdir, recursive=True)
 
             # fix permissions for any items that were unwtarred
             # unwtar moved be done with "command-list"
@@ -222,7 +222,7 @@ class InstlClientCopy(InstlClient):
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, source_path_name)
                 #self.unwtar_instructions.append((source_path_abs, source_path_name))
-                retVal += Unlock(os.curdir, recursive=True)
+                #retVal += Unlock(os.curdir, recursive=True)
 
                 # fix permissions for any items that were unwtarred
                 # unwtar moved be done with "command-list"

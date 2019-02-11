@@ -25,6 +25,7 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
         os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
@@ -127,6 +128,7 @@ class ReadRegistryValue(BaseRegistryKey):
         return f"Reading {self.sub_key}\\{self.value_name} -> {self.the_value}"
 
     def __call__(self, *args, **kwargs) -> str:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.the_value = None
         try:
             self._open_key()
@@ -155,6 +157,7 @@ class CreateRegistryKey(BaseRegistryKey):
         return f"Creating sub_key {self.top_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             if self.value_data is not None:
@@ -180,6 +183,7 @@ class CreateRegistryValues(BaseRegistryKey):
         return f"Creating values {self.sub_key} -> {self.value_dict}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             for value_name, value_data in self.value_dict.items():
@@ -200,6 +204,7 @@ class DeleteRegistryKey(BaseRegistryKey):
         return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self._open_key()
             winreg.DeleteKey(self.key_handle, "")
@@ -224,6 +229,7 @@ class DeleteRegistryValues(BaseRegistryKey):
         return f"Deleting values {self.sub_key} -> {self.values}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self._open_key()
             for name in self.values:

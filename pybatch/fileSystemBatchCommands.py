@@ -73,6 +73,7 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
                 os.chdir(save_cwd)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.make_random_dirs_recursive(self.num_levels)
 
 
@@ -103,6 +104,7 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         for self.cur_path in self.paths_to_make:
             resolved_path_to_make = utils.ResolvedPath(self.cur_path)
             if self.remove_obstacles:
@@ -134,6 +136,7 @@ class Touch(PythonBatchCommandBase, essential=True):
         return f"""{self.__class__.__name__} to '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
         if resolved_path.is_dir():
             os.utime(resolved_path)
@@ -158,6 +161,7 @@ class Cd(PythonBatchCommandBase, essential=True):
         return f"""{self.__class__.__name__} to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.old_path = os.getcwd()
         resolved_new_path = utils.ResolvedPath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
@@ -274,6 +278,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_source = utils.ResolvedPath(self.source_file)
         resolved_target = utils.ResolvedPath(self.target_file)
         self.doing = f"Append {resolved_source} to {resolved_target}"
@@ -316,6 +321,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if (self.user_id, self.group_id) != (-1, -1):
             # os.chown is not recursive so call the system's chown
             if self.recursive:
@@ -388,7 +394,8 @@ class Chmod(RunProcessBase, essential=True):
         run_args.append(utils.ResolvedPath(self.path))
 
     def __call__(self, *args, **kwargs):
-        # os.chmod is not recursive so call the system's chmod
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+       # os.chmod is not recursive so call the system's chmod
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
@@ -433,6 +440,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
         Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0)()
@@ -454,6 +462,7 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
         return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_folder_list = [utils.ResolvedPath(folder_path) for folder_path in self.folders_to_list]
         the_listing = utils.disk_item_listing(*resolved_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
@@ -479,6 +488,7 @@ class FileSizes(PythonBatchCommandBase, essential=True):
         return f"""File sizes in {self.folder_to_scan}"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.compile_exclude_regexi()
         with open(self.out_file, "w") as wfd:
             if os.path.isfile(self.folder_to_scan):
@@ -516,6 +526,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         with open(self.file_path, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
