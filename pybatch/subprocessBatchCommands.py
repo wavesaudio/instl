@@ -7,7 +7,7 @@ import shlex
 import collections
 import subprocess
 from typing import List
-
+from threading import Thread
 import utils
 from .baseClasses import PythonBatchCommandBase
 
@@ -283,3 +283,46 @@ class Exec(PythonBatchCommandBase, essential=True):
             py_text = rfd.read()
             py_compiled = compile(py_text, self.python_file, mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())
+
+
+class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0}):
+    """
+        run another python-batch command in a thread
+    """
+    def __init__(self, what_to_run, thread_name=None, daemon=None, **kwargs) -> None:
+        PythonBatchCommandBase.__init__(self, **kwargs)
+        self.what_to_run = what_to_run
+        self.thread_name = thread_name
+        self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
+                              #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(repr(self.what_to_run))
+        if self.thread_name is not None:
+            all_args.append(utils.quoteme_raw_by_type(self.thread_name))
+        if self.daemon is not None:
+            all_args.append(utils.quoteme_raw_by_type(self.daemon))
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def run_with(self):
+        with self.what_to_run as rit:
+            rit()
+
+    def run_without(self):
+        self.what_to_run()
+
+    def __call__(self, *args, **kwargs) -> None:
+        thread_thingy = None
+        if self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is False:
+            thread_thingy = None  # wtf?
+        elif self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is True:
+            thread_thingy = None # wtf?
+        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is False:
+            thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
+        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is True:
+            thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
+
+        if thread_thingy:
+            thread_thingy.start()

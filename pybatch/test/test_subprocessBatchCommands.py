@@ -229,3 +229,25 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(zip_input_copy.exists(), f"{self.pbt.which_test}: {zip_input_copy} should remain")
 
         self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
+
+    def test_RunInThread_repr(self):
+        self.pbt.reprs_test_runner(RunInThread(Ls('rumba', out_file="empty.txt")),
+                                   RunInThread(Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')),
+                                   RunInThread(Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")))
+
+    def test_RunInThread(self):
+        folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")
+        list_out_file = self.pbt.path_inside_test_folder("list-output")
+
+        # create the folder, with sub folder and one known file
+        self.pbt.batch_accum.clear()
+        with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as cd1_accum:
+             cd1_accum += MakeDirs(folder_to_list)
+             with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
+                cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
+             cd1_accum += RunInThread(Ls(folder_to_list, out_file=list_out_file))
+        self.pbt.exec_and_capture_output()
+
+        time.sleep(5)
+        self.assertTrue(os.path.isdir(folder_to_list), f"{self.pbt.which_test} : folder to list was not created {folder_to_list}")
+        self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")

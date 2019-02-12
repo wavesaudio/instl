@@ -1,7 +1,6 @@
 appdirs>=1.4.3
 aws>=0.2.5
 boto>=2.49.0
-colorama>=0.4.1
 future>=0.17.1
 networkx>=2.2
 packaging>=18.0
