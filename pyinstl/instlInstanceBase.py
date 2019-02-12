@@ -325,12 +325,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "USER_CACHE_DIR" not in config_vars:
             os_family_name = config_vars["__CURRENT_OS__"].str()
             if os_family_name == "Mac":
-                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             elif os_family_name == "Win":
-                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(COMPANY_NAME)")
+                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(VENDOR_NAME)")
             elif os_family_name == "Linux":
-                user_cache_dir_param = "$(COMPANY_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
                 user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
             else:
                 raise RuntimeError(f"Unknown operating system {os_family_name}")

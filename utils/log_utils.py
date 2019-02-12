@@ -27,6 +27,20 @@ def config_logger(system_log_file_path=None):
     os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
     config_dict = get_config_dict(system_log_file_path)
     dictConfig(config_dict)
+    # command line options relating to logging are parsed here, as soon as possible
+    if '--no-stdout' in sys.argv:
+        remove_log_handler("console")
+    if '--log' in sys.argv:
+        try:
+            log_option_index = sys.argv.index('--log')
+            for i_log_file in range(log_option_index+1, len(sys.argv)):
+                log_file_path = sys.argv[i_log_file]
+                if not log_file_path.startswith('-'):
+                    setup_file_logging(log_file_path)
+                else:
+                    break
+        except:
+            pass
 
 
 def get_config_dict(system_log_file_path):

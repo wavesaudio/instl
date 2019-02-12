@@ -100,7 +100,10 @@ def main():
                     "__USER_TEMP_DIR__": os.path.normpath(os.path.join(tempfile.gettempdir(), "$(SYNC_BASE_URL_MAIN_ITEM)/$(REPO_NAME)")),
                     "__SYSTEM_LOG_FILE_PATH__": utils.get_system_log_file_path(),
                     "__INVOCATION_RANDOM_ID__": ''.join(random.choice(string.ascii_lowercase) for _ in range(16)),
-                    "__SUDO_USER__": os.environ.get("SUDO_USER", "no set")
+                    "__SUDO_USER__": os.environ.get("SUDO_USER", "no set"),
+                    # VENDOR_NAME, APPLICATION_NAME need to be set so logging can be redirected to the correct folder
+                    "VENDOR_NAME": os.environ.get("VENDOR_NAME", "Waves Audio"),
+                    "APPLICATION_NAME": os.environ.get("APPLICATION_NAME", "Waves Central"),
                     }
 
     if os_family_name != "Win":
@@ -112,7 +115,6 @@ def main():
                     {"__USER_ID__": -1,
                      "__GROUP_ID__": -1})
 
-    # config_logger()
     instance = None
     if options.__MAIN_COMMAND__ == "command-list":
         from pyinstl.instlCommandList import run_commands_from_file
@@ -175,6 +177,8 @@ class InvocationReporter(object):
 
     def __enter__(self):
         try:
+            vendor_name = os.environ.setdefault("VENDOR_NAME", "Waves Audio")
+            app_name = os.environ.setdefault("APPLICATION_NAME", "Waves Central")
             config_logger()
             log.debug(f"===== {self.random_invocation_name} =====")
             log.debug(f"Start: {self.start_time}")

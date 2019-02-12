@@ -457,14 +457,26 @@ def prepare_args_parser(in_command):
         help_options = command_parser.add_argument_group(description='help subject:')
         help_options.add_argument('subject', nargs='?')
 
-    define_options = command_parser.add_argument_group(description='define:')
-    define_options.add_argument('--define',
+    general_options = command_parser.add_argument_group(description='general:')
+    general_options.add_argument('--define',
                             required=False,
                             default=False,
                             nargs=1,
                             metavar='define',
                             dest='define',
                             help="define variable(s) format: X=y,A=b")
+    general_options.add_argument('--no-stdout',
+                            required=False,
+                            action='store_const',
+                            metavar='no_stdout',
+                            const='__NO_STDOUT__',
+                            help="do not output to stdout")
+    general_options.add_argument('--log',
+                            required=False,
+                            nargs='+',
+                            metavar='log_file',
+                            dest='__LOG_FILE__',
+                            help="log to file(s)")
 
     return parser, command_names
 

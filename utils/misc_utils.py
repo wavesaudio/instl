@@ -748,10 +748,14 @@ def get_system_log_file_path():
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
+        # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
+        vendor_name = os.environ["VENDOR_NAME"]
+        app_name = os.environ["APPLICATION_NAME"]
+
         if sys.platform == 'win32':
-            folder_to_write_in = os.path.join(appdirs.user_data_dir('Waves Central', 'Waves Audio', roaming=True), 'Logs')
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
         else:
-            folder_to_write_in = os.path.join(appdirs.user_data_dir('Waves Audio'), 'Waves Central', 'Logs')
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
 
     system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
     return system_log_file_path
