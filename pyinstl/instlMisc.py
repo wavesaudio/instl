@@ -193,6 +193,8 @@ class InstlMisc(InstlInstanceBase):
                 exec_le()
         except Exception as ex:
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
+            if bool(config_vars.get("EXIT_ON_EXEC_EXCEPTION", False)):
+                raise
 
     def do_wzip(self):
         what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)

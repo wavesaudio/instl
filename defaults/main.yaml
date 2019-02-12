@@ -90,3 +90,6 @@ DB_FILE_EXT: sqlite
 
 # should configVars read from __environment__ be written to batch file created by instl?
 WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE: no
+
+# in exec command, if the given python raises - re-raise the exception to cause non zero exit code
+EXIT_ON_EXEC_EXCEPTION: False
