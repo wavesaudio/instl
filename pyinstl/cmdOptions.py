@@ -471,6 +471,12 @@ def prepare_args_parser(in_command):
                             metavar='no_stdout',
                             const='__NO_STDOUT__',
                             help="do not output to stdout")
+    general_options.add_argument('--no-system-log',
+                            required=False,
+                            action='store_const',
+                            metavar='no_stdout',
+                            const='__NO_SYSLOG__',
+                            help="do not output to system log")
     general_options.add_argument('--log',
                             required=False,
                             nargs='+',

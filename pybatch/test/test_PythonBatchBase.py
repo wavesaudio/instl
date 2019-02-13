@@ -190,7 +190,6 @@ class TestPythonBatch(object):
                 utils.teardown_file_logging(self.output_file_name)
             self.output_file_name = output_file_name
             utils.setup_file_logging(self.output_file_name, level=logging.INFO)
-            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:
