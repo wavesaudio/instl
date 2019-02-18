@@ -91,6 +91,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
         self.update_mode = False
+        self.python_batch_names = PythonBatchCommandBase.get_derived_class_names()
 
     def progress(self, *messages):
         if self.total_self_progress:

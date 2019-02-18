@@ -296,6 +296,11 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
                               #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
 
+    def total_progress_count(self) -> int:
+        retVal = self.own_progress_count
+        retVal += self.what_to_run.total_progress_count()
+        return retVal
+
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(repr(self.what_to_run))
         if self.thread_name is not None:

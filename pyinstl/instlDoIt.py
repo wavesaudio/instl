@@ -72,14 +72,12 @@ class InstlDoIt(InstlInstanceBase):
         except:
             name = IID
 
-        python_batch_names = PythonBatchCommandBase.get_derived_class_names()
-
         with self.batch_accum.sub_accum(Stage(name+"...")) as iid_accum:
             if len(action_list) > 0:
                 iid_accum += Remark(f"--- Begin {IID} {name}")
             num_actions = len(action_list)
             for i in range(num_actions):
-                iid_accum += EvalShellCommand(action_list[i], name, python_batch_names)
+                iid_accum += EvalShellCommand(action_list[i], name, self.python_batch_names)
             if len(action_list) > 0:
                 iid_accum += Remark(f"--- End {IID} {name}")
 

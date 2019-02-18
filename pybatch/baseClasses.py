@@ -9,6 +9,7 @@ from typing import List
 import logging
 log = logging.getLogger()
 
+import pybatch
 import utils
 
 
@@ -203,6 +204,8 @@ class PythonBatchCommandBase(abc.ABC):
                 self.child_batch_commands.extend(instructions.child_batch_commands)
             else:
                 self.child_batch_commands.append(instructions)
+        elif isinstance(instructions, str):
+            self.child_batch_commands.append(pybatch.EvalShellCommand(instructions, ""))
         else:
             for instruction in instructions:
                 self.add(instruction)
