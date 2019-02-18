@@ -50,6 +50,7 @@ class CommandLineOptions(object):
     __DOCK_ITEM_LABEL__ = OptionToConfigVar()
     __DOCK_ITEM_PATH__ = OptionToConfigVar()
     __FAIL_EXIT_CODE__ = OptionToConfigVar()
+    __FAIL_SLEEP_TIME__ = OptionToConfigVar()
     __FILE_SIZES_FILE__ = OptionToConfigVar()
     __JUST_WITH_NUMBER__ = OptionToConfigVar(default="0")
     __LIMIT_COMMAND_TO__ = OptionToConfigVar()
@@ -437,13 +438,19 @@ def prepare_args_parser(in_command):
                                     dest='LS_FORMAT',
                                     help="specify output format")
     elif 'fail' == in_command:
-        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        mac_dock_options.add_argument('--exit-code',
+        fail_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        fail_options.add_argument('--exit-code',
                                 required=False,
                                 nargs=1,
                                 metavar='exit-code-to-return',
                                 dest='__FAIL_EXIT_CODE__',
                                 help="exit code to return")
+        fail_options.add_argument('--sleep',
+                                required=False,
+                                nargs=1,
+                                metavar='time-to-sleep',
+                                dest='__FAIL_SLEEP_TIME__',
+                                help="time to sleep")
     elif 'report-versions' == in_command:
         report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
         report_versions_options.add_argument('--only-installed',

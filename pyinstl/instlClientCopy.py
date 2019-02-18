@@ -266,29 +266,40 @@ class InstlClientCopy(InstlClient):
 
     def should_copy_source(self, source, target_folder_path):
         retVal = True
-        if not self.update_mode and source[1] == "!dir":
-            src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
-            trg = Path(config_vars.resolve_str(target_folder_path), src.name)
-            for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
-                src_marker = src.joinpath(avoid_copy_marker)
-                dst_marker = trg.joinpath(avoid_copy_marker)
-                retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
-                if not retVal:
-                    #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                    break
-            else:
-                retVal = True
-            src = src.joinpath("Contents")
-            trg = trg.joinpath("Contents")
-            for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
-                src_marker = src.joinpath(avoid_copy_marker)
-                dst_marker = trg.joinpath(avoid_copy_marker)
-                retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
-                if not retVal:
-                    #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                    break
-            else:
-                retVal = True
+        if not self.update_mode:
+            if source[1] == "!dir":
+                src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
+                trg = Path(config_vars.resolve_str(target_folder_path), src.name)
+                for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
+                    src_marker = src.joinpath(avoid_copy_marker)
+                    dst_marker = trg.joinpath(avoid_copy_marker)
+                    retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
+                    if not retVal:
+                        #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                        break
+                else:
+                    retVal = True
+                src = src.joinpath("Contents")
+                trg = trg.joinpath("Contents")
+                for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
+                    src_marker = src.joinpath(avoid_copy_marker)
+                    dst_marker = trg.joinpath(avoid_copy_marker)
+                    retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
+                    if not retVal:
+                        #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                        break
+                else:
+                    retVal = True
+            elif source[1] == "!file":
+                try:
+                    src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
+                    trg = Path(config_vars.resolve_str(target_folder_path), src.name)
+                    if src.stat().st_ino == trg.stat().st_ino:
+                        retVal = False
+                    else:
+                        pass
+                except:
+                    pass
         return retVal
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
@@ -326,7 +337,8 @@ class InstlClientCopy(InstlClient):
                     copy_to_folder_accum += ResolveSymlinkFilesInFolder(target_folder_path, own_progress_count=num_symlink_items)
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+            if copy_to_folder_accum.is_essential():
+                copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.current_destination_folder = None
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name) -> PythonBatchCommandBase:

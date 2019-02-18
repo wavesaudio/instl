@@ -158,6 +158,10 @@ class InstlMisc(InstlInstanceBase):
         Ls(*folders_to_list, out_file=out_file, ls_format=ls_format)()
 
     def do_fail(self):
+        sleep_before_fail = int(config_vars.get("__FAIL_SLEEP_TIME__", "0") )
+        log.error(f"""Sleeping for {sleep_before_fail} seconds""")
+        time.sleep(sleep_before_fail)
+
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
         log.error(f"""Failing on purpose with exit code {exit_code}""")
         sys.exit(exit_code)
