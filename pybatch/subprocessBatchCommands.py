@@ -331,3 +331,41 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
 
         if thread_thingy:
             thread_thingy.start()
+
+
+class Subprocess(RunProcessBase, essential=True):
+    """ run a single command NOT in a shell """
+
+    def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
+        assert "shell" not in kwargs, "'shell' cannot appear in kwargs for Subprocess"
+        super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
+        self.subprocess_exe = subprocess_exe
+        self.subprocess_args = subprocess_args
+        self.message = message
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        try:
+            all_args.append(utils.quoteme_raw_by_type(self.subprocess_exe))
+            for arg in self.subprocess_args:
+                all_args.append(utils.quoteme_raw_by_type(arg))
+            if self.message:
+                all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
+            if self.ignore_specific_exit_codes:
+                if len(self.ignore_specific_exit_codes,) == 1:
+                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+                else:
+                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
+        except TypeError as te:
+            pass
+
+    def progress_msg_self(self):
+        if self.message:
+            return f"""{self.message}"""
+        else:
+            return f"""running {self.subprocess_exe} {self.subprocess_args}"""
+
+    def get_run_args(self, run_args) -> None:
+        subprocess_exe = os.path.expandvars(self.subprocess_exe)
+        run_args.append(subprocess_exe)
+        for arg in self.subprocess_args:
+            run_args.append(os.path.expandvars(arg))

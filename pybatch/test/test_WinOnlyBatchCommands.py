@@ -16,7 +16,7 @@ class TestPythonBatchWin(unittest.TestCase):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
-    @unittest.skipUnless(running_on_Win, "Mac only test")
+    @unittest.skipUnless(running_on_Win, "Win only test")
     def setUp(self):
         self.pbt.setUp()
 

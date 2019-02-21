@@ -251,3 +251,17 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         time.sleep(5)
         self.assertTrue(os.path.isdir(folder_to_list), f"{self.pbt.which_test} : folder to list was not created {folder_to_list}")
         self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")
+
+    def test_Subprocess_repr(self):
+        self.pbt.reprs_test_runner(Subprocess("/rik/ya/vik", message="sababa"),
+                                   Subprocess("/rik/ya/vik", "kiki di", message="sababa"),
+                                   Subprocess("/rik/ya/vik", "kiki di", "Rubik Rosenthal"))
+
+    def test_Subprocess(self):
+        folder_ = self.pbt.path_inside_test_folder("folder_")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(folder_)
+        self.pbt.batch_accum += Subprocess("python3.6", "--version")
+        self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
+        self.pbt.exec_and_capture_output()

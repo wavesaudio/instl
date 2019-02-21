@@ -65,6 +65,7 @@ from .subprocessBatchCommands import CUrl
 from .subprocessBatchCommands import ScriptCommand
 from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
+from .subprocessBatchCommands import Subprocess
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
