@@ -76,6 +76,8 @@ class CommandLineOptions(object):
     BASE_REPO_REV = OptionToConfigVar()
     LS_FORMAT = OptionToConfigVar()
     TARGET_REPO_REV = OptionToConfigVar()
+    ABORT_FILE = OptionToConfigVar()
+    RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -125,6 +127,7 @@ def prepare_args_parser(in_command):
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
         'resolve':              {'mode': 'ds', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
+        'run-process':          {'mode': 'ds', 'options': (), 'help':  'Run a processes with optional abort file'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
         'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
@@ -463,6 +466,19 @@ def prepare_args_parser(in_command):
     elif 'help' == in_command:
         help_options = command_parser.add_argument_group(description='help subject:')
         help_options.add_argument('subject', nargs='?')
+
+    elif 'run-process' == in_command:
+        run_process_options  = command_parser.add_argument_group(description='run-process:')
+        run_process_options.add_argument('--abort-file',
+                            required=False,
+                            default=False,
+                            nargs=1,
+                            metavar='abort_file',
+                            dest='ABORT_FILE',
+                            help="run a process with optional abort file")
+        run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
+                            nargs='...',
+                            )
 
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',

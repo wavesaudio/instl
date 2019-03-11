@@ -211,3 +211,11 @@ class InstlMisc(InstlInstanceBase):
             where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
         Wzip(what_to_work_on, where_to_put_wzip)()
+
+    def do_run_process(self):
+        abort_file_path = None
+        if (config_vars["ABORT_FILE"]):
+            abort_file_path = config_vars["ABORT_FILE"].Path()
+        print(f"""run-process: {config_vars["ABORT_FILE"]} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
+        process_list = list()
+        utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=True, process_list=process_list, abort_file=abort_file_path)

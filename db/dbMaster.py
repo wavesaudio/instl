@@ -393,7 +393,7 @@ class TableAccess(object):
 
 class DBManager(object):
     """ all classes inheriting from DBManager will have access to singleton instances db, info_map and items table.
-        these instances will be created on the fly when accessed, to instances that do not need any of these will
+        these instances will be created on the fly when accessed, so instances that do not need any of these will
         not suffer the penalty of creating them.
     """
     db = DBAccess()

@@ -821,3 +821,21 @@ def partition_list(in_list, partition_condition):
     if cur_list:
         list_of_lists.append(cur_list)
     return list_of_lists
+
+
+def iter_grouper(n, iterable):
+    """ take iterator and yield groups of size <= n """
+    group = list()
+    while True:
+        try:
+            group.clear()
+            for i in range(n):
+                group.append(next(iterable))
+            if group:
+                yield group
+            else:
+                break
+        except StopIteration:
+            if group:
+                yield group
+            break
