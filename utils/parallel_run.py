@@ -15,6 +15,7 @@ import utils
 log = logging.getLogger()
 
 exit_val = 0
+aborted = False
 process_list = list()
 
 
@@ -63,11 +64,11 @@ def run_process(command, shell, abort_file=None):
         t.start()
 
     while True:
-        enqueue_output(a_process.stdout)
+        enqueue_output(a_process)
         status = a_process.poll()
         if status is not None:  # None means it's still alive
             log.debug(f'Process finished - {command}')
-            if status == -15:
+            if aborted:
                 exit_val = status
                 raise ProcessTerminatedExternally(command)
             elif status != 0:
@@ -97,8 +98,13 @@ def launch_process(command, shell):
     return a_process
 
 
-def enqueue_output(out):
+def enqueue_output(a_process):
+    global aborted
+    out = a_process.stdout
     for line in iter(out.readline, b''):
+        if a_process.poll() is not None:
+            aborted = True
+            break
         if line != '':
             log.info(line.decode('utf-8').strip('\n'))
     out.close()
