@@ -13,6 +13,7 @@ import contextlib
 import filecmp
 import subprocess
 import string
+from threading import Timer
 from collections import namedtuple
 
 import utils
@@ -20,6 +21,7 @@ from pybatch import *
 from pybatch import PythonBatchCommandAccum
 from pybatch.copyBatchCommands import RsyncClone
 from configVar import config_vars
+from utils.parallel_run import run_process, ProcessTerminatedExternally
 
 current_os_names = utils.get_current_os_names()
 os_family_name = current_os_names[0]
@@ -121,12 +123,13 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         batches_dir = self.pbt.path_inside_test_folder("batches")
         # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
         #     shell_command_010_184()
+        user_desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
         if sys.platform == 'darwin':
-            geronimo = [f"""ls /Users/shai/Desktop >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
+            geronimo = [f"""ls {user_desktop} >> "{os.fspath(batches_dir)}/geronimo.txt\"""",
                         f"""[ -f "{os.fspath(batches_dir)}/geronimo.txt" ] && echo "g e r o n i m o" >> {os.fspath(batches_dir)}/geronimo.txt"""]
         else:
-
-            geronimo = [r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"']
+            app_data_folder = os.path.join(os.getenv('LOCALAPPDATA'), 'Waves Audio')
+            geronimo = [r'call "%s\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"' % app_data_folder]
             # geronimo = [r"dir %appdata% >> %appdata%\geronimo.txt",
             #             r"dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
             #             r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
@@ -265,3 +268,25 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += Subprocess("python3.6", "--version")
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
+
+    def test_run_process_abort(self):
+        '''This test validates the abort function of run_process.
+        It runs a python script that never ends and tests that once the abort file is deleted the process stops'''
+        test_file = os.path.join(self.pbt.test_folder, 'test.py')
+        abort_file = os.path.join(self.pbt.test_folder, 'abort.txt')
+        with open(test_file, 'w') as stream:
+            stream.write('while True: print(0)\n')
+
+        with open(abort_file, 'w') as stream:
+            stream.write('')
+
+        def delete_abort_file():
+            os.remove(abort_file)
+
+        t = Timer(2, delete_abort_file)
+        t.start()
+
+        cmd = ['python3.6', test_file]
+        with self.assertRaises(ProcessTerminatedExternally):
+            with AssertTimeout(3):
+                run_process(cmd, False, abort_file=abort_file)
