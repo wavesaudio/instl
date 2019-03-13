@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -30,7 +30,7 @@ class InstlAdmin(InstlInstanceBase):
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self) -> None:
-        if "__MAIN_INPUT_FILE__" in config_vars:
+        if "__MAIN_INPUT_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
             config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def set_default_variables(self):

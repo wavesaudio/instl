@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
@@ -72,7 +72,7 @@ class InstlMisc(InstlInstanceBase):
         if "__MAIN_OUT_FILE__" in config_vars:
             where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
-        Wtat(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
+        Wtar(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
     def do_unwtar(self):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
@@ -130,7 +130,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        translated_url = connectionBase.connection_factory().translate_url(url_to_translate)
+        translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)
 
     def do_mac_dock(self):
@@ -158,6 +158,10 @@ class InstlMisc(InstlInstanceBase):
         Ls(*folders_to_list, out_file=out_file, ls_format=ls_format)()
 
     def do_fail(self):
+        sleep_before_fail = int(config_vars.get("__FAIL_SLEEP_TIME__", "0") )
+        log.error(f"""Sleeping for {sleep_before_fail} seconds""")
+        time.sleep(sleep_before_fail)
+
         exit_code = int(config_vars.get("__FAIL_EXIT_CODE__", "1") )
         log.error(f"""Failing on purpose with exit code {exit_code}""")
         sys.exit(exit_code)
@@ -176,20 +180,11 @@ class InstlMisc(InstlInstanceBase):
         print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
-        config_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
-        if not config_file.is_file():
-            raise FileNotFoundError(config_file, config_vars["__CONFIG_FILE__"].raw())
+        config_file = config_vars.get("__CONFIG_FILE__", None).str()
         input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
-        if not input_file.is_file():
-            raise FileNotFoundError(input_file, config_vars["__MAIN_INPUT_FILE__"].raw())
-        self.read_yaml_file(config_file)
-        with utils.utf8_open(input_file, "r") as rfd:
-            text_to_resolve = rfd.read()
-        resolved_text = config_vars.resolve_str(text_to_resolve)
         output_file = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        with utils.utf8_open(output_file, "w") as wfd:
-            wfd.write(resolved_text)
+        ResolveConfigVarsInFile(input_file, output_file, config_file=config_file)()
 
     def do_exec(self):
         try:
@@ -198,15 +193,12 @@ class InstlMisc(InstlInstanceBase):
             if "__CONFIG_FILE__" in config_vars:
                 config_file = config_vars.get("__CONFIG_FILE__").Path(resolve=True)
 
-            if "__MAIN_OUT_FILE__" in config_vars:
-                log_file_path = str(config_vars["__MAIN_OUT_FILE__"])
-                utils.setup_file_logging(log_file_path)
-                utils.remove_log_handler("console")
-
             with Exec(py_file_path, config_file, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
                 exec_le()
         except Exception as ex:
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
+            if bool(config_vars.get("EXIT_ON_EXEC_EXCEPTION", False)):
+                raise
 
     def do_wzip(self):
         what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
@@ -219,3 +211,11 @@ class InstlMisc(InstlInstanceBase):
             where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
         Wzip(what_to_work_on, where_to_put_wzip)()
+
+    def do_run_process(self):
+        abort_file_path = None
+        if (config_vars["ABORT_FILE"]):
+            abort_file_path = config_vars["ABORT_FILE"].Path()
+        print(f"""run-process: {config_vars["ABORT_FILE"]} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
+        process_list = list()
+        utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=True, process_list=process_list, abort_file=abort_file_path)

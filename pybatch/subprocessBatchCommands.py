@@ -7,7 +7,7 @@ import shlex
 import collections
 import subprocess
 from typing import List
-
+from threading import Thread
 import utils
 from .baseClasses import PythonBatchCommandBase
 
@@ -31,6 +31,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         run_args = list()
         self.get_run_args(run_args)
         run_args = list(map(str, run_args))
@@ -109,13 +110,13 @@ class CUrl(RunProcessBase):
         self.retry_delay = retry_delay
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""src={utils.quoteme_raw_string(self.src)}""")
-        all_args.append(f"""trg={utils.quoteme_raw_string(self.trg)}""")
-        all_args.append(f"""curl_path={utils.quoteme_raw_string(self.curl_path)}""")
-        all_args.append( f"""connect_time_out={self.connect_time_out}""")
-        all_args.append( f"""max_time={self.max_time}""")
-        all_args.append( f"""retires={self.retires}""")
-        all_args.append( f"""retry_delay={self.retry_delay}""")
+        all_args.append(f"""src={utils.quoteme_raw_by_type(self.src)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
+        all_args.append(f"""curl_path={utils.quoteme_raw_by_type(self.curl_path)}""")
+        all_args.append(f"""connect_time_out={self.connect_time_out}""")
+        all_args.append(f"""max_time={self.max_time}""")
+        all_args.append(f"""retires={self.retires}""")
+        all_args.append(f"""retry_delay={self.retry_delay}""")
 
     def progress_msg_self(self):
         return f"""Download '{self.src}' to '{self.trg}'"""
@@ -149,9 +150,9 @@ class ShellCommand(RunProcessBase, essential=True):
         self.message = message
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(self.shell_command))
+        all_args.append(utils.quoteme_raw_by_type(self.shell_command))
         if self.message:
-            all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+            all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
         if self.ignore_specific_exit_codes:
             if len(self.ignore_specific_exit_codes,) == 1:
                 all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
@@ -193,7 +194,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
     def repr_own_args(self, all_args: List[str]) -> None:
         quoted_shell_commands_list = utils.quoteme_raw_if_list(self.shell_command_list)
         all_args.append(f"""shell_command_list={quoted_shell_commands_list}""")
-        all_args.append(f"""message={utils.quoteme_raw_string(self.message)}""")
+        all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
@@ -216,6 +217,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
         run_args.append(batch_file.name)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_command_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
@@ -231,13 +233,14 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         self.shell = shell
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+        all_args.append(utils.quoteme_raw_by_type(self.config_file))
         all_args.append(f'''shell={self.shell}''')
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.config_file}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
         resolved_config_file = utils.ResolvedPath(self.config_file)
         self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
@@ -263,9 +266,9 @@ class Exec(PythonBatchCommandBase, essential=True):
         self.reuse_db = reuse_db
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.python_file)))
+        all_args.append(utils.quoteme_raw_by_type(self.python_file))
         if self.config_file is not None:
-            all_args.append(utils.quoteme_raw_string(os.fspath(self.config_file)))
+            all_args.append(utils.quoteme_raw_by_type(self.config_file))
         if not self.reuse_db:
             all_args.append(f"reuse_db={self.reuse_db}")
 
@@ -273,9 +276,96 @@ class Exec(PythonBatchCommandBase, essential=True):
         return f"""Executing '{self.python_file}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.config_file is not None:
             self.read_yaml_file(self.config_file)
         with utils.utf8_open(self.python_file, 'r') as rfd:
             py_text = rfd.read()
             py_compiled = compile(py_text, self.python_file, mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())
+
+
+class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0}):
+    """
+        run another python-batch command in a thread
+    """
+    def __init__(self, what_to_run, thread_name=None, daemon=None, **kwargs) -> None:
+        PythonBatchCommandBase.__init__(self, **kwargs)
+        self.what_to_run = what_to_run
+        self.thread_name = thread_name
+        self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
+                              #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
+
+    def total_progress_count(self) -> int:
+        retVal = self.own_progress_count
+        retVal += self.what_to_run.total_progress_count()
+        return retVal
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(repr(self.what_to_run))
+        if self.thread_name is not None:
+            all_args.append(utils.quoteme_raw_by_type(self.thread_name))
+        if self.daemon is not None:
+            all_args.append(utils.quoteme_raw_by_type(self.daemon))
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def run_with(self):
+        with self.what_to_run as rit:
+            rit()
+
+    def run_without(self):
+        self.what_to_run()
+
+    def __call__(self, *args, **kwargs) -> None:
+        thread_thingy = None
+        if self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is False:
+            thread_thingy = None  # wtf?
+        elif self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is True:
+            thread_thingy = None # wtf?
+        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is False:
+            thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
+        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is True:
+            thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
+
+        if thread_thingy:
+            thread_thingy.start()
+
+
+class Subprocess(RunProcessBase, essential=True):
+    """ run a single command NOT in a shell """
+
+    def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
+        assert "shell" not in kwargs, "'shell' cannot appear in kwargs for Subprocess"
+        super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
+        self.subprocess_exe = subprocess_exe
+        self.subprocess_args = subprocess_args
+        self.message = message
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        try:
+            all_args.append(utils.quoteme_raw_by_type(self.subprocess_exe))
+            for arg in self.subprocess_args:
+                all_args.append(utils.quoteme_raw_by_type(arg))
+            if self.message:
+                all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
+            if self.ignore_specific_exit_codes:
+                if len(self.ignore_specific_exit_codes,) == 1:
+                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+                else:
+                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
+        except TypeError as te:
+            pass
+
+    def progress_msg_self(self):
+        if self.message:
+            return f"""{self.message}"""
+        else:
+            return f"""running {self.subprocess_exe} {self.subprocess_args}"""
+
+    def get_run_args(self, run_args) -> None:
+        subprocess_exe = os.path.expandvars(self.subprocess_exe)
+        run_args.append(subprocess_exe)
+        for arg in self.subprocess_args:
+            run_args.append(os.path.expandvars(arg))

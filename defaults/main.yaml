@@ -1,10 +1,10 @@
 --- !define
 
 __INSTL_VERSION__:
-    - 2
-    - 0
-    - 0
-    - 0
+    - 2         # major version e.g. python-batch
+    - 0         # new major feature e.g. new command
+    - 5         # new minor feature e.g. new option to command, new python batch class
+    - 0         # bug fix
 
 
 # __INSTL_VERSION_STR_SHORT__ will be defined at run time by InstlInstanceBase.get_version_str
@@ -73,6 +73,7 @@ DONT_WRITE_CONFIG_VARS:
     - PUBLIC_KEY
     - SVN_REVISION
     - .+_template
+    - template_.+
 
 --- !define_Win
 
@@ -86,3 +87,9 @@ CMD_TOOLS_TO_FIND_INTERNAL:
 --- !define
 BATCH_EXT: py
 DB_FILE_EXT: sqlite
+
+# should configVars read from __environment__ be written to batch file created by instl?
+WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE: no
+
+# in exec command, if the given python raises - re-raise the exception to cause non zero exit code
+EXIT_ON_EXEC_EXCEPTION: False

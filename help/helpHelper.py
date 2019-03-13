@@ -94,7 +94,7 @@ class HelpHelper(object):
             self.topic_items[a_topic].append(new_item.name)
 
     def read_help_file(self, help_file_path):
-        with utils.open_for_read_file_or_url(help_file_path) as open_file:
+        with utils.open_for_read_file_or_url(help_file_path, config_vars=config_vars) as open_file:
             for a_node in yaml.compose_all(open_file.fd):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():

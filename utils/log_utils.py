@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 """
@@ -21,16 +21,25 @@ from logging.config import dictConfig
 from utils import misc_utils as utils
 
 
-def config_logger(system_log_file_path=None):
-    if system_log_file_path is None:
-        system_log_file_path = utils.get_system_log_file_path()
-    os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
-    config_dict = get_config_dict(system_log_file_path)
+def config_logger():
+    config_dict = get_config_dict()
     dictConfig(config_dict)
+    # command line options relating to logging are parsed here, as soon as possible
+    if '--log' in sys.argv:
+        try:
+            log_option_index = sys.argv.index('--log')
+            for i_log_file in range(log_option_index+1, len(sys.argv)):
+                log_file_path = sys.argv[i_log_file]
+                if not log_file_path.startswith('-'):
+                    setup_file_logging(log_file_path)
+                else:
+                    break
+        except:
+            pass
 
 
-def get_config_dict(system_log_file_path):
-    return {
+def get_config_dict():
+    config_dict = {
         'version': 1,
         'disable_existing_loggers': False,
         'formatters': {
@@ -52,19 +61,27 @@ def get_config_dict(system_log_file_path):
             }
         },
         'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'level': 'INFO',
-                'formatter': 'simple',
-                'stream': sys.stdout
-            },
             'errors': {
                 'class': 'logging.StreamHandler',
                 'level': 'ERROR',
                 'formatter': 'simple',
                 'stream': sys.stderr
             },
-            'system_log': {
+        },
+        'root': {
+            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
+        },
+    }
+    if '--no-stdout' not in sys.argv:
+        config_dict['handlers']['console'] = {
+                'class': 'logging.StreamHandler',
+                'level': 'INFO',
+                'formatter': 'simple',
+                'stream': sys.stdout
+            }
+    if '--no-system-log' not in sys.argv:
+        system_log_file_path = utils.get_system_log_file_path()
+        config_dict['handlers']['system_log'] = {
                 'class': 'logging.handlers.RotatingFileHandler',
                 'level': 'DEBUG',
                 'formatter': 'detailed',
@@ -74,12 +91,11 @@ def get_config_dict(system_log_file_path):
                 'backupCount': 10,
                 'filters': ['parent']
             }
-        },
-        'root': {
-            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
-            'handlers': ['console', 'errors', 'system_log'],
-        },
-    }
+        os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
+
+    config_dict['root']['handlers'] = [*config_dict['handlers'].keys()]
+
+    return config_dict
 
 
 class ParentLogFilter(logging.Filter):
@@ -194,6 +210,7 @@ def find_file_log_handler(log_file_path):
 
 
 def setup_file_logging(log_file_path, level=logging.INFO):
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     top_logger = logging.getLogger()
     top_logger.setLevel(debug_logging_level)
     fileLogHandler = find_file_log_handler(log_file_path)

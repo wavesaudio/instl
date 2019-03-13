@@ -13,7 +13,7 @@ import filecmp
 import logging
 import random
 import string
-from collections import namedtuple
+import itertools as it
 
 import utils
 from pybatch import *
@@ -162,8 +162,8 @@ class TestPythonBatch(object):
         if self.output_file_name:
             utils.teardown_file_logging(self.output_file_name)
 
-    def path_inside_test_folder(self, name, assert_not_exist=True):
-        retVal = self.test_folder.joinpath(name).resolve()
+    def path_inside_test_folder(self, *name, assert_not_exist=True):
+        retVal = self.test_folder.joinpath(*name).resolve()
         if assert_not_exist:
             self.uni_test_obj.assertFalse(retVal.exists(), f"{self.which_test}: {retVal} should not exist before test")
         return retVal
@@ -190,7 +190,6 @@ class TestPythonBatch(object):
                 utils.teardown_file_logging(self.output_file_name)
             self.output_file_name = output_file_name
             utils.setup_file_logging(self.output_file_name, level=logging.INFO)
-            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:
@@ -202,16 +201,25 @@ class TestPythonBatch(object):
             with self.uni_test_obj.assertRaises(expected_exception):
                 ops = exec(bc_compiled, globals(), locals())
 
-    def reprs_test_runner(self, *list_of_objs):
+    def reprs_test_runner(self, *list_of_objs, remark_list=None):
+        if remark_list is None:
+            remark_list = it.repeat("")
         out_file = self.path_inside_test_folder(self.which_test+".out.txt")
         with open(out_file, "w") as wfd:
-            for obj in list_of_objs:
+            for obj, remark in zip(list_of_objs, remark_list):
                 obj_repr = repr(obj)
                 obj_recreated = eval(obj_repr)
-                diff_explanation = obj.explain_diff(obj_recreated)
-                if diff_explanation:  # there was a problem
-                    wfd.write(f"X  {obj_repr}\n  {repr(obj_recreated)}\n")
+                diff_explanation = ""
+                if hasattr(obj, "explain_diff"):
+                    diff_explanation = obj.explain_diff(obj_recreated)
                 else:
-                    wfd.write(f"OK {obj_repr}\n")
+                    if obj != obj_recreated:
+                        diff_explanation = f"{obj_repr} != {repr(obj_recreated)}"
+                if remark:
+                    remark = f"  # {remark}"
+                if diff_explanation:  # there was a problem
+                    wfd.write(f"X  {obj_repr}\n  {repr(obj_recreated)}{remark}\n")
+                else:
+                    wfd.write(f"OK {obj_repr}{remark}\n")
 
                 self.uni_test_obj.assertEqual(obj, obj_recreated, f"{obj.__class__.__name__}.repr did not recreate the object correctly: {diff_explanation}")

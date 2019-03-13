@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
-
+import os
 import utils
 import logging
 log = logging.getLogger()
@@ -8,6 +8,9 @@ log = logging.getLogger()
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 from .indexItemTable import IndexItemsTable
+from pybatch import *
+
+# to do: under doit command all copy... python-batch should default to hard-links=False
 
 
 class InstlDoIt(InstlInstanceBase):
@@ -56,6 +59,7 @@ class InstlDoIt(InstlInstanceBase):
 
     def do_doit(self):
         for doit_stage in ("pre_doit", "doit", "post_doit"):
+            self.batch_accum.set_current_section(doit_stage)
             for IID in self.full_doit_order:
                 self.doit_for_iid(IID, doit_stage)
 
@@ -68,17 +72,14 @@ class InstlDoIt(InstlInstanceBase):
         except:
             name = IID
 
-        if len(action_list) > 0:
-            self.batch_accum += Remark("--- Begin "+name)
-            self.batch_accum += Progress(name+"...")
-        num_actions = len(action_list)
-        for i in range(num_actions):
-            self.batch_accum += action_list[i]
-            if i != num_actions - 1:
-                self.batch_accum += Progress(name + " "+str(i+1))
-        if len(action_list) > 0:
-            self.batch_accum += Progress(name + ". done")
-            self.batch_accum += Remark("--- End "+name+"\n")
+        with self.batch_accum.sub_accum(Stage(name+"...")) as iid_accum:
+            if len(action_list) > 0:
+                iid_accum += Remark(f"--- Begin {IID} {name}")
+            num_actions = len(action_list)
+            for i in range(num_actions):
+                iid_accum += EvalShellCommand(action_list[i], name, self.python_batch_names)
+            if len(action_list) > 0:
+                iid_accum += Remark(f"--- End {IID} {name}")
 
     def calculate_full_doit_order(self):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.

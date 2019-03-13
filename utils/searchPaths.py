@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 """
@@ -10,6 +10,7 @@
 
 import os
 from pathlib import Path
+
 
 # noinspection PyPep8Naming
 class SearchPaths(object):
@@ -66,8 +67,8 @@ class SearchPaths(object):
         input path if file was not found, instead of None.
         """
         retVal = None
-        if os.path.isfile(in_file):
-            real_file = Path(in_file).resolve()
+        real_file = Path(in_file).resolve()
+        if real_file.is_file():
             real_folder = real_file.parent
             self.add_search_path(str(real_folder))
             retVal = str(real_file)
@@ -75,7 +76,7 @@ class SearchPaths(object):
             for try_path in iter(self.config_vars[self.search_paths_var]):
                 try:
                     real_file = Path(try_path, in_file).resolve()
-                    if os.path.isfile(str(real_file)):
+                    if real_file.is_file():
                         # in_file might be a relative path so must add the file's
                         # real folder so it's in the list.
                         real_folder = real_file.parent

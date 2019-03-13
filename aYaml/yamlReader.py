@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 """ YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally
@@ -18,13 +18,13 @@ import io
 import yaml
 from contextlib import contextmanager
 import urllib.error
+import json
 
 from typing import Callable, Dict, List, Tuple
 import logging
 log = logging.getLogger()
 
 import utils
-import configVar
 
 
 class YamlNodeStack(object):
@@ -50,15 +50,17 @@ class YamlNodeStack(object):
         else:
             return "unknown"
 
+
 class YamlReader(object):
-    def __init__(self) -> None:
+    def __init__(self, config_vars) -> None:
+        self.config_vars = config_vars
         self.path_searcher = None
         self.url_translator = None
         self.specific_doc_readers: Dict[str, Callable] = dict()
         self.file_read_stack: List[str] = list()
         self.exception_printed = False
         self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
-        configVar.config_vars.setdefault("READ_YAML_FILES", None)
+        self.config_vars.setdefault("READ_YAML_FILES", None)
 
     def progress(self, message: str) -> None:
         pass
@@ -91,8 +93,8 @@ class YamlReader(object):
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(os.fspath(file_path))
-                buffer, actual_file_path = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
-                configVar.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
+                buffer, actual_file_path = utils.read_file_or_url(file_path, config_vars=self.config_vars, path_searcher=self.path_searcher)
+                self.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
                 prog_message = f"reading {os.fspath(file_path)}"
                 if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
                     prog_message += f" [{kwargs['original-path-to-file']}]"
@@ -104,7 +106,10 @@ class YamlReader(object):
                 kwargs['path-to-file'] = os.fspath(actual_file_path)
                 kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
                 kwargs['node-stack'] = YamlNodeStack()
-                self.read_yaml_from_stream(buffer, *args, **kwargs)
+                if os.fspath(file_path).lower().endswith(".json"):
+                    self.read_json_from_stream(buffer, *args, **kwargs)
+                else:
+                    self.read_yaml_from_stream(buffer, *args, **kwargs)
                 self.file_read_stack.pop()
                 # now read the __post tags if any
                 if len(self.file_read_stack) == 0:  # first file done reading
@@ -143,6 +148,21 @@ class YamlReader(object):
         for a_node in yaml.compose_all(the_stream):
             with kwargs['node-stack'](a_node):
                 self.read_yaml_from_node(a_node, *args, **kwargs)
+
+    def read_json_from_stream(self, the_stream, *args, **kwargs):
+        json_obj = json.load(the_stream)
+        if isinstance(json_obj, dict):
+            for identifier, contents in json_obj.items():
+                if not isinstance(identifier, str):
+                    raise TypeError(f"configVar key {identifier} should be of type str not {type(identifier)}")
+                values = list()
+                if isinstance(contents, (str, int)):
+                    values.append(contents)
+                elif isinstance(contents, (list, tuple)):
+                    values.extend([item for item in contents if isinstance(item, (str, int))])
+                else:
+                    raise TypeError(f"configVar values for {identifier} should be of type str, int or list not {type(contents)}")
+                self.config_vars[identifier] = values
 
     def read_yaml_from_node(self, the_node, *args, **kwargs):
         YamlReader.convert_standard_tags(the_node)

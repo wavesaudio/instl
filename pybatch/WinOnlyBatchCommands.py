@@ -5,10 +5,11 @@ from win32com.client import Dispatch
 
 
 from .baseClasses import PythonBatchCommandBase
+from .subprocessBatchCommands import RunProcessBase
 import utils
 
 
-class WinShortcut(PythonBatchCommandBase):
+class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False}):
     """ create a shortcut (windows only)"""
     def __init__(self, shortcut_path: os.PathLike, target_path: os.PathLike, run_as_admin=False, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -16,17 +17,15 @@ class WinShortcut(PythonBatchCommandBase):
         self.target_path = target_path
         self.run_as_admin = run_as_admin
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.shortcut_path)}, {utils.quoteme_raw_string(self.target_path)}'''
-        if self.run_as_admin:
-            the_repr += ''', run_as_admin=True'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
+        all_args.append(self.unnamed__init__param(os.fspath(self.target_path)))
 
     def progress_msg_self(self) -> str:
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
         os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
@@ -83,11 +82,11 @@ class BaseRegistryKey(PythonBatchCommandBase):
     def positional_members_repr(self, all_args: List[str]) -> None:
         """ helper function to create repr for BaseRegistryKey common to all subclasses """
         all_args.append(utils.quoteme_double(self.top_key))
-        all_args.append(utils.quoteme_raw_string(self.sub_key))
+        all_args.append(utils.quoteme_raw_by_type(self.sub_key))
         if self.value_name is not None:
-            all_args.append(utils.quoteme_raw_string(self.value_name))
+            all_args.append(utils.quoteme_raw_by_type(self.value_name))
         if self.value_data is not None:
-            all_args.append(utils.quoteme_raw_string(self.value_data))
+            all_args.append(utils.quoteme_raw_by_type(self.value_data))
 
     def named_members_repr(self, all_args: List[str]) -> None:
         if self.data_type != 'REG_SZ':
@@ -129,6 +128,7 @@ class ReadRegistryValue(BaseRegistryKey):
         return f"Reading {self.sub_key}\\{self.value_name} -> {self.the_value}"
 
     def __call__(self, *args, **kwargs) -> str:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.the_value = None
         try:
             self._open_key()
@@ -157,6 +157,7 @@ class CreateRegistryKey(BaseRegistryKey):
         return f"Creating sub_key {self.top_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             if self.value_data is not None:
@@ -182,6 +183,7 @@ class CreateRegistryValues(BaseRegistryKey):
         return f"Creating values {self.sub_key} -> {self.value_dict}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self.key_handle = winreg.CreateKeyEx(getattr(winreg, self.top_key), self.sub_key, 0, (self.reg_view_num_to_const[self.reg_num_bits] | self.permission_flag))
             for value_name, value_data in self.value_dict.items():
@@ -202,6 +204,7 @@ class DeleteRegistryKey(BaseRegistryKey):
         return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self._open_key()
             winreg.DeleteKey(self.key_handle, "")
@@ -226,6 +229,7 @@ class DeleteRegistryValues(BaseRegistryKey):
         return f"Deleting values {self.sub_key} -> {self.values}"
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             self._open_key()
             for name in self.values:
@@ -235,3 +239,77 @@ class DeleteRegistryValues(BaseRegistryKey):
                     pass  # Value does not exists
         finally:
             self._close_key()
+
+
+class ResHackerCompileResource(RunProcessBase):
+    """ add a resource using ResHackerAddResource """
+    def __init__(self, reshacker_path: os.PathLike, rc_file_path: os.PathLike) -> None:
+        super().__init__()
+        self.reshacker_path = reshacker_path
+        self.rc_file_path: os.PathLike = rc_file_path
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
+        all_args.append(f"""rc_file_path={utils.quoteme_raw_by_type(self.rc_file_path)}""")
+
+    def progress_msg_self(self):
+        return f"""Compile resource '{self.rc_file_path}'"""
+
+    def get_run_args(self, run_args) -> None:
+        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        if not os.path.isfile(resolved_reshacker_path):
+            raise FileNotFoundError(resolved_reshacker_path)
+        resolved_rc_file_path = os.fspath(utils.ResolvedPath(self.rc_file_path))
+        run_args.extend([resolved_reshacker_path,
+                         "-open",
+                         self.rc_file_path,
+                         "-action",
+                         "compile"
+                         ])
+
+
+class ResHackerAddResource(RunProcessBase):
+    """ add a resource using ResHackerAddResource """
+    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type=None, resource_name=None) -> None:
+        super().__init__()
+        self.reshacker_path = reshacker_path
+        self.trg: os.PathLike = trg
+        self.resource_source_file: os.PathLike = resource_source_file
+        self.resource_type = resource_type
+        self.resource_name = resource_name
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
+        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
+        all_args.append(f"""resource_source_file={utils.quoteme_raw_by_type(self.resource_source_file)}""")
+        if self.resource_type:
+            all_args.append( f"""resource_type={utils.quoteme_raw_by_type(self.resource_type)}""")
+        if self.resource_name:
+            all_args.append( f"""resource_name={utils.quoteme_raw_by_type(self.resource_name)}""")
+
+    def progress_msg_self(self):
+        if self.resource_type and self.resource_name:
+            return f"""Add resource '{self.resource_type}/{self.resource_name}' to '{self.trg}'"""
+        else:
+            return f"""Add resource {self.resource_source_file} to '{self.trg}'"""
+    def get_run_args(self, run_args) -> None:
+        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        if not os.path.isfile(resolved_reshacker_path):
+            raise FileNotFoundError(resolved_reshacker_path)
+        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        if not os.path.isfile(resolved_trg_path):
+            raise FileNotFoundError(resolved_trg_path)
+        resolved_resource_source_file = os.fspath(utils.ResolvedPath(self.resource_source_file))
+        if not os.path.isfile(resolved_resource_source_file):
+            raise FileNotFoundError(resolved_resource_source_file)
+        run_args.extend([resolved_reshacker_path,
+                         "-open",
+                         resolved_trg_path,
+                         "-save",
+                         resolved_trg_path,
+                         "-resource",
+                         resolved_resource_source_file,
+                         "-action",
+                         "addoverwrite"])
+        if self.resource_type and self.resource_name:
+            run_args.extend(["-mask", f"""{self.resource_type},{self.resource_name},0"""])

@@ -16,7 +16,7 @@ class TestPythonBatchWin(unittest.TestCase):
         super().__init__(which_test)
         self.pbt = TestPythonBatch(self, which_test)
 
-    @unittest.skipUnless(running_on_Win, "Mac only test")
+    @unittest.skipUnless(running_on_Win, "Win only test")
     def setUp(self):
         self.pbt.setUp()
 
@@ -26,8 +26,9 @@ class TestPythonBatchWin(unittest.TestCase):
     def test_WinShortcut_repr(self):
         list_of_objs = list()
         list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell"))
-        list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell", False))
-        list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=True))
+        for run_as_admin in (True, False):
+            for ignore_all_errors in (True, False):
+                list_of_objs.append(WinShortcut("/the/memphis/belle", "/go/to/hell", run_as_admin=run_as_admin, ignore_all_errors=ignore_all_errors))
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_WinShortcut(self):
@@ -46,7 +47,8 @@ class TestPythonBatchWin(unittest.TestCase):
     def test_ReadRegistryValue_repr(self):
         list_of_objs = list()
         for reg_num_bits in (32, 64):
-            list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=True, reply_environ_var="ReadRegistryValue_expected_value"))
+            for ignore_if_not_exist in (True, False):
+                list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', reg_num_bits=reg_num_bits, ignore_if_not_exist=ignore_if_not_exist, reply_environ_var="ReadRegistryValue_expected_value"))
         # without specifying reg_num_bits at all
         list_of_objs.append(ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Fax', 'ArchiveFolder', ignore_if_not_exist=True))
         self.pbt.reprs_test_runner(*list_of_objs)
@@ -183,3 +185,24 @@ class TestPythonBatchWin(unittest.TestCase):
                 elif key.startswith('stay'):
                     stay_value = ReadRegistryValue('HKEY_LOCAL_MACHINE', test_key_path, key, reg_num_bits=reg_num_bits)()
                     self.assertEqual(stay_value, test_values[key])
+
+    def test_ResHacker_repr(self):
+        list_of_objs = list()
+        list_of_objs.append(ResHackerAddResource('reshacker_path', 'exec_path', 'resource_source_path', 'res_type', 'res_id'))
+        self.pbt.reprs_test_runner(*list_of_objs)
+
+    def test_ResHacker(self):
+        return # these tests are still with hard coded paths
+        reshacker_path = r"C:\p4client\ProAudio\dev_main\ProAudio\bin\Win\ResHacker5.1.6\ResourceHacker.exe"
+        original_exe = r"C:\p4client\ProAudio\dev_main\ProAudio\VisualStudioBuildProducts\plugin-host\x64\Release\Products\plugin-host.exe"
+        copied_exe = self.pbt.path_inside_test_folder("CODEX.exe")
+        icon_file = r"C:\p4client\ProAudio\dev_main\ProAudio\XPlatform\Apps\plugin-host\Resources\Win\CODEX.ico"
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += CopyFileToFile(original_exe, copied_exe)
+        self.pbt.batch_accum += ResHackerAddResource(reshacker_path=reshacker_path,
+                                                     trg=copied_exe,
+                                                     resource_source_file=icon_file,
+                                                     resource_type="ICONGROUP",
+                                                     resource_name="IDI_ICON1")
+        self.pbt.exec_and_capture_output()

@@ -32,6 +32,7 @@ class MacDock(PythonBatchCommandBase):
         return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         dock_util_command = list()
         if self.remove:
             dock_util_command.append("--remove")
@@ -67,14 +68,14 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         self.path_to_target = path_to_target
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.path_to_symlink))}, {utils.quoteme_raw_string(os.fspath(self.path_to_target))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.path_to_symlink)}, {utils.quoteme_raw_by_type(self.path_to_target)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         path_to_target = utils.ResolvedPath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         try:
@@ -96,12 +97,13 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""Remove symlink '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         expanded_path = os.path.expandvars(self.path)
         unresolved_path = Path(expanded_path)
         self.doing = f"""removing symlink '{unresolved_path}'"""
@@ -123,13 +125,14 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         self.symlink_to_convert = symlink_to_convert
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_to_convert))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
         return f"""Create symlink file '{self.symlink_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         symlink_to_convert = Path(os.path.expandvars(self.symlink_to_convert))
         self.doing = f"""convert real symlink '{symlink_to_convert}' to .symlink file"""
         if symlink_to_convert.is_symlink():
@@ -151,13 +154,14 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         self.symlink_file_to_convert = os.fspath(symlink_file_to_convert)
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.symlink_file_to_convert))})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_file_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
         return f"""Resolve symlink '{self.symlink_file_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         symlink_file_to_convert = utils.ResolvedPath(self.symlink_file_to_convert)
         symlink_target = symlink_file_to_convert.read_text()
         self.doing = f"""convert symlink file '{symlink_file_to_convert}' to real symlink to target '{symlink_target}'"""
@@ -182,13 +186,14 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.folder_to_convert)})'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)})'''
         return the_repr
 
     def progress_msg_self(self) -> str:
         return f"""Create symlinks files in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         valid_symlinks = list()
         broken_symlinks = list()
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
@@ -224,7 +229,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.report_own_progress = False
 
     def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(os.fspath(self.folder_to_convert))}'''
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)}'''
         if self.own_progress_count > 1:
             the_repr += f''', own_progress_count={self.own_progress_count}'''
         the_repr += ')'
@@ -234,6 +239,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return f"""Resolve symlinks in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files:

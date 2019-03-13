@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -47,25 +47,12 @@ except ImportError:
     else:
         print("failed to import readline, readline functionality not supported")
 
-colorama_loaded = False
-try:
-    import colorama
-
-    colorama_loaded = True
-except ImportError:
-    print("failed to import colorama, color text functionality not supported")
-
 from . import instlInstanceBase
 import aYaml
-
-if colorama_loaded:
-    colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
 
 
 def text_with_color(text, color):
     retVal = text
-    if colorama_loaded and color in colors:
-        retVal = colors[color] + text + colors['reset']
     return retVal
 
 
@@ -129,8 +116,6 @@ class CMDObj(cmd.Cmd, object):
                     os.remove(self.history_file_path)
                 except Exception:
                     pass  # if removing the file also fail - just ignore it
-        if colorama_loaded:
-            colorama.init()
         self.prompt = self.this_program_name + ": "
         self.save_dir = os.getcwd()
         return self
@@ -206,36 +191,6 @@ class CMDObj(cmd.Cmd, object):
     def help_cd(self):
         print("cd path, change current directory")
 
-    def prepare_coloring_dict(self):
-        """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index entries: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
-            Right hand index entries: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
-            Variable references: $(SAMPLE_VARIABLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARIABLE).
-            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdout.
-        """
-        retVal = dict()
-        definitions = self.client_prog_inst.create_completion_list("define")
-        index = self.client_prog_inst.create_completion_list("index")
-        guids = self.client_prog_inst.create_completion_list("guid")
-
-        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in definitions})
-        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in definitions})
-        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in definitions})
-
-        retVal.update({dex + ":": text_with_color(dex, "green") + ":" for dex in index})
-        retVal.update({"- " + dex: "- " + text_with_color(dex, "yellow") for dex in index})
-
-        retVal.update({lic + ":": text_with_color(lic, "green") + ":" for lic in guids})
-        retVal.update({"- " + lic: "- " + text_with_color(lic, "yellow") for lic in guids})
-        return retVal
-
-    def color_vars(self, text):
-        """ Add color codes to index identifiers and variables in text.
-        """
-        coloring_dict = self.prepare_coloring_dict()
-        retVal = utils.replace_all_from_dict(text, *[], **coloring_dict)
-        return retVal
-
     def do_apropos(self, params):
         definitions = self.client_prog_inst.create_completion_list("define")
         index = self.client_prog_inst.create_completion_list("index")
@@ -286,8 +241,7 @@ class CMDObj(cmd.Cmd, object):
         else:
             self.client_prog_inst.do_list(None, out_list)
         joined_list = "".join(out_list.list())
-        colored_string = self.color_vars(joined_list)
-        sys.stdout.write(colored_string)
+        sys.stdout.write(joined_list)
         return False
 
     def identifier_completion_list(self, text, unused_line, unused_begidx, unused_endidx):

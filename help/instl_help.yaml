@@ -220,6 +220,13 @@ command:
             resolve command will read variable definiiotns from !define section in yaml-with-variable-definitions file.
             Text from stdin will be resolved using the variable definitions and printed to stdout.
 
+    run-process:
+        short: Run single processes with optional abort file (utility command)
+        long: |
+            Usage: instl run-process [--abort-file path-to-abort-file] executable-to-run [args ...]
+            run-process will launch a single process with the supplied arguments.
+            if --abort-file is given, run-process will watch that the file exists and if not will kill the process,
+
     set-exec:
         short: Sets the executable bit for certine files (utility command)
         long: |
