@@ -288,5 +288,5 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         cmd = ['python3.6', test_file]
         with self.assertRaises(ProcessTerminatedExternally):
-            with AssertTimeout(3):
-                run_process(cmd, False, abort_file=abort_file)
+            with assert_timeout(300):
+                run_process(cmd, shell=(sys.platform == 'win32'), abort_file=abort_file)
