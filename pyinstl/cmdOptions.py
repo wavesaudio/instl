@@ -77,6 +77,7 @@ class CommandLineOptions(object):
     LS_FORMAT = OptionToConfigVar()
     TARGET_REPO_REV = OptionToConfigVar()
     ABORT_FILE = OptionToConfigVar()
+    SHELL = OptionToConfigVar()
     RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
 
     def __init__(self) -> None:
@@ -476,6 +477,12 @@ def prepare_args_parser(in_command):
                             metavar='abort_file',
                             dest='ABORT_FILE',
                             help="run a process with optional abort file")
+        run_process_options.add_argument('--shell',
+                            required=False,
+                            default=False,
+                            action='store_true',
+                            dest='SHELL',
+                            help="run a process in shell")
         run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
                             nargs='...',
                             )

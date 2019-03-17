@@ -217,4 +217,4 @@ class InstlMisc(InstlInstanceBase):
         if 'ABORT_FILE' in config_vars:
             abort_file_path = config_vars["ABORT_FILE"].Path()
         print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
-        utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=True, abort_file=abort_file_path)
+        utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
