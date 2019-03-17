@@ -471,7 +471,7 @@ def prepare_args_parser(in_command):
         run_process_options  = command_parser.add_argument_group(description='run-process:')
         run_process_options.add_argument('--abort-file',
                             required=False,
-                            default=False,
+                            default=None,
                             nargs=1,
                             metavar='abort_file',
                             dest='ABORT_FILE',

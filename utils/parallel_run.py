@@ -99,19 +99,27 @@ def launch_process(command, shell):
 
 
 def enqueue_output(a_process):
-    global aborted
     out = a_process.stdout
-    for line in iter(out.readline, b''):
-        if a_process.poll() is not None:
-            aborted = True
-            break
-        if line != '':
-            log.info(line.decode('utf-8').strip('\n'))
-    out.close()
+    try:
+        for line in iter(out.readline, b''):
+            if line != '':
+                log.info(line.decode('utf-8').strip('\n'))
+            if a_process.poll() is not None:
+                break
+    except ValueError:
+        if aborted:
+            return  # on mac the stdout is closed when the process is terminated. In this case we ignore
+        else:
+            raise
+    finally:
+        if not out.closed:
+            out.close()
 
 
 def check_abort_file(abort_file):
+    global aborted
     if not os.path.exists(abort_file):
+        aborted = True
         log.debug(f'Process aborted - Abort file not found {abort_file}')
         killall_and_exit()
 
