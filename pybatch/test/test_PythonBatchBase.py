@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import signal
+import threading
+import _thread
 import ctypes
 import io
 import contextlib
@@ -32,6 +35,7 @@ log = logging.getLogger(__name__)
 
 running_on_Mac = sys.platform == 'darwin'
 running_on_Win = sys.platform == 'win32'
+
 
 @contextlib.contextmanager
 def capture_stdout(in_new_stdout=None):
@@ -114,6 +118,24 @@ def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
             if item_mode != expected_dir_mode:
                 return False
     return True
+
+
+class TimeoutException(Exception):
+    def __init__(self, msg=''):
+        self.msg = msg
+
+
+@contextmanager
+def assert_timeout(seconds, msg=''):
+    timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
+    timer.start()
+    try:
+        yield
+    except KeyboardInterrupt:
+        raise TimeoutException(f"Timed out after {seconds} for operation {msg}")
+    finally:
+        # if the action ends in specified time, timer is canceled
+        timer.cancel()
 
 
 main_test_folder_name = "python_batch_test_results"
