@@ -38,6 +38,7 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         return f'''{self.__class__.__name__}'''
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.info_map_file:
             resolved_info_map_path = utils.ResolvedPath(self.info_map_file)
             self.info_map_table.read_from_file(resolved_info_map_path, a_format="text", disable_indexes_during_read=True)
@@ -70,7 +71,7 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return f'''Check download folder checksum'''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
+        super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         if self.info_map_file is None:
             dl_file_items = self.info_map_table.get_download_items(what="file")
         else:
@@ -122,7 +123,7 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
         return f'''Set exec permissions in download folder'''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
+        super().__call__(*args, **kwargs)  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
         if self.info_map_file is not None:
             # REQUIRED_INFO_MAP_PATH contains only the required files so get the paths
             # of the executable files
@@ -151,7 +152,7 @@ class CreateSyncFolders(InfoMapBase):
         return f'''Create download directories'''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__()  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
+        super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         if self.info_map_file is None:
             dl_dir_items = self.info_map_table.get_download_items(what="dir")
         else:

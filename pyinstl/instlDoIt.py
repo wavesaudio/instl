@@ -10,6 +10,8 @@ from configVar import config_vars
 from .indexItemTable import IndexItemsTable
 from pybatch import *
 
+# to do: under doit command all copy... python-batch should default to hard-links=False
+
 
 class InstlDoIt(InstlInstanceBase):
     def __init__(self, initial_vars) -> None:
@@ -75,7 +77,7 @@ class InstlDoIt(InstlInstanceBase):
                 iid_accum += Remark(f"--- Begin {IID} {name}")
             num_actions = len(action_list)
             for i in range(num_actions):
-                iid_accum += EvalShellCommand(action_list[i], name)
+                iid_accum += EvalShellCommand(action_list[i], name, self.python_batch_names)
             if len(action_list) > 0:
                 iid_accum += Remark(f"--- End {IID} {name}")
 

@@ -50,6 +50,7 @@ class CommandLineOptions(object):
     __DOCK_ITEM_LABEL__ = OptionToConfigVar()
     __DOCK_ITEM_PATH__ = OptionToConfigVar()
     __FAIL_EXIT_CODE__ = OptionToConfigVar()
+    __FAIL_SLEEP_TIME__ = OptionToConfigVar()
     __FILE_SIZES_FILE__ = OptionToConfigVar()
     __JUST_WITH_NUMBER__ = OptionToConfigVar(default="0")
     __LIMIT_COMMAND_TO__ = OptionToConfigVar()
@@ -75,6 +76,8 @@ class CommandLineOptions(object):
     BASE_REPO_REV = OptionToConfigVar()
     LS_FORMAT = OptionToConfigVar()
     TARGET_REPO_REV = OptionToConfigVar()
+    ABORT_FILE = OptionToConfigVar()
+    RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -124,6 +127,7 @@ def prepare_args_parser(in_command):
         'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
         'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
         'resolve':              {'mode': 'ds', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
+        'run-process':          {'mode': 'ds', 'options': (), 'help':  'Run a processes with optional abort file'},
         'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
         'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
         'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
@@ -437,13 +441,19 @@ def prepare_args_parser(in_command):
                                     dest='LS_FORMAT',
                                     help="specify output format")
     elif 'fail' == in_command:
-        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        mac_dock_options.add_argument('--exit-code',
+        fail_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        fail_options.add_argument('--exit-code',
                                 required=False,
                                 nargs=1,
                                 metavar='exit-code-to-return',
                                 dest='__FAIL_EXIT_CODE__',
                                 help="exit code to return")
+        fail_options.add_argument('--sleep',
+                                required=False,
+                                nargs=1,
+                                metavar='time-to-sleep',
+                                dest='__FAIL_SLEEP_TIME__',
+                                help="time to sleep")
     elif 'report-versions' == in_command:
         report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
         report_versions_options.add_argument('--only-installed',
@@ -457,14 +467,45 @@ def prepare_args_parser(in_command):
         help_options = command_parser.add_argument_group(description='help subject:')
         help_options.add_argument('subject', nargs='?')
 
-    define_options = command_parser.add_argument_group(description='define:')
-    define_options.add_argument('--define',
+    elif 'run-process' == in_command:
+        run_process_options  = command_parser.add_argument_group(description='run-process:')
+        run_process_options.add_argument('--abort-file',
+                            required=False,
+                            default=False,
+                            nargs=1,
+                            metavar='abort_file',
+                            dest='ABORT_FILE',
+                            help="run a process with optional abort file")
+        run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
+                            nargs='...',
+                            )
+
+    general_options = command_parser.add_argument_group(description='general:')
+    general_options.add_argument('--define',
                             required=False,
                             default=False,
                             nargs=1,
                             metavar='define',
                             dest='define',
                             help="define variable(s) format: X=y,A=b")
+    general_options.add_argument('--no-stdout',
+                            required=False,
+                            action='store_const',
+                            metavar='no_stdout',
+                            const='__NO_STDOUT__',
+                            help="do not output to stdout")
+    general_options.add_argument('--no-system-log',
+                            required=False,
+                            action='store_const',
+                            metavar='no_stdout',
+                            const='__NO_SYSLOG__',
+                            help="do not output to system log")
+    general_options.add_argument('--log',
+                            required=False,
+                            nargs='+',
+                            metavar='log_file',
+                            dest='__LOG_FILE__',
+                            help="log to file(s)")
 
     return parser, command_names
 

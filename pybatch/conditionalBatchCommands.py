@@ -28,6 +28,7 @@ class If(PythonBatchCommandBase, essential=True):
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         condition_obj = self.condition
         if isinstance(condition_obj, str):
             condition = eval(condition_obj)

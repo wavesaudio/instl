@@ -151,7 +151,10 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                     obj_name = _create_unique_obj_name(batch_items, running_progress_count)
                     text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:{_remark_helper(running_progress_count, batch_items.remark)}\n"""
                     io_str.write(text_to_write)
-                    text_to_write = f"""{indent_str}{single_indent}{obj_name}()\n"""
+                    text_to_write = f"""{indent_str}{single_indent}{obj_name}("""
+                    if PythonBatchCommandBase.call_timings is not None:
+                        text_to_write +=  '''called_as="{obj_name}"'''
+                    text_to_write += ")\n"
                     io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 

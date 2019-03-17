@@ -24,9 +24,9 @@ tab_names = {
 }
 
 if getattr(os, "setsid", None):
-    default_font_size = 17 # for Mac
+    default_font_size = 17  # for Mac
 else:
-    default_font_size = 12 # for Windows
+    default_font_size = 12  # for Windows
 
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',

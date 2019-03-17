@@ -1,6 +1,7 @@
 import os
 import sys
 import abc
+import inspect
 from typing import Dict, List
 import time
 from contextlib import contextmanager
@@ -8,6 +9,7 @@ from typing import List
 import logging
 log = logging.getLogger()
 
+import pybatch
 import utils
 
 
@@ -40,6 +42,7 @@ class PythonBatchCommandBase(abc.ABC):
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
+    call_timings = None # change to dict() to enable call_timing
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
@@ -68,7 +71,14 @@ class PythonBatchCommandBase(abc.ABC):
         if kwargs_defaults:
             cls.kwargs_defaults.update(kwargs_defaults)
 
-        #print(f"{cls.__name__}: {parent_kwargs_defaults}/{cls.kwargs_defaults}")
+    @classmethod
+    def get_derived_class_names(cls):
+        """ get list of names of classes deriving from this class """
+        retVal = list()
+        pybatch_module_name = '.'.join(cls.__module__.split('.')[:-1])
+        for name, obj in inspect.getmembers(sys.modules[pybatch_module_name], lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch_module_name)):
+            retVal.append(name)
+        return retVal
 
     @abc.abstractmethod
     def __init__(self, **kwargs):
@@ -88,6 +98,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
         self.current_working_dir = None
         self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
+        self.called_as = None
 
     def repr_default_kwargs(self, all_args):
         """ get a text representation of the __init__(kwargs) for a sub class.
@@ -149,7 +160,7 @@ class PythonBatchCommandBase(abc.ABC):
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
-        pass
+        self.called_as = kwargs.get("called_as", None)
 
     def unnamed__init__param(self, value):
         value_str = utils.quoteme_raw_by_type(value)
@@ -193,6 +204,8 @@ class PythonBatchCommandBase(abc.ABC):
                 self.child_batch_commands.extend(instructions.child_batch_commands)
             else:
                 self.child_batch_commands.append(instructions)
+        elif isinstance(instructions, str):
+            self.child_batch_commands.append(pybatch.EvalShellCommand(instructions, ""))
         else:
             for instruction in instructions:
                 self.add(instruction)
@@ -287,7 +300,7 @@ class PythonBatchCommandBase(abc.ABC):
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
                 if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
                     log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
-            self.current_working_dir =  os.getcwd()
+            self.current_working_dir = os.getcwd()
             self.enter_self()
         except Exception as ex:
             suppress_exception = self.__exit__(*sys.exc_info())
@@ -310,6 +323,10 @@ class PythonBatchCommandBase(abc.ABC):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.exit_time = time.perf_counter()
+        command_time_ms = (self.exit_time-self.enter_time)*1000.0
+        log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
+        if self.called_as and PythonBatchCommandBase.call_timings is not None:
+            PythonBatchCommandBase.call_timings[self.called_as] = command_time_ms
         suppress_exception = False
         if exc_type is None or self.ignore_all_errors:
             suppress_exception = True
@@ -322,8 +339,6 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_self(exit_return=suppress_exception)
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
-        command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        #log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
 
     def log_result(self, log_lvl, message, exc_val):

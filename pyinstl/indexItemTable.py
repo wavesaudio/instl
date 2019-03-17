@@ -318,6 +318,7 @@ class IndexItemsTable(object):
         query_text = """
                     SELECT * FROM index_item_detail_t
                     WHERE original_iid==:iid
+                    AND owner_iid==:iid
                     AND detail_name LIKE :detail_name
                     AND os_id LIKE :in_os
                     ORDER BY _id
@@ -570,7 +571,7 @@ class IndexItemsTable(object):
     def read_index_node(self, a_node: yaml.MappingNode, **kwargs) -> None:
         if bool(config_vars.get("DEBUG_INDEX_DB", False)):
             print("DEBUG_INDEX_DB is true reading index one by one")
-            self.read_index_node_one_by_one(a_node)
+            self.read_index_node_one_by_one(a_node, **kwargs)
             return
 
         index_items = list()
@@ -712,23 +713,25 @@ class IndexItemsTable(object):
                 else:
                     work_on_dict = item_details[os_name] = OrderedDict()
                 for details_row in details_rows:
-                    if details_row['detail_name'] in self.action_types:
+                    detail_name = details_row['detail_name']
+                    if detail_name in self.action_types:
                         if 'actions' not in work_on_dict:
                             work_on_dict['actions'] = OrderedDict()
-                        if details_row['detail_name'] not in work_on_dict['actions']:
-                            work_on_dict['actions'][details_row['detail_name']] = list()
-                        work_on_dict['actions'][details_row['detail_name']].append(details_row['detail_value'])
+                        if detail_name not in work_on_dict['actions']:
+                            work_on_dict['actions'][detail_name] = list()
+                        work_on_dict['actions'][detail_name].append(details_row['detail_value'])
                     else:
-                        if details_row['detail_name'] not in work_on_dict:
-                            work_on_dict[details_row['detail_name']] = list()
-                        work_on_dict[details_row['detail_name']].append(details_row['detail_value'])
+                        if detail_name not in work_on_dict:
+                            work_on_dict[detail_name] = list()
+                        work_on_dict[detail_name].append(details_row['detail_value'])
         return item_details
 
     def repr_for_yaml(self):
         retVal = OrderedDict()
         the_items = self.get_all_index_items()
         for item in the_items:
-            retVal[item['iid']] = self.repr_item_for_yaml(item['iid'])
+            iid = item['iid']
+            retVal[iid] = self.repr_item_for_yaml(iid)
         return retVal
 
     def versions_report(self, report_only_installed=False):

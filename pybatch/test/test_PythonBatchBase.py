@@ -147,8 +147,8 @@ class TestPythonBatch(object):
         if self.output_file_name:
             utils.teardown_file_logging(self.output_file_name)
 
-    def path_inside_test_folder(self, name, assert_not_exist=True):
-        retVal = self.test_folder.joinpath(name).resolve()
+    def path_inside_test_folder(self, *name, assert_not_exist=True):
+        retVal = self.test_folder.joinpath(*name).resolve()
         if assert_not_exist:
             self.uni_test_obj.assertFalse(retVal.exists(), f"{self.which_test}: {retVal} should not exist before test")
         return retVal
@@ -175,7 +175,6 @@ class TestPythonBatch(object):
                 utils.teardown_file_logging(self.output_file_name)
             self.output_file_name = output_file_name
             utils.setup_file_logging(self.output_file_name, level=logging.INFO)
-            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:

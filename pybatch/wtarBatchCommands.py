@@ -139,6 +139,7 @@ class Wtar(PythonBatchCommandBase):
 
         """
 
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_what_to_wtar = utils.ResolvedPath(self.what_to_wtar)
 
         if self.where_to_put_wtar is not None:
@@ -214,6 +215,7 @@ class Unwtar(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
 
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
         what_to_unwtar: Path = utils.ResolvedPath(self.what_to_unwtar)
@@ -300,6 +302,7 @@ class Wzip(PythonBatchCommandBase):
         return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_what_to_zip = utils.ResolvedPath(self.what_to_wzip)
 
         if self.where_to_put_wzip:

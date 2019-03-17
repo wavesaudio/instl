@@ -32,6 +32,7 @@ class MacDock(PythonBatchCommandBase):
         return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         dock_util_command = list()
         if self.remove:
             dock_util_command.append("--remove")
@@ -74,7 +75,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         path_to_target = utils.ResolvedPath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         try:
@@ -102,6 +103,7 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
         return f"""Remove symlink '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         expanded_path = os.path.expandvars(self.path)
         unresolved_path = Path(expanded_path)
         self.doing = f"""removing symlink '{unresolved_path}'"""
@@ -130,6 +132,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         return f"""Create symlink file '{self.symlink_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         symlink_to_convert = Path(os.path.expandvars(self.symlink_to_convert))
         self.doing = f"""convert real symlink '{symlink_to_convert}' to .symlink file"""
         if symlink_to_convert.is_symlink():
@@ -158,6 +161,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         return f"""Resolve symlink '{self.symlink_file_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         symlink_file_to_convert = utils.ResolvedPath(self.symlink_file_to_convert)
         symlink_target = symlink_file_to_convert.read_text()
         self.doing = f"""convert symlink file '{symlink_file_to_convert}' to real symlink to target '{symlink_target}'"""
@@ -189,6 +193,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return f"""Create symlinks files in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         valid_symlinks = list()
         broken_symlinks = list()
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
@@ -234,6 +239,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return f"""Resolve symlinks in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files:

@@ -102,6 +102,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return f"""Copy '{os.path.expandvars(self.src)}' to '{os.path.expandvars(self.dst)}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         self.copy_tree(resolved_src, resolved_dst)
@@ -313,6 +314,7 @@ class CopyDirToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         final_dst: Path = resolved_dst.joinpath(resolved_src.name)
@@ -327,6 +329,7 @@ class MoveDirToDir(CopyDirToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             super().__call__(*args, **kwargs)
         except Exception as ex:
@@ -352,6 +355,7 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             super().__call__(*args, **kwargs)
         except Exception as ex:
@@ -374,6 +378,7 @@ class CopyFileToDir(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         self.copy_file_to_dir(resolved_src, resolved_dst)
@@ -387,6 +392,7 @@ class MoveFileToDir(CopyFileToDir):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             super().__call__(*args, **kwargs)
         except Exception as ex:
@@ -404,6 +410,7 @@ class CopyFileToFile(RsyncClone):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
@@ -418,6 +425,7 @@ class MoveFileToFile(CopyFileToFile):
         super().__init__(src, dst, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         try:
             super().__call__(*args, **kwargs)
         except Exception as ex:
