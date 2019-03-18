@@ -59,6 +59,7 @@ def run_process(command, shell, abort_file=None):
     global process_list
     a_process = launch_process(command, shell)
     process_list.append(a_process)
+    t = None
     if abort_file is not None:
         t = ContinuousTimer(1, check_abort_file, args=[abort_file])
         t.start()
@@ -75,7 +76,7 @@ def run_process(command, shell, abort_file=None):
                 exit_val = status
                 raise RuntimeError(f'Command failed {command}')
             break
-    if hasattr('t'):
+    if t is not None:
         t.cancel()
 
 
