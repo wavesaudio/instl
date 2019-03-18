@@ -34,15 +34,19 @@ class InstlClient(InstlInstanceBase):
         return self.__no_copy_iids_by_sync_folder
 
     def sort_all_items_by_target_folder(self, consider_direct_sync=True):
+        direct_sync_iids = list()
         folder_to_iid_list = self.items_table.target_folders_to_items()
         for IID, folder, tag, direct_sync_indicator in folder_to_iid_list:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             if direct_sync and consider_direct_sync:
                 sync_folder = os.path.join(folder)
                 self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
+                direct_sync_iids.append(IID)
             else:
                 norm_folder = os.path.normpath(folder)
                 self.__all_iids_by_target_folder[norm_folder].append(IID)
+
+        config_vars['__FULL_LIST_OF_DIRECT_SYNC_TARGETS__'] = direct_sync_iids
 
         for folder_iids_list in self.__all_iids_by_target_folder.values():
             folder_iids_list.sort()
