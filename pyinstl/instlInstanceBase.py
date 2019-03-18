@@ -307,7 +307,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         regex = "|".join(do_not_write_vars)
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
-            if not do_not_write_vars_regex.match(identifier):
+            if not do_not_write_vars_regex.fullmatch(identifier):
                 in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
 
     def init_python_batch(self, in_batch_accum):
