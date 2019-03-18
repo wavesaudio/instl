@@ -103,8 +103,9 @@ def enqueue_output(a_process):
     out = a_process.stdout
     try:
         for line in iter(out.readline, b''):
-            if line != '':
-                log.info(line.decode('utf-8').strip('\n'))
+            # no need to repeat the output of the subprocess to this process log
+            #if line != '':
+            #    log.info(line.decode('utf-8').strip('\n'))
             if a_process.poll() is not None:
                 break
     except ValueError:
