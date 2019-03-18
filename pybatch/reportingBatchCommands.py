@@ -351,3 +351,32 @@ class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is
         the_repr = f'''os.environ["{self.var_name}"]="{self.var_value}"'''
         super().__init__(the_repr, **kwargs)
 
+
+class PatchPyBatchWithTimings(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0, 'ignore_all_errors': True}):
+
+    def __init__(self, path_to_py_batch, **kwargs) -> None:
+        PythonBatchCommandBase.__init__(self, **kwargs)
+        self.path_to_py_batch = utils.ResolvedPath(path_to_py_batch)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_by_type(self.path_to_py_batch))
+
+    def progress_msg_self(self) -> str:
+        """ classes overriding PythonBatchCommandBase should add their own progress message
+        """
+        return PythonBatchCommandBase.progress_msg_self()
+
+    def __call__(self, *args, **kwargs):
+        progress_comment_re = re.compile(""".+#\s*(?P<progress>\d+)\s+$""")
+        py_batch_with_timings = self.path_to_py_batch.with_suffix(".timings.py")
+        with open(self.path_to_py_batch) as rfd, open(py_batch_with_timings, "w") as wfd:
+            for line in rfd.readlines():
+                match = progress_comment_re.fullmatch(line)
+                if match:
+                    progress_num = int(match.group("progress"))
+                    progress_time = PythonBatchCommandBase.runtime_duration_by_progress.get(progress_num, -1)
+                    new_line = f"""{line.rstrip()}, {progress_time}ms\n"""
+                    wfd.write(new_line)
+                else:
+                    wfd.write(line)
+

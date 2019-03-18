@@ -43,6 +43,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     call_timings = None # change to dict() to enable call_timing
+    runtime_duration_by_progress = dict()
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
@@ -99,6 +100,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.current_working_dir = None
         self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
         self.called_as = None
+        self.runtime_progress_num = 0
 
     def repr_default_kwargs(self, all_args):
         """ get a text representation of the __init__(kwargs) for a sub class.
@@ -295,7 +297,7 @@ class PythonBatchCommandBase(abc.ABC):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_time = time.perf_counter()
         try:
-            PythonBatchCommandBase.running_progress += self.own_progress_count
+            PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
                 if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
@@ -324,6 +326,7 @@ class PythonBatchCommandBase(abc.ABC):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.exit_time = time.perf_counter()
         command_time_ms = (self.exit_time-self.enter_time)*1000.0
+        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = command_time_ms
         log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         if self.called_as and PythonBatchCommandBase.call_timings is not None:
             PythonBatchCommandBase.call_timings[self.called_as] = command_time_ms

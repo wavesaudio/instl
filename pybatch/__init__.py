@@ -36,6 +36,7 @@ from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
 from .reportingBatchCommands import EnvironVarAssign
+from .reportingBatchCommands import PatchPyBatchWithTimings
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
