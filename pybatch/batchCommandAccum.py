@@ -8,7 +8,7 @@ import time
 import datetime
 
 from .baseClasses import PythonBatchCommandBase
-from .reportingBatchCommands import Stage, PythonBatchRuntime
+from .reportingBatchCommands import Stage, PythonBatchRuntime, PatchPyBatchWithTimings
 from .subprocessBatchCommands import ShellCommand
 
 from pybatch import *
@@ -29,7 +29,10 @@ def camel_to_snake_case(identifier):
 
 class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
-    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync", "copy", "post-copy", "remove", "admin", "pre_doit", "doit", "post_doit", "end", "post")
+    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync",
+                     "copy", "post-copy", "remove", "admin", "pre_doit", "doit", "post_doit", "end",
+                     "post", "epilog")
+    special_sections = ("assign", "epilog")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -87,9 +90,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""log = logging.getLogger()""")
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""from configVar import config_vars""")
-        PythonBatchCommandBase.total_progress = 0
-        for section in self.sections.values():
-            PythonBatchCommandBase.total_progress += section.total_progress_count()
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
         opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
         opening_code_lines.append(f"""if __name__ is '__main__':""")
@@ -131,12 +131,13 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                     _repr_helper(item, io_str, indent)
             else:
                 running_progress_count += batch_items.own_progress_count
+                batch_items.prog_num = running_progress_count
                 if batch_items.call__call__ is False and batch_items.is_context_manager is False:
-                    text_to_write = f"""{indent_str}{repr(batch_items)}{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    text_to_write = f"""{indent_str}{repr(batch_items)}\n"""
                     io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
-                    text_to_write = f"""{indent_str}with {repr(batch_items)}:{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    text_to_write = f"""{indent_str}with {repr(batch_items)}:\n"""
                     io_str.write(text_to_write)
                     if batch_items.child_batch_commands:
                         _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
@@ -144,19 +145,27 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
                         text_to_write = f"""{indent_str}{single_indent}pass\n"""
                         io_str.write(text_to_write)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
-                    text_to_write = f"""{indent_str}{repr(batch_items)}(){_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    text_to_write = f"""{indent_str}{repr(batch_items)}()\n"""
                     io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent)
                 elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
                     obj_name = _create_unique_obj_name(batch_items, running_progress_count)
-                    text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:{_remark_helper(running_progress_count, batch_items.remark)}\n"""
+                    text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n"""
                     io_str.write(text_to_write)
+
                     text_to_write = f"""{indent_str}{single_indent}{obj_name}("""
-                    if PythonBatchCommandBase.call_timings is not None:
-                        text_to_write +=  '''called_as="{obj_name}"'''
                     text_to_write += ")\n"
                     io_str.write(text_to_write)
                     _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+
+        self.set_current_section('epilog')
+        self += PatchPyBatchWithTimings(config_vars['__MAIN_OUT_FILE__'])
+
+        PythonBatchCommandBase.total_progress = 0
+        for name, section in self.sections.items():
+            progress_count_for_section = section.total_progress_count()
+            PythonBatchCommandBase.total_progress += progress_count_for_section
+        PythonBatchCommandBase.total_progress += 1  # count the PythonBatchRuntime, todo: a better way to add PythonBatchRuntime's progress count to the total
 
         prolog_str = io.StringIO()
         prolog_str.write(self._python_opening_code())
@@ -168,17 +177,22 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         runtimer = PythonBatchRuntime(the_command)
         for section_name in PythonBatchCommandAccum.section_order:
             if section_name in self.sections:
-                if section_name != 'assign':
+                if section_name not in PythonBatchCommandAccum.special_sections:
                     runtimer += self.sections[section_name]
         main_str.write("\n")
         _repr_helper(runtimer, main_str, 0)
-        main_str.write("\n")
-        main_str.write(self._python_closing_code())
+
+        epilog_str = io.StringIO()
+        if 'epilog' in self.sections:
+            main_str.write("\n")
+            _repr_helper(self.sections['epilog'], epilog_str, 0)
+
+        epilog_str.write(self._python_closing_code())
 
         main_str_resolved = config_vars.resolve_str(main_str.getvalue())
         main_str_resolved = config_vars.replace_unresolved_with_native_var_pattern(main_str_resolved, list(config_vars["__CURRENT_OS_NAMES__"])[0])
 
-        the_whole_repr = prolog_str.getvalue()+main_str_resolved
+        the_whole_repr = prolog_str.getvalue()+main_str_resolved+epilog_str.getvalue()
         return the_whole_repr
 
     def progress_msg_self(self):

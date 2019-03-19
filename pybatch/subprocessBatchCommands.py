@@ -285,7 +285,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0}):
+class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False}):
     """
         run another python-batch command in a thread
     """
@@ -295,13 +295,13 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         self.thread_name = thread_name
         self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
                               #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
-
-    def total_progress_count(self) -> int:
-        retVal = self.own_progress_count
-        retVal += self.what_to_run.total_progress_count()
-        return retVal
+        self.own_progress_count += self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
+        # what_to_run should not increment or report progress because there is no way to know when it will happen
+        # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
         if self.thread_name is not None:
             all_args.append(utils.quoteme_raw_by_type(self.thread_name))

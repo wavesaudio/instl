@@ -55,7 +55,7 @@ class RaiseException(PythonBatchCommandBase, essential=True):
         raise self.exception_type(self.exception_message)
 
 
-class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):
+class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
         Stage itself preforms no action only the contained commands will be preformed
     """
@@ -82,7 +82,7 @@ class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_cont
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        pass
 
 
 class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False):
@@ -99,8 +99,8 @@ class Progress(PythonBatchCommandBase, essential=False, call__call__=True, is_co
         return self.message
 
     def __call__(self, *args, **kwargs) -> None:
-        PythonBatchCommandBase.running_progress += self.own_progress_count
-        log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+        with self.timing_contextmanager():
+            log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
 
 
 class Echo(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
@@ -153,7 +153,8 @@ class PythonDoSomething(PythonBatchCommandBase, essential=True, call__call__=Fal
         return f''''''
 
     def __call__(self, *args, **kwargs) -> None:
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        with self.timing_contextmanager():
+            PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
 class PythonVarAssign(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
@@ -231,7 +232,7 @@ class ConfigVarAssign(PythonBatchCommandBase, essential=False, call__call__=Fals
         pass
 
 
-class ConfigVarPrint(PythonBatchCommandBase, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 1}):
+class ConfigVarPrint(PythonBatchCommandBase, call__call__=True, is_context_manager=False):
     """
     """
     def __init__(self, var_name, **kwargs) -> None:
@@ -250,32 +251,24 @@ class ConfigVarPrint(PythonBatchCommandBase, call__call__=True, is_context_manag
         log.info(resolved)
 
 
-class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):
+class PythonBatchRuntime(PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.exit_time = time.perf_counter()
         suppress_exception = False
         if exc_val:
             self.log_error(exc_type, exc_val, exc_tb)
             log.info("Shakespeare says: The Comedy of Errors")
+
+        self.exit_timing_measure()
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}")
         PythonBatchCommandBase.stage_stack.pop()
 
-        if PythonBatchCommandBase.call_timings:
-            PythonBatchCommandBase.call_timings["total"] = time_diff*1000
-            timing_file_path = Path(str(config_vars['__MAIN_OUT_FILE__'])).with_suffix(".timings")
-            with open(timing_file_path, "w") as wfd:
-                print("global called_as_timings", file=wfd)
-                print("called_as_timings = {", file=wfd)
-                for name, timing in PythonBatchCommandBase.call_timings.items():
-                    print(f"'{name}': {timing},", file=wfd)
-                print("}", file=wfd)
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):
@@ -352,7 +345,7 @@ class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is
         super().__init__(the_repr, **kwargs)
 
 
-class PatchPyBatchWithTimings(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0, 'ignore_all_errors': True}):
+class PatchPyBatchWithTimings(PythonBatchCommandBase, essential=True):
 
     def __init__(self, path_to_py_batch, **kwargs) -> None:
         PythonBatchCommandBase.__init__(self, **kwargs)
@@ -364,19 +357,25 @@ class PatchPyBatchWithTimings(PythonBatchCommandBase, essential=True, kwargs_def
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message
         """
-        return PythonBatchCommandBase.progress_msg_self()
+        return super(PatchPyBatchWithTimings, self).progress_msg_self()
 
     def __call__(self, *args, **kwargs):
-        progress_comment_re = re.compile(""".+#\s*(?P<progress>\d+)\s+$""")
+        progress_comment_re = re.compile(""".+prog_num=(?P<progress>\d+).+\s+$""")
         py_batch_with_timings = self.path_to_py_batch.with_suffix(".timings.py")
+        last_progress_reported = 0
         with open(self.path_to_py_batch) as rfd, open(py_batch_with_timings, "w") as wfd:
             for line in rfd.readlines():
+                line_to_print = line
                 match = progress_comment_re.fullmatch(line)
                 if match:
                     progress_num = int(match.group("progress"))
-                    progress_time = PythonBatchCommandBase.runtime_duration_by_progress.get(progress_num, -1)
-                    new_line = f"""{line.rstrip()}, {progress_time}ms\n"""
-                    wfd.write(new_line)
-                else:
-                    wfd.write(line)
+                    if progress_num > last_progress_reported:  # some items have the same progress num, so report only the first
+                        last_progress_reported = progress_num
+                        progress_time = PythonBatchCommandBase.runtime_duration_by_progress.get(progress_num, None)
+                        if progress_time is not None:
+                            progress_time_str = f"{progress_time:,.2f}"
+                        else:
+                            progress_time_str = '?'
+                        line_to_print = f"""{line.rstrip()}  # {progress_time_str}ms\n"""
+                wfd.write(line_to_print)
 

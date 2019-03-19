@@ -582,7 +582,5 @@ def InstlClientFactory(initial_vars, command):
                 self.do_sync()
                 self.do_copy()
                 self.batch_accum += Progress("Done synccopy")
-                self.batch_accum.set_current_section('post')
-                self.batch_accum += PatchPyBatchWithTimings(config_vars['__MAIN_OUT_FILE__'])
         retVal = InstlClientSyncCopy(initial_vars)
     return retVal
