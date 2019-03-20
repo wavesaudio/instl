@@ -1,7 +1,6 @@
 import sys
 
 from .baseClasses import PythonBatchCommandBase
-from .subprocessBatchCommands import RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .conditionalBatchCommands import If
@@ -67,6 +66,7 @@ from .subprocessBatchCommands import ScriptCommand
 from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
 from .subprocessBatchCommands import Subprocess
+from .subprocessBatchCommands import RunProcessBase
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 

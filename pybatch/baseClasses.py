@@ -9,7 +9,6 @@ from typing import List
 import logging
 log = logging.getLogger()
 
-import pybatch
 import utils
 
 
@@ -99,6 +98,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.current_working_dir = None
         self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
         self.runtime_progress_num = 0
+        self.command_time_sec = 0
 
     def repr_default_kwargs(self, all_args):
         """ get a text representation of the __init__(kwargs) for a sub class.
@@ -331,7 +331,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_self(exit_return=suppress_exception)
 
         self.exit_timing_measure()
-        #log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
+        #log.debug(f"{self.progress_msg()} time: {self.command_time_sec:.2f}ms")
 
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
@@ -348,8 +348,8 @@ class PythonBatchCommandBase(abc.ABC):
 
     def exit_timing_measure(self):
         self.exit_time = time.perf_counter()
-        command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = command_time_ms
+        self.command_time_sec = (self.exit_time - self.enter_time)
+        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
         if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
             log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
 
