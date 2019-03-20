@@ -268,6 +268,7 @@ class InstlClientCopy(InstlClient):
         retVal = True
         if not self.update_mode:
             if source[1] == "!dir":
+                # try to Info.xml or Info.plist at top level
                 src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
                 trg = Path(config_vars.resolve_str(target_folder_path), src.name)
                 for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
@@ -279,17 +280,19 @@ class InstlClientCopy(InstlClient):
                         break
                 else:
                     retVal = True
-                src = src.joinpath("Contents")
-                trg = trg.joinpath("Contents")
-                for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
-                    src_marker = src.joinpath(avoid_copy_marker)
-                    dst_marker = trg.joinpath(avoid_copy_marker)
-                    retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
-                    if not retVal:
-                        #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                        break
-                else:
-                    retVal = True
+                if retVal:
+                    # try to Info.xml or Info.plist under contents
+                    src = src.joinpath("Contents")
+                    trg = trg.joinpath("Contents")
+                    for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
+                        src_marker = src.joinpath(avoid_copy_marker)
+                        dst_marker = trg.joinpath(avoid_copy_marker)
+                        retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
+                        if not retVal:
+                            #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                            break
+                    else:
+                        retVal = True
             elif source[1] == "!file":
                 try:
                     src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
