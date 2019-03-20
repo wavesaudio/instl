@@ -124,7 +124,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         need_download_file_path = os.fspath(config_vars["TO_SYNC_INFO_MAP_PATH"])
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
-        self.instlObj.progress(f"{len(need_download_items_list)} files to download")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

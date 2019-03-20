@@ -1,7 +1,6 @@
 import sys
 
 from .baseClasses import PythonBatchCommandBase
-from .subprocessBatchCommands import RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .conditionalBatchCommands import If
@@ -36,6 +35,7 @@ from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
 from .reportingBatchCommands import EnvironVarAssign
+from .reportingBatchCommands import PatchPyBatchWithTimings
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
@@ -66,6 +66,7 @@ from .subprocessBatchCommands import ScriptCommand
 from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
 from .subprocessBatchCommands import Subprocess
+from .subprocessBatchCommands import RunProcessBase
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 

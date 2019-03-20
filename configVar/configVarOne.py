@@ -176,7 +176,7 @@ class ConfigVar:
             but if string is passed it will not be treated like a list
             of characters and will be added as a single value.
         """
-        if isinstance(values, (str, int, type(None))):
+        if isinstance(values, (str, int, float, type(None))):
             # so str will not be treated as a list of characters
             self.append(values)
         elif isinstance(values, collections.Sequence):

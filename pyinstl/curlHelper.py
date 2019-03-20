@@ -153,6 +153,10 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
                 last_file.write(f'''url = "{url}"\noutput = "{fixed_path}"\n\n''')
                 url_num += 1
 
-            if last_file:
+            # insert None which means "wait" before the config file that downloads urls_to_download_last.
+            # but only if there were actually download files other than urls_to_download_last.
+            # it might happen that there are only urls_to_download_last - so no need to "wait".
+            if last_file and len(wfd_list) > 0:
                 file_name_list.insert(-1, None)
+
         return file_name_list
