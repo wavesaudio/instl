@@ -64,20 +64,21 @@ def run_process(command, shell, abort_file=None):
         t = ContinuousTimer(1, check_abort_file, args=[abort_file])
         t.start()
 
-    while True:
-        enqueue_output(a_process)
-        status = a_process.poll()
-        if status is not None:  # None means it's still alive
-            log.debug(f'Process finished - {command}')
-            if aborted:
-                exit_val = status
-                raise ProcessTerminatedExternally(command)
-            elif status != 0:
-                exit_val = status
-                raise RuntimeError(f'Command failed {command}')
-            break
-    if t is not None:
-        t.cancel()
+    try:
+        while True:
+            status = a_process.poll()
+            if status is not None:  # None means it's still alive
+                log.debug(f'Process finished - {command}')
+                if aborted:
+                    exit_val = status
+                    raise ProcessTerminatedExternally(command)
+                elif status != 0:
+                    exit_val = status
+                    raise RuntimeError(f'Command failed {command}')
+                break
+    finally:
+        if t is not None:
+            t.cancel()
 
 
 def launch_process(command, shell):
