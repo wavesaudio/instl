@@ -304,7 +304,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if not bool(config_vars.get("WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE", "no")):
             do_not_write_vars += list(os.environ.keys())
 
-        regex = "|".join(do_not_write_vars)
+        regex = "|".join([re.escape(a_var) for a_var in do_not_write_vars])
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
             if not do_not_write_vars_regex.fullmatch(identifier):
