@@ -92,8 +92,7 @@ def launch_process(command, shell):
     if getattr(os, "setsid", None):  # UNIX
         kwargs['preexec_fn'] = os.setsid
     try:
-        a_process = subprocess.Popen(full_command, shell=shell, bufsize=1,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+        a_process = subprocess.Popen(full_command, shell=shell, env=os.environ, **kwargs)
     except Exception as e:
         exit_val = 31
         raise RuntimeError(f"failed to start {command}") from e
