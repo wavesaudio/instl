@@ -6,6 +6,7 @@ import sys
 import os
 import signal
 import logging
+import psutil
 from itertools import repeat
 from concurrent import futures
 from threading import Timer
@@ -139,8 +140,19 @@ def killall_and_exit():
             if getattr(os, "killpg", None):
                 os.killpg(a_process.pid, signal.SIGTERM)  # Unix
             else:
-                a_process.kill()  # Windows
+                kill_proc_tree(a_process.pid)  # Windows
     sys.exit(exit_val)
+
+
+def kill_proc_tree(pid, including_parent=True):
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    for child in children:
+        child.kill()
+    gone, still_alive = psutil.wait_procs(children, timeout=5)
+    if including_parent:
+        parent.kill()
+        parent.wait(5)
 
 
 def install_signal_handlers():
