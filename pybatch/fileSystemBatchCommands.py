@@ -264,8 +264,8 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
     """ append the content of 'source_file' to 'target_file'"""
-    def __init__(self, source_file, target_file):
-        super().__init__()
+    def __init__(self, source_file, target_file, **kwargs):
+        super().__init__(**kwargs)
         self.source_file = source_file
         self.target_file = target_file
 
@@ -510,8 +510,8 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         Will create a file with random data of the requested size
     """
 
-    def __init__(self, file_path: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, file_path: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.file_path = file_path
         self.file_size = file_size
         if self.file_size < 0:
