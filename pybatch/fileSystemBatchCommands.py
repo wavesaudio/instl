@@ -42,8 +42,8 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
 
-    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
         self.num_files_per_dir = num_files_per_dir

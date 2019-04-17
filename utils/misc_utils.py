@@ -353,7 +353,7 @@ def check_file_signature(file_path, textual_sig, public_key):
 
 def compare_files_by_checksum(_1st_file_path, _2nd_file_path, follow_symlinks=False):
     """ compare the checksum of two files
-        Return True if checksums matcj
+        Return True if checksums match
         Return False if any or both files do not exit
         follow_symlinks  parameter has the same meaning as for get_file_checksum
     """
