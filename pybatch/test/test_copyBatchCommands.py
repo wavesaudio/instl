@@ -75,7 +75,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
         self.pbt.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
         if sys.platform == 'darwin':
             self.pbt.batch_accum += RsyncClone(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
@@ -125,7 +125,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
         self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
         if sys.platform == 'darwin':
             self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
@@ -186,7 +186,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
         self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
         self.pbt.batch_accum += MoveDirToDir(copied_dir_no_hard_links, dir_to_move_to_no_hard_links, hard_links=False)
 
@@ -226,7 +226,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
-            sub_bc += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
+            sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
         self.pbt.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
         if sys.platform == 'darwin':
             self.pbt.batch_accum += CopyDirContentsToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
