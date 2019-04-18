@@ -274,7 +274,7 @@ class InstlClientCopy(InstlClient):
                 for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
                     src_marker = src.joinpath(avoid_copy_marker)
                     dst_marker = trg.joinpath(avoid_copy_marker)
-                    retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
+                    retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
                     if not retVal:
                         #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
                         break
@@ -287,7 +287,7 @@ class InstlClientCopy(InstlClient):
                     for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
                         src_marker = src.joinpath(avoid_copy_marker)
                         dst_marker = trg.joinpath(avoid_copy_marker)
-                        retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
+                        retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
                         if not retVal:
                             #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
                             break

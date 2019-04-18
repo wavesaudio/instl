@@ -126,13 +126,14 @@ class TestPythonBatchCopy(unittest.TestCase):
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
+
         self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
         if sys.platform == 'darwin':
             self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
-        filen_names_to_ignore = ["hootenanny"]
-        self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=filen_names_to_ignore)
+        file_names_to_ignore = ["hootenanny"]
+        self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=file_names_to_ignore)
 
-        self.pbt.exec_and_capture_output()
+        self.pbt.exec_and_capture_output("target-not-exist")
 
         dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
         self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.pbt.which_test} (no hard links): source and target dirs are not the same")
@@ -141,7 +142,27 @@ class TestPythonBatchCopy(unittest.TestCase):
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.pbt.which_test} (with hard links): source and target files are not hard links to the same file")
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
-        is_identical_dircomp_with_ignore(dir_comp_with_ignore, filen_names_to_ignore)
+        is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.set_current_section("prepare")
+
+        self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
+        if sys.platform == 'darwin':
+            self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_hard_links, hard_links=True)
+        file_names_to_ignore = ["hootenanny"]
+        self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_with_ignore, ignore_patterns=file_names_to_ignore)
+
+        self.pbt.exec_and_capture_output("target-exist")
+
+        dir_comp_no_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_no_hard_links)
+        self.assertTrue(is_identical_dircmp(dir_comp_no_hard_links), f"{self.pbt.which_test} (no hard links): source and target dirs are not the same")
+
+        if sys.platform == 'darwin':
+            dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, copied_dir_with_hard_links)
+            self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.pbt.which_test} (with hard links): source and target files are not hard links to the same file")
+        dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
+        is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
 
     def test_MoveDirToDir_repr(self):
         dir_from = r"\p\o\i"
@@ -310,6 +331,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         target_file_different_name_with_hard_links = target_dir_with_different_name.joinpath("Ebenezer").resolve()
 
         self.pbt.batch_accum.clear()
+
         self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
         self.pbt.batch_accum += MakeDirs(target_dir_no_hard_links)
         self.pbt.batch_accum += MakeDirs(target_dir_with_hard_links)

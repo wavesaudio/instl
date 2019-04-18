@@ -290,7 +290,7 @@ class InstlClient(InstlInstanceBase):
         previous_iid = ""
 
         for IID, an_action in iid_and_action:
-            log.debug(f'Marking action {an_action} on - {IID}')
+            #log.debug(f'Marking action {an_action} on - {IID}')
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)

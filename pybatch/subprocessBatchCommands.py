@@ -99,8 +99,8 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 class CUrl(RunProcessBase):
     """ download a file using curl """
     def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
-                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
-        super().__init__()
+                 max_time: int=180, retires: int=2, retry_delay: int=8, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.curl_path = curl_path
