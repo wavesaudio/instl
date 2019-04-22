@@ -520,10 +520,9 @@ def get_main_drive_name():
     retVal = None
     try:
         if sys.platform == 'darwin':
-            for volume in os.listdir("/Volumes"):
-                volume_path = Path("/Volumes", volume)
-                if volume_path.is_symlink():
-                    resolved_volume_path = volume_path.resolve()
+            for volume in os.scandir("/Volumes"):
+                if volume.is_symlink():
+                    resolved_volume_path = Path("/Volumes", volume).resolve()
                     if str(resolved_volume_path) == "/":
                         retVal = volume
                         break

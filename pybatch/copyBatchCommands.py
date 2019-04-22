@@ -202,8 +202,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 self.copy_file_to_file(src_path, dst_path)
 
     def should_copy_file_Path(self, src: Path, dst: Path):
-        retVal = self.top_destination_does_not_exist
-        if not retVal:
+        retVal = True
+        if not self.top_destination_does_not_exist:
             try:
                 dst_stats = dst.stat()
                 src_stats = src.stat()
@@ -224,10 +224,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return retVal
 
     def should_copy_file_DirEntry(self, src: os.DirEntry, dst: Path):
-        assert isinstance(src, os.DirEntry)
-        assert isinstance(dst, Path)
-        retVal = self.top_destination_does_not_exist
-        if not retVal:
+        retVal = True
+        if not self.top_destination_does_not_exist:
             try:
                 dst_stats = dst.stat()
                 src_stats = src.stat()
@@ -304,8 +302,6 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             is assumed to exist.
             src is assumed to be of type os.DirEntry
         """
-        assert isinstance(src, os.DirEntry)
-        assert isinstance(dst, Path)
         self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
@@ -449,7 +445,7 @@ class MoveDirToDir(CopyDirToDir):
 
 
 class CopyDirContentsToDir(RsyncClone):
-    """ copy the contents of a folder into another and erase the sources
+    """ copy the contents of a folder into another
         intermediate folders will be created as needed
     """
     def __init__(self, src, dst, **kwargs):
@@ -524,6 +520,7 @@ class CopyFileToFile(RsyncClone):
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
+        self.top_destination_does_not_exist = False
         self.copy_file_to_file(resolved_src, resolved_dst)
 
 

@@ -23,6 +23,7 @@ class InstlClientCopy(InstlClient):
         self.unwtar_batch_file_counter: int = 0
         self.current_destination_folder: Optional[str] = None
         self.current_iid:  Optional[str] = None
+        self.avoid_copy_markers = None
 
     def do_copy(self) -> None:
         self.init_copy_vars()
@@ -66,6 +67,8 @@ class InstlClientCopy(InstlClient):
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
+
+        self.avoid_copy_markers = list(config_vars.get('AVOID_COPY_MARKERS', []))
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -267,42 +270,36 @@ class InstlClientCopy(InstlClient):
     def should_copy_source(self, source, target_folder_path):
         retVal = True
         if not self.update_mode:
-            if source[1] == "!dir":
-                # try to Info.xml or Info.plist at top level
-                src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
-                trg = Path(config_vars.resolve_str(target_folder_path), src.name)
-                for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
-                    src_marker = src.joinpath(avoid_copy_marker)
-                    dst_marker = trg.joinpath(avoid_copy_marker)
-                    retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
-                    if not retVal:
-                        #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                        break
-                else:
-                    retVal = True
-                if retVal:
-                    # try to Info.xml or Info.plist under contents
-                    src = src.joinpath("Contents")
-                    trg = trg.joinpath("Contents")
-                    for avoid_copy_marker in config_vars.get("AVOID_COPY_MARKERS", []).list():
-                        src_marker = src.joinpath(avoid_copy_marker)
-                        dst_marker = trg.joinpath(avoid_copy_marker)
-                        retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
-                        if not retVal:
-                            #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                            break
-                    else:
-                        retVal = True
-            elif source[1] == "!file":
-                try:
-                    src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
-                    trg = Path(config_vars.resolve_str(target_folder_path), src.name)
-                    if src.stat().st_ino == trg.stat().st_ino:
-                        retVal = False
-                    else:
+            top_src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
+            top_trg = Path(config_vars.resolve_str(target_folder_path), top_src.name)
+            if top_trg.exists():
+                if source[1] == "!dir":
+                    trg = top_trg.joinpath("Contents")
+                    if trg.exists():
+                         # try to Info.xml or Info.plist under contents
+                        src = top_src.joinpath("Contents")
+                        for avoid_copy_marker in self.avoid_copy_markers:
+                            src_marker = src.joinpath(avoid_copy_marker)
+                            dst_marker = trg.joinpath(avoid_copy_marker)
+                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if not retVal:
+                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                                break
+                    if retVal:
+                        # try to Info.xml or Info.plist at top level
+                        for avoid_copy_marker in self.avoid_copy_markers:
+                            src_marker = top_src.joinpath(avoid_copy_marker)
+                            dst_marker = top_trg.joinpath(avoid_copy_marker)
+                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if not retVal:
+                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                                break
+                elif source[1] == "!file":
+                    try:
+                        if top_src.stat().st_ino == top_trg.stat().st_ino:
+                            retVal = False
+                    except:
                         pass
-                except:
-                    pass
         return retVal
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
