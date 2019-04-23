@@ -522,9 +522,9 @@ def get_main_drive_name():
         if sys.platform == 'darwin':
             for volume in os.scandir("/Volumes"):
                 if volume.is_symlink():
-                    resolved_volume_path = Path("/Volumes", volume).resolve()
+                    resolved_volume_path = Path("/Volumes", volume.name).resolve()
                     if str(resolved_volume_path) == "/":
-                        retVal = volume
+                        retVal = volume.name
                         break
             else:
                 apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """

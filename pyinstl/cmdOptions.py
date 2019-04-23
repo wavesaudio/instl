@@ -136,6 +136,7 @@ def prepare_args_parser(in_command):
         'synccopy':             {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'sync files to be installed from server to  local disk and copy files to target paths'},
         'test-import':          {'mode': 'ds', 'options': (), 'help':  'test the import of required modules'},
         'trans':                {'mode': 'an', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
+        'translate-guids':      {'mode': 'an', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
         'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
         'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
         'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},

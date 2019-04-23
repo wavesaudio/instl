@@ -161,7 +161,7 @@ class IndexItemsTable(object):
         :return: list of all iids in the db that have guids, empty list if none are found
         """
         query_text = """
-            SELECT owner_iid
+            SELECT owner_iid, detail_value
             from index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND owner_iid=original_iid
