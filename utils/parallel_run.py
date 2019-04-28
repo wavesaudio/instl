@@ -69,7 +69,9 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
     """
     global exit_val
     global process_list
-    a_process = launch_process(command, shell)
+    if abort_file is not None:  # Disabling enqueue_output if abort file is used.
+        do_enqueue_output = False
+    a_process = launch_process(command, shell, do_enqueue_output)
     process_list.append(a_process)
     t = None
     if abort_file is not None:
@@ -78,7 +80,7 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
 
     try:
         while True:
-            if do_enqueue_output and not abort_file:  # Calling enqueue_output only if abort file is not used.
+            if do_enqueue_output:  # Calling enqueue_output only if abort file is not used.
                 enqueue_output(a_process)
             status = a_process.poll()
             if status is not None:  # None means it's still alive
@@ -95,7 +97,7 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
             t.cancel()
 
 
-def launch_process(command, shell):
+def launch_process(command, shell, do_enqueue_output):
     global exit_val
     if shell:
         full_command = " ".join(command)
@@ -105,9 +107,10 @@ def launch_process(command, shell):
         kwargs = {'executable': command[0]}
     if getattr(os, "setsid", None):  # UNIX
         kwargs['preexec_fn'] = os.setsid
+    if do_enqueue_output:
+        kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'bufsize': 128})
     try:
-        a_process = subprocess.Popen(full_command, shell=shell, env=os.environ, bufsize=128,
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+        a_process = subprocess.Popen(full_command, shell=shell, env=os.environ, **kwargs)
     except Exception as e:
         exit_val = 31
         raise RuntimeError(f"failed to start {command}") from e
