@@ -256,8 +256,9 @@ class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_conte
         return resolved
 
     def __call__(self, *args, **kwargs) -> None:
-        resolved = config_vars[self.var_name].str()
-        log.info(resolved)
+        with self.timing_contextmanager():
+            resolved = config_vars[self.var_name].str()
+            log.info(resolved)
 
 
 class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
