@@ -16,14 +16,19 @@ import inspect
 import pathlib
 import logging
 import logging.handlers
-from logging.config import dictConfig
 
 from utils import misc_utils as utils
 
+top_logger = logging.getLogger()
+
 
 def config_logger():
-    config_dict = get_config_dict()
-    dictConfig(config_dict)
+    if '--no-stdout' not in sys.argv:
+        setup_stream_hdlr()
+    if '--no-system-log' not in sys.argv:
+        system_log_file_path = utils.get_system_log_file_path()
+        setup_file_logging(system_log_file_path)
+
     # command line options relating to logging are parsed here, as soon as possible
     if '--log' in sys.argv:
         try:
@@ -38,64 +43,27 @@ def config_logger():
             pass
 
 
-def get_config_dict():
-    config_dict = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'simple': {
-                'class': 'logging.Formatter',
-                'format': '%(message)s'
-            },
-            'detailed': {
-                '()': CustomLogFormatter,
-            },
-            'json': {
-                '()': JsonLogFormatter,
-                'format': '%(message)s'
-            }
-        },
-        'filters': {
-            'parent': {
-                '()': ParentLogFilter,
-            }
-        },
-        'handlers': {
-            'errors': {
-                'class': 'logging.StreamHandler',
-                'level': 'ERROR',
-                'formatter': 'simple',
-                'stream': sys.stderr
-            },
-        },
-        'root': {
-            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
-        },
-    }
-    if '--no-stdout' not in sys.argv:
-        config_dict['handlers']['console'] = {
-                'class': 'logging.StreamHandler',
-                'level': 'INFO',
-                'formatter': 'simple',
-                'stream': sys.stdout
-            }
-    if '--no-system-log' not in sys.argv:
-        system_log_file_path = utils.get_system_log_file_path()
-        config_dict['handlers']['system_log'] = {
-                'class': 'logging.handlers.RotatingFileHandler',
-                'level': 'DEBUG',
-                'formatter': 'detailed',
-                'filename': system_log_file_path,
-                'mode': 'a',
-                'maxBytes': 5000000,
-                'backupCount': 10,
-                'filters': ['parent']
-            }
-        os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
+def setup_stream_hdlr():
+    stdout_stream_hdlr = logging.StreamHandler(stream=sys.stdout)
+    stderr_stream_hdlr = logging.StreamHandler(stream=sys.stderr)
+    for strm_hdlr in [stdout_stream_hdlr, stderr_stream_hdlr]:
+        strm_hdlr.setLevel(logging.INFO if strm_hdlr == stdout_stream_hdlr else logging.ERROR)
+        strm_hdlr.setFormatter(logging.Formatter('%(message)s'))
+        top_logger.addHandler(strm_hdlr)
 
-    config_dict['root']['handlers'] = [*config_dict['handlers'].keys()]
 
-    return config_dict
+def setup_file_logging(log_file_path, level=logging.DEBUG):
+    '''Setting up a logging handler'''
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    top_logger = logging.getLogger()
+
+    fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=5000000, backupCount=10)
+    fileLogHandler.setLevel(level)
+    fileLogHandler.set_name(f"(log_file_name)_log_handler")
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}', datefmt='%Y-%m-%d_%H:%M:%S', style='%')
+
+    fileLogHandler.setFormatter(formatter)
+    top_logger.addHandler(fileLogHandler)
 
 
 class ParentLogFilter(logging.Filter):
@@ -154,48 +122,11 @@ class JsonLogFormatter(object):
         return json.dumps(obj, indent=4)
 
 
-def get_log_folder_path(in_app_name, in_app_author):
-    retVal = appdirs.user_log_dir(appname=in_app_name, appauthor=in_app_author)
-    os.makedirs(retVal, exist_ok=True)
-    return retVal
-
-
-def get_log_file_path(in_app_name, in_app_author, debug=False):
-    retVal = get_log_folder_path(in_app_name, in_app_author)
-    if debug:
-        retVal = os.path.join(retVal, "log.debug.txt")
-    else:
-        retVal = os.path.join(retVal, "log.txt")
-    return retVal
-
 default_logging_level = logging.INFO
 debug_logging_level = logging.DEBUG
 
 default_logging_started = False
 debug_logging_started = False
-
-
-def setup_logging(in_app_name, in_app_author):
-    top_logger = logging.getLogger()
-    top_logger.setLevel(default_logging_level)
-    # setup INFO level logger
-    log_file_path = get_log_file_path(in_app_name, in_app_author, debug=False)
-    rotatingHandler = logging.handlers.RotatingFileHandler(
-        log_file_path, maxBytes=200000, backupCount=5)
-    rotatingHandler.set_name("instl_log_handler")
-    formatter = logging.Formatter(
-        '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
-    rotatingHandler.setFormatter(formatter)
-    rotatingHandler.setLevel(default_logging_level)
-    top_logger.addHandler(rotatingHandler)
-    global default_logging_started
-    default_logging_started = True
-    # if debug log file exists, setup another handler for it
-    debug_log_file_path = get_log_file_path(in_app_name, in_app_author, debug=True)
-    if os.path.isfile(debug_log_file_path):
-        setup_file_logging(debug_log_file_path, debug_logging_level)
-        global debug_logging_started
-        debug_logging_started = True
 
 
 def find_file_log_handler(log_file_path):
@@ -209,20 +140,11 @@ def find_file_log_handler(log_file_path):
     return retVal
 
 
-def setup_file_logging(log_file_path, level=logging.INFO):
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    top_logger = logging.getLogger()
-    top_logger.setLevel(debug_logging_level)
-    fileLogHandler = find_file_log_handler(log_file_path)
-    if not fileLogHandler:
-        fileLogHandler = logging.FileHandler(log_file_path)
-        fileLogHandler.set_name(f"(log_file_name)_log_handler")
-        fileLogHandler.previous_level = level
-        formatter = CustomLogFormatter()
-        fileLogHandler.setFormatter(formatter)
-        fileLogHandler.addFilter(ParentLogFilter())
-        top_logger.addHandler(fileLogHandler)
-    fileLogHandler.setLevel(level)
+def get_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
+    '''Returning a list of all logger handlers, based on the requested handler class type.
+       The default type is FileHandlerPlus. hdlr_name is an optional argument to be able to fetch specific handler'''
+    root_logger = logging.getLogger()
+    return [hdlr for hdlr in root_logger.handlers if isinstance(hdlr, hdlr_cls) and (not hdlr_name or hdlr_name == hdlr.baseFilename)]
 
 
 def teardown_file_logging(log_file_path):
