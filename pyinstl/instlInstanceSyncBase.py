@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import sys
 import os
@@ -60,6 +60,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                     info_map_file_expected_checksum = config_vars["INFO_MAP_CHECKSUM"].str()
                 local_copy_of_info_map_in = os.fspath(config_vars["LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH"])
                 local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
+                                                config_vars=config_vars,
                                                 in_target_path=local_copy_of_info_map_in,
                                                 translate_url_callback=connectionBase.translate_url,
                                                 cache_folder=self.instlObj.get_default_sync_dir(continue_dir="cache", make_dir=True),
@@ -84,6 +85,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                     info_map_file_url = config_vars.resolve_str(f"$(INSTL_FOLDER_BASE_URL)/{additional_info_map_file_name}")
                     local_copy_of_info_map_in = config_vars.resolve_str(f"$(LOCAL_REPO_REV_BOOKKEEPING_DIR)/{additional_info_map}")
                     local_copy_of_info_map_out = utils.download_from_file_or_url(in_url=info_map_file_url,
+                                                config_vars=config_vars,
                                                 in_target_path=local_copy_of_info_map_in,
                                                 translate_url_callback=connectionBase.translate_url,
                                                 cache_folder=self.instlObj.get_default_sync_dir("cache", make_dir=True),
@@ -122,7 +124,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         need_download_file_path = os.fspath(config_vars["TO_SYNC_INFO_MAP_PATH"])
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
         self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
-        self.instlObj.progress(f"{len(need_download_items_list)} files to download")
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

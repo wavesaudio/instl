@@ -118,7 +118,7 @@ class TestPythonBatchRemove(unittest.TestCase):
 
         # remove empty folders, with known file ignored - so to folder should be removed
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store', "paramedic"])
+        self.pbt.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store', "parame.+"])
         self.pbt.exec_and_capture_output("remove empty folders")
         self.assertFalse(os.path.isdir(folder_to_remove), f"{self.pbt.which_test} : folder was not removed {folder_to_remove}")
         self.assertFalse(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not removed {file_to_stay}")

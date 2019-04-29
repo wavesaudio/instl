@@ -176,7 +176,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
             self.assertEqual((files_flags & flags['hidden']), flags['hidden'])
             self.assertEqual((files_flags & flags['locked']), flags['locked'])
         elif sys.platform == 'win32':
-            self.assertTrue(is_hidden(test_file))
+            self.assertTrue(self.is_hidden(test_file))
             self.assertFalse(os.access(test_file, os.W_OK))
 
         self.pbt.batch_accum.clear()
@@ -191,8 +191,23 @@ class TestPythonBatchFileSystem(unittest.TestCase):
             self.assertEqual((files_flags & flags['locked']), 0)
             self.assertEqual((files_flags & flags['hidden']), 0)
         elif sys.platform == 'win32':
-            self.assertFalse(is_hidden(test_file))
+            self.assertFalse(self.is_hidden(test_file))
             self.assertTrue(os.access(test_file, os.W_OK))
+
+    @classmethod
+    def is_hidden(cls, filepath):
+        name = os.path.basename(os.path.abspath(filepath))
+        return name.startswith('.') or cls.has_hidden_attribute(filepath)
+
+    @classmethod
+    def has_hidden_attribute(cls, filepath):
+        try:
+            attrs = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
+            assert attrs != -1
+            result = bool(attrs & 2)
+        except (AttributeError, AssertionError):
+            result = False
+        return result
 
     def test_AppendFileToFile_repr(self):
         self.pbt.reprs_test_runner(AppendFileToFile("/a/file/to/append", "/a/file/to/appendee"))

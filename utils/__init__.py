@@ -3,7 +3,7 @@ from .misc_utils import *
 from .str_utils import *
 from .searchPaths import SearchPaths
 from .instlException import InstlException, InstlFatalException
-from .parallel_run import run_processes_in_parallel
+from .parallel_run import run_processes_in_parallel, run_process
 from .multi_file import MultiFileReader
 from .extract_info import extract_binary_info, check_binaries_versions_in_folder, check_binaries_versions_filter_with_ignore_regexes, get_info_from_plugin
 from .ls import disk_item_listing

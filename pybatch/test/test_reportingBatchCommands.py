@@ -152,3 +152,53 @@ class TestPythonBatchReporting(unittest.TestCase):
 
     def test_PythonBatchRuntime(self):
         pass
+
+    def test_ResolveConfigVarsInFile_repr(self):
+        self.pbt.reprs_test_runner(ResolveConfigVarsInFile("source", "target"), ResolveConfigVarsInFile("source", "target", config_file="I'm a config file"))
+
+    def test_ResolveConfigVarsInFile(self):
+        if "BANANA" in config_vars:
+            del config_vars["BANANA"]
+        if "STEVE" in config_vars:
+            del config_vars["STEVE"]
+        unresolved_file = self.pbt.path_inside_test_folder("unresolved_file")
+        resolve_file = self.pbt.path_inside_test_folder("resolve_file")
+        config_file = self.pbt.path_inside_test_folder("config_file")
+
+        config_text = """
+--- !define
+STEVE: Jobs
+        """
+        with config_file.open("w") as wfd:
+            wfd.write(config_text)
+
+        unresolved_text = "li li li, hamizvada lu sheli $(BANANA)!, $(STEVE)!"
+        resolved_text = "li li li, hamizvada lu sheli Rama!, Jobs!"
+        with unresolved_file.open("w") as wfd:
+            wfd.write(unresolved_text)
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file, config_file=config_file)
+        self.pbt.exec_and_capture_output()
+
+        with resolve_file.open("r") as rfd:
+            resolved_text_from_File = rfd.read()
+            self.assertEqual(resolved_text_from_File, resolved_text_from_File)
+
+    def test_EnvironVarAssign_repr(self):
+        obj = EnvironVarAssign("hila", "lulu lin")
+        the_repr = repr(obj)
+        self.assertEqual(the_repr, 'os.environ["hila"]="lulu lin"', "EnvironVarAssign.repr did not recreate Remark object correctly")
+
+    def test_EnvironVarAssign(self):
+        var_name = "hila"
+        var_value = "lulu lin"
+        if var_name in os.environ:  # del value from previous test run
+            del os.environ[var_name]
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += EnvironVarAssign(var_name, var_value)
+        self.pbt.exec_and_capture_output()
+
+        self.assertTrue(var_name in os.environ, f"EnvironVarAssign.repr did not set environment variable '{var_name}' at all")
+        self.assertEqual(os.environ[var_name], var_value, f"EnvironVarAssign.repr did not set environment variable '{var_name}' correctly")

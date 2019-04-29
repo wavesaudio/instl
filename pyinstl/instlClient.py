@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import os
 import sys
@@ -34,15 +34,19 @@ class InstlClient(InstlInstanceBase):
         return self.__no_copy_iids_by_sync_folder
 
     def sort_all_items_by_target_folder(self, consider_direct_sync=True):
+        direct_sync_iids = list()
         folder_to_iid_list = self.items_table.target_folders_to_items()
         for IID, folder, tag, direct_sync_indicator in folder_to_iid_list:
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             if direct_sync and consider_direct_sync:
                 sync_folder = os.path.join(folder)
                 self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
+                direct_sync_iids.append(IID)
             else:
                 norm_folder = os.path.normpath(folder)
                 self.__all_iids_by_target_folder[norm_folder].append(IID)
+
+        config_vars['__FULL_LIST_OF_DIRECT_SYNC_TARGETS__'] = direct_sync_iids
 
         for folder_iids_list in self.__all_iids_by_target_folder.values():
             folder_iids_list.sort()
@@ -190,6 +194,8 @@ class InstlClient(InstlInstanceBase):
         config_vars["__MAIN_UPDATE_IIDS__"] = sorted(update_iids)
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids)
 
+        self.update_mode = "__REPAIR_INSTALLED_ITEMS__" in self.main_install_targets
+
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # mark ignored iids, so all subsequent operations not act on these iids
@@ -282,7 +288,9 @@ class InstlClient(InstlInstanceBase):
         iid_and_action = self.items_table.get_iids_and_details_for_active_iids(action_type, unique_values=True, limit_to_iids=limit_to_iids)
         iid_and_action.sort(key=lambda tup: tup[0])
         previous_iid = ""
+
         for IID, an_action in iid_and_action:
+            #log.debug(f'Marking action {an_action} on - {IID}')
             if IID != previous_iid:  # avoid multiple progress messages for same iid
                 actions_of_iid_count = 0
                 name_and_version = self.name_and_version_for_iid(iid=IID)
@@ -293,7 +301,20 @@ class InstlClient(InstlInstanceBase):
                 for action in actions:
                     actions_of_iid_count += 1
                     message = f"{name_and_version} {action_description} {actions_of_iid_count}"
-                    retVal += EvalShellCommand(action, message)
+                    retVal += EvalShellCommand(action, message, self.python_batch_names)
+        return retVal
+
+    def accumulate_actions_for_iid(self, iid, detail_name, message=None):
+        retVal = AnonymousAccum()
+        actions =  self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name=detail_name)
+        actions_of_iid_count = 0
+        for an_action in actions:
+            if message is None:
+                message = f"{iid} {detail_name} {actions_of_iid_count}"
+                sub_actions = config_vars.resolve_str_to_list(an_action)
+                for sub_action in sub_actions:
+                    actions_of_iid_count += 1
+                    retVal += EvalShellCommand(sub_action, message, self.python_batch_names)
         return retVal
 
     def create_require_file_instructions(self):
@@ -329,7 +350,7 @@ class InstlClient(InstlInstanceBase):
         if output_folder is not None:
             config_vars['SYNC_FOLDER_MANIFEST_FILE'] = output_file_name
             output_file_path = Path(output_folder, output_file_name)
-            retVal += Ls(which_folder_to_manifest, out_file=output_file_path)
+            retVal += RunInThread(Ls(which_folder_to_manifest, out_file=output_file_path), thread_name="list_sync_folder", daemon=True)
         return retVal
 
     def repr_require_for_yaml(self):
@@ -407,6 +428,7 @@ class InstlClient(InstlInstanceBase):
 
         items_to_update = list()
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
+            log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
@@ -420,7 +442,7 @@ class InstlClient(InstlInstanceBase):
                     # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
                     # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
                     need_to_sync = True
-                    if "__REPAIR_INSTALLED_ITEMS__" not in self.main_install_targets:
+                    if not self.update_mode:
                         info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
                         if info_xml_item:
                             info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -81,7 +81,10 @@ class ConfigVar:
         :return: a single string that is resolved representation of the values.
                 if self.values is empty an empty string is returned
         """
-        retVal = self.join(sep='')
+        if len(self.values) == 1 and self.values[0] is None:
+            retVal = None
+        else:
+            retVal = self.join(sep='')
         return retVal
 
     def __fspath__(self) -> str:
@@ -173,7 +176,7 @@ class ConfigVar:
             but if string is passed it will not be treated like a list
             of characters and will be added as a single value.
         """
-        if isinstance(values, (str, int, type(None))):
+        if isinstance(values, (str, int, float, type(None))):
             # so str will not be treated as a list of characters
             self.append(values)
         elif isinstance(values, collections.Sequence):

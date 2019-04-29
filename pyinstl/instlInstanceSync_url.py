@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 from collections import defaultdict
 import urllib
@@ -41,7 +41,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             COOKIE_FOR_SYNC_URLS to the text of the cookie
         """
         net_loc = urllib.parse.urlparse(sync_base_url).netloc
-        the_cookie = connectionBase.connection_factory().get_cookie(net_loc)
+        the_cookie = connectionBase.connection_factory(config_vars).get_cookie(net_loc)
         if the_cookie:
             # the_cookie is actually a tuple ('Cookie', cookie_text)
             # we only need the second part
@@ -64,7 +64,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if source_url is None:
                 repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
                 source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
-            self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'])
+            self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'], download_last=source_url.endswith('Info.xml'))
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
@@ -115,12 +115,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
             utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
             for config_file in config_files:
-                if sys.platform == 'win32':
-                    # curl on windows has problem with path to config files that have unicode characters
-                    normalized_path = win32api.GetShortPathName(config_file)
+                if config_file is None:  # None means to insert a wait
+                    wfd.write("wait\n")
                 else:
-                    normalized_path = config_file
-                wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
+                    if sys.platform == 'win32':
+                        # curl on windows has problem with path to config files that have unicode characters
+                        normalized_path = win32api.GetShortPathName(config_file)
+                    else:
+                        normalized_path = config_file
+                    wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
 
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()

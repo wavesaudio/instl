@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -353,7 +353,7 @@ def check_file_signature(file_path, textual_sig, public_key):
 
 def compare_files_by_checksum(_1st_file_path, _2nd_file_path, follow_symlinks=False):
     """ compare the checksum of two files
-        Return True if checksums matcj
+        Return True if checksums match
         Return False if any or both files do not exit
         follow_symlinks  parameter has the same meaning as for get_file_checksum
     """
@@ -748,10 +748,14 @@ def get_system_log_file_path():
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
+        # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
+        vendor_name = os.environ["VENDOR_NAME"]
+        app_name = os.environ["APPLICATION_NAME"]
+
         if sys.platform == 'win32':
-            folder_to_write_in = os.path.join(appdirs.user_data_dir('Waves Central', 'Waves Audio', roaming=True), 'Logs')
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
         else:
-            folder_to_write_in = os.path.join(appdirs.user_data_dir('Waves Audio'), 'Waves Central', 'Logs')
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
 
     system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
     return system_log_file_path
@@ -797,3 +801,41 @@ def clock(func):
             log.debug(msg)
         return result
     return clocked
+
+
+def partition_list(in_list, partition_condition):
+    """ divide a list to sub lists according to partition_condition
+        e.g. partition_list([1,2,3,0,4,5,6], lambda x: x==0) will return:
+    """
+
+    list_of_lists = []
+
+    cur_list = []
+    for i in in_list:
+        if partition_condition(i):
+            if cur_list:
+                list_of_lists.append(cur_list)
+                cur_list = []
+        else:
+            cur_list.append(i)
+    if cur_list:
+        list_of_lists.append(cur_list)
+    return list_of_lists
+
+
+def iter_grouper(n, iterable):
+    """ take iterator and yield groups of size <= n """
+    group = list()
+    while True:
+        try:
+            group.clear()
+            for i in range(n):
+                group.append(next(iterable))
+            if group:
+                yield group
+            else:
+                break
+        except StopIteration:
+            if group:
+                yield group
+            break

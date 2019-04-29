@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -14,6 +14,6 @@ def tar_em(to_tar):
     tar.close()
     tar_gz.close()
     tar_bz2.close()
-    
+
 if __name__ == "__main__":
     tar_em(sys.argv[1])

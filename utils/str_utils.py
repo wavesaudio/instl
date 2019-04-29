@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -52,20 +52,26 @@ def escape_quotations(simple_string):
 
 
 def quoteme_raw_string(simple_string):
-    simple_string = os.fspath(simple_string)
+    assert isinstance(simple_string, str), f"{simple_string} is not of type str"
 
-    possible_quote_marks = ('"', "'", '"""', "'''")
-    if "\n" in simple_string:  # multiline strings need triple quotation
-        possible_quote_marks = ('"""', "'''")
+    if not simple_string:
+        retVal = 'r""'
 
-    for quote_mark in possible_quote_marks:
-        # 1st priority is to create a raw string. Strings that end with the quotation mark cannot be raw.
-        if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
-            retVal = "".join(('r', quote_mark, simple_string, quote_mark))
-            break
     else:
-        # if all possible quotations marks are in the string do proper escaping and return non-raw string
-        retVal = "".join(('"', escape_quotations(simple_string), '"'))
+        simple_string = os.fspath(simple_string)
+
+        possible_quote_marks = ('"', "'", '"""', "'''")
+        if "\n" in simple_string:  # multiline strings need triple quotation
+            possible_quote_marks = ('"""', "'''")
+
+        for quote_mark in possible_quote_marks:
+            # 1st priority is to create a raw string. Strings that end with the quotation mark or with \ cannot be raw.
+            if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1] and simple_string[-1] != '\\':
+                retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+                break
+        else:
+            # if all possible quotations marks are present in the string - do proper escaping and return non-raw string
+            retVal = "".join(('"', escape_quotations(simple_string), '"'))
 
     return retVal
 

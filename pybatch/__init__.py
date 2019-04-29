@@ -1,7 +1,6 @@
 import sys
 
 from .baseClasses import PythonBatchCommandBase
-from .subprocessBatchCommands import RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .conditionalBatchCommands import If
@@ -10,12 +9,17 @@ from .conditionalBatchCommands import IsDir
 from .conditionalBatchCommands import IsSymlink
 from .conditionalBatchCommands import IsEq
 from .conditionalBatchCommands import IsNotEq
+from .conditionalBatchCommands import IsConfigVarEq
+from .conditionalBatchCommands import IsConfigVarNotEq
+from .conditionalBatchCommands import IsEnvironVarEq
+from .conditionalBatchCommands import IsEnvironVarNotEq
 
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
 from .copyBatchCommands import CopyFileToDir
 from .copyBatchCommands import CopyFileToFile
 from .copyBatchCommands import MoveDirToDir
+from .copyBatchCommands import RenameFile
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
@@ -28,6 +32,10 @@ from .reportingBatchCommands import PythonVarAssign
 from .reportingBatchCommands import PythonBatchRuntime
 from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
+from .reportingBatchCommands import ResolveConfigVarsInFile
+from .reportingBatchCommands import ReadConfigVarsFromFile
+from .reportingBatchCommands import EnvironVarAssign
+from .reportingBatchCommands import PatchPyBatchWithTimings
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
@@ -56,6 +64,9 @@ from .subprocessBatchCommands import ShellCommand
 from .subprocessBatchCommands import CUrl
 from .subprocessBatchCommands import ScriptCommand
 from .subprocessBatchCommands import Exec
+from .subprocessBatchCommands import RunInThread
+from .subprocessBatchCommands import Subprocess
+from .subprocessBatchCommands import RunProcessBase
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
@@ -77,6 +88,8 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import CreateRegistryValues
     from .WinOnlyBatchCommands import DeleteRegistryKey
     from .WinOnlyBatchCommands import DeleteRegistryValues
+    from .WinOnlyBatchCommands import ResHackerAddResource
+    from .WinOnlyBatchCommands import ResHackerCompileResource
 
 if sys.platform == "darwin":
     from .MacOnlyBatchCommands import CreateSymlink
@@ -90,7 +103,7 @@ if sys.platform == "darwin":
 from .new_batchCommands import *
 
 
-def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
+def EvalShellCommand(action_str: str, message: str, python_batch_names=None) -> PythonBatchCommandBase:
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)
@@ -98,7 +111,12 @@ def EvalShellCommand(action_str: str, message: str) -> PythonBatchCommandBase:
         retVal = eval(action_str, globals(), locals())
         if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
             raise TypeError(f"{retVal} is not PythonBatchCommandBase")
-        retVal.remark = f"""evaled {message}"""
     except (SyntaxError, TypeError, NameError) as ex:
         retVal = ShellCommand(action_str, message)
+        # check that it's not a pybatch command
+        if python_batch_names:
+            assumed_command_name = action_str[:action_str.find('(')]
+            if assumed_command_name in python_batch_names:
+                log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
+
     return retVal

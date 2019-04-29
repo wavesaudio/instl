@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -23,6 +23,7 @@ class InstlClientCopy(InstlClient):
         self.unwtar_batch_file_counter: int = 0
         self.current_destination_folder: Optional[str] = None
         self.current_iid:  Optional[str] = None
+        self.avoid_copy_markers = None
 
     def do_copy(self) -> None:
         self.init_copy_vars()
@@ -66,6 +67,8 @@ class InstlClientCopy(InstlClient):
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
+
+        self.avoid_copy_markers = list(config_vars.get('AVOID_COPY_MARKERS', []))
 
         # copy and actions instructions for sources
         self.batch_accum.set_current_section('copy')
@@ -188,7 +191,7 @@ class InstlClientCopy(InstlClient):
         if len(wtar_items) > 0:
             retVal += Unwtar(source_path_abs, os.curdir)
             #self.unwtar_instructions.append((source_path_abs, '.'))
-            retVal += Unlock(os.curdir, recursive=True)
+            #retVal += Unlock(os.curdir, recursive=True)
 
             # fix permissions for any items that were unwtarred
             # unwtar moved be done with "command-list"
@@ -222,7 +225,7 @@ class InstlClientCopy(InstlClient):
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, source_path_name)
                 #self.unwtar_instructions.append((source_path_abs, source_path_name))
-                retVal += Unlock(os.curdir, recursive=True)
+                #retVal += Unlock(os.curdir, recursive=True)
 
                 # fix permissions for any items that were unwtarred
                 # unwtar moved be done with "command-list"
@@ -264,6 +267,41 @@ class InstlClientCopy(InstlClient):
             pass
         return resolved_path
 
+    def should_copy_source(self, source, target_folder_path):
+        retVal = True
+        if not self.update_mode:
+            top_src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
+            top_trg = Path(config_vars.resolve_str(target_folder_path), top_src.name)
+            if top_trg.exists():
+                if source[1] == "!dir":
+                    trg = top_trg.joinpath("Contents")
+                    if trg.exists():
+                         # try to Info.xml or Info.plist under contents
+                        src = top_src.joinpath("Contents")
+                        for avoid_copy_marker in self.avoid_copy_markers:
+                            src_marker = src.joinpath(avoid_copy_marker)
+                            dst_marker = trg.joinpath(avoid_copy_marker)
+                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if not retVal:
+                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                                break
+                    if retVal:
+                        # try to Info.xml or Info.plist at top level
+                        for avoid_copy_marker in self.avoid_copy_markers:
+                            src_marker = top_src.joinpath(avoid_copy_marker)
+                            dst_marker = top_trg.joinpath(avoid_copy_marker)
+                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if not retVal:
+                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                                break
+                elif source[1] == "!file":
+                    try:
+                        if top_src.stat().st_ino == top_trg.stat().st_ino:
+                            retVal = False
+                    except:
+                        pass
+        return retVal
+
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
         with self.batch_accum.sub_accum(CdStage("copy_to_folder", target_folder_path)) as copy_to_folder_accum:
             self.current_destination_folder = target_folder_path
@@ -281,13 +319,17 @@ class InstlClientCopy(InstlClient):
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     for source in resolved_sources_for_iid:
-                        with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
-                            num_items_copied_to_folder += 1
-                            source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="pre_copy_item")
-                            source_accum += self.create_copy_instructions_for_source(source, name_and_version)
-                            source_accum += self.items_table.get_resolved_details_value_for_active_iid(iid=IID, detail_name="post_copy_item")
-                            if  self.mac_current_and_target:
-                                num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                        if self.should_copy_source(source, target_folder_path):
+                            self.progress(f"copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
+                            with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
+                                num_items_copied_to_folder += 1
+                                source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item", message=None)
+                                source_accum += self.create_copy_instructions_for_source(source, name_and_version)
+                                source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item", message=None)
+                                if self.mac_current_and_target:
+                                    num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                        else:
+                            self.progress(f"skip copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
             self.current_iid = None
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
@@ -296,7 +338,8 @@ class InstlClientCopy(InstlClient):
                     copy_to_folder_accum += ResolveSymlinkFilesInFolder(target_folder_path, own_progress_count=num_symlink_items)
 
             # accumulate post_copy_to_folder actions from all items, eliminating duplicates
-            copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
+            if copy_to_folder_accum.is_essential():
+                copy_to_folder_accum += self.accumulate_unique_actions_for_active_iids('post_copy_to_folder', items_in_folder)
             self.current_destination_folder = None
 
     def create_copy_instructions_for_no_copy_folder(self, sync_folder_name) -> PythonBatchCommandBase:

@@ -42,8 +42,8 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
 
-    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
         self.num_files_per_dir = num_files_per_dir
@@ -73,6 +73,7 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
                 os.chdir(save_cwd)
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.make_random_dirs_recursive(self.num_levels)
 
 
@@ -92,17 +93,18 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.own_progress_count = len(self.paths_to_make)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.paths_to_make)
+        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.paths_to_make)
         if not self.remove_obstacles:
             all_args.append(f"remove_obstacles={self.remove_obstacles}")
 
     def progress_msg_self(self):
-        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_string(path)) for path in self.paths_to_make)
+        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_by_type(path)) for path in self.paths_to_make)
         titula = "directory" if len(self.paths_to_make) == 1 else "directories"
         the_progress_msg = f"Create {titula} {paths}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         for self.cur_path in self.paths_to_make:
             resolved_path_to_make = utils.ResolvedPath(self.cur_path)
             if self.remove_obstacles:
@@ -128,15 +130,19 @@ class Touch(PythonBatchCommandBase, essential=True):
         self.path = path
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
-        with open(resolved_path, 'a') as tfd:
-            os.utime(resolved_path, None)
+        if resolved_path.is_dir():
+            os.utime(resolved_path)
+        else:
+            with open(resolved_path, 'a') as tfd:
+                os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase, essential=True):
@@ -149,12 +155,13 @@ class Cd(PythonBatchCommandBase, essential=True):
         self.old_path: os.PathLike = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.new_path)))
+        all_args.append(utils.quoteme_raw_by_type(self.new_path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.new_path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.old_path = os.getcwd()
         resolved_new_path = utils.ResolvedPath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
@@ -177,10 +184,10 @@ class CdStage(Cd, essential=False):
         self.titles = sorted(titles)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(self.stage_name))
-        all_args.append(utils.quoteme_raw_string(self.new_path))
+        all_args.append(utils.quoteme_raw_by_type(self.stage_name))
+        all_args.append(utils.quoteme_raw_by_type(self.new_path))
         for title in self.titles:
-            all_args.append(utils.quoteme_raw_string(title))
+            all_args.append(utils.quoteme_raw_by_type(title))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}<{self.new_path}>"""
@@ -206,7 +213,7 @@ class ChFlags(RunProcessBase, essential=True):
         self.flags = sorted(flags)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
         for a_flag in self.flags:
             all_args.append(utils.quoteme_raw_by_type(a_flag))
 
@@ -249,7 +256,7 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
         super().__init__(path, "unlocked", **kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.path)))
+        all_args.append(utils.quoteme_raw_by_type(self.path))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.path}'"""
@@ -257,20 +264,21 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
     """ append the content of 'source_file' to 'target_file'"""
-    def __init__(self, source_file, target_file):
-        super().__init__()
+    def __init__(self, source_file, target_file, **kwargs):
+        super().__init__(**kwargs)
         self.source_file = source_file
         self.target_file = target_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""source_file={utils.quoteme_raw_string(os.fspath(self.source_file))}""")
-        all_args.append( f"""target_file={utils.quoteme_raw_string(os.fspath(self.target_file))}""")
+        all_args.append( f"""source_file={utils.quoteme_raw_by_type(self.source_file)}""")
+        all_args.append( f"""target_file={utils.quoteme_raw_by_type(self.target_file)}""")
 
     def progress_msg_self(self):
         the_progress_msg = f"Append {self.source_file} to {self.target_file}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_source = utils.ResolvedPath(self.source_file)
         resolved_target = utils.ResolvedPath(self.target_file)
         self.doing = f"Append {resolved_source} to {resolved_target}"
@@ -291,9 +299,9 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
-        all_args.append( f"""user_id={utils.quoteme_raw_string(os.fspath(self.user_id))}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_string(os.fspath(self.group_id))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def get_run_args(self, run_args) -> None:
         run_args.append("chown")
@@ -313,6 +321,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if (self.user_id, self.group_id) != (-1, -1):
             # os.chown is not recursive so call the system's chown
             if self.recursive:
@@ -342,7 +351,7 @@ class Chmod(RunProcessBase, essential=True):
         self.mode = mode
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
@@ -357,7 +366,7 @@ class Chmod(RunProcessBase, essential=True):
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwx]+)$""")
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
         match = symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
@@ -385,7 +394,8 @@ class Chmod(RunProcessBase, essential=True):
         run_args.append(utils.ResolvedPath(self.path))
 
     def __call__(self, *args, **kwargs):
-        # os.chmod is not recursive so call the system's chmod
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+       # os.chmod is not recursive so call the system's chmod
         if self.recursive:
             return super().__call__(args, kwargs)
         else:
@@ -416,7 +426,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         self.group_id: Union[int, str] = group_id  if group_id else -1
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_string(os.fspath(self.path))}""")
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
@@ -430,6 +440,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
         Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0)()
@@ -444,36 +455,40 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
         self.folders_to_list = sorted(folders_to_list)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_string(os.fspath(path)) for path in self.folders_to_list)
+        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.folders_to_list)
         all_args.append( f"""ls_format='{self.ls_format}'""")
 
     def progress_msg_self(self) -> str:
         return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_folder_list = [utils.ResolvedPath(folder_path) for folder_path in self.folders_to_list]
         the_listing = utils.disk_item_listing(*resolved_folder_list, ls_format=self.ls_format)
         with utils.write_to_file_or_stdout(self.out_file) as wfd:
             wfd.write(the_listing)
 
 
-class FileSizes(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
+class FileSizes(PythonBatchCommandBase, essential=True):
     """ create a list of files in a folder and their sizes
         format is csv: partial-path-to-file, size-of-file
         useful for admin commands
     """
 
-    def __init__(self, folder_to_scan, **kwargs) -> None:
+    def __init__(self, folder_to_scan, out_file, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_scan = folder_to_scan
+        self.out_file = out_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_string(os.fspath(self.folder_to_scan)))
+        all_args.append(utils.quoteme_raw_by_type(self.folder_to_scan))
+        all_args.append(utils.quoteme_raw_by_type(self.out_file))
 
     def progress_msg_self(self) -> str:
         return f"""File sizes in {self.folder_to_scan}"""
 
     def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.compile_exclude_regexi()
         with open(self.out_file, "w") as wfd:
             if os.path.isfile(self.folder_to_scan):
@@ -495,15 +510,15 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         Will create a file with random data of the requested size
     """
 
-    def __init__(self, file_path: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, file_path: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.file_path = file_path
         self.file_size = file_size
         if self.file_size < 0:
             raise ValueError(f"MakeRandomDataFile file_size cannot be negative")
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""file_path={utils.quoteme_raw_string(os.fspath(self.file_path))}""")
+        all_args.append(f"""file_path={utils.quoteme_raw_by_type(self.file_path)}""")
         all_args.append(f"""file_size={self.file_size}""")
 
     def progress_msg_self(self):
@@ -511,6 +526,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
         with open(self.file_path, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 

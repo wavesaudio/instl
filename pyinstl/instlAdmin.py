@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -30,7 +30,7 @@ class InstlAdmin(InstlInstanceBase):
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self) -> None:
-        if "__MAIN_INPUT_FILE__" in config_vars:
+        if "__MAIN_INPUT_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
             config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def set_default_variables(self):
@@ -1216,4 +1216,31 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_full_path = os.path.join(instl_folder_path, item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
-                    self.progress("""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
+                    self.progress(f"""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
+
+    def do_translate_guids(self):
+        file_to_translate_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        output_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        num_translated_guids = self.translate_guids_in_file(file_to_translate_path, output_file_path)
+        self.progress(f"""{num_translated_guids} guids translated""")
+
+    def translate_guids_in_file(self, in_file, out_file):
+        num_translated_guids = 0
+        iid_to_guid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
+        guid_re = re.compile("""
+                (?P<guid>[a-fA-F0-9]{8}
+                (-[a-fA-F0-9]{4}){3}
+                -[a-fA-F0-9]{12})
+                """, re.VERBOSE)
+
+        with open(in_file, "r") as rfd:
+            with open(out_file, "w") as wfd:
+                for line in rfd.readlines():
+                    match = guid_re.search(line)
+                    if match:
+                        new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {iid_to_guid.get(match.group("guid").lower(), "?")}')
+                        wfd.write(new_line)
+                        num_translated_guids += 1
+                    else:
+                        wfd.write(line)
+        return num_translated_guids

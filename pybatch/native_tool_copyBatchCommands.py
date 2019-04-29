@@ -18,7 +18,7 @@ class CopyBase(RunProcessBase, essential=True):
         self.copy_dir = copy_dir
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(os.fspath(self.src))}, trg={utils.quoteme_raw_string(os.fspath(self.trg))}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
+        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_by_type(self.src)}, trg={utils.quoteme_raw_by_type(self.trg)}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
         return the_repr
 
     def progress_msg_self(self):
@@ -158,7 +158,7 @@ class CopyFileToDir(CopyClass):
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, ignore_if_not_exist=ignore_if_not_exist, copy_file=True)
 
     def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_string(self.src)}, trg={utils.quoteme_raw_string(self.trg)}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns})"""
+        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_by_type(self.src)}, trg={utils.quoteme_raw_by_type(self.trg)}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns})"""
         return the_repr
 
 

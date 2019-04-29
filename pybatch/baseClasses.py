@@ -1,6 +1,7 @@
 import os
 import sys
 import abc
+import inspect
 from typing import Dict, List
 import time
 from contextlib import contextmanager
@@ -40,13 +41,15 @@ class PythonBatchCommandBase(abc.ABC):
     call__call__: bool = True         # when false no need to call
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
+    runtime_duration_by_progress = dict()
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
                        'ignore_all_errors': False,
-                       'remark': None,
                        'recursive': False,
-                       "reply_config_var": None}
+                       "reply_config_var": None,
+                       "reply_environ_var": None,
+                       'prog_num': 0}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
@@ -67,7 +70,14 @@ class PythonBatchCommandBase(abc.ABC):
         if kwargs_defaults:
             cls.kwargs_defaults.update(kwargs_defaults)
 
-        #print(f"{cls.__name__}: {parent_kwargs_defaults}/{cls.kwargs_defaults}")
+    @classmethod
+    def get_derived_class_names(cls):
+        """ get list of names of classes deriving from this class """
+        retVal = list()
+        pybatch_module_name = '.'.join(cls.__module__.split('.')[:-1])
+        for name, obj in inspect.getmembers(sys.modules[pybatch_module_name], lambda member: inspect.isclass(member) and member.__module__.startswith(pybatch_module_name)):
+            retVal.append(name)
+        return retVal
 
     @abc.abstractmethod
     def __init__(self, **kwargs):
@@ -86,7 +96,9 @@ class PythonBatchCommandBase(abc.ABC):
         self._error_dict = None
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
         self.current_working_dir = None
-        self.non_representative__dict__keys = ['remark', 'enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
+        self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
+        self.runtime_progress_num = 0
+        self.command_time_sec = 0
 
     def repr_default_kwargs(self, all_args):
         """ get a text representation of the __init__(kwargs) for a sub class.
@@ -162,7 +174,7 @@ class PythonBatchCommandBase(abc.ABC):
     def optional_named__init__param(self, name, value, default=None):
         param_repr = None
         if value != default:
-            value_str = utils.quoteme_raw_if_list(value)
+            value_str = utils.quoteme_raw_by_type(value)
             param_repr = f"{name}={value_str}"
         return param_repr
 
@@ -192,6 +204,8 @@ class PythonBatchCommandBase(abc.ABC):
                 self.child_batch_commands.extend(instructions.child_batch_commands)
             else:
                 self.child_batch_commands.append(instructions)
+        elif isinstance(instructions, str):
+            self.child_batch_commands.append(pybatch.EvalShellCommand(instructions, ""))
         else:
             for instruction in instructions:
                 self.add(instruction)
@@ -279,14 +293,11 @@ class PythonBatchCommandBase(abc.ABC):
 
     def __enter__(self):
         PythonBatchCommandBase.stage_stack.append(self)
-        self.enter_time = time.perf_counter()
+        self.enter_timing_measure()
         try:
-            PythonBatchCommandBase.running_progress += self.own_progress_count
             if self.report_own_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
-                if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
-                    log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
-            self.current_working_dir =  os.getcwd()
+            self.current_working_dir = os.getcwd()
             self.enter_self()
         except Exception as ex:
             suppress_exception = self.__exit__(*sys.exc_info())
@@ -308,7 +319,6 @@ class PythonBatchCommandBase(abc.ABC):
         return retVal
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.exit_time = time.perf_counter()
         suppress_exception = False
         if exc_type is None or self.ignore_all_errors:
             suppress_exception = True
@@ -319,11 +329,34 @@ class PythonBatchCommandBase(abc.ABC):
             if not hasattr(exc_val, "raising_obj"):
                 setattr(exc_val, "raising_obj", self)
         self.exit_self(exit_return=suppress_exception)
+
+        self.exit_timing_measure()
+        #log.debug(f"{self.progress_msg()} time: {self.command_time_sec:.2f}ms")
+
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
-        command_time_ms = (self.exit_time-self.enter_time)*1000.0
-        #log.debug(f"{self.progress_msg()} time: {command_time_ms:.2f}ms")
         return suppress_exception
 
     def log_result(self, log_lvl, message, exc_val):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
+
+    def enter_timing_measure(self):
+        self.enter_time = time.perf_counter()
+        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
+        if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+            log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+
+    def exit_timing_measure(self):
+        self.exit_time = time.perf_counter()
+        self.command_time_sec = (self.exit_time - self.enter_time)
+        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
+        if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
+            log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
+
+    @contextmanager
+    def timing_contextmanager(self):
+        """ some pybatch commands that do not support __enter__ and __exit__ can use this function to measure timing
+        """
+        self.enter_timing_measure()
+        yield
+        self.exit_timing_measure()

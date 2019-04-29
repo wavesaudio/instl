@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import signal
+import threading
+import _thread
 import ctypes
 import io
 import contextlib
@@ -13,7 +16,7 @@ import filecmp
 import logging
 import random
 import string
-from collections import namedtuple
+import itertools as it
 
 import utils
 from pybatch import *
@@ -32,6 +35,7 @@ log = logging.getLogger(__name__)
 
 running_on_Mac = sys.platform == 'darwin'
 running_on_Win = sys.platform == 'win32'
+
 
 @contextlib.contextmanager
 def capture_stdout(in_new_stdout=None):
@@ -116,19 +120,22 @@ def compare_chmod_recursive(folder_path, expected_file_mode, expected_dir_mode):
     return True
 
 
-def is_hidden(filepath):
-    name = os.path.basename(os.path.abspath(filepath))
-    return name.startswith('.') or has_hidden_attribute(filepath)
+class TimeoutException(Exception):
+    def __init__(self, msg=''):
+        self.msg = msg
 
 
-def has_hidden_attribute(filepath):
+@contextmanager
+def assert_timeout(seconds, msg=''):
+    timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
+    timer.start()
     try:
-        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(filepath))
-        assert attrs != -1
-        result = bool(attrs & 2)
-    except (AttributeError, AssertionError):
-        result = False
-    return result
+        yield
+    except KeyboardInterrupt:
+        raise TimeoutException(f"Timed out after {seconds} for operation {msg}")
+    finally:
+        # if the action ends in specified time, timer is canceled
+        timer.cancel()
 
 
 main_test_folder_name = "python_batch_test_results"
@@ -162,8 +169,8 @@ class TestPythonBatch(object):
         if self.output_file_name:
             utils.teardown_file_logging(self.output_file_name)
 
-    def path_inside_test_folder(self, name, assert_not_exist=True):
-        retVal = self.test_folder.joinpath(name).resolve()
+    def path_inside_test_folder(self, *name, assert_not_exist=True):
+        retVal = self.test_folder.joinpath(*name).resolve()
         if assert_not_exist:
             self.uni_test_obj.assertFalse(retVal.exists(), f"{self.which_test}: {retVal} should not exist before test")
         return retVal
@@ -179,18 +186,19 @@ class TestPythonBatch(object):
         test_name = f"{self.sub_test_counter}_{test_name}"
 
 
+        self.python_batch_file_path = os.fspath(self.path_inside_test_folder(test_name+".py"))
+        config_vars["__MAIN_OUT_FILE__"] = self.python_batch_file_path
         config_vars["__MAIN_COMMAND__"] = f"{self.which_test} test #{self.sub_test_counter};"
         bc_repr = repr(self.batch_accum)
-        self.python_batch_file_name = test_name+".py"
-        self.write_file_in_test_folder(self.python_batch_file_name, bc_repr)
-        bc_compiled = compile(bc_repr, self.python_batch_file_name, 'exec')
+        with open(self.python_batch_file_path, "w") as wfd:
+            wfd.write(bc_repr)
+        bc_compiled = compile(bc_repr, self.python_batch_file_path, 'exec')
         output_file_name = self.path_inside_test_folder(f'{test_name}_output.txt')
         if output_file_name != self.output_file_name:
             if self.output_file_name:
                 utils.teardown_file_logging(self.output_file_name)
             self.output_file_name = output_file_name
             utils.setup_file_logging(self.output_file_name, level=logging.INFO)
-            #utils.config_logger(self.output_file_name)
 
         if not expected_exception:
             try:
@@ -202,16 +210,25 @@ class TestPythonBatch(object):
             with self.uni_test_obj.assertRaises(expected_exception):
                 ops = exec(bc_compiled, globals(), locals())
 
-    def reprs_test_runner(self, *list_of_objs):
+    def reprs_test_runner(self, *list_of_objs, remark_list=None):
+        if remark_list is None:
+            remark_list = it.repeat("")
         out_file = self.path_inside_test_folder(self.which_test+".out.txt")
         with open(out_file, "w") as wfd:
-            for obj in list_of_objs:
+            for obj, remark in zip(list_of_objs, remark_list):
                 obj_repr = repr(obj)
                 obj_recreated = eval(obj_repr)
-                diff_explanation = obj.explain_diff(obj_recreated)
-                if diff_explanation:  # there was a problem
-                    wfd.write(f"X  {obj_repr}\n  {repr(obj_recreated)}\n")
+                diff_explanation = ""
+                if hasattr(obj, "explain_diff"):
+                    diff_explanation = obj.explain_diff(obj_recreated)
                 else:
-                    wfd.write(f"OK {obj_repr}\n")
+                    if obj != obj_recreated:
+                        diff_explanation = f"{obj_repr} != {repr(obj_recreated)}"
+                if remark:
+                    remark = f"  # {remark}"
+                if diff_explanation:  # there was a problem
+                    wfd.write(f"X  {obj_repr}\n  {repr(obj_recreated)}{remark}\n")
+                else:
+                    wfd.write(f"OK {obj_repr}{remark}\n")
 
                 self.uni_test_obj.assertEqual(obj, obj_recreated, f"{obj.__class__.__name__}.repr did not recreate the object correctly: {diff_explanation}")

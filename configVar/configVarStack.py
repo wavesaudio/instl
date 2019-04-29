@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 """
@@ -258,7 +258,7 @@ class ConfigVarStack:
         return resolved_parts, num_literals, num_variables
 
     def resolve_str(self, val_to_resolve: str) -> str:
-        start_time = time.perf_counter()
+        #start_time = time.perf_counter()
 
         if "$" not in val_to_resolve:
             # strings without $ do not need resolving
@@ -276,9 +276,9 @@ class ConfigVarStack:
             else:
                 self.resolve_cache.pop(val_to_resolve, None)
 
-        end_time = time.perf_counter()
+        #end_time = time.perf_counter()
         self.resolve_counter += 1
-        self.resolve_time += end_time - start_time
+        #self.resolve_time += end_time - start_time
         return result
 
     def resolve_str_to_list(self, val_to_resolve: str) -> List:
@@ -290,7 +290,7 @@ class ConfigVarStack:
             :param val_to_resolve:
             :return: list
         """
-        start_time = time.perf_counter()
+        #start_time = time.perf_counter()
 
         retVal = list()
         if "$" not in val_to_resolve:
@@ -304,9 +304,9 @@ class ConfigVarStack:
             else:
                 retVal.append("".join(res_list))
 
-        end_time = time.perf_counter()
+        #end_time = time.perf_counter()
         self.resolve_counter += 1
-        self.resolve_time += end_time - start_time
+        #self.resolve_time += end_time - start_time
         return retVal
 
     def repr_var_for_yaml(self, var_name, resolve=True):
