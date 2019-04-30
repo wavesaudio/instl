@@ -50,7 +50,6 @@ def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abo
             with futures.ThreadPoolExecutor(len(command_list)) as executor:
                 list(executor.map(run_process, command_list, repeat(shell), repeat(do_enqueue_output), repeat(abort_file)))
         log.debug('Finished all processes')
-        utils.close_log_hdlrs(hdlr_cls=utils.MultiProcessingHandler)
         exit_val = 0
         killall_and_exit()
     except Exception as e:

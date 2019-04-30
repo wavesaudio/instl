@@ -97,7 +97,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 1000
+                self.total_self_progress += 30000
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
@@ -193,6 +193,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         del self.items_table
         del self.db
         config_vars.print_statistics()
+        utils.close_log_hdlrs(hdlr_cls=utils.MultiProcessingHandler)
 
     def get_default_out_file(self) -> None:
         if "__MAIN_OUT_FILE__" not in config_vars:
