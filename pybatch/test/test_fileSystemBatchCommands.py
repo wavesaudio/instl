@@ -425,10 +425,8 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertEqual(random_data_file_zero[1], os.path.getsize(random_data_file_zero[0]))
 
     def test_something(self):
-        #the_code = """If(IsFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\"), if_true=CopyFileToFile(\"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/Common/Utilities/V9/remove_leftovers.py\", \"C:\\Users\\gal\\AppData\\Local\\Waves Audio\\instl\\Cache/testinstl/V10/../V9/Common/Utilities/remove_leftovers.py\", hard_links=False, ignore_if_not_exist=True))"""
-        the_code =r'''ShellCommand(r'"taskkill.exe" /im "eMotion LV1.exe" /t /f', ignore_all_errors=True)'''
-        the_obj = eval(the_code)
-        the_repr = repr(the_obj)
-        print(utils.quoteme_raw_by_type({r"a\b": "1", "bbb": "••°°••"}))
-
+        the_file =  "C:\\ProgramData\\Waves Audio\\Central\\V10\\new_require.yaml"
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Chmod(the_file, "ugo+rw")
+        self.pbt.exec_and_capture_output()
 
