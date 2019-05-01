@@ -27,10 +27,6 @@ top_logger = logging.getLogger()
 def config_logger():
     if '--no-stdout' not in sys.argv:
         setup_stream_hdlr()
-    if '--no-system-log' not in sys.argv:
-        system_log_file_path = utils.get_system_log_file_path()
-        setup_file_logging(system_log_file_path)
-
     # command line options relating to logging are parsed here, as soon as possible
     if '--log' in sys.argv:
         try:
@@ -38,11 +34,14 @@ def config_logger():
             for i_log_file in range(log_option_index+1, len(sys.argv)):
                 log_file_path = sys.argv[i_log_file]
                 if not log_file_path.startswith('-'):
-                    setup_file_logging(log_file_path)
+                    setup_file_logging(log_file_path, rotate=False)
                 else:
                     break
         except:
             pass
+    elif '--no-system-log' not in sys.argv:
+        system_log_file_path = utils.get_system_log_file_path()
+        setup_file_logging(system_log_file_path)
 
 
 def setup_stream_hdlr():
@@ -56,12 +55,15 @@ def setup_stream_hdlr():
         top_logger.addHandler(strm_hdlr)
 
 
-def setup_file_logging(log_file_path, level=logging.DEBUG):
+def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
     '''Setting up a logging handler'''
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     top_logger = logging.getLogger()
 
-    fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=5000000, backupCount=10)
+    if rotate:
+        fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=5000000, backupCount=10)
+    else:
+        fileLogHandler =  logging.FileHandler(log_file_path)
     fileLogHandler.setLevel(level)
     fileLogHandler.set_name(f"(log_file_name)_log_handler")
     formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}', datefmt='%Y-%m-%d_%H:%M:%S', style='%')
@@ -319,8 +321,9 @@ class MultiProcessingHandler(logging.Handler):
 
 class SameLevelFilter(logging.Filter):
     '''This filter will force the log file handler to include only messages from the same level/type. This is done to quickly count and collect messages.'''
-    def __init__(self, level):
+    def __init__(self, level, **kwargs):
         self.__level = level
+        super().__init__(**kwargs)
 
     def filter(self, logRecord):
         return logRecord.levelno <= self.__level

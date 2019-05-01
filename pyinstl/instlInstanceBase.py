@@ -193,7 +193,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         del self.items_table
         del self.db
         config_vars.print_statistics()
-        utils.close_log_hdlrs(hdlr_cls=utils.MultiProcessingHandler)
 
     def get_default_out_file(self) -> None:
         if "__MAIN_OUT_FILE__" not in config_vars:

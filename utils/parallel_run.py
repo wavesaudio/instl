@@ -42,7 +42,6 @@ def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abo
     global exit_val
     try:
         install_signal_handlers()
-        utils.install_mp_handler()
 
         lists_of_command_lists = utils.partition_list(commands, lambda c: c[0] == "wait")
 
