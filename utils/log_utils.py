@@ -50,6 +50,8 @@ def setup_stream_hdlr():
     stderr_stream_hdlr = logging.StreamHandler(stream=sys.stderr)
     for strm_hdlr in [stdout_stream_hdlr, stderr_stream_hdlr]:
         strm_hdlr.setLevel(logging.INFO if strm_hdlr == stdout_stream_hdlr else logging.ERROR)
+        if strm_hdlr == stdout_stream_hdlr:
+            strm_hdlr.addFilter(SameLevelFilter(logging.WARNING))  # Setting stdout to ignore any message higher than warning
         strm_hdlr.setFormatter(logging.Formatter('%(message)s'))
         top_logger.addHandler(strm_hdlr)
 
@@ -313,3 +315,12 @@ class MultiProcessingHandler(logging.Handler):
 
             self.sub_handler.close()
             super(MultiProcessingHandler, self).close()
+
+
+class SameLevelFilter(logging.Filter):
+    '''This filter will force the log file handler to include only messages from the same level/type. This is done to quickly count and collect messages.'''
+    def __init__(self, level):
+        self.__level = level
+
+    def filter(self, logRecord):
+        return logRecord.levelno <= self.__level
