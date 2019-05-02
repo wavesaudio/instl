@@ -17,7 +17,7 @@ from pybatch import *
 class InstlClient(InstlInstanceBase):
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.total_self_progress: int = 1000
+        self.total_self_progress: int = 30000
         self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
@@ -270,6 +270,8 @@ class InstlClient(InstlInstanceBase):
 
     def read_previous_requirements(self):
         require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
+        with Chmod(require_file_path, "a+rw", ignore_all_errors=True) as chmoder:
+            chmoder()
         try:
             self.read_yaml_file(require_file_path, ignore_if_not_exist=True)
         except Exception as ex:
@@ -319,17 +321,24 @@ class InstlClient(InstlInstanceBase):
 
     def create_require_file_instructions(self):
         # write the require file as it should look after copy is done
-        new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].str()
-        new_require_file_dir, new_require_file_name = os.path.split(new_require_file_path)
-        os.makedirs(new_require_file_dir, exist_ok=True)
-        self.batch_accum += CopyFileToFile("$(SITE_REQUIRE_FILE_PATH)", "$(OLD_SITE_REQUIRE_FILE_PATH)", ignore_if_not_exist=True, hard_links=False, copy_owner=True)
+        old_require_file_path = config_vars["OLD_SITE_REQUIRE_FILE_PATH"].Path()
+        current_require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
+        new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].Path()
+
+        self.batch_accum += Chmod(old_require_file_path, "a+rw", ignore_all_errors=True)
+        self.batch_accum += Chmod(current_require_file_path, "a+rw", ignore_all_errors=True)
+        self.batch_accum += CopyFileToFile(current_require_file_path, old_require_file_path, ignore_if_not_exist=True, hard_links=False, copy_owner=True)
+
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
+            os.makedirs(new_require_file_path.parent, exist_ok=True)
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
-            self.batch_accum += CopyFileToFile("$(NEW_SITE_REQUIRE_FILE_PATH)", "$(SITE_REQUIRE_FILE_PATH)", hard_links=False, copy_owner=True)
+            self.batch_accum += Chmod(new_require_file_path, "a+rw", ignore_all_errors=True)
+            self.batch_accum += CopyFileToFile(new_require_file_path, current_require_file_path, hard_links=False, copy_owner=True)
+            self.batch_accum += Chmod(current_require_file_path, "a+rw", ignore_all_errors=True)
         else:   # remove previous require.yaml since the new one does not contain anything
-            self.batch_accum += RmFile("$(SITE_REQUIRE_FILE_PATH)")
+            self.batch_accum += RmFile(current_require_file_path)
 
     def create_sync_folder_manifest_command(self, manifest_file_name_prefix: str, back_ground: bool=False):
         """ create batch commands to write a manifest of the sync folder to a file """

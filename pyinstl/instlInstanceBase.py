@@ -12,6 +12,7 @@ import urllib.error
 import io
 import datetime
 import time
+import logging
 
 import aYaml
 import utils
@@ -97,7 +98,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 1000
+                self.total_self_progress += 30000
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
@@ -321,6 +322,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             in_batch_accum += PythonDoSomething('''RsyncClone.add_global_avoid_copy_markers(config_vars.get("AVOID_COPY_MARKERS", []).list())''')
 
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
+        in_batch_accum += PythonDoSomething(f"""log.setLevel({config_vars.get("PYTHON_BATCH_LOG_LEVEL", 20)})""")
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:

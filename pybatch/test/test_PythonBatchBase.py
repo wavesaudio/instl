@@ -163,7 +163,7 @@ class TestPythonBatch(object):
                     os.chmod(os.path.join(root, f), Chmod.all_read_write, **kwargs)
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
-        self.batch_accum.set_current_section("prepare")
+        self.batch_accum.set_current_section("doit")
 
     def tearDown(self):
         if self.output_file_name:

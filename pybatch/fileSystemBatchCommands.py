@@ -1,4 +1,4 @@
-import os
+import sys
 import stat
 import random
 import string
@@ -8,6 +8,11 @@ import shlex
 import collections
 from typing import List, Any, Optional, Union
 import re
+
+if sys.platform == 'win32':
+    import getpass
+    import win32security
+    import ntsecuritycon as con
 
 import utils
 from .baseClasses import *
@@ -335,6 +340,11 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
 class Chmod(RunProcessBase, essential=True):
     """ change mode read.write/execute permissions for a file or folder"""
 
+    if sys.platform == 'darwin':
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+|-|=)(?P<perm>[rwxX]+)$""")
+    elif sys.platform == 'win32':
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+)(?P<perm>[rwx]+)$""")
+
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
@@ -344,6 +354,10 @@ class Chmod(RunProcessBase, essential=True):
     who_2_perm = {'u': {'r': stat.S_IRUSR, 'w': stat.S_IWUSR, 'x': stat.S_IXUSR},
                   'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP},
                   'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH}}
+    if sys.platform == 'win32':
+        win_perms = {'r': con.FILE_GENERIC_READ,
+                 'w': con.FILE_GENERIC_WRITE|con.FILE_GENERIC_READ,
+                 'x': con.FILE_GENERIC_EXECUTE}
 
     def __init__(self, path, mode, **kwargs):
         super().__init__(**kwargs)
@@ -361,23 +375,51 @@ class Chmod(RunProcessBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
 
-    def parse_symbolic_mode(self, symbolic_mode_str):
+    def parse_symbolic_mode_mac(self, symbolic_mode_str):
+        """ parse chmod symbolic mode string e.g. uo+xw
+            return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
+        """
+        match = self.symbolic_mode_re.match(symbolic_mode_str)
+        if not match:
+            raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
+        symbolic_who = match.group('who')
+        if 'a' in symbolic_who:
+            symbolic_who = 'ugo'
+
+        symbolic_perm = match.group('perm')
+        actual_perms = 0
+        for w in symbolic_who:
+            for p in symbolic_perm:
+                actual_perms |= Chmod.who_2_perm[w][p]
+        return actual_perms, match.group('operation')
+
+    def parse_symbolic_mode_win(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
-        match = symbolic_mode_re.match(symbolic_mode_str)
+        match = self.symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
-        who = match.group('who')
-        if 'a' in who:
-            who = 'ugo'
-        perm = match.group('perm')
-        for w in who:
-            for p in perm:
-                flags |= Chmod.who_2_perm[w][p]
-        return flags, match.group('op')
+        if match.group('operation') != '+':
+            raise ValueError(f"on Windows the only chmod operatio allowed is '+' not {match.group('operation')}")
+        symbolic_who = match.group('who')
+        if 'a' in symbolic_who:
+            symbolic_who = 'ugo'
+
+        actual_who = list()
+        for w in symbolic_who:
+            if w == "u":
+                actual_who.append(getpass.getuser())
+            elif w == "g":
+                actual_who.append("Users")
+            elif w == "o":
+                actual_who.append("Everyone")
+
+        actual_perms = match.group('perm')
+        for p in actual_perms:
+            flags |= self.win_perms[p]
+        return actual_who, actual_perms, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
         if sys.platform == 'darwin':
@@ -395,24 +437,44 @@ class Chmod(RunProcessBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-       # os.chmod is not recursive so call the system's chmod
-        if self.recursive:
-            return super().__call__(args, kwargs)
-        else:
-            resolved_path = utils.ResolvedPath(self.path)
-            path_stats = resolved_path.stat()
-            flags, op = self.parse_symbolic_mode(self.mode)
-            mode_to_set = flags
-            current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
-            if op == '+':
-                mode_to_set |= current_mode
-            elif op == '-':
-                mode_to_set = current_mode & ~flags
-            if mode_to_set != current_mode:
-                self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
-                os.chmod(resolved_path, mode_to_set)
+        if sys.platform == 'darwin':
+            # os.chmod is not recursive so call the system's chmod
+            if self.recursive:
+                return super().__call__(args, kwargs)
             else:
-                self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
+                resolved_path = utils.ResolvedPath(self.path)
+                path_stats = resolved_path.stat()
+                flags, op = self.parse_symbolic_mode_mac(self.mode)
+                mode_to_set = flags
+                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
+                if op == '+':
+                    mode_to_set |= current_mode
+                elif op == '-':
+                    mode_to_set = current_mode & ~flags
+                if mode_to_set != current_mode:
+                    self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
+                    os.chmod(resolved_path, mode_to_set)
+                else:
+                    self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
+
+        elif sys.platform == 'win32':
+            if self.recursive:
+                return super().__call__(args, kwargs)
+            else:
+                resolved_path = utils.ResolvedPath(self.path)
+                who, perms, operation = self.parse_symbolic_mode_win(self.mode)
+
+                accounts = list()
+                for name in who:
+                    user, domain, type = win32security.LookupAccountName("", name)
+                    accounts.append(user)
+
+                sd = win32security.GetFileSecurity(resolved_path, win32security.DACL_SECURITY_INFORMATION)
+                dacl = sd.GetSecurityDescriptorDacl()
+                for account in accounts:
+                    dacl.AddAccessAllowedAce(win32security.ACL_REVISION, perms, account)
+                sd.SetSecurityDescriptorDacl(1, dacl, 0)
+                win32security.SetFileSecurity(resolved_path, win32security.DACL_SECURITY_INFORMATION, sd)
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):

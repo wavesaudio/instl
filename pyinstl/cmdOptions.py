@@ -94,64 +94,81 @@ def prepare_args_parser(in_command):
     Prepare the parser for command line arguments
     """
 
-    mode_codes = {'ct': 'client', 'an': 'admin', 'ds': 'do_something', 'gi': 'gui', 'di': 'doit'}
-    commands_details = {
-        'check-checksum':       {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
-        'check-instl-folder-integrity': {'mode': 'an', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-        'check-sig':            {'mode': 'an', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
-        'checksum':             {'mode': 'ds', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
-        'command-list':         {'mode': 'ds', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
-        'copy':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'copy files to target paths'},
-        'create-folders':       {'mode': 'ds', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
-        'create-infomap':       {'mode': 'an', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
-        'create-links':         {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
-        'create-repo-rev-file': {'mode': 'an', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-        'create-rsa-keys':      {'mode': 'an', 'options': ('conf',), 'help':  'create private and public keys'},
-        'depend':               {'mode': 'an', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
-        'doit':                 {'mode': 'di', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
-        'exec':                 {'mode': 'ds', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
-        'fail':                 {'mode': 'ds', 'options': (), 'help': "fail and return exit code"},
-        'file-sizes':           {'mode': 'an', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
-        'filter-infomap':        {'mode': 'an', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
-        'fix-perm':             {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
-        'fix-props':            {'mode': 'an', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
-        'fix-symlinks':         {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
-        'gui':                  {'mode': 'gi', 'options': (), 'help':  'graphical user interface'},
-        'help':                 {'mode': 'ds', 'options': (), 'help':  'help'},
-        'ls':                   {'mode': 'ds', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
-        'mac-dock':             {'mode': 'ds', 'options': (), 'help': "add or remove to Mac OS's Dock"},
-        'make-sig':             {'mode': 'an', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
-        'parallel-run':         {'mode': 'ds', 'options': ('in', ), 'help':  'Run processes in parallel'},
-        'read-info-map':        {'mode': 'an', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
-        'read-yaml':            {'mode': 'ct', 'options': ('in', 'out', 'db'), 'help':  "reads a yaml file to verify it's contents"},
-        'remove-empty-folders': {'mode': 'ds', 'options': ('in', ), 'help':  'remove folders is they are empty'},
-        'remove':               {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'remove items installed by copy'},
-        'report-versions':      {'mode': 'ct', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
-        'resolve':              {'mode': 'ds', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
-        'run-process':          {'mode': 'ds', 'options': (), 'help':  'Run a processes with optional abort file'},
-        'set-exec':             {'mode': 'ds', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
-        'stage2svn':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
-        'svn2stage':            {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
-        'sync':                 {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'sync files to be installed from server to local disk'},
-        'synccopy':             {'mode': 'ct', 'options': ('in', 'out', 'run', 'cred'), 'help':  'sync files to be installed from server to  local disk and copy files to target paths'},
-        'test-import':          {'mode': 'ds', 'options': (), 'help':  'test the import of required modules'},
-        'trans':                {'mode': 'an', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
-        'translate-guids':      {'mode': 'an', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
-        'translate_url':        {'mode': 'ds', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
-        'unwtar':               {'mode': 'ds', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
-        'up-repo-rev':          {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
-        'up2s3':                {'mode': 'an', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
-        'verify-index':         {'mode': 'an', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
-        'verify-repo':          {'mode': 'an', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
-        'version':              {'mode': 'ds', 'options': (), 'help':  'display instl version'},
-        'win-shortcut':         {'mode': 'ds', 'options': (), 'help':  'create a Windows shortcut'},
-        'wtar-staging-folder':  {'mode': 'an', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
-        'wtar':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
-        'wzip':                 {'mode': 'ds', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
-        'uninstall':            {'mode': 'ct', 'options': ('in', 'out', 'run',), 'help':  'uninstall previously copied files, considering dependencies'},
-    }
+    all_command_details = dict()
 
-    command_names = sorted(commands_details.keys())
+    # client commands
+    all_command_details.update({
+        'copy':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'copy files to target paths'},
+        'read-yaml':        {'mode': 'client', 'options': ('in', 'out', 'db'), 'help': "reads a yaml file to verify it's contents"},
+        'remove':           {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'remove items installed by copy'},
+        'report-versions':  {'mode': 'client', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
+        'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
+        'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
+        'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'uninstall previously copied files, considering dependencies'},
+        })
+
+    if in_command not in all_command_details:
+        # do_something commands
+        all_command_details.update({
+            'check-checksum':       {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
+            'checksum':             {'mode': 'do_something', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
+            'command-list':         {'mode': 'do_something', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
+            'create-folders':       {'mode': 'do_something', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
+            'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
+            'fail':                 {'mode': 'do_something', 'options': (), 'help': "fail and return exit code"},
+            'help':                 {'mode': 'do_something', 'options': (), 'help':  'help'},
+            'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
+            'mac-dock':             {'mode': 'do_something', 'options': (), 'help': "add or remove to Mac OS's Dock"},
+            'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
+            'remove-empty-folders': {'mode': 'do_something', 'options': ('in', ), 'help':  'remove folders is they are empty'},
+            'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
+            'run-process':          {'mode': 'do_something', 'options': (), 'help':  'Run a processes with optional abort file'},
+            'set-exec':             {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
+            'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
+            'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
+            'unwtar':               {'mode': 'do_something', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
+            'version':              {'mode': 'do_something', 'options': (), 'help':  'display instl version'},
+            'win-shortcut':         {'mode': 'do_something', 'options': (), 'help':  'create a Windows shortcut'},
+            'wtar':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
+            'wzip':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
+            })
+
+    if in_command not in all_command_details:
+        # admin commands
+        all_command_details.update({
+            'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
+            'check-sig':            {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
+            'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
+            'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
+            'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
+            'create-rsa-keys':      {'mode': 'admin', 'options': ('conf',), 'help':  'create private and public keys'},
+            'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+            'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
+            'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
+            'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
+            'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
+            'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
+            'make-sig':             {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
+            'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
+            'stage2svn':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
+            'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
+            'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
+            'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
+            'up-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
+            'up2s3':                {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
+            'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
+            'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
+            'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
+            })
+
+    if in_command not in all_command_details:
+        # misc commands, gui, doit
+        all_command_details.update({
+            'doit':                 {'mode': 'doit', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+            'gui':                  {'mode': 'gui', 'options': (), 'help':  'graphical user interface'}
+            })
+
+    command_names = sorted(all_command_details.keys())
 
     # if in_command is None - just return the command names
     if in_command is None:
@@ -179,9 +196,9 @@ def prepare_args_parser(in_command):
 
     subparsers = parser.add_subparsers(dest='__MAIN_COMMAND__', help='sub-command help')
 
-    command_details = commands_details[in_command]
+    command_details = all_command_details[in_command]
     command_parser = subparsers.add_parser(in_command, help=command_details['help'])
-    command_parser.set_defaults(mode=mode_codes[command_details['mode']])
+    command_parser.set_defaults(mode=command_details['mode'])
 
     # optional --in
     if 'in_opt' in command_details['options']:

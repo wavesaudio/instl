@@ -4,6 +4,7 @@
 import subprocess
 import sys
 import os
+import time
 import signal
 import logging
 import psutil
@@ -120,18 +121,23 @@ def launch_process(command, shell, do_enqueue_output):
 def enqueue_output(a_process):
     out = a_process.stdout
     try:
+        buffer = ''
         while True:
-            buffer = b''
-            while True:
-                b = out.read(128)
-                if b == b'':
-                    break
-                buffer += b
-
-            if len(buffer) > 0:
-                [log.info(line) for line in buffer.decode('utf-8').strip('\n').split('\n')]
+            time.sleep(0)  # Releasing thread to yield other threads to do work
             if a_process.poll() is not None:
                 break
+            b = out.read(128).decode('utf-8')  # Reading stream to buffer
+            if b:
+                buffer += b
+                if '\n' in buffer:
+                    to_print = buffer.split('\n')
+                    for line in to_print[:-1]:  # Logging every line except the last one in the buffer
+                        log.info(line.strip('\r\n'))
+                    if to_print[-1].endswith('\n'):  # In case the last line in the buffer ends with a newline
+                        log.info(to_print[-1].strip('\r\n'))
+                    else:
+                        buffer = to_print[-1]  # Store the rest for the next round of read
+
     except ValueError as e:
         pass  # on mac the stdout is closed when the process is terminated. In this case we ignore
     finally:
