@@ -74,7 +74,7 @@ class InstlGui(InstlInstanceBase):
 
     def quit_app(self):
         self.write_history()
-        exit()
+        self.master.destroy()
 
     def set_default_variables(self):
         client_command_list = list(config_vars["__CLIENT_GUI_CMD_LIST__"])
@@ -109,7 +109,7 @@ class InstlGui(InstlInstanceBase):
         selected_tab = self.notebook.tab(self.notebook.select(), option='text')
         config_vars["SELECTED_TAB"] = selected_tab
 
-        which_vars_for_yaml = list(config_vars.get("__GUI_CONFIG_FILE_VARS__", []))
+        which_vars_for_yaml = config_vars.get("__GUI_CONFIG_FILE_VARS__", []).list()
         the_list_yaml_ready= config_vars.repr_for_yaml(which_vars=which_vars_for_yaml, resolve=False, ignore_unknown_vars=True)
         the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
         with utils.utf8_open(config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str(), "w") as wfd:
@@ -219,7 +219,7 @@ class InstlGui(InstlInstanceBase):
         config_vars["CLIENT_GUI_CMD"] = self.client_command_name_var.get()
         self.update_client_input_file_combo()
 
-        _, input_file_base_name = os.path.split("".join(config_vars["CLIENT_GUI_IN_FILE"].raw()))
+        _, input_file_base_name = os.path.split(config_vars["CLIENT_GUI_IN_FILE"])
         config_vars["CLIENT_GUI_IN_FILE_NAME"] = input_file_base_name
 
         config_vars["CLIENT_GUI_OUT_FILE"] = self.client_output_path_var.get()
@@ -259,7 +259,7 @@ class InstlGui(InstlInstanceBase):
         if self.admin_config_file_dirty:
             self.read_admin_config_file()
 
-        _, input_file_base_name = os.path.split("".join(config_vars["ADMIN_GUI_CONFIG_FILE"].raw()))
+        _, input_file_base_name = os.path.split(config_vars["ADMIN_GUI_CONFIG_FILE"])
         config_vars["ADMIN_GUI_CONFIG_FILE_NAME"] = input_file_base_name
 
         config_vars["ADMIN_GUI_OUT_BATCH_FILE"] = self.admin_output_path_var.get()
@@ -312,6 +312,7 @@ class InstlGui(InstlInstanceBase):
         return_code = client_process.returncode
         if return_code != 0:
             log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+        print("...")
 
     def run_admin(self):
         self.update_admin_state()
@@ -326,6 +327,7 @@ class InstlGui(InstlInstanceBase):
         return_code = admin_process.returncode
         if return_code != 0:
             log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+        print("...")
 
     def create_admin_frame(self, master):
 
@@ -336,7 +338,7 @@ class InstlGui(InstlInstanceBase):
         Label(admin_frame, text="Command:").grid(row=curr_row, column=0, sticky=E)
 
         # instl command selection
-        self.admin_command_name_var.set(config_vars["ADMIN_GUI_CMD"].raw(join_sep=""))
+        self.admin_command_name_var.set(config_vars["ADMIN_GUI_CMD"])
         admin_command_list = list(config_vars["__ADMIN_GUI_CMD_LIST__"])
         commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var,
                                      self.admin_command_name_var.get(), *admin_command_list,
@@ -344,7 +346,7 @@ class InstlGui(InstlInstanceBase):
         commandNameMenu.grid(row=curr_row, column=1, sticky=W)
         ToolTip(commandNameMenu, msg="instl admin command")
 
-        self.run_admin_batch_file_var.set(utils.str_to_bool_int(config_vars["ADMIN_GUI_RUN_BATCH"].raw(join_sep="")))
+        self.run_admin_batch_file_var.set(bool(config_vars["ADMIN_GUI_RUN_BATCH"]))
         self.admin_run_batch_file_checkbox = Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
                     command=self.update_admin_state)
         self.admin_run_batch_file_checkbox.grid(row=curr_row, column=2, columnspan=2, sticky=E)
@@ -352,7 +354,7 @@ class InstlGui(InstlInstanceBase):
         # path to config file
         curr_row += 1
         Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_config_path_var.set(config_vars["ADMIN_GUI_CONFIG_FILE"].raw(join_sep=""))
+        self.admin_config_path_var.set(config_vars["ADMIN_GUI_CONFIG_FILE"].str())
         configFilePathEntry = Entry(admin_frame, textvariable=self.admin_config_path_var)
         configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         ToolTip(configFilePathEntry, msg="path instl repository config file")
@@ -401,7 +403,7 @@ class InstlGui(InstlInstanceBase):
         # path to output file
         curr_row += 1
         Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_output_path_var.set(config_vars["ADMIN_GUI_OUT_BATCH_FILE"].raw(join_sep=""))
+        self.admin_output_path_var.set(config_vars["ADMIN_GUI_OUT_BATCH_FILE"].str())
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
@@ -411,13 +413,11 @@ class InstlGui(InstlInstanceBase):
         # relative path to limit folder
         curr_row += 1
         Label(admin_frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
-        ADMIN_GUI_LIMIT_values = config_vars.get("ADMIN_GUI_LIMIT", []).raw()
+        ADMIN_GUI_LIMIT_values = config_vars.get("ADMIN_GUI_LIMIT", []).list()
         ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
         if ADMIN_GUI_LIMIT_values:
-            log.info(f"""ADMIN_GUI_LIMIT_values: {ADMIN_GUI_LIMIT_values}""")
             self.admin_limit_var.set(" ".join([shlex.quote(p) for p in ADMIN_GUI_LIMIT_values]))
         else:
-            log.info("ADMIN_GUI_LIMIT_values: no values")
             self.admin_limit_var.set("")
         self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
@@ -459,11 +459,11 @@ class InstlGui(InstlInstanceBase):
 
         # instl command selection
         client_command_list = list(config_vars["__CLIENT_GUI_CMD_LIST__"])
-        self.client_command_name_var.set(config_vars["CLIENT_GUI_CMD"].raw(join_sep=""))
+        self.client_command_name_var.set(config_vars["CLIENT_GUI_CMD"].str())
         OptionMenu(client_frame, self.client_command_name_var,
                    self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
 
-        self.run_client_batch_file_var.set(utils.str_to_bool_int(config_vars["CLIENT_GUI_RUN_BATCH"].raw(join_sep="")))
+        self.run_client_batch_file_var.set(utils.str_to_bool_int(config_vars["CLIENT_GUI_RUN_BATCH"].str()))
         self.client_run_batch_file_checkbox = Checkbutton(client_frame, text="Run batch file",
                     variable=self.run_client_batch_file_var, command=self.update_client_state)
         self.client_run_batch_file_checkbox.grid(row=curr_row, column=2, sticky=E)
@@ -471,7 +471,7 @@ class InstlGui(InstlInstanceBase):
         # path to input file
         curr_row += 1
         Label(client_frame, text="Input file:").grid(row=curr_row, column=0)
-        self.client_input_path_var.set(config_vars["CLIENT_GUI_IN_FILE"].raw(join_sep=""))
+        self.client_input_path_var.set(config_vars["CLIENT_GUI_IN_FILE"].str())
         self.client_input_combobox = Combobox(client_frame, textvariable=self.client_input_path_var)
         self.client_input_combobox.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
         self.client_input_path_var.trace('w', self.update_client_state)
@@ -484,7 +484,7 @@ class InstlGui(InstlInstanceBase):
         # path to output file
         curr_row += 1
         Label(client_frame, text="Batch file:").grid(row=curr_row, column=0)
-        self.client_output_path_var.set(config_vars["CLIENT_GUI_OUT_FILE"].raw(join_sep=""))
+        self.client_output_path_var.set(config_vars["CLIENT_GUI_OUT_FILE"].str())
         Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
@@ -494,11 +494,11 @@ class InstlGui(InstlInstanceBase):
         # s3 user credentials
         curr_row += 1
         Label(client_frame, text="Credentials:").grid(row=curr_row, column=0, sticky=E)
-        self.client_credentials_var.set(config_vars["CLIENT_GUI_CREDENTIALS"].raw(join_sep=""))
+        self.client_credentials_var.set(config_vars["CLIENT_GUI_CREDENTIALS"].str())
         Entry(client_frame, textvariable=self.client_credentials_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_credentials_var.trace('w', self.update_client_state)
 
-        self.client_credentials_on_var.set(config_vars["CLIENT_GUI_CREDENTIALS_ON"].raw(join_sep=""))
+        self.client_credentials_on_var.set(config_vars["CLIENT_GUI_CREDENTIALS_ON"].str())
         Checkbutton(client_frame, text="", variable=self.client_credentials_on_var).grid(row=curr_row, column=3, sticky=W)
         self.client_credentials_on_var.trace('w', self.update_client_state)
 
@@ -556,8 +556,6 @@ class InstlGui(InstlInstanceBase):
             os.system('''/usr/bin/osascript -e 'tell app "Finder" to set frontmost of process "Python" to true' ''')
 
         self.master.mainloop()
-        self.quit_app()
-        # self.master.destroy() # optional; see description below
 
     def check_yaml(self, path_to_yaml):
         command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",

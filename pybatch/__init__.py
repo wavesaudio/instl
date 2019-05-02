@@ -57,6 +57,7 @@ from .fileSystemBatchCommands import Touch
 from .fileSystemBatchCommands import Unlock
 from .fileSystemBatchCommands import Ls
 from .fileSystemBatchCommands import FileSizes
+from .fileSystemBatchCommands import SplitFile
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands

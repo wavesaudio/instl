@@ -2,9 +2,9 @@ import sys
 import stat
 import random
 import string
-import shutil
+import itertools
 from pathlib import Path
-import shlex
+import math
 import collections
 from typing import List, Any, Optional, Union
 import re
@@ -592,3 +592,58 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         with open(self.file_path, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
+
+class SplitFile(PythonBatchCommandBase, essential=True):
+    def __init__(self, file_to_split, max_size, remove_original=True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.file_to_split = Path(file_to_split)
+        self.max_size = max_size
+        self. remove_original = remove_original
+        self.num_parts = 0
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_to_split={utils.quoteme_raw_by_type(self.file_to_split)}""")
+        all_args.append(f"""max_size={self.max_size}""")
+        all_args.append(f"""remove_original={self.remove_original}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"split file {self.file_to_split} to {self.num_parts} parts"
+        return the_progress_msg
+
+    def calc_splits(self, original_size, split_size):
+        """ return a list of files and sizes"""
+        retVal = list()
+
+        self.num_parts = (original_size // split_size) + (1 if original_size % split_size > 0 else 0)
+        part_size = math.ceil(original_size / self.num_parts)
+
+        extension_length = 2
+        num_ext_combinations = len(string.ascii_lowercase)**extension_length
+        while num_ext_combinations < self.num_parts:
+            num_ext_combinations *= len(string.ascii_lowercase)
+            extension_length += 1
+
+        name_iter = itertools.product(string.ascii_lowercase, repeat=extension_length)
+        remaining_size = original_size
+        original_extension = self.file_to_split.suffix
+        for p in range(self.num_parts):
+            part_path = self.file_to_split.with_suffix(f"{original_extension}.{''.join(next(name_iter))}")
+            if remaining_size <= part_size:
+                retVal.append((remaining_size, part_path))
+                remaining_size = 0
+            else:
+                retVal.append((part_size, part_path))
+                remaining_size -= part_size
+        return retVal
+
+    def __call__(self, *args, **kwargs):
+        original_size = self.file_to_split.stat().st_size
+        splits = self.calc_splits(original_size, self.max_size)
+        print(f"original: {original_size}, max_size: {self.max_size}, self.num_parts: {len(splits)}, part_size: {splits[0][0]} naive total {len(splits)*splits[0][0]}")
+        print("\n   ".join(str(s[1]) for s in splits))
+        with open(self.file_to_split, "rb") as fts:
+            for part_size, part_path in splits:
+                with open(part_path, "wb") as pfd:
+                    pfd.write(fts.read(part_size))
+        if self.remove_original:
+            self.file_to_split.unlink()
