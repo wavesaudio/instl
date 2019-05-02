@@ -79,6 +79,8 @@ from .svnBatchCommands import SVNLastRepoRev
 from .svnBatchCommands import SVNCheckout
 from .svnBatchCommands import SVNInfo
 from .svnBatchCommands import SVNPropList
+from .svnBatchCommands import SVNAdd
+from .svnBatchCommands import SVNRemove
 
 if sys.platform == "win32":
     from .WinOnlyBatchCommands import WinShortcut

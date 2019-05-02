@@ -124,6 +124,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def should_ignore_file(self, file_path: str):
         retVal = False
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
         for ignore_pattern in self.__all_ignore_patterns:
             if file_path.match(ignore_pattern):
                 log.debug(f"ignoring {file_path} because it matches pattern {ignore_pattern}")
@@ -166,16 +168,16 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             retVal = False
         return retVal
 
-    def remove_extraneous_files(self, dst: Path, src_items):
+    def remove_extraneous_files(self, dst: Path, src_item_names):
         """ remove files in destination that are not in source.
             files in the ignore list are not removed even if they do not
             appear in the source.
         """
 
         for dst_item in os.scandir(dst):
-            if dst_item.name not in src_items and not self.should_ignore_file(dst_item.path):
+            if dst_item.name not in src_item_names and not self.should_ignore_file(dst_item.path):
                 self.last_step, self.last_src, self.last_dst = "remove redundant file", "", os.fspath(dst_item)
-                log.info(f"delete {dst_item}")
+                log.info(f"delete {dst_item.path}")
                 if dst_item.is_symlink() or dst_item.is_file():
                     self.dry_run or os.unlink(dst_item)
                 else:
@@ -351,6 +353,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
         src_dir_items = list(os.scandir(src))
         src_file_names = [src_item.name for src_item in src_dir_items if src_item.is_file()]
+        src_dir_names = [src_item.name for src_item in src_dir_items if src_item.is_dir()]
         if not self.should_copy_dir(src, dst, src_file_names):
             self.statistics['skipped_dirs'] += 1
             return
@@ -365,7 +368,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 os.chown(dst, src_stat[stat.ST_UID], src_stat[stat.ST_GID])
 
         if not self.top_destination_does_not_exist and self.delete_extraneous_files:
-            self.remove_extraneous_files(dst, src_dir_items)
+            self.remove_extraneous_files(dst, src_file_names+src_dir_names)
 
         errors = []
         for src_item in src_dir_items:

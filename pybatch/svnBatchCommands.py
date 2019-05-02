@@ -65,7 +65,7 @@ class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty"}):
 
 class SVNCheckout(SVNClient):
 
-    def __init__(self,where, **kwargs):
+    def __init__(self, where, **kwargs):
         super().__init__("checkout", **kwargs)
         self.where = where
 
@@ -107,3 +107,40 @@ class SVNPropList(SVNClient):
         run_args.append(self.url_with_repo_rev())
         run_args.append("--depth")
         run_args.append(self.depth)
+
+
+class SVNAdd(SVNClient):
+
+    def __init__(self, file_to_add, **kwargs):
+        super().__init__("add", **kwargs)
+        self.file_to_add = file_to_add
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("file_to_add", os.fspath(self.file_to_add)))
+
+    def progress_msg_self(self) -> str:
+        return f'''adding to svn {self.file_to_add}'''
+
+    def get_run_args(self, run_args) -> None:
+        run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
+        run_args.append(self.command)
+        run_args.append(self.file_to_add)
+
+
+class SVNRemove(SVNClient):
+
+    def __init__(self, file_to_remove, **kwargs):
+        super().__init__("rm", **kwargs)
+        self.file_to_remove = file_to_remove
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("file_to_remove", os.fspath(self.file_to_remove)))
+
+    def progress_msg_self(self) -> str:
+        return f'''removing from svn {self.file_to_remove}'''
+
+    def get_run_args(self, run_args) -> None:
+        run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
+        run_args.append(self.command)
+        run_args.append("--force")
+        run_args.append(self.file_to_remove)
