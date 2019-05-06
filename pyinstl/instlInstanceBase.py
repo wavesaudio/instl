@@ -414,7 +414,11 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             from subprocess import Popen
 
             p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
-            unused_stdout, unused_stderr = p.communicate()
+            stdout, stderr = p.communicate()
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr, file=sys.stderr)
             return_code = p.returncode
             if return_code != 0:
                 raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
