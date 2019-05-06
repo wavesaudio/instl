@@ -403,7 +403,7 @@ class InstlGui(InstlInstanceBase):
         # path to output file
         curr_row += 1
         Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_output_path_var.set(config_vars["ADMIN_GUI_OUT_BATCH_FILE"].str())
+        self.admin_output_path_var.set(config_vars["ADMIN_GUI_OUT_BATCH_FILE"].raw())
         Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.admin_output_path_var.trace('w', self.update_admin_state)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
@@ -446,7 +446,7 @@ class InstlGui(InstlInstanceBase):
         if value not in ["", "\n"]:
             self.master.clipboard_clear()
             self.master.clipboard_append(value)
-            log.info("data was copied to clipboard!")
+            log.info("instl command was copied to clipboard!")
 
     def create_client_frame(self, master):
 
@@ -484,7 +484,7 @@ class InstlGui(InstlInstanceBase):
         # path to output file
         curr_row += 1
         Label(client_frame, text="Batch file:").grid(row=curr_row, column=0)
-        self.client_output_path_var.set(config_vars["CLIENT_GUI_OUT_FILE"].str())
+        self.client_output_path_var.set(config_vars["CLIENT_GUI_OUT_FILE"].raw())
         Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         self.client_output_path_var.trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)

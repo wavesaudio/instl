@@ -67,9 +67,9 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         self.path_to_symlink = path_to_symlink
         self.path_to_target = path_to_target
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.path_to_symlink)}, {utils.quoteme_raw_by_type(self.path_to_target)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.path_to_symlink))
+        all_args.append(self.unnamed__init__param(self.path_to_target))
 
     def progress_msg_self(self) -> str:
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
@@ -124,9 +124,8 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.symlink_to_convert = symlink_to_convert
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_to_convert)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_by_type(self.symlink_to_convert))
 
     def progress_msg_self(self) -> str:
         return f"""Create symlink file '{self.symlink_to_convert}'"""
@@ -153,9 +152,8 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.symlink_file_to_convert = os.fspath(symlink_file_to_convert)
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.symlink_file_to_convert)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.symlink_file_to_convert))
 
     def progress_msg_self(self) -> str:
         return f"""Resolve symlink '{self.symlink_file_to_convert}'"""
@@ -185,9 +183,8 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.last_symlink_file = None
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)})'''
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.folder_to_convert))
 
     def progress_msg_self(self) -> str:
         return f"""Create symlinks files in '{self.folder_to_convert}'"""
@@ -204,7 +201,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                     link_value = os.readlink(item_path)
                     target_path = os.path.realpath(item_path)
                     self.last_symlink_file = item_path
-                    with SymlinkToSymlinkFile(item_path) as symlink_converter:
+                    with SymlinkToSymlinkFile(item_path, own_progress_count=0) as symlink_converter:
                         symlink_converter()
                         self.doing = symlink_converter.doing
                     if os.path.isdir(target_path) or os.path.isfile(target_path):
@@ -228,12 +225,10 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         self.last_symlink_file = None
         self.report_own_progress = False
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_by_type(self.folder_to_convert)}'''
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.folder_to_convert))
         if self.own_progress_count > 1:
-            the_repr += f''', own_progress_count={self.own_progress_count}'''
-        the_repr += ')'
-        return the_repr
+            all_args.append(self.named__init__param("own_progress_count", self.own_progress_count))
 
     def progress_msg_self(self) -> str:
         return f"""Resolve symlinks in '{self.folder_to_convert}'"""

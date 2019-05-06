@@ -530,12 +530,12 @@ class InstlAdmin(InstlInstanceBase):
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
 
-        stage_folder = config_vars["STAGING_FOLDER"].str()
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
         folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         if tuple(folders_to_check) == (stage_folder,):
             self.progress("fix-symlink for the whole repository")
         else:
-            self.progress("fix-symlink limited to ", "; ".join(folders_to_check))
+            self.progress("fix-symlink limited to ", "; ".join([os.fspath(i) for i in folders_to_check]))
 
         for folder_to_check in folders_to_check:
             self.batch_accum += CreateSymlinkFilesInFolder(folder_to_check)
@@ -694,99 +694,91 @@ class InstlAdmin(InstlInstanceBase):
             wtar_by_file_size_exclude_regex = list(config_vars["WTAR_BY_FILE_SIZE_EXCLUDE_REGEX"])
             self.compiled_wtar_by_file_size_exclude_regex = utils.compile_regex_list_ORed(wtar_by_file_size_exclude_regex)
         else:
-            self.compiled_wtar_by_file_size_exclude_regex = None
+            self.compiled_wtar_by_file_size_exclude_regex = re.compile(".+")
 
         self.already_wtarred_regex = re.compile("wtar(\.\w\w)?$")
 
-    def should_wtar(self, dir_item):
-        retVal = False
-        already_tarred = False
+    def should_wtar(self, dir_item: Path):
+        _should_wtar = False
+        _already_tarred = False
         try:
-            if self.already_wtarred_regex.search(dir_item):
-                already_tarred = True
-                raise Exception
-            if os.path.isdir(dir_item):
-                if self.compiled_folder_wtar_regex.search(dir_item):
-                    retVal = True
-                    raise Exception
-            elif os.path.isfile(dir_item):
-                if self.compiled_file_wtar_regex.search(dir_item):
-                    retVal = True
-                    raise Exception
-                if os.path.getsize(dir_item) > self.min_file_size_to_wtar:
-                    if self.compiled_wtar_by_file_size_exclude_regex is not None:
-                        if not re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item):
-                            retVal = True
+            if self.already_wtarred_regex.search(os.fspath(dir_item)):
+                _should_wtar = False
+                _already_tarred = True
+            elif dir_item.is_dir():
+                if self.compiled_folder_wtar_regex.search(os.fspath(dir_item)):
+                    # it's a folder matching one of the filters for wtarring a folder
+                    _should_wtar = True
+                    _already_tarred = False
+            elif dir_item.is_file():
+                if self.compiled_file_wtar_regex.search(os.fspath(dir_item)):
+                    # it's a file matching one of the filters for wtarring a file
+                    _should_wtar = True
+                    _already_tarred = False
+                elif dir_item.stat().st_size > self.min_file_size_to_wtar:
+                    # it's a file who's size is big enough to require wtarring
+                    if re.match(self.compiled_wtar_by_file_size_exclude_regex, os.fspath(dir_item)):
+                        _should_wtar = False
+                        _already_tarred = False
                     else:
-                        retVal = True
+                         # but not a file who's name matching one of the filters for NOT wtarring
+                        _should_wtar = True
+                        _already_tarred = False
+                else:
+                    _should_wtar = False
+                    _already_tarred = False
         except Exception:
             pass
-        return retVal, already_tarred
+        return _should_wtar, _already_tarred
 
     def do_wtar_staging_folder(self):
         self.batch_accum.set_current_section('admin')
         self.prepare_conditions_for_wtar()
 
-        stage_folder = config_vars["STAGING_FOLDER"].str()
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
-        if tuple(folders_to_check) == (stage_folder,):
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        items_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
+        if tuple(items_to_check) == (stage_folder,):
             self.progress("wtar for the whole repository")
         else:
-            self.progress("wtar limited to ", "; ".join(folders_to_check))
+            self.progress("wtar limited to ", "; ".join([os.fspath(i) for i in items_to_check]))
 
-        for a_folder in folders_to_check:
+        for a_folder in items_to_check:
             self.batch_accum += Unlock(a_folder, recursive=True)
             self.batch_accum += RmGlob(a_folder, '**/.DS_Store')
-            self.batch_accum += Progress("delete ignored files")
+            self.batch_accum += Progress(f"delete ignored files in {a_folder}")
 
         total_items_to_tar = 0
         total_redundant_wtar_files = 0
-        while len(folders_to_check) > 0:
-            folder_to_check = folders_to_check.pop()
+        while len(items_to_check) > 0:
+            item_to_check = items_to_check.pop(0)
             items_to_tar = list()
             items_to_delete = list()  # these are .wtar files for items that no longer need wtarring
+            if not self.already_wtarred_regex.search(os.fspath(item_to_check)) and not item_to_check.is_symlink():
 
-            # check if the folder it self is candidate for wtarring
-            to_tar, already_tarred = self.should_wtar(folder_to_check)
-            if to_tar:
-                items_to_tar.append(folder_to_check)
-            else:
-                dir_items = os.listdir(folder_to_check)
-                for dir_item in sorted(dir_items):
-                    dir_item_full_path = os.path.join(folder_to_check, dir_item)
-                    if not os.path.islink(dir_item_full_path):
-                        to_tar, already_tarred = self.should_wtar(dir_item_full_path)
-                        if to_tar:
-                            items_to_tar.append(dir_item)
-                        else:
-                            redundant_wtar_files = utils.find_split_files_from_base_file(dir_item_full_path)
-                            total_redundant_wtar_files += len(redundant_wtar_files)
-                            items_to_delete.extend(redundant_wtar_files)
-                            if os.path.isdir(dir_item_full_path):
-                                folders_to_check.append(dir_item_full_path)
+                # the item is not a wtar file, so whether it needs wtarring or not,
+                # the old wtar parts, if any, should to be removed
+                items_to_delete.extend(utils.find_wtarred_parts_of_original(item_to_check))
 
-            if items_to_tar or items_to_delete:
-                total_items_to_tar += len(items_to_tar)
-                self.batch_accum += Progress(f"begin folder {folder_to_check}")
-                self.batch_accum += Cd(folder_to_check)
+                # check if the item itself is candidate for wtarring
+                to_tar, already_tarred = self.should_wtar(item_to_check)
+                if to_tar:
+                    items_to_tar.append(item_to_check)
+                else:
+                    # item_to_check does not need tarring, remove previous tars of this folder
+                    # and recursively check child entries
+                    if item_to_check.is_dir():
+                        more_paths_to_check = [Path(ent) for ent in sorted(list(os.scandir(item_to_check)), key=lambda i: i.is_dir())]
+                        items_to_check.extend(more_paths_to_check)
 
-                for item_to_delete in items_to_delete:
-                    self.batch_accum += RmFile(item_to_delete)
+                if items_to_tar or items_to_delete:
+                    total_items_to_tar += len(items_to_tar)
 
-                for item_to_tar in items_to_tar:
-                    item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
+                    for item_to_delete in items_to_delete:
+                        self.batch_accum += RmFile(item_to_delete)
 
-                    self.batch_accum += Wtar(item_to_tar)
-                    self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
-                    self.batch_accum += Progress(f"split file {item_to_tar}.wtar")
-                    if os.path.isdir(item_to_tar_full_path):
-                        self.batch_accum += RmDir(item_to_tar)
-                        self.batch_accum += Progress(f"removed dir {item_to_tar}")
-                    elif os.path.isfile(item_to_tar_full_path):
-                        self.batch_accum += self.platform_helper.rmfile(item_to_tar)
-                        self.batch_accum += Progress(f"removed file {item_to_tar}")
-                    self.batch_accum += Progress(item_to_tar_full_path)
-                self.batch_accum += Progress(f"end folder {folder_to_check}")
+                    for item_to_tar in items_to_tar:
+                        self.batch_accum += Wtar(item_to_tar, split_threshold=self.min_file_size_to_wtar)
+                        self.batch_accum += RmFileOrDir(item_to_tar)
 
         self.progress("found", total_items_to_tar, "to wtar")
         if total_redundant_wtar_files:
@@ -990,7 +982,7 @@ class InstlAdmin(InstlInstanceBase):
         retVal = item.isFile() and self.should_file_be_exec(item.path)
         return retVal
 
-    def prepare_list_of_dirs_to_work_on(self, top_folder):
+    def prepare_list_of_dirs_to_work_on(self, top_folder: Path):
         """ Some command can operate on a subset of folders inside the main folder.
             If __LIMIT_COMMAND_TO__ is defined join top_folder to each item in __LIMIT_COMMAND_TO__.
             otherwise return top_folder.
@@ -1000,7 +992,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                retVal.append(os.path.join(top_folder, limit))
+                retVal.append(top_folder.joinpath(limit))
         else:
             retVal.append(top_folder)
         return retVal
@@ -1013,7 +1005,8 @@ class InstlAdmin(InstlInstanceBase):
         files_that_should_not_be_exec = list()
         files_that_must_be_exec = list()
 
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(config_vars["STAGING_FOLDER"].str())
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         for folder_to_check in folders_to_check:
             self.batch_accum += Unlock(folder_to_check, recursive=True)
             for root, dirs, files in os.walk(folder_to_check, followlinks=False):

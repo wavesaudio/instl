@@ -12,6 +12,7 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
+from .fileSystemBatchCommands import SplitFile
 
 log = logging.getLogger()
 
@@ -76,15 +77,18 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
 class Wtar(PythonBatchCommandBase):
     """ create a new wtar archive for a file or folder
     """
-    def __init__(self, what_to_wtar: os.PathLike, where_to_put_wtar=None, **kwargs) -> None:
+    def __init__(self, what_to_wtar: os.PathLike, where_to_put_wtar=None, split_threshold=0, **kwargs) -> None:
         super().__init__(**kwargs)
         self.what_to_wtar = what_to_wtar
         self.where_to_put_wtar = where_to_put_wtar if where_to_put_wtar else None
+        self.split_threshold = split_threshold
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(f'''what_to_wtar={utils.quoteme_raw_by_type(self.what_to_wtar)}''')
         if self.where_to_put_wtar:
             all_args.append(f'''where_to_put_wtar={utils.quoteme_raw_by_type(self.where_to_put_wtar)}''')
+        if self.split_threshold > 0:
+            all_args.append(f'''split_threshold={utils.quoteme_raw_by_type(self.split_threshold)}''')
 
     def progress_msg_self(self) -> str:
         return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
@@ -155,6 +159,14 @@ class Wtar(PythonBatchCommandBase):
             resolved_where_to_put_wtar.mkdir(parents=True, exist_ok=True)
             target_wtar_file = resolved_where_to_put_wtar.joinpath(resolved_what_to_wtar.name+".wtar")
 
+        # remove previous wtarred files
+        if target_wtar_file.is_file():
+            target_wtar_file.unlink()
+        # also look for parts
+        target_wtar_dir = target_wtar_file.parent
+        parts = target_wtar_dir.glob(target_wtar_file.name+".wtar.??")
+        [p.unlink() for p in parts]
+
         tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
@@ -189,6 +201,9 @@ class Wtar(PythonBatchCommandBase):
                     [utils.safe_remove_file(f) for f in existing_wtar_parts]
                 with tarfile.open(target_wtar_file, "w:bz2", format=tarfile.PAX_FORMAT, pax_headers=pax_headers, compresslevel=compresslevel) as tar:
                     tar.add(resolved_what_to_wtar.name, filter=check_tarinfo)
+
+                with SplitFile(target_wtar_file, max_size=self.split_threshold, own_progress_count=0) as sf:
+                    sf()
             else:
                 log.debug(f"{resolved_what_to_wtar.name} skipped since {resolved_what_to_wtar.name}.wtar already exists and has the same contents")
 
