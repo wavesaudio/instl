@@ -402,7 +402,7 @@ class Chmod(RunProcessBase, essential=True):
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
         if match.group('operation') != '+':
-            raise ValueError(f"on Windows the only chmod operatio allowed is '+' not {match.group('operation')}")
+            raise ValueError(f"on Windows the only chmod operation allowed is '+' not {match.group('operation')}")
         symbolic_who = match.group('who')
         if 'a' in symbolic_who:
             symbolic_who = 'ugo'
@@ -419,7 +419,7 @@ class Chmod(RunProcessBase, essential=True):
         actual_perms = match.group('perm')
         for p in actual_perms:
             flags |= self.win_perms[p]
-        return actual_who, actual_perms, match.group('operation')
+        return actual_who, flags, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
         if sys.platform == 'darwin':
@@ -469,12 +469,12 @@ class Chmod(RunProcessBase, essential=True):
                     user, domain, type = win32security.LookupAccountName("", name)
                     accounts.append(user)
 
-                sd = win32security.GetFileSecurity(resolved_path, win32security.DACL_SECURITY_INFORMATION)
+                sd = win32security.GetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION)
                 dacl = sd.GetSecurityDescriptorDacl()
                 for account in accounts:
                     dacl.AddAccessAllowedAce(win32security.ACL_REVISION, perms, account)
                 sd.SetSecurityDescriptorDacl(1, dacl, 0)
-                win32security.SetFileSecurity(resolved_path, win32security.DACL_SECURITY_INFORMATION, sd)
+                win32security.SetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION, sd)
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
