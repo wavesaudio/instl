@@ -66,11 +66,15 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
         if self.out_file is None:
             local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+            if local_stdout:
+                print(local_stdout)
         else:
             out_stream.close()
 
         if self.err_file is None:
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
+            if local_stderr:
+                print(local_stderr, file=sys.stderr)
         else:
             err_stream.close()
 
