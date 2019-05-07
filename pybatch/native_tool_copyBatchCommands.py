@@ -6,8 +6,9 @@ from .subprocessBatchCommands import RunProcessBase
 
 
 class CopyBase(RunProcessBase, essential=True):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,         ignore_if_not_exist = False, copy_file=False, copy_dir=False) -> None:
-        super().__init__()
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,
+                 ignore_if_not_exist=False, copy_file=False, copy_dir=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.link_dest = link_dest

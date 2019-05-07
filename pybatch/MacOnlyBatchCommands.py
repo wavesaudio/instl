@@ -227,8 +227,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_convert))
-        if self.own_progress_count > 1:
-            all_args.append(self.named__init__param("own_progress_count", self.own_progress_count))
 
     def progress_msg_self(self) -> str:
         return f"""Resolve symlinks in '{self.folder_to_convert}'"""
