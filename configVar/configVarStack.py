@@ -313,7 +313,7 @@ class ConfigVarStack:
         if resolve:
             var_value = list(self[var_name])
         else:
-            var_value = self[var_name].raw()
+            var_value = self[var_name].raw(join_sep=None)
         if len(var_value) == 1:
             var_value = var_value[0]
         retVal = aYaml.YamlDumpWrap(var_value)

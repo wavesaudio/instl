@@ -147,7 +147,6 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults
 
 class RmGlob(PythonBatchCommandBase, essential=True):
     """ remove files matching a pattern
-        - it's OK if the directory does not exist.
         - all files and folders matching the pattern will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
         - allowing pattern to be None is temporary until new format is implemented in index
@@ -179,7 +178,6 @@ class RmGlob(PythonBatchCommandBase, essential=True):
 
 class RmGlobs(PythonBatchCommandBase, essential=True):
     """ remove files matching any pattern in the given list
-        - it's OK if the directory does not exist.
         - all files and folders matching the patterns will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
         - allowing pattern to be None is temporary until new format is implemented in index

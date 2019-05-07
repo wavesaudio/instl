@@ -189,7 +189,7 @@ class ConfigVar:
         """ erase all values """
         self.values.clear()
 
-    def raw(self, join_sep: Optional[str]=None) -> Union[str, List[str]]:
+    def raw(self, join_sep: Optional[str]="") -> Union[str, List[str]]:
         """ return the list of values unresolved"""
         if join_sep is None:
             return self.values

@@ -216,7 +216,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     retVal = False
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
                 if retVal:  # destination exists and file should be copied, so make sure it's writable
-                    with Chmod(dst, "u+w", own_progress_count=0) as mod_changer:
+                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
                         mod_changer()
                     if self.should_no_flags_file(dst):
                         with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
@@ -241,7 +241,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                     retVal = False
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src.path}' to '{dst}'")
                 if retVal:  # destination exists and file should be copied, so make sure it's writable
-                    with Chmod(dst, "u+w", own_progress_count=0) as mod_changer:
+                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
                         mod_changer()
                     if self.should_no_flags_file(dst):
                         with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
