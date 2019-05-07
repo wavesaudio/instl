@@ -75,6 +75,8 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
             if local_stderr:
                 print(local_stderr, file=sys.stderr)
+                if completed_process.returncode == 0:
+                    completed_process.returncode = 123
         else:
             err_stream.close()
 

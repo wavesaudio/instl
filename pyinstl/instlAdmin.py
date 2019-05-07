@@ -663,7 +663,7 @@ class InstlAdmin(InstlInstanceBase):
                     if stage_file_checksum == _checksum:
                         copy_file = False
                         split_wtar_files = utils.find_split_files(left_item_path)
-                        do_not_copy_items.extend([split_wtar_file.name() for split_wtar_file in split_wtar_files])
+                        do_not_copy_items.extend([split_wtar_file.name for split_wtar_file in split_wtar_files])
 
                 if copy_file:
                     self.batch_accum += CopyFileToDir(left_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"])

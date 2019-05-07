@@ -284,7 +284,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__c
     def log_error(self, exc_type, exc_val, exc_tb):
         error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
         error_json = json.dumps(error_dict, separators=(',\n', ': '), sort_keys=True)
-        log.error(f"{error_json}")
+        log.error(f"---\n{error_json}\n...\n")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(f'''"{self.name}"''')
