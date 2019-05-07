@@ -2,9 +2,9 @@ import sys
 import stat
 import random
 import string
-import shutil
+import itertools
 from pathlib import Path
-import shlex
+import math
 import collections
 from typing import List, Any, Optional, Union
 import re
@@ -17,6 +17,7 @@ if sys.platform == 'win32':
 import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
+
 
 def touch(file_path):
     with open(file_path, 'a'):
@@ -592,3 +593,98 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         with open(self.file_path, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
+
+class SplitFile(PythonBatchCommandBase, essential=True):
+    """ Split a file to one or more parts, each part at most max_size bytes.
+        The sizes of parts are attempted to be equal
+        The parts are named with the same name the original with extensions, .aa. .ab, ...
+        if remove_original is true the original file is removed
+        if max_size is 0, the file is just renamed with extension .aa
+    """
+    def __init__(self, file_to_split, max_size=0, remove_original=True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.file_to_split = Path(file_to_split)
+        self.max_size = max_size
+        self. remove_original = remove_original
+        self.num_parts = 0
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_to_split={utils.quoteme_raw_by_type(self.file_to_split)}""")
+        all_args.append(f"""max_size={self.max_size}""")
+        all_args.append(f"""remove_original={self.remove_original}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"split file {self.file_to_split} to {self.num_parts} parts"
+        return the_progress_msg
+
+    def calc_splits(self, original_size):
+        """ return a list of files names and sizes"""
+        retVal = list()
+
+        if self.max_size == 0:  # just rename the file
+            self.num_parts = 1
+            part_size = original_size
+        else:
+            self.num_parts = (original_size // self.max_size) + (1 if original_size % self.max_size > 0 else 0)
+            part_size = math.ceil(original_size / self.num_parts)
+
+        # calc how many char the extension (.aa, .ab,...) should be
+        # minimum is 2, but there can be more if number of parts > 26*26
+        extension_length = 2
+        num_ext_combinations = len(string.ascii_lowercase)**extension_length
+        while num_ext_combinations < self.num_parts:
+            num_ext_combinations *= len(string.ascii_lowercase)
+            extension_length += 1
+
+        name_iter = itertools.product(string.ascii_lowercase, repeat=extension_length)
+        remaining_size = original_size
+        original_extension = self.file_to_split.suffix
+        for p in range(self.num_parts):
+            part_path = self.file_to_split.with_suffix(f"{original_extension}.{''.join(next(name_iter))}")
+            if remaining_size <= part_size:
+                retVal.append((remaining_size, part_path))
+                remaining_size = 0
+            else:
+                retVal.append((part_size, part_path))
+                remaining_size -= part_size
+        return retVal
+
+    def __call__(self, *args, **kwargs):
+        original_size = self.file_to_split.stat().st_size
+        splits = self.calc_splits(original_size)
+        print(f"original: {original_size}, max_size: {self.max_size}, self.num_parts: {len(splits)}, part_size: {splits[0][0]} naive total {len(splits)*splits[0][0]}")
+        print("\n   ".join(str(s[1]) for s in splits))
+        with open(self.file_to_split, "rb") as fts:
+            for part_size, part_path in splits:
+                with open(part_path, "wb") as pfd:
+                    pfd.write(fts.read(part_size))
+        if self.remove_original:
+            self.file_to_split.unlink()
+
+
+class JoinFile(PythonBatchCommandBase, essential=True):
+    def __init__(self, file_to_join, remove_parts=True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.file_to_join = Path(file_to_join)
+        self.remove_parts = remove_parts
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_to_join={utils.quoteme_raw_by_type(self.file_to_join)}""")
+        all_args.append(f"""remove_parts={self.remove_parts}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"join file {self.file_to_join}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        if not self.file_to_join.name.endswith(".aa"):
+            raise ValueError(f"name of file to join must end with .aa not: {self.file_to_join.name}")
+        files_to_join = utils.find_split_files(self.file_to_join)
+        joined_file_path = self.file_to_join.parent.joinpath(self.file_to_join.stem)
+        with open(joined_file_path, "wb") as wfd:
+            for part_file in files_to_join:
+                with open(part_file, "rb") as rfd:
+                    wfd.write(rfd.read())
+        if self.remove_parts:
+            for part_file in files_to_join:
+                os.unlink(part_file)

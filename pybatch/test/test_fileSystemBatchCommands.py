@@ -8,7 +8,7 @@ import unittest
 import subprocess
 import stat
 import ctypes
-import io
+import math
 import contextlib
 import filecmp
 import random
@@ -407,6 +407,18 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def test_FileSizes_repr(self):
         self.pbt.reprs_test_runner(FileSizes('rumba', out_file="empty.txt"))
 
+    def test_FileSizes(self):
+        folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")
+        random_data_file_1 = (self.pbt.path_inside_test_folder("random_data_file_1"), 999)
+        random_data_file_2 = (self.pbt.path_inside_test_folder("random_data_file_2"), 888)
+        list_file = self.pbt.path_inside_test_folder("list_file")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_1[0], random_data_file_1[1])
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file_2[0], random_data_file_2[1])
+        self.pbt.batch_accum += FileSizes(folder_to_list, out_file=list_file)
+        self.pbt.exec_and_capture_output()
+
     def test_MakeRandomDataFile_repr(self):
         self.pbt.reprs_test_runner(MakeRandomDataFile('rumba', file_size=1234))
         with self.assertRaises(ValueError):
@@ -415,7 +427,6 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def test_MakeRandomDataFile(self):
         random_data_file_1: Path = (self.pbt.path_inside_test_folder("random_data_file_1"), 1799)
         random_data_file_zero = (self.pbt.path_inside_test_folder("random_data_file_zero"), 0)
-        random_data_file_negative = (self.pbt.path_inside_test_folder("random_data_file_negative"), -19)
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += MakeRandomDataFile(random_data_file_1[0], random_data_file_1[1])
@@ -424,9 +435,37 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertEqual(random_data_file_1[1], os.path.getsize(random_data_file_1[0]))
         self.assertEqual(random_data_file_zero[1], os.path.getsize(random_data_file_zero[0]))
 
+    def test_SplitJoinFile_repr(self):
+        self.pbt.reprs_test_runner(SplitFile('rumba', 7000),
+                                   SplitFile('pumba', 8000, remove_original=False),
+                                   SplitFile('dima', 9000, remove_original=True),
+                                   JoinFile('rumba.aa'),
+                                   JoinFile('pumba.aa', remove_parts=False),
+                                   JoinFile('dima.aa', remove_parts=True))
+
+    def test_SplitJoinFile(self):
+        file_size = 15
+        part_size = 5
+        expected_num_parts = (file_size // part_size) + (1 if file_size % part_size > 0 else 0)
+        expected_part_size = math.ceil(file_size / expected_num_parts)
+
+        file_to_split: Path = (self.pbt.path_inside_test_folder("file_to_split"))
+        file_to_split_before: Path = (self.pbt.path_inside_test_folder("file_to_split.before"))
+        first_split_file: Path = (self.pbt.path_inside_test_folder("file_to_split.aa"))
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeRandomDataFile(file_to_split, file_size)
+        self.pbt.batch_accum += SplitFile(file_to_split, part_size, remove_original=False)
+        self.pbt.batch_accum += CopyFileToFile(file_to_split, file_to_split_before)
+        self.pbt.batch_accum += RmFile(file_to_split)
+        self.pbt.batch_accum += JoinFile(first_split_file, remove_parts=False)
+        self.pbt.exec_and_capture_output()
+
+        are_files_the_same = filecmp.cmp(file_to_split_before, file_to_split, shallow=False)
+        self.assertTrue(are_files_the_same, f"{self.pbt.which_test}: before split and after join fies are not the same")
+
     def test_something(self):
-        the_file =  "C:\\ProgramData\\Waves Audio\\Central\\V10\\new_require.yaml"
+        the_file = "C:\\ProgramData\\Waves Audio\\Central\\V10\\new_require.yaml"
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += Chmod(the_file, "ugo+rw")
         self.pbt.exec_and_capture_output()
-

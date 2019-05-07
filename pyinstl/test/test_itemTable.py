@@ -8,7 +8,7 @@ import time
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
-from pyinstl.indexItemTable import ItemTableYamlReader, IndexItemsTable
+from pyinstl.indexItemTable import IndexItemsTable
 import aYaml
 
 

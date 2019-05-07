@@ -65,7 +65,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                         values = list()
                         for item in contents:
                             with kwargs['node-stack'](item):
-                                if isinstance(item.value, (str, int)):
+                                if isinstance(item.value, (str, int, type(None))):
                                     values.append(item.value)
                                 else:
                                     raise TypeError(f"Values for configVar {identifier} should be of type str or int not {type(item.value)}")

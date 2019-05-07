@@ -18,6 +18,7 @@ import traceback
 import queue
 import logging
 import logging.handlers
+from pathlib import Path
 
 from utils import misc_utils as utils
 
@@ -57,7 +58,9 @@ def setup_stream_hdlr():
 
 def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
     '''Setting up a logging handler'''
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    log_file_path = Path(log_file_path).resolve()
+    log_file_folder = log_file_path.parent
+    os.makedirs(log_file_path.parent, exist_ok=True)
     top_logger = logging.getLogger()
 
     if rotate:
