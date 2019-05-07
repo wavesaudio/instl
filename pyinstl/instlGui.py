@@ -559,7 +559,7 @@ class InstlGui(InstlInstanceBase):
 
     def check_yaml(self, path_to_yaml):
         command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",
-                        "--in", path_to_yaml]
+                        "--in", path_to_yaml, "--silent"]
 
         try:
             if getattr(os, "setsid", None):

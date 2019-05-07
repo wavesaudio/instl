@@ -79,6 +79,7 @@ class CommandLineOptions(object):
     ABORT_FILE = OptionToConfigVar()
     SHELL = OptionToConfigVar()
     RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
+    __SILENT__ = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -328,7 +329,15 @@ def prepare_args_parser(in_command):
                                     help="database file")
 
     # the following option groups each belong only to a single command
-    if 'trans' == in_command:
+    if 'read-yaml' == in_command:#__SILENT__
+        read_yaml_options = command_parser.add_argument_group(description=in_command+' arguments:')
+        read_yaml_options.add_argument('--silent',
+                            required=False,
+                            default=False,
+                            action='store_true',
+                            dest='__SILENT__',
+                            help="minimal output")
+    elif 'trans' == in_command:
         trans_options = command_parser.add_argument_group(description=in_command+' arguments:')
         trans_options.add_argument('--props', '-p',
                                 required=False,
