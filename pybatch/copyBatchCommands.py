@@ -59,6 +59,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  copy_owner=True,
                  verbose=0,
                  dry_run=False,
+                 copy_stat=True,
                  **kwargs):
         super().__init__(**kwargs)
         self.src = src
@@ -76,6 +77,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.has_chown = hasattr(os, 'chown')
         self.verbose = verbose
         self.dry_run = dry_run
+        self.copy_stat = copy_stat
         self.top_destination_does_not_exist = False  # will be set to true is destination does not exist saving many checks
 
         self._get_ignored_files_func = None
@@ -110,6 +112,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("copy_owner", self.copy_owner, True))
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
+        params.append(self.optional_named__init__param("copy_stat", self.copy_stat, True))
         all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
@@ -278,7 +281,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
                 if not self.dry_run:
                     _fast_copy_file(src, dst)
-                    shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+                    if self.copy_stat:
+                        shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
             else:  # try to create hard link
                 try:
                     self.dry_run or os.link(src, dst)
@@ -290,7 +294,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
                     if not self.dry_run:
                         _fast_copy_file(src, dst)
-                        shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+                        if self.copy_stat:
+                            shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
             if self.copy_owner and self.has_chown:
                 src_st = src.stat()
                 os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
