@@ -55,7 +55,7 @@ class RaiseException(PythonBatchCommandBase, essential=True):
         raise self.exception_type(self.exception_message)
 
 
-class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 0}):
+class Stage(PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True, kwargs_defaults={'own_progress_count': 1}):
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
         Stage itself preforms no action only the contained commands will be preformed
     """
