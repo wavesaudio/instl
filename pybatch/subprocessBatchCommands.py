@@ -66,11 +66,17 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
         if self.out_file is None:
             local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+            if local_stdout:
+                print(local_stdout)
         else:
             out_stream.close()
 
         if self.err_file is None:
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
+            if local_stderr:
+                print(local_stderr, file=sys.stderr)
+                if completed_process.returncode == 0:
+                    completed_process.returncode = 123
         else:
             err_stream.close()
 
@@ -99,8 +105,8 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 class CUrl(RunProcessBase):
     """ download a file using curl """
     def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
-                 max_time: int=180, retires: int=2, retry_delay: int=8) -> None:
-        super().__init__()
+                 max_time: int=180, retires: int=2, retry_delay: int=8, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.curl_path = curl_path
@@ -285,7 +291,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False, 'own_progress_count': 0}):
+class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False}):
     """
         run another python-batch command in a thread
     """
@@ -295,13 +301,13 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         self.thread_name = thread_name
         self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
                               #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
-
-    def total_progress_count(self) -> int:
-        retVal = self.own_progress_count
-        retVal += self.what_to_run.total_progress_count()
-        return retVal
+        self.own_progress_count += self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
+        # what_to_run should not increment or report progress because there is no way to know when it will happen
+        # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
         if self.thread_name is not None:
             all_args.append(utils.quoteme_raw_by_type(self.thread_name))

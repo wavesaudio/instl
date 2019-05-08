@@ -25,24 +25,25 @@ class InstlClientReport(InstlClient):
             config_vars["__MAIN_OUT_FILE__"] = "stdout"
 
     def command_output(self):
-        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        if not bool(config_vars['__SILENT__']):
+            out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
-        output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
+            output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 
-        if output_format == "json":
-            output_text = json.dumps(self.output_data, indent=1)
-        elif output_format == "yaml":
-            io_str = io.StringIO()
-            for yaml_data in self.output_data:
-                 aYaml.writeAsYaml(yaml_data, io_str)
-            output_text = io_str.getvalue()
-        else:  # output_format == "text":  text is the default format
-            lines = [", ".join(line_data) for line_data in self.output_data]
-            output_text = "\n".join(lines)
+            if output_format == "json":
+                output_text = json.dumps(self.output_data, indent=1)
+            elif output_format == "yaml":
+                io_str = io.StringIO()
+                for yaml_data in self.output_data:
+                     aYaml.writeAsYaml(yaml_data, io_str)
+                output_text = io_str.getvalue()
+            else:  # output_format == "text":  text is the default format
+                lines = [", ".join(line_data) for line_data in self.output_data]
+                output_text = "\n".join(lines)
 
-        with utils.write_to_file_or_stdout(out_file) as wfd:
-            wfd.write(output_text)
-            wfd.write("\n")
+            with utils.write_to_file_or_stdout(out_file) as wfd:
+                wfd.write(output_text)
+                wfd.write("\n")
 
     def do_report_versions(self):
         self.guids_to_ignore = set(list(config_vars.get("MAIN_IGNORED_TARGETS", [])))

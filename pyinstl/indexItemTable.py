@@ -161,7 +161,7 @@ class IndexItemsTable(object):
         :return: list of all iids in the db that have guids, empty list if none are found
         """
         query_text = """
-            SELECT owner_iid
+            SELECT owner_iid, detail_value
             from index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND owner_iid=original_iid
@@ -623,7 +623,7 @@ class IndexItemsTable(object):
         template_name = template_match['template_name']
         template_args = template_match['template_args'].split(',')
         template_args = [a.strip() for a in template_args]
-        template_text = config_vars[template_name].raw(join_sep="")
+        template_text = config_vars[template_name].raw()
         yaml_text = "--- !index\n"
         for instance_node in instances_node.value:
             with kwargs['node-stack'](instance_node):

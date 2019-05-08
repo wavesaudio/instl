@@ -11,6 +11,7 @@ import subprocess
 from collections import defaultdict
 import stat
 import zlib
+import tempfile
 
 import utils
 import aYaml
@@ -30,7 +31,7 @@ class InstlAdmin(InstlInstanceBase):
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def get_default_out_file(self) -> None:
-        if "__MAIN_INPUT_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
+        if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
             config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def set_default_variables(self):
@@ -213,7 +214,7 @@ class InstlAdmin(InstlInstanceBase):
                 #accum += self.platform_helper.mkdir(revision_folder_path)
             accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
                                                                              config_vars.resolve_str(revision_folder_path),
-                                                                             link_dest=True, ignore_patterns=".svn", preserve_dest_files=False)
+                                                                             hard_links=True, ignore_patterns=[".svn"], preserve_dest_files=False)
 
             # get info from SVN for all files in revision
             self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
@@ -529,12 +530,12 @@ class InstlAdmin(InstlInstanceBase):
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
 
-        stage_folder = config_vars["STAGING_FOLDER"].str()
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
         folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         if tuple(folders_to_check) == (stage_folder,):
             self.progress("fix-symlink for the whole repository")
         else:
-            self.progress("fix-symlink limited to ", "; ".join(folders_to_check))
+            self.progress("fix-symlink limited to ", "; ".join([os.fspath(i) for i in folders_to_check]))
 
         for folder_to_check in folders_to_check:
             self.batch_accum += CreateSymlinkFilesInFolder(folder_to_check)
@@ -549,88 +550,98 @@ class InstlAdmin(InstlInstanceBase):
         forbidden_file_regex_list = list(config_vars["FILE_EXCLUDE_REGEX"])
         self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
+    def raise_if_forbidden_file(self, item_to_check):
+        if self.compiled_forbidden_file_regex.search(os.fspath(item_to_check)):
+            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+
+    def raise_if_forbidden_dir(self, item_to_check):
+        if self.compiled_forbidden_folder_regex.search(os.fspath(item_to_check)):
+            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = config_vars["STAGING_FOLDER"].str()
-        svn_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
 
         self.compile_exclude_regexi()
 
-        self.batch_accum += Unlock(stage_folder, recursive=True)
-        self.batch_accum += Progress("chflags -R nouchg " + stage_folder)
-        self.batch_accum += Cd(svn_folder)
         stage_folder_svn_folder_pairs = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
-            self.progress("stage2svn limited to ", limit_list)
+            self.progress("stage2svn limited to:")
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                stage_path = os.path.join(stage_folder,limit)
-                svn_path = os.path.join(svn_folder, limit)
+                stage_path = Path(stage_folder, limit)
+                svn_path = Path(svn_folder, limit)
                 stage_folder_svn_folder_pairs.append((stage_path, svn_path))
         else:
-            self.progress("stage2svn for the whole repository")
+            self.progress("stage2svn for the whole repository:")
             stage_folder_svn_folder_pairs.append((stage_folder, svn_folder))
+
         for pair in stage_folder_svn_folder_pairs:
-            if self.compiled_forbidden_folder_regex.search(pair[0]):
-                raise utils.InstlException(pair[0] + " has forbidden characters should not be committed to svn")
+            self.progress(f"    {pair[0]} -> {pair[1]}")
+            self.raise_if_forbidden_dir(pair[0])
+
+        self.batch_accum += Unlock(stage_folder, recursive=True)
+        self.batch_accum += Cd(svn_folder)
+        for pair in stage_folder_svn_folder_pairs:
+            # compare stage to svn folder
             comparator = filecmp.dircmp(pair[0], pair[1], ignore=[".svn", ".DS_Store", "Icon\015"])
-            self.stage2svn_for_folder(comparator)
+            # create copy instructions with compare results
+            self.stage2svn_with_comparator(comparator)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def stage2svn_for_folder(self, comparator):
-        # copy new items:
+    def stage2svn_with_comparator(self, comparator):
+        """ create stage to svn copy instructions for comparator
+            we cannot just use CopyDirToDir since there are some caveats and exceptions
+        """
         do_not_remove_items = list()
-        for left_only_item in sorted(comparator.left_only):
-            left_item_path = os.path.join(comparator.left, left_only_item)
-            right_item_path = os.path.join(comparator.right, left_only_item)
-            if os.path.islink(left_item_path):
-                raise utils.InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
-            elif os.path.isfile(left_item_path):
-                if self.compiled_forbidden_file_regex.search(left_item_path):
-                    raise utils.InstlException(left_item_path + " has forbidden characters should not be committed to svn")
 
-                # if left is .wtar.aa file but there is an identical .wtar on the right - do no add.
+        for svn_only_item in sorted(comparator.left_only):
+            # copy items found in stage but not in svn
+            stage_only_item_path = Path(comparator.left, svn_only_item)
+            svn_item_path = Path(comparator.right, svn_only_item)
+            if stage_only_item_path.is_symlink():
+                raise utils.InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+            elif stage_only_item_path.is_file():
+                self.raise_if_forbidden_file(stage_only_item_path)
+
+                # if stage file is .wtar.aa file but there is an identical .wtar on the right - do not add.
                 # this is done to help transitioning to single wtar files to be .wtar.aa without forcing the users
                 # to download again just because extension changed.
                 copy_and_add_file = True
-                if left_item_path.endswith(".wtar.aa"):
-                    right_item_path_without_aa = right_item_path[:-3]
-                    if os.path.isfile(right_item_path_without_aa):
-                        left_checksum = utils.get_wtar_total_checksum(left_item_path)
-                        right_checksum = utils.get_wtar_total_checksum(right_item_path_without_aa)
-                        if left_checksum == right_checksum:
+                if stage_only_item_path.name.endswith(".wtar.aa"):
+                    svn_item_path_without_aa = Path(os.fspath(svn_item_path)[:-3])
+                    if svn_item_path_without_aa.is_file():
+                        stage_file_checksum = utils.get_wtar_total_checksum(stage_only_item_path)
+                        svn_file_checksum = utils.get_wtar_total_checksum(svn_item_path_without_aa)
+                        if stage_file_checksum == svn_file_checksum:
                             copy_and_add_file = False
-                            do_not_remove_items.append(os.path.basename(right_item_path_without_aa))
+                            do_not_remove_items.append(svn_item_path_without_aa.name)
 
                 if copy_and_add_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
-                    self.batch_accum += Progress(f"copy file {left_item_path}")
+                    self.batch_accum += CopyFileToDir(stage_only_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"])
                     # tell svn about new items, svn will not accept 'add' for changed items
-                    self.batch_accum += self.platform_helper.svn_add_item(right_item_path)
-                    self.batch_accum += Progress(f"add to svn {right_item_path}")
+                    self.batch_accum += SVNAdd(svn_item_path)
                 else:
-                    self.batch_accum += Progress(f"not adding {left_item_path} because {right_item_path_without_aa} exists and is identical")
+                    self.batch_accum += Progress(f"not adding {stage_only_item_path} because {svn_item_path_without_aa} exists and is identical")
 
-            elif os.path.isdir(left_item_path):
-                if self.compiled_forbidden_folder_regex.search(left_item_path):
-                    raise utils.InstlException(left_item_path + " has forbidden characters should not be committed to svn")
+            elif stage_only_item_path.isdir():
+                self.raise_if_forbidden_dir(stage_only_item_path)
                 # check that all items under a new folder pass the forbidden file/folder rule
-                for root, dirs, files in os.walk(left_item_path, followlinks=False):
+                for root, dirs, files in os.walk(stage_only_item_path, followlinks=False):
                     for item in sorted(files):
-                        if self.compiled_forbidden_file_regex.search(item):
-                            raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+                        self.raise_if_forbidden_file(item)
                     for item in sorted(dirs):
-                        if self.compiled_forbidden_folder_regex.search(item):
-                            raise utils.InstlException(os.path.join(root, item)+" has forbidden characters should not be committed to svn")
+                        self.raise_if_forbidden_dir(item)
 
-                self.batch_accum += CopyDirToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn", preserve_dest_files=False)
-                self.batch_accum += Progress(f"copy dir {left_item_path}")
+                self.batch_accum += CopyDirToDir(stage_only_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"], preserve_dest_files=False)
+                self.batch_accum += Progress(f"copy dir {stage_only_item_path}")
             else:
-                raise utils.InstlException(left_item_path+" not a file, dir or symlink, an abomination!")
+                raise utils.InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
 
         # copy changed items:
 
@@ -639,40 +650,37 @@ class InstlAdmin(InstlInstanceBase):
                                     # modification date has changed.
         for diff_item in sorted(comparator.diff_files):
             copy_file = diff_item not in do_not_copy_items
-            left_item_path = os.path.join(comparator.left, diff_item)
-            right_item_path = os.path.join(comparator.right, diff_item)
-            if os.path.islink(left_item_path):
+            left_item_path = Path(comparator.left, diff_item)
+            svn_item_path = Path(comparator.right, diff_item)
+            if left_item_path.is_symlink():
                 raise utils.InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
-            elif os.path.isfile(left_item_path):
-                if self.compiled_forbidden_file_regex.search(left_item_path):
-                    raise utils.InstlException(left_item_path+" has forbidden characters should not be committed to svn")
+            elif left_item_path.is_file():
+                self.raise_if_forbidden_file(left_item_path)
 
                 if utils.is_first_wtar_file(diff_item):
-                    left_checksum = utils.get_wtar_total_checksum(left_item_path)
-                    right_checksum = utils.get_wtar_total_checksum(right_item_path)
-                    if left_checksum == right_checksum:
+                    stage_file_checksum = utils.get_wtar_total_checksum(left_item_path)
+                    _checksum = utils.get_wtar_total_checksum(svn_item_path)
+                    if stage_file_checksum == _checksum:
                         copy_file = False
                         split_wtar_files = utils.find_split_files(left_item_path)
-                        do_not_copy_items.extend([os.path.basename(split_wtar_file) for split_wtar_file in split_wtar_files])
+                        do_not_copy_items.extend([split_wtar_file.name for split_wtar_file in split_wtar_files])
 
                 if copy_file:
-                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, link_dest=False, ignore_patterns=".svn")
-                    self.batch_accum += Progress(f"copy {left_item_path}")
+                    self.batch_accum += CopyFileToDir(left_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"])
                 else:
                     self.batch_accum += Progress(f"identical {left_item_path}")
             else:
                 raise utils.InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
         # removed items:
-        for right_only_item in sorted(comparator.right_only):
-            if right_only_item not in do_not_remove_items:
-                item_to_remove = os.path.join(comparator.right, right_only_item)
-                self.batch_accum += self.platform_helper.svn_remove_item(item_to_remove)
-                self.batch_accum += Progress(f"remove from svn {item_to_remove}")
+        for svn_only_item in sorted(comparator.right_only):
+            if svn_only_item not in do_not_remove_items:
+                item_to_remove = os.path.join(comparator.right, svn_only_item)
+                self.batch_accum += SVNRemove(item_to_remove)
 
         # recurse to sub folders
         for sub_comparator in list(comparator.subdirs.values()):
-            self.stage2svn_for_folder(sub_comparator)
+            self.stage2svn_with_comparator(sub_comparator)
 
     def prepare_conditions_for_wtar(self):
         folder_wtar_regex_list = list(config_vars["FOLDER_WTAR_REGEX"])
@@ -686,103 +694,91 @@ class InstlAdmin(InstlInstanceBase):
             wtar_by_file_size_exclude_regex = list(config_vars["WTAR_BY_FILE_SIZE_EXCLUDE_REGEX"])
             self.compiled_wtar_by_file_size_exclude_regex = utils.compile_regex_list_ORed(wtar_by_file_size_exclude_regex)
         else:
-            self.compiled_wtar_by_file_size_exclude_regex = None
+            self.compiled_wtar_by_file_size_exclude_regex = re.compile(".+")
 
         self.already_wtarred_regex = re.compile("wtar(\.\w\w)?$")
 
-    def should_wtar(self, dir_item):
-        retVal = False
-        already_tarred = False
+    def should_wtar(self, dir_item: Path):
+        _should_wtar = False
+        _already_tarred = False
         try:
-            if self.already_wtarred_regex.search(dir_item):
-                already_tarred = True
-                raise Exception
-            if os.path.isdir(dir_item):
-                if self.compiled_folder_wtar_regex.search(dir_item):
-                    retVal = True
-                    raise Exception
-            elif os.path.isfile(dir_item):
-                if self.compiled_file_wtar_regex.search(dir_item):
-                    retVal = True
-                    raise Exception
-                if os.path.getsize(dir_item) > self.min_file_size_to_wtar:
-                    if self.compiled_wtar_by_file_size_exclude_regex is not None:
-                        if not re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item):
-                            retVal = True
+            if self.already_wtarred_regex.search(os.fspath(dir_item)):
+                _should_wtar = False
+                _already_tarred = True
+            elif dir_item.is_dir():
+                if self.compiled_folder_wtar_regex.search(os.fspath(dir_item)):
+                    # it's a folder matching one of the filters for wtarring a folder
+                    _should_wtar = True
+                    _already_tarred = False
+            elif dir_item.is_file():
+                if self.compiled_file_wtar_regex.search(os.fspath(dir_item)):
+                    # it's a file matching one of the filters for wtarring a file
+                    _should_wtar = True
+                    _already_tarred = False
+                elif dir_item.stat().st_size > self.min_file_size_to_wtar:
+                    # it's a file who's size is big enough to require wtarring
+                    if re.match(self.compiled_wtar_by_file_size_exclude_regex, os.fspath(dir_item)):
+                        _should_wtar = False
+                        _already_tarred = False
                     else:
-                        retVal = True
+                         # but not a file who's name matching one of the filters for NOT wtarring
+                        _should_wtar = True
+                        _already_tarred = False
+                else:
+                    _should_wtar = False
+                    _already_tarred = False
         except Exception:
             pass
-        return retVal, already_tarred
+        return _should_wtar, _already_tarred
 
     def do_wtar_staging_folder(self):
         self.batch_accum.set_current_section('admin')
         self.prepare_conditions_for_wtar()
-        self.batch_accum += self.platform_helper.split_func()
 
-        stage_folder = config_vars["STAGING_FOLDER"].str()
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
-        if tuple(folders_to_check) == (stage_folder,):
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        items_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
+        if tuple(items_to_check) == (stage_folder,):
             self.progress("wtar for the whole repository")
         else:
-            self.progress("wtar limited to ", "; ".join(folders_to_check))
+            self.progress("wtar limited to ", "; ".join([os.fspath(i) for i in items_to_check]))
 
-        for a_folder in folders_to_check:
+        for a_folder in items_to_check:
             self.batch_accum += Unlock(a_folder, recursive=True)
-            self.batch_accum += Progress(f"chflags -R nouchg {a_folder}")
-            self.batch_accum += f"""find "{a_folder}" -name ".DS_Store" -delete"""
-            self.batch_accum += Progress("delete ignored files")
+            self.batch_accum += RmGlob(a_folder, '**/.DS_Store')
+            self.batch_accum += Progress(f"delete ignored files in {a_folder}")
 
         total_items_to_tar = 0
         total_redundant_wtar_files = 0
-        while len(folders_to_check) > 0:
-            folder_to_check = folders_to_check.pop()
+        while len(items_to_check) > 0:
+            item_to_check = items_to_check.pop(0)
             items_to_tar = list()
             items_to_delete = list()  # these are .wtar files for items that no longer need wtarring
+            if not self.already_wtarred_regex.search(os.fspath(item_to_check)) and not item_to_check.is_symlink():
 
-            # check if the folder it self is candidate for wtarring
-            to_tar, already_tarred = self.should_wtar(folder_to_check)
-            if to_tar:
-                items_to_tar.append(folder_to_check)
-            else:
-                dir_items = os.listdir(folder_to_check)
-                for dir_item in sorted(dir_items):
-                    dir_item_full_path = os.path.join(folder_to_check, dir_item)
-                    if not os.path.islink(dir_item_full_path):
-                        to_tar, already_tarred = self.should_wtar(dir_item_full_path)
-                        if to_tar:
-                            items_to_tar.append(dir_item)
-                        else:
-                            redundant_wtar_files = utils.find_split_files_from_base_file(dir_item_full_path)
-                            total_redundant_wtar_files += len(redundant_wtar_files)
-                            items_to_delete.extend(redundant_wtar_files)
-                            if os.path.isdir(dir_item_full_path):
-                                folders_to_check.append(dir_item_full_path)
+                # the item is not a wtar file, so whether it needs wtarring or not,
+                # the old wtar parts, if any, should to be removed
+                items_to_delete.extend(utils.find_wtarred_parts_of_original(item_to_check))
 
-            if items_to_tar or items_to_delete:
-                total_items_to_tar += len(items_to_tar)
-                self.batch_accum += Progress(f"begin folder {folder_to_check}")
-                self.batch_accum += Cd(folder_to_check)
+                # check if the item itself is candidate for wtarring
+                to_tar, already_tarred = self.should_wtar(item_to_check)
+                if to_tar:
+                    items_to_tar.append(item_to_check)
+                else:
+                    # item_to_check does not need tarring, remove previous tars of this folder
+                    # and recursively check child entries
+                    if item_to_check.is_dir():
+                        more_paths_to_check = [Path(ent) for ent in sorted(list(os.scandir(item_to_check)), key=lambda i: i.is_dir())]
+                        items_to_check.extend(more_paths_to_check)
 
-                for item_to_delete in items_to_delete:
-                    self.batch_accum += self.platform_helper.rmfile(item_to_delete)
-                    self.batch_accum += Progress(f"removed file {item_to_delete}")
+                if items_to_tar or items_to_delete:
+                    total_items_to_tar += len(items_to_tar)
 
-                for item_to_tar in items_to_tar:
-                    item_to_tar_full_path = os.path.join(folder_to_check, item_to_tar)
+                    for item_to_delete in items_to_delete:
+                        self.batch_accum += RmFile(item_to_delete)
 
-                    self.batch_accum += self.platform_helper.tar_with_instl(item_to_tar)
-                    self.batch_accum += Progress(f"tar file {item_to_tar}")
-                    self.batch_accum += self.platform_helper.split(item_to_tar + ".wtar")
-                    self.batch_accum += Progress(f"split file {item_to_tar}.wtar")
-                    if os.path.isdir(item_to_tar_full_path):
-                        self.batch_accum += RmDir(item_to_tar)
-                        self.batch_accum += Progress(f"removed dir {item_to_tar}")
-                    elif os.path.isfile(item_to_tar_full_path):
-                        self.batch_accum += self.platform_helper.rmfile(item_to_tar)
-                        self.batch_accum += Progress(f"removed file {item_to_tar}")
-                    self.batch_accum += Progress(item_to_tar_full_path)
-                self.batch_accum += Progress(f"end folder {folder_to_check}")
+                    for item_to_tar in items_to_tar:
+                        self.batch_accum += Wtar(item_to_tar, split_threshold=self.min_file_size_to_wtar)
+                        self.batch_accum += RmFileOrDir(item_to_tar)
 
         self.progress("found", total_items_to_tar, "to wtar")
         if total_redundant_wtar_files:
@@ -794,8 +790,10 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_svn2stage(self):
         self.batch_accum.set_current_section('admin')
-        stage_folder = config_vars["STAGING_FOLDER"].str()
-        svn_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
+        self.get_default_out_file()
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
+        checkout_url = config_vars["SVN_REPO_URL"].str()
 
         # --limit command line option might have been specified
         limit_info_list = []
@@ -803,22 +801,16 @@ class InstlAdmin(InstlInstanceBase):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                limit_info_list.append((limit, os.path.join(svn_folder, limit), os.path.join(stage_folder, limit) ))
+                limit_info_list.append((limit, svn_folder.joinpath(limit), stage_folder.joinpath(limit)))
         else:
             limit_info_list.append(("", svn_folder, stage_folder))
 
         for limit_info in limit_info_list:
-            checkout_url = config_vars["SVN_REPO_URL"].str()
+            limit_checkout_url = checkout_url
             if limit_info[0] != "":
-                checkout_url += "/" + limit_info[0]
-            checkout_url_quoted = utils.quoteme_double(checkout_url)
-            limit_info_quoted = utils.quoteme_double(limit_info[1])
-            svn_command_parts = ['"$(SVN_CLIENT_PATH)"', "checkout", checkout_url_quoted, limit_info_quoted, "--depth", "infinity"]
-            svn_checkout_command = " ".join(svn_command_parts)
-            self.batch_accum += ShellCommand(svn_checkout_command, "svn checkout")
-            self.batch_accum += Progress(f"Checkout {checkout_url} to {limit_info[1]}")
-            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], link_dest=False, ignore_patterns=(".svn", ".DS_Store"), preserve_dest_files=False)
-            self.batch_accum += Progress(f"rsync {limit_info[1]} to {limit_info[2]}")
+                limit_checkout_url += "/" + limit_info[0]
+            self.batch_accum += SVNCheckout(url=limit_checkout_url, where=limit_info[1], depth="infinity")
+            self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], hard_links=False, ignore_patterns=[".svn", ".DS_Store"], delete_extraneous_files=True)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -990,7 +982,7 @@ class InstlAdmin(InstlInstanceBase):
         retVal = item.isFile() and self.should_file_be_exec(item.path)
         return retVal
 
-    def prepare_list_of_dirs_to_work_on(self, top_folder):
+    def prepare_list_of_dirs_to_work_on(self, top_folder: Path):
         """ Some command can operate on a subset of folders inside the main folder.
             If __LIMIT_COMMAND_TO__ is defined join top_folder to each item in __LIMIT_COMMAND_TO__.
             otherwise return top_folder.
@@ -1000,7 +992,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                retVal.append(os.path.join(top_folder, limit))
+                retVal.append(top_folder.joinpath(limit))
         else:
             retVal.append(top_folder)
         return retVal
@@ -1013,10 +1005,10 @@ class InstlAdmin(InstlInstanceBase):
         files_that_should_not_be_exec = list()
         files_that_must_be_exec = list()
 
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(config_vars["STAGING_FOLDER"].str())
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
         for folder_to_check in folders_to_check:
             self.batch_accum += Unlock(folder_to_check, recursive=True)
-            self.batch_accum += Progress("chflags -R nouchg " + folder_to_check)
             for root, dirs, files in os.walk(folder_to_check, followlinks=False):
                 for a_file in files:
                     item_path = os.path.join(root, a_file)
@@ -1025,15 +1017,12 @@ class InstlAdmin(InstlInstanceBase):
                     if file_is_exec != file_should_be_exec:
                         if file_should_be_exec:
                             self.batch_accum += Chmod(item_path, "a+x")
-                            self.batch_accum += Progress("chmod a+x " + item_path)
                             files_that_must_be_exec.append(item_path)
                         else:
                             self.batch_accum += Chmod(item_path, "a-x")
-                            self.batch_accum += Progress("chmod a-x " + item_path)
                             files_that_should_not_be_exec.append(item_path)
 
             self.batch_accum += Chmod(folder_to_check, mode="a+rw,+X", recursive=True)  # "-R a+rw,+X"
-            self.batch_accum += Progress("chmod -R a+rw,+X " + folder_to_check)
 
         if len(files_that_should_not_be_exec) > 0:
             self.progress(f"Exec bit will be removed from the {len(files_that_should_not_be_exec)} following files")
@@ -1216,4 +1205,39 @@ class InstlAdmin(InstlInstanceBase):
                 info_map_full_path = os.path.join(instl_folder_path, item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
-                    self.progress("""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
+                    self.progress(f"""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
+
+    def do_translate_guids(self):
+        file_to_translate_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        output_file_path = config_vars["__MAIN_OUT_FILE__"].Path()
+        a_temp_file = tempfile.NamedTemporaryFile(mode='w', dir=output_file_path.parent, delete=False)
+        try:
+            num_translated_guids = self.translate_guids_in_file(file_to_translate_path, a_temp_file.name)
+            os.replace(a_temp_file.name, output_file_path)
+            self.progress(f"""{num_translated_guids} guids translated""")
+        except Exception as ex:
+            pass
+        finally:
+            try: os.unlink(a_temp_file.name)
+            except: pass
+
+    def translate_guids_in_file(self, in_file, out_file):
+        num_translated_guids = 0
+        iid_to_guid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
+        guid_re = re.compile("""
+                (?P<guid>[a-fA-F0-9]{8}
+                (-[a-fA-F0-9]{4}){3}
+                -[a-fA-F0-9]{12})
+                """, re.VERBOSE)
+
+        with open(in_file, "r") as rfd:
+            with open(out_file, "w") as wfd:
+                for line in rfd.readlines():
+                    match = guid_re.search(line)
+                    if match:
+                        new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {iid_to_guid.get(match.group("guid").lower(), "?")}')
+                        wfd.write(new_line)
+                        num_translated_guids += 1
+                    else:
+                        wfd.write(line)
+        return num_translated_guids

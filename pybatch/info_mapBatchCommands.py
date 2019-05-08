@@ -27,12 +27,8 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.info_map_file = info_map_file
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
 
     def progress_msg_self(self) -> str:
         return f'''{self.__class__.__name__}'''
@@ -56,16 +52,10 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
-        if self.print_report:
-            the_repr += f''', print_report={self.print_report}'''
-        if self.raise_on_bad_checksum:
-            the_repr += f''', raise_on_bad_checksum={self.raise_on_bad_checksum}'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
+        all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
+        all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
@@ -112,12 +102,8 @@ class SetExecPermissionsInSyncFolder(InfoMapBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
         super().__init__(info_map_file, **kwargs)
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
 
     def progress_msg_self(self) -> str:
         return f'''Set exec permissions in download folder'''
@@ -141,12 +127,8 @@ class CreateSyncFolders(InfoMapBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
         super().__init__(info_map_file, **kwargs)
 
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}('''
-        if self.info_map_file is not None:
-            the_repr += f'''info_map_file={utils.quoteme_raw_by_type(self.info_map_file)}'''
-        the_repr += ")"
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
 
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''

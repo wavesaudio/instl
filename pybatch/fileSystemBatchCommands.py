@@ -1,17 +1,23 @@
-import os
+import sys
 import stat
 import random
 import string
-import shutil
+import itertools
 from pathlib import Path
-import shlex
+import math
 import collections
 from typing import List, Any, Optional, Union
 import re
 
+if sys.platform == 'win32':
+    import getpass
+    import win32security
+    import ntsecuritycon as con
+
 import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
+
 
 def touch(file_path):
     with open(file_path, 'a'):
@@ -42,8 +48,8 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
 
-    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
         self.num_files_per_dir = num_files_per_dir
@@ -264,8 +270,8 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
 
 class AppendFileToFile(PythonBatchCommandBase, essential=True):
     """ append the content of 'source_file' to 'target_file'"""
-    def __init__(self, source_file, target_file):
-        super().__init__()
+    def __init__(self, source_file, target_file, **kwargs):
+        super().__init__(**kwargs)
         self.source_file = source_file
         self.target_file = target_file
 
@@ -335,6 +341,11 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
 class Chmod(RunProcessBase, essential=True):
     """ change mode read.write/execute permissions for a file or folder"""
 
+    if sys.platform == 'darwin':
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+|-|=)(?P<perm>[rwxX]+)$""")
+    elif sys.platform == 'win32':
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+)(?P<perm>[rwx]+)$""")
+
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
     all_read_write = all_read | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
@@ -344,6 +355,10 @@ class Chmod(RunProcessBase, essential=True):
     who_2_perm = {'u': {'r': stat.S_IRUSR, 'w': stat.S_IWUSR, 'x': stat.S_IXUSR},
                   'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP},
                   'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH}}
+    if sys.platform == 'win32':
+        win_perms = {'r': con.FILE_GENERIC_READ,
+                 'w': con.FILE_GENERIC_WRITE|con.FILE_GENERIC_READ,
+                 'x': con.FILE_GENERIC_EXECUTE}
 
     def __init__(self, path, mode, **kwargs):
         super().__init__(**kwargs)
@@ -361,23 +376,51 @@ class Chmod(RunProcessBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
 
-    def parse_symbolic_mode(self, symbolic_mode_str):
+    def parse_symbolic_mode_mac(self, symbolic_mode_str):
+        """ parse chmod symbolic mode string e.g. uo+xw
+            return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
+        """
+        match = self.symbolic_mode_re.match(symbolic_mode_str)
+        if not match:
+            raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
+        symbolic_who = match.group('who')
+        if 'a' in symbolic_who:
+            symbolic_who = 'ugo'
+
+        symbolic_perm = match.group('perm')
+        actual_perms = 0
+        for w in symbolic_who:
+            for p in symbolic_perm:
+                actual_perms |= Chmod.who_2_perm[w][p]
+        return actual_perms, match.group('operation')
+
+    def parse_symbolic_mode_win(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
         """
         flags = 0
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<op>\+|-|=)(?P<perm>[rwxX]+)$""")
-        match = symbolic_mode_re.match(symbolic_mode_str)
+        match = self.symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
-        who = match.group('who')
-        if 'a' in who:
-            who = 'ugo'
-        perm = match.group('perm')
-        for w in who:
-            for p in perm:
-                flags |= Chmod.who_2_perm[w][p]
-        return flags, match.group('op')
+        if match.group('operation') != '+':
+            raise ValueError(f"on Windows the only chmod operation allowed is '+' not {match.group('operation')}")
+        symbolic_who = match.group('who')
+        if 'a' in symbolic_who:
+            symbolic_who = 'ugo'
+
+        actual_who = list()
+        for w in symbolic_who:
+            if w == "u":
+                actual_who.append(getpass.getuser())
+            elif w == "g":
+                actual_who.append("Users")
+            elif w == "o":
+                actual_who.append("Everyone")
+
+        actual_perms = match.group('perm')
+        for p in actual_perms:
+            flags |= self.win_perms[p]
+        return actual_who, flags, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
         if sys.platform == 'darwin':
@@ -395,24 +438,44 @@ class Chmod(RunProcessBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-       # os.chmod is not recursive so call the system's chmod
-        if self.recursive:
-            return super().__call__(args, kwargs)
-        else:
-            resolved_path = utils.ResolvedPath(self.path)
-            path_stats = resolved_path.stat()
-            flags, op = self.parse_symbolic_mode(self.mode)
-            mode_to_set = flags
-            current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
-            if op == '+':
-                mode_to_set |= current_mode
-            elif op == '-':
-                mode_to_set = current_mode & ~flags
-            if mode_to_set != current_mode:
-                self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
-                os.chmod(resolved_path, mode_to_set)
+        if sys.platform == 'darwin':
+            # os.chmod is not recursive so call the system's chmod
+            if self.recursive:
+                return super().__call__(args, kwargs)
             else:
-                self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
+                resolved_path = utils.ResolvedPath(self.path)
+                path_stats = resolved_path.stat()
+                flags, op = self.parse_symbolic_mode_mac(self.mode)
+                mode_to_set = flags
+                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
+                if op == '+':
+                    mode_to_set |= current_mode
+                elif op == '-':
+                    mode_to_set = current_mode & ~flags
+                if mode_to_set != current_mode:
+                    self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
+                    os.chmod(resolved_path, mode_to_set)
+                else:
+                    self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
+
+        elif sys.platform == 'win32':
+            if self.recursive:
+                return super().__call__(args, kwargs)
+            else:
+                resolved_path = utils.ResolvedPath(self.path)
+                who, perms, operation = self.parse_symbolic_mode_win(self.mode)
+
+                accounts = list()
+                for name in who:
+                    user, domain, type = win32security.LookupAccountName("", name)
+                    accounts.append(user)
+
+                sd = win32security.GetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION)
+                dacl = sd.GetSecurityDescriptorDacl()
+                for account in accounts:
+                    dacl.AddAccessAllowedAce(win32security.ACL_REVISION, perms, account)
+                sd.SetSecurityDescriptorDacl(1, dacl, 0)
+                win32security.SetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION, sd)
 
 
 class ChmodAndChown(PythonBatchCommandBase, essential=True):
@@ -510,8 +573,8 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         Will create a file with random data of the requested size
     """
 
-    def __init__(self, file_path: int, file_size: int) -> None:
-        super().__init__()
+    def __init__(self, file_path: int, file_size: int, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.file_path = file_path
         self.file_size = file_size
         if self.file_size < 0:
@@ -530,3 +593,98 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
         with open(self.file_path, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
+
+class SplitFile(PythonBatchCommandBase, essential=True):
+    """ Split a file to one or more parts, each part at most max_size bytes.
+        The sizes of parts are attempted to be equal
+        The parts are named with the same name the original with extensions, .aa. .ab, ...
+        if remove_original is true the original file is removed
+        if max_size is 0, the file is just renamed with extension .aa
+    """
+    def __init__(self, file_to_split, max_size=0, remove_original=True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.file_to_split = Path(file_to_split)
+        self.max_size = max_size
+        self. remove_original = remove_original
+        self.num_parts = 0
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_to_split={utils.quoteme_raw_by_type(self.file_to_split)}""")
+        all_args.append(f"""max_size={self.max_size}""")
+        all_args.append(f"""remove_original={self.remove_original}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"split file {self.file_to_split} to {self.num_parts} parts"
+        return the_progress_msg
+
+    def calc_splits(self, original_size):
+        """ return a list of files names and sizes"""
+        retVal = list()
+
+        if self.max_size == 0:  # just rename the file
+            self.num_parts = 1
+            part_size = original_size
+        else:
+            self.num_parts = (original_size // self.max_size) + (1 if original_size % self.max_size > 0 else 0)
+            part_size = math.ceil(original_size / self.num_parts)
+
+        # calc how many char the extension (.aa, .ab,...) should be
+        # minimum is 2, but there can be more if number of parts > 26*26
+        extension_length = 2
+        num_ext_combinations = len(string.ascii_lowercase)**extension_length
+        while num_ext_combinations < self.num_parts:
+            num_ext_combinations *= len(string.ascii_lowercase)
+            extension_length += 1
+
+        name_iter = itertools.product(string.ascii_lowercase, repeat=extension_length)
+        remaining_size = original_size
+        original_extension = self.file_to_split.suffix
+        for p in range(self.num_parts):
+            part_path = self.file_to_split.with_suffix(f"{original_extension}.{''.join(next(name_iter))}")
+            if remaining_size <= part_size:
+                retVal.append((remaining_size, part_path))
+                remaining_size = 0
+            else:
+                retVal.append((part_size, part_path))
+                remaining_size -= part_size
+        return retVal
+
+    def __call__(self, *args, **kwargs):
+        original_size = self.file_to_split.stat().st_size
+        splits = self.calc_splits(original_size)
+        print(f"original: {original_size}, max_size: {self.max_size}, self.num_parts: {len(splits)}, part_size: {splits[0][0]} naive total {len(splits)*splits[0][0]}")
+        print("\n   ".join(str(s[1]) for s in splits))
+        with open(self.file_to_split, "rb") as fts:
+            for part_size, part_path in splits:
+                with open(part_path, "wb") as pfd:
+                    pfd.write(fts.read(part_size))
+        if self.remove_original:
+            self.file_to_split.unlink()
+
+
+class JoinFile(PythonBatchCommandBase, essential=True):
+    def __init__(self, file_to_join, remove_parts=True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.file_to_join = Path(file_to_join)
+        self.remove_parts = remove_parts
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(f"""file_to_join={utils.quoteme_raw_by_type(self.file_to_join)}""")
+        all_args.append(f"""remove_parts={self.remove_parts}""")
+
+    def progress_msg_self(self):
+        the_progress_msg = f"join file {self.file_to_join}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        if not self.file_to_join.name.endswith(".aa"):
+            raise ValueError(f"name of file to join must end with .aa not: {self.file_to_join.name}")
+        files_to_join = utils.find_split_files(self.file_to_join)
+        joined_file_path = self.file_to_join.parent.joinpath(self.file_to_join.stem)
+        with open(joined_file_path, "wb") as wfd:
+            for part_file in files_to_join:
+                with open(part_file, "rb") as rfd:
+                    wfd.write(rfd.read())
+        if self.remove_parts:
+            for part_file in files_to_join:
+                os.unlink(part_file)

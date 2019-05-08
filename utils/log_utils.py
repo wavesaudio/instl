@@ -11,19 +11,23 @@ import os
 import re
 import sys
 import json
-import appdirs
 import inspect
-import pathlib
+import multiprocessing
+import threading
+import traceback
+import queue
 import logging
 import logging.handlers
-from logging.config import dictConfig
+from pathlib import Path
 
 from utils import misc_utils as utils
 
+top_logger = logging.getLogger()
+
 
 def config_logger():
-    config_dict = get_config_dict()
-    dictConfig(config_dict)
+    if '--no-stdout' not in sys.argv:
+        setup_stream_hdlr()
     # command line options relating to logging are parsed here, as soon as possible
     if '--log' in sys.argv:
         try:
@@ -31,71 +35,44 @@ def config_logger():
             for i_log_file in range(log_option_index+1, len(sys.argv)):
                 log_file_path = sys.argv[i_log_file]
                 if not log_file_path.startswith('-'):
-                    setup_file_logging(log_file_path)
+                    setup_file_logging(log_file_path, rotate=False)
                 else:
                     break
         except:
             pass
-
-
-def get_config_dict():
-    config_dict = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'simple': {
-                'class': 'logging.Formatter',
-                'format': '%(message)s'
-            },
-            'detailed': {
-                '()': CustomLogFormatter,
-            },
-            'json': {
-                '()': JsonLogFormatter,
-                'format': '%(message)s'
-            }
-        },
-        'filters': {
-            'parent': {
-                '()': ParentLogFilter,
-            }
-        },
-        'handlers': {
-            'errors': {
-                'class': 'logging.StreamHandler',
-                'level': 'ERROR',
-                'formatter': 'simple',
-                'stream': sys.stderr
-            },
-        },
-        'root': {
-            'level': 'DEBUG',  # Currently disabled. Need to add verbose mode from cmd line
-        },
-    }
-    if '--no-stdout' not in sys.argv:
-        config_dict['handlers']['console'] = {
-                'class': 'logging.StreamHandler',
-                'level': 'INFO',
-                'formatter': 'simple',
-                'stream': sys.stdout
-            }
-    if '--no-system-log' not in sys.argv:
+    elif '--no-system-log' not in sys.argv:
         system_log_file_path = utils.get_system_log_file_path()
-        config_dict['handlers']['system_log'] = {
-                'class': 'logging.handlers.RotatingFileHandler',
-                'level': 'DEBUG',
-                'formatter': 'detailed',
-                'filename': system_log_file_path,
-                'mode': 'a',
-                'maxBytes': 5000000,
-                'backupCount': 10,
-                'filters': ['parent']
-            }
-        os.makedirs(os.path.dirname(system_log_file_path), exist_ok=True)
+        setup_file_logging(system_log_file_path)
 
-    config_dict['root']['handlers'] = [*config_dict['handlers'].keys()]
 
-    return config_dict
+def setup_stream_hdlr():
+    stdout_stream_hdlr = logging.StreamHandler(stream=sys.stdout)
+    stderr_stream_hdlr = logging.StreamHandler(stream=sys.stderr)
+    for strm_hdlr in [stdout_stream_hdlr, stderr_stream_hdlr]:
+        strm_hdlr.setLevel(logging.INFO if strm_hdlr == stdout_stream_hdlr else logging.ERROR)
+        if strm_hdlr == stdout_stream_hdlr:
+            strm_hdlr.addFilter(SameLevelFilter(logging.WARNING))  # Setting stdout to ignore any message higher than warning
+        strm_hdlr.setFormatter(logging.Formatter('%(message)s'))
+        top_logger.addHandler(strm_hdlr)
+
+
+def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
+    '''Setting up a logging handler'''
+    log_file_path = Path(log_file_path).resolve()
+    log_file_folder = log_file_path.parent
+    os.makedirs(log_file_path.parent, exist_ok=True)
+    top_logger = logging.getLogger()
+
+    if rotate:
+        fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=5000000, backupCount=10)
+    else:
+        fileLogHandler =  logging.FileHandler(log_file_path)
+    fileLogHandler.setLevel(level)
+    fileLogHandler.set_name(f"(log_file_name)_log_handler")
+    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}', datefmt='%Y-%m-%d_%H:%M:%S', style='%')
+
+    fileLogHandler.setFormatter(formatter)
+    top_logger.addHandler(fileLogHandler)
 
 
 class ParentLogFilter(logging.Filter):
@@ -154,48 +131,11 @@ class JsonLogFormatter(object):
         return json.dumps(obj, indent=4)
 
 
-def get_log_folder_path(in_app_name, in_app_author):
-    retVal = appdirs.user_log_dir(appname=in_app_name, appauthor=in_app_author)
-    os.makedirs(retVal, exist_ok=True)
-    return retVal
-
-
-def get_log_file_path(in_app_name, in_app_author, debug=False):
-    retVal = get_log_folder_path(in_app_name, in_app_author)
-    if debug:
-        retVal = os.path.join(retVal, "log.debug.txt")
-    else:
-        retVal = os.path.join(retVal, "log.txt")
-    return retVal
-
 default_logging_level = logging.INFO
 debug_logging_level = logging.DEBUG
 
 default_logging_started = False
 debug_logging_started = False
-
-
-def setup_logging(in_app_name, in_app_author):
-    top_logger = logging.getLogger()
-    top_logger.setLevel(default_logging_level)
-    # setup INFO level logger
-    log_file_path = get_log_file_path(in_app_name, in_app_author, debug=False)
-    rotatingHandler = logging.handlers.RotatingFileHandler(
-        log_file_path, maxBytes=200000, backupCount=5)
-    rotatingHandler.set_name("instl_log_handler")
-    formatter = logging.Formatter(
-        '%(asctime)s, %(levelname)s, %(funcName)s: %(message)s')
-    rotatingHandler.setFormatter(formatter)
-    rotatingHandler.setLevel(default_logging_level)
-    top_logger.addHandler(rotatingHandler)
-    global default_logging_started
-    default_logging_started = True
-    # if debug log file exists, setup another handler for it
-    debug_log_file_path = get_log_file_path(in_app_name, in_app_author, debug=True)
-    if os.path.isfile(debug_log_file_path):
-        setup_file_logging(debug_log_file_path, debug_logging_level)
-        global debug_logging_started
-        debug_logging_started = True
 
 
 def find_file_log_handler(log_file_path):
@@ -209,20 +149,11 @@ def find_file_log_handler(log_file_path):
     return retVal
 
 
-def setup_file_logging(log_file_path, level=logging.INFO):
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    top_logger = logging.getLogger()
-    top_logger.setLevel(debug_logging_level)
-    fileLogHandler = find_file_log_handler(log_file_path)
-    if not fileLogHandler:
-        fileLogHandler = logging.FileHandler(log_file_path)
-        fileLogHandler.set_name(f"(log_file_name)_log_handler")
-        fileLogHandler.previous_level = level
-        formatter = CustomLogFormatter()
-        fileLogHandler.setFormatter(formatter)
-        fileLogHandler.addFilter(ParentLogFilter())
-        top_logger.addHandler(fileLogHandler)
-    fileLogHandler.setLevel(level)
+def get_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
+    '''Returning a list of all logger handlers, based on the requested handler class type.
+       The default type is FileHandlerPlus. hdlr_name is an optional argument to be able to fetch specific handler'''
+    root_logger = logging.getLogger()
+    return [hdlr for hdlr in root_logger.handlers if isinstance(hdlr, hdlr_cls) and (not hdlr_name or hdlr_name == hdlr.baseFilename)]
 
 
 def teardown_file_logging(log_file_path):
@@ -285,3 +216,117 @@ def remove_log_handler(handler_to_remove_name):
         if handler.name == handler_to_remove_name:
             print(f"remove log handler {handler.name}")
             the_logger.removeHandler(handler)
+
+
+def close_log_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
+    '''Walks through all logging handlers (based on the requested handler class type), and closes them
+       The default type is FileHandlerPlus'''
+    root_logger = logging.getLogger()
+    hdlrs_to_close = sorted(get_hdlrs(hdlr_cls=hdlr_cls, hdlr_name=hdlr_name), key=lambda hdlr: str(hdlr) == 'DEBUG')  # Placing debug handler at the end
+    for hdlr in hdlrs_to_close:
+        root_logger.removeHandler(hdlr)
+        try:
+            hdlr.close()
+        except OSError:
+            root_logger.warning('Failed to close log handler - %s' % hdlr)
+
+
+def install_mp_handler(logger=None):
+    """Wraps the handlers in the given Logger with an MultiProcessingHandler.
+
+    :param logger: whose handlers to wrap. By default, the root logger.
+    """
+    if logger is None:
+        logger = logging.getLogger()
+
+    for i, orig_handler in enumerate(list(logger.handlers)):
+        handler = MultiProcessingHandler(
+            'mp-handler-{0}'.format(i), sub_handler=orig_handler)
+
+        logger.removeHandler(orig_handler)
+        logger.addHandler(handler)
+
+
+class MultiProcessingHandler(logging.Handler):
+
+    def __init__(self, name, sub_handler=None):
+        super(MultiProcessingHandler, self).__init__()
+
+        if sub_handler is None:
+            sub_handler = logging.StreamHandler()
+        self.sub_handler = sub_handler
+
+        self.setLevel(self.sub_handler.level)
+        self.setFormatter(self.sub_handler.formatter)
+
+        self.queue = multiprocessing.Queue(-1)
+        self._is_closed = False
+        # The thread handles receiving records asynchronously.
+        self._receive_thread = threading.Thread(target=self._receive, name=name)
+        self._receive_thread.daemon = True
+        self._receive_thread.start()
+
+    def setFormatter(self, fmt):
+        super(MultiProcessingHandler, self).setFormatter(fmt)
+        self.sub_handler.setFormatter(fmt)
+
+    def _receive(self):
+        while not (self._is_closed and self.queue.empty()):
+            try:
+                record = self.queue.get(timeout=0.2)
+                self.sub_handler.emit(record)
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except EOFError:
+                break
+            except queue.Empty:
+                pass  # This periodically checks if the logger is closed.
+            except:
+                traceback.print_exc(file=sys.stderr)
+
+        self.queue.close()
+        self.queue.join_thread()
+
+    def _send(self, s):
+        self.queue.put_nowait(s)
+
+    def _format_record(self, record):
+        # ensure that exc_info and args
+        # have been stringified. Removes any chance of
+        # unpickleable things inside and possibly reduces
+        # message size sent over the pipe.
+        if record.args:
+            record.msg = record.msg % record.args
+            record.args = None
+        if record.exc_info:
+            self.format(record)
+            record.exc_info = None
+
+        return record
+
+    def emit(self, record):
+        try:
+            s = self._format_record(record)
+            self._send(s)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+    def close(self):
+        if not self._is_closed:
+            self._is_closed = True
+            self._receive_thread.join(5.0)  # Waits for receive queue to empty.
+
+            self.sub_handler.close()
+            super(MultiProcessingHandler, self).close()
+
+
+class SameLevelFilter(logging.Filter):
+    '''This filter will force the log file handler to include only messages from the same level/type. This is done to quickly count and collect messages.'''
+    def __init__(self, level, **kwargs):
+        self.__level = level
+        super().__init__(**kwargs)
+
+    def filter(self, logRecord):
+        return logRecord.levelno <= self.__level

@@ -6,8 +6,9 @@ from .subprocessBatchCommands import RunProcessBase
 
 
 class CopyBase(RunProcessBase, essential=True):
-    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,         ignore_if_not_exist = False, copy_file=False, copy_dir=False) -> None:
-        super().__init__()
+    def __init__(self, src: os.PathLike, trg: os.PathLike, link_dest=False, ignore_patterns=None, preserve_dest_files=False,
+                 ignore_if_not_exist=False, copy_file=False, copy_dir=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
         self.link_dest = link_dest
@@ -17,9 +18,12 @@ class CopyBase(RunProcessBase, essential=True):
         self.copy_file = copy_file
         self.copy_dir = copy_dir
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_by_type(self.src)}, trg={utils.quoteme_raw_by_type(self.trg)}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns}, preserve_dest_files={self.preserve_dest_files})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("src", self.src))
+        all_args.append(self.named__init__param("trg", self.src))
+        all_args.append(self.named__init__param("link_dest", self.link_dest))
+        all_args.append(self.named__init__param("local_ignore_patterns", self.local_ignore_patterns))
+        all_args.append(self.named__init__param("preserve_dest_files", self.preserve_dest_files))
 
     def progress_msg_self(self):
         the_progress_msg = f"{self}"
@@ -157,9 +161,11 @@ class CopyFileToDir(CopyClass):
             trg = os.fspath(trg)+"/"
         super().__init__(src=src, trg=trg, link_dest=link_dest, ignore_patterns=ignore_patterns, ignore_if_not_exist=ignore_if_not_exist, copy_file=True)
 
-    def __repr__(self):
-        the_repr = f"""{self.__class__.__name__}(src={utils.quoteme_raw_by_type(self.src)}, trg={utils.quoteme_raw_by_type(self.trg)}, link_dest={self.link_dest}, local_ignore_patterns={self.local_ignore_patterns})"""
-        return the_repr
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("src", self.src))
+        all_args.append(self.named__init__param("trg", self.trg))
+        all_args.append(self.named__init__param("link_dest", self.link_dest))
+        all_args.append(self.named__init__param("local_ignore_patterns", self.local_ignore_patterns))
 
 
 class CopyFileToFile(CopyClass):

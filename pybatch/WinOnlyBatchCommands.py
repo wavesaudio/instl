@@ -243,8 +243,8 @@ class DeleteRegistryValues(BaseRegistryKey):
 
 class ResHackerCompileResource(RunProcessBase):
     """ add a resource using ResHackerAddResource """
-    def __init__(self, reshacker_path: os.PathLike, rc_file_path: os.PathLike) -> None:
-        super().__init__()
+    def __init__(self, reshacker_path: os.PathLike, rc_file_path: os.PathLike, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.reshacker_path = reshacker_path
         self.rc_file_path: os.PathLike = rc_file_path
 
@@ -270,8 +270,8 @@ class ResHackerCompileResource(RunProcessBase):
 
 class ResHackerAddResource(RunProcessBase):
     """ add a resource using ResHackerAddResource """
-    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type=None, resource_name=None) -> None:
-        super().__init__()
+    def __init__(self, reshacker_path: os.PathLike, trg: os.PathLike, resource_source_file, resource_type=None, resource_name=None, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.reshacker_path = reshacker_path
         self.trg: os.PathLike = trg
         self.resource_source_file: os.PathLike = resource_source_file

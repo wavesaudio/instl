@@ -195,14 +195,14 @@ class DBMaster(object):
                     description = inspect.stack()[2][3]
                 except IndexError as ex:
                     description = "unknown"
-            time1 = time.perf_counter()
+            #time1 = time.perf_counter()
             self.begin()
             yield self.__curs
             self.commit()
-            time2 = time.perf_counter()
-            if self.print_execute_times:
-                print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
             self.rollback()
             raise
@@ -215,14 +215,14 @@ class DBMaster(object):
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            time1 = time.perf_counter()
+            #time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.perf_counter()
-            if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
-                print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    if not description:
+            #        description = inspect.stack()[2][3]
+            #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -234,14 +234,14 @@ class DBMaster(object):
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            time1 = time.perf_counter()
+            #time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.perf_counter()
-            if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
-                print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    if not description:
+            #        description = inspect.stack()[2][3]
+            #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 

@@ -3,12 +3,23 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 from typing import List
-
 # ToDo: add unwtar ?
 
 
 from .fileSystemBatchCommands import *
 log = logging.getLogger()
+
+
+def _fast_copy_file(src, dst):
+    # insert faster code here if and when available
+    length = 256*1024
+    with open(src, 'rb') as rfd:
+        with open(dst, 'wb') as wfd:
+            while 1:
+                buf = rfd.read(length)
+                if not buf:
+                    break
+                wfd.write(buf)
 
 
 class RsyncClone(PythonBatchCommandBase, essential=True):
@@ -48,6 +59,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  copy_owner=True,
                  verbose=0,
                  dry_run=False,
+                 copy_stat=True,
                  **kwargs):
         super().__init__(**kwargs)
         self.src = src
@@ -58,11 +70,15 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.local_no_hard_link_patterns = sorted(no_hard_link_patterns.copy())
         self.local_no_flags_patterns = sorted(no_flags_patterns.copy())
         self.hard_links = hard_links
+        self.hard_links_failed = False  # remember if hard linking failed once so save time not to try again
         self.ignore_dangling_symlinks = ignore_dangling_symlinks
         self.delete_extraneous_files = delete_extraneous_files
         self.copy_owner = copy_owner
+        self.has_chown = hasattr(os, 'chown')
         self.verbose = verbose
         self.dry_run = dry_run
+        self.copy_stat = copy_stat
+        self.top_destination_does_not_exist = False  # will be set to true is destination does not exist saving many checks
 
         self._get_ignored_files_func = None
         self.statistics = defaultdict(int)
@@ -96,6 +112,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("copy_owner", self.copy_owner, True))
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
+        params.append(self.optional_named__init__param("copy_stat", self.copy_stat, True))
         all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
@@ -105,10 +122,13 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
+        self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_tree(resolved_src, resolved_dst)
 
-    def should_ignore_file(self, file_path: Path):
+    def should_ignore_file(self, file_path: str):
         retVal = False
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
         for ignore_pattern in self.__all_ignore_patterns:
             if file_path.match(ignore_pattern):
                 log.debug(f"ignoring {file_path} because it matches pattern {ignore_pattern}")
@@ -117,11 +137,25 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         return retVal
 
     def should_hard_link_file(self, file_path: Path):
+        assert isinstance(file_path, Path)
         retVal = False
-        if self.hard_links and not file_path.is_symlink():
+        if self.hard_links and not self.hard_links_failed and not file_path.is_symlink():
             for no_hard_link_pattern in self.__all_no_hard_link_patterns:
                 if file_path.match(no_hard_link_pattern):
                     log.debug(f"not hard linking {file_path} because it matches pattern {no_hard_link_pattern}")
+                    break
+            else:
+                retVal = True
+        return retVal
+
+    def should_hard_link_file_DirEntry(self, a_file: os.DirEntry):
+        assert isinstance(a_file, os.DirEntry)
+        retVal = False
+        if self.hard_links and not self.hard_links_failed and not a_file.is_symlink():
+            for no_hard_link_pattern in self.__all_no_hard_link_patterns:
+                file_path = Path(a_file)  # todo: avoid using Path.match, since converting DirEntry toPath is not efficient
+                if file_path.match(no_hard_link_pattern):
+                    log.debug(f"not hard linking {a_file.path} because it matches pattern {no_hard_link_pattern}")
                     break
             else:
                 retVal = True
@@ -137,22 +171,20 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             retVal = False
         return retVal
 
-    def remove_extraneous_files(self, dst: Path, src_names):
+    def remove_extraneous_files(self, dst: Path, src_item_names):
         """ remove files in destination that are not in source.
             files in the ignore list are not removed even if they do not
             appear in the source.
         """
-        dst_names = os.listdir(dst)
 
-        for dst_path in dst.iterdir():
-            if dst_path.name not in src_names and  not self.should_ignore_file(dst_path):
-                #dst_path = dst.joinpath(dst_name)
-                self.last_step, self.last_src, self.last_dst = "remove redundant file", "", os.fspath(dst_path)
-                log.info(f"delete {dst_path}")
-                if dst_path.is_symlink() or dst_path.is_file():
-                    self.dry_run or dst_path.unlink()
+        for dst_item in os.scandir(dst):
+            if dst_item.name not in src_item_names and not self.should_ignore_file(dst_item.path):
+                self.last_step, self.last_src, self.last_dst = "remove redundant file", "", os.fspath(dst_item)
+                log.info(f"delete {dst_item.path}")
+                if dst_item.is_symlink() or dst_item.is_file():
+                    self.dry_run or os.unlink(dst_item)
                 else:
-                    self.dry_run or shutil.rmtree(dst_path)
+                    self.dry_run or shutil.rmtree(dst_item)
 
     def copy_symlink(self, src_path: Path, dst_path: Path):
         self.last_src, self.last_dst = os.fspath(src_path), os.fspath(dst_path)
@@ -162,10 +194,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         if self.symlinks_as_symlinks:
             self.dry_run or os.symlink(link_to, dst_path)
             self.dry_run or shutil.copystat(src_path, dst_path, follow_symlinks=False)
-            log.info(f"create symlink '{dst_path}'")
+            log.debug(f"create symlink '{dst_path}'")
         else:
             # ignore dangling symlink if the flag is on
-            if not os.path.exists(link_to) and self.ignore_dangling_symlinks:
+            if not os.path.exists(link_to) and self.ignore_dangling_symlinks:  # !
                 return
             # otherwise let the copy occur. copy_file_to_file will raise an error
             log.debug(f"copy symlink contents '{src_path}' to '{dst_path}'")
@@ -174,60 +206,132 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
             else:
                 self.copy_file_to_file(src_path, dst_path)
 
-    def should_copy_file(self, src: Path, dst: Path):
+    def should_copy_file_Path(self, src: Path, dst: Path):
         retVal = True
-        if dst.is_file():
-            src_stats = src.stat()
-            dst_stats = dst.stat()
-            if src_stats.st_ino == dst_stats.st_ino:
-                retVal = False
-                log.info(f"{self.progress_msg()} skip copy file, same inode '{src}' to '{dst}'")
-            elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
-                retVal = False
-                log.info(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
-            if retVal:  # destination exists and file should be copied, so make sure it's writable
-                with Chmod(dst, "u+w", own_progress_count=0) as mod_changer:
-                    mod_changer()
-                if self.should_no_flags_file(dst):
-                    with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
-                        flags_changer()
+        if not self.top_destination_does_not_exist:
+            try:
+                dst_stats = dst.stat()
+                src_stats = src.stat()
+                if src_stats.st_ino == dst_stats.st_ino:
+                    retVal = False
+                    log.debug(f"{self.progress_msg()} skip copy file, same inode '{src}' to '{dst}'")
+                elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
+                    retVal = False
+                    log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
+                if retVal:  # destination exists and file should be copied, so make sure it's writable
+                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
+                        mod_changer()
+                    if self.should_no_flags_file(dst):
+                        with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
+                            flags_changer()
+            except Exception as ex:  # most likely dst.stat() failed because dst does not exist
+                retVal = True
         return retVal
 
-    def should_copy_dir(self, src: Path, dst: Path):
-        for avoid_copy_marker in self.__global_avoid_copy_markers:
-            src_marker = Path(src, avoid_copy_marker)
-            dst_marker = Path(dst, avoid_copy_marker)
-            retVal = not utils.compare_files_by_checksum(src_marker, dst_marker)
-            if not retVal:
-                log.info(f"{self.progress_msg()} skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
-                break
-        else:
-            retVal = True
+    def should_copy_file_DirEntry(self, src: os.DirEntry, dst: Path):
+        retVal = True
+        if not self.top_destination_does_not_exist:
+            try:
+                dst_stats = dst.stat()
+                src_stats = src.stat()
+                if src_stats.st_ino == 0:  # on windows os.DirEntry.stat sets st_ino to zero and os.stat should be called
+                                           # see https://docs.python.org/3.6/library/os.html#os.DirEntry
+                    src_stats = os.stat(src.path, follow_symlinks=False)
+                if src_stats.st_ino == dst_stats.st_ino:
+                    retVal = False
+                    log.debug(f"{self.progress_msg()} skip copy file, same inode '{src.path}' to '{dst}'")
+                elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
+                    retVal = False
+                    log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src.path}' to '{dst}'")
+                if retVal:  # destination exists and file should be copied, so make sure it's writable
+                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
+                        mod_changer()
+                    if self.should_no_flags_file(dst):
+                        with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
+                            flags_changer()
+            except Exception as ex:  # most likely dst.stat() failed because dst does not exist
+                retVal = True
+        return retVal
+
+    def should_copy_dir(self, src: Path, dst: Path, src_file_names):
+        retVal = self.top_destination_does_not_exist
+        if not retVal:
+            for avoid_copy_marker in self.__global_avoid_copy_markers:
+                if avoid_copy_marker in src_file_names:
+                    src_marker = Path(src, avoid_copy_marker)
+                    dst_marker = Path(dst, avoid_copy_marker)
+                    retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                    if not retVal:
+                        log.debug(f"{self.progress_msg()} skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                        break
+            else:
+                retVal = True
         return retVal
 
     def copy_file_to_file(self, src: Path, dst: Path, follow_symlinks=True):
-        """ copy the file resource_source_file to the file dst. dst should either be an existing file
+        """ copy the file src to the file dst. dst should either be an existing file
             or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
             is assumed to exist
         """
         self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
-        if self.should_copy_file(src, dst):
+        if self.should_copy_file_Path(src, dst):
             if not self.should_hard_link_file(src):
-                log.debug(f"copy file '{src}' to '{dst}'")
-                self.dry_run or shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
+                log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
+                if not self.dry_run:
+                    _fast_copy_file(src, dst)
+                    if self.copy_stat:
+                        shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
             else:  # try to create hard link
                 try:
                     self.dry_run or os.link(src, dst)
-                    log.debug(f"hard link file '{src}' to '{dst}'")
+                    log.debug(f"hard link file '{self.last_src}' to '{self.last_dst}'")
                     self.statistics['hard_links'] += 1
                 except OSError as ose:
-                    log.debug(f"copy file '{src}' to '{dst}'")
+                    self.hard_links_failed = True
+                    log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
 
-                    self.dry_run or shutil.copy2(src, dst, follow_symlinks=True)
-            if self.copy_owner and hasattr(os, 'chown'):
+                    if not self.dry_run:
+                        _fast_copy_file(src, dst)
+                        if self.copy_stat:
+                            shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+            if self.copy_owner and self.has_chown:
                 src_st = src.stat()
+                os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
+        else:
+            self.statistics['skipped_files'] += 1
+        return dst
+
+    def copy_file_to_file_DirEntry(self, src: os.DirEntry, dst: Path, follow_symlinks=True):
+        """ copy the file src to the file dst. dst should either be an existing file
+            or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
+            is assumed to exist.
+            src is assumed to be of type os.DirEntry
+        """
+        self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
+        self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
+
+        if self.should_copy_file_DirEntry(src, dst):
+            if not self.should_hard_link_file_DirEntry(src):
+                log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
+                if not self.dry_run:
+                    _fast_copy_file(src, dst)
+                    shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+            else:  # try to create hard link
+                try:
+                    self.dry_run or os.link(src, dst)
+                    log.debug(f"hard link file '{self.last_src}' to '{self.last_dst}'")
+                    self.statistics['hard_links'] += 1
+                except OSError as ose:
+                    self.hard_links_failed = True
+                    log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
+
+                    if not self.dry_run:
+                        _fast_copy_file(src, dst)
+                        shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+            if self.copy_owner and self.has_chown:
+                src_st = src.stat()  # !
                 os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
         else:
             self.statistics['skipped_files'] += 1
@@ -237,7 +341,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
-        dst.mkdir(parents=True, exist_ok=True)
+        if self.top_destination_does_not_exist:
+            dst.mkdir(parents=True, exist_ok=True)
         final_dst = dst.joinpath(src.name)
         retVal = self.copy_file_to_file(src, final_dst, follow_symlinks)
         return retVal
@@ -246,47 +351,53 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         """ based on shutil.copytree
         """
         self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
+        save_top_destination_does_not_exist = self.top_destination_does_not_exist
+        self.top_destination_does_not_exist = self.top_destination_does_not_exist or not dst.exists()  # !
 
         self.doing = f"""copy folder '{self.last_src}' to '{self.last_dst}'"""
 
-        if not self.should_copy_dir(src, dst):
+        src_dir_items = list(os.scandir(src))
+        src_file_names = [src_item.name for src_item in src_dir_items if src_item.is_file()]
+        src_dir_names = [src_item.name for src_item in src_dir_items if src_item.is_dir()]
+        if not self.should_copy_dir(src, dst, src_file_names):
             self.statistics['skipped_dirs'] += 1
             return
 
         self.statistics['dirs'] += 1
         log.debug(f"copy folder '{src}' to '{dst}'")
-        src_names = os.listdir(src)
-        dst.mkdir(parents=True, exist_ok=True)
-        if self.copy_owner and hasattr(os, 'chown'):
-            src_st = src.stat()
-            os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
 
-        if self.delete_extraneous_files:
-            self.remove_extraneous_files(dst, src_names)
+        if self.top_destination_does_not_exist:
+            dst.mkdir(parents=True, exist_ok=True)
+            if self.copy_owner and self.has_chown:
+                src_stat = src.stat()
+                os.chown(dst, src_stat[stat.ST_UID], src_stat[stat.ST_GID])
+
+        if not self.top_destination_does_not_exist and self.delete_extraneous_files:
+            self.remove_extraneous_files(dst, src_file_names+src_dir_names)
 
         errors = []
-        for src_name in src_names:
-            src_path = src.joinpath(src_name)
-            if self.should_ignore_file(src_path):
+        for src_item in src_dir_items:
+            src_item_path = Path(src_item.path)
+            if self.should_ignore_file(src_item_path):
                 self.statistics['ignored'] += 1
                 continue
-            dst_path = dst.joinpath(src_name)
+            dst_path = dst.joinpath(src_item.name)
             try:
-                if src_path.is_symlink():
+                if src_item.is_symlink():
                     self.statistics['symlinks'] += 1
-                    self.copy_symlink(src_path, dst_path)
-                elif src_path.is_dir():
-                    self.copy_tree(src_path, dst_path)
+                    self.copy_symlink(src_item_path, dst_path)
+                elif src_item.is_dir():
+                    self.copy_tree(src_item_path, dst_path)
                 else:
                     self.statistics['files'] += 1
                     # Will raise a SpecialFileError for unsupported file types
-                    self.copy_file_to_file(src_path, dst_path)
+                    self.copy_file_to_file_DirEntry(src_item, dst_path)
             # catch the Error from the recursive copytree so that we can
             # continue with other files
             except shutil.Error as err:
                 errors.append(err.args[0])
             except OSError as why:
-                errors.append((src_path, dst_path, str(why)))
+                errors.append((src_item_path, dst_path, str(why)))
         try:
             shutil.copystat(src, dst)
         except OSError as why:
@@ -295,6 +406,7 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                 errors.append((src, dst, str(why)))
         if errors:
             raise shutil.Error(errors)
+        self.top_destination_does_not_exist = save_top_destination_does_not_exist
         return dst
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
@@ -318,6 +430,7 @@ class CopyDirToDir(RsyncClone):
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         final_dst: Path = resolved_dst.joinpath(resolved_src.name)
+        self.top_destination_does_not_exist = not final_dst.exists()
         self.copy_tree(resolved_src, final_dst)
 
 
@@ -340,7 +453,7 @@ class MoveDirToDir(CopyDirToDir):
 
 
 class CopyDirContentsToDir(RsyncClone):
-    """ copy the contents of a folder into another and erase the sources
+    """ copy the contents of a folder into another
         intermediate folders will be created as needed
     """
     def __init__(self, src, dst, **kwargs):
@@ -381,6 +494,7 @@ class CopyFileToDir(RsyncClone):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
+        self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_file_to_dir(resolved_src, resolved_dst)
 
 
@@ -414,6 +528,7 @@ class CopyFileToFile(RsyncClone):
         resolved_src: Path = utils.ResolvedPath(self.src)
         resolved_dst: Path = utils.ResolvedPath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
+        self.top_destination_does_not_exist = False
         self.copy_file_to_file(resolved_src, resolved_dst)
 
 

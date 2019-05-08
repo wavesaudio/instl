@@ -471,6 +471,17 @@ def find_split_files_from_base_file(base_file):
     return split_files
 
 
+def find_wtarred_parts_of_original(original: Path):
+    parts_list = list()
+    unsplit_wtar = utils.append_suffix(original, ".wtar")
+    if unsplit_wtar.is_file():
+        parts_list.append(unsplit_wtar)
+    glob_pattern = "*"+original.name+".wtar.??"
+    glob_results = original.parent.glob(glob_pattern)
+    parts_list.extend(glob_results)
+    return parts_list
+
+
 def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=False):
     """ Walk a folder hierarchy using the new and fast os.scandir, yielding
 
@@ -520,12 +531,11 @@ def get_main_drive_name():
     retVal = None
     try:
         if sys.platform == 'darwin':
-            for volume in os.listdir("/Volumes"):
-                volume_path = Path("/Volumes", volume)
-                if volume_path.is_symlink():
-                    resolved_volume_path = volume_path.resolve()
+            for volume in os.scandir("/Volumes"):
+                if volume.is_symlink():
+                    resolved_volume_path = Path("/Volumes", volume.name).resolve()
                     if str(resolved_volume_path) == "/":
-                        retVal = volume
+                        retVal = volume.name
                         break
             else:
                 apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
@@ -538,3 +548,11 @@ def get_main_drive_name():
     except:
         pass
     return retVal
+
+
+def append_suffix(in_path: Path, new_suffix: str):
+    suffixes = in_path.suffixes
+    suffixes.append(new_suffix)
+    new_name = in_path.stem + "".join(suffixes)
+    new_path = in_path.parent.joinpath(new_name)
+    return new_path

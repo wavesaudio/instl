@@ -176,7 +176,7 @@ class ConfigVar:
             but if string is passed it will not be treated like a list
             of characters and will be added as a single value.
         """
-        if isinstance(values, (str, int, type(None))):
+        if isinstance(values, (str, int, float, type(None))):
             # so str will not be treated as a list of characters
             self.append(values)
         elif isinstance(values, collections.Sequence):
@@ -189,7 +189,7 @@ class ConfigVar:
         """ erase all values """
         self.values.clear()
 
-    def raw(self, join_sep: Optional[str]=None) -> Union[str, List[str]]:
+    def raw(self, join_sep: Optional[str]="") -> Union[str, List[str]]:
         """ return the list of values unresolved"""
         if join_sep is None:
             return self.values

@@ -12,6 +12,7 @@ import urllib.error
 import io
 import datetime
 import time
+import logging
 
 import aYaml
 import utils
@@ -62,7 +63,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
-    commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove','doit', 'report-versions', 'exec', 'read-yaml', "trans"]
+    commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
+                                             'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
+                                             'verify-repo', 'depend']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -97,7 +100,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 1000
+                self.total_self_progress += 30000
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
@@ -298,11 +301,11 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             self.batch_accum += CopyFileToFile(file_path, destination_file_resolved_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
-        in_batch_accum.set_current_section("assign")
+        in_batch_accum.set_current_section('assign')
         #do_not_write_vars = [var.lower() for var in config_vars["DONT_WRITE_CONFIG_VARS"].list() + list(os.environ.keys())]
         do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
         if not bool(config_vars.get("WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE", "no")):
-            do_not_write_vars += list(os.environ.keys())
+            do_not_write_vars += [re.escape(a_var) for a_var in os.environ.keys()]
 
         regex = "|".join(do_not_write_vars)
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
@@ -321,6 +324,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             in_batch_accum += PythonDoSomething('''RsyncClone.add_global_avoid_copy_markers(config_vars.get("AVOID_COPY_MARKERS", []).list())''')
 
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
+        in_batch_accum += PythonDoSomething(f"""log.setLevel({config_vars.get("PYTHON_BATCH_LOG_LEVEL", 20)})""")
 
     def calc_user_cache_dir_var(self, make_dir=True):
         if "USER_CACHE_DIR" not in config_vars:
@@ -412,7 +416,11 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             from subprocess import Popen
 
             p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
-            unused_stdout, unused_stderr = p.communicate()
+            stdout, stderr = p.communicate()
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr, file=sys.stderr)
             return_code = p.returncode
             if return_code != 0:
                 raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))

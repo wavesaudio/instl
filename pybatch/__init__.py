@@ -1,7 +1,6 @@
 import sys
 
 from .baseClasses import PythonBatchCommandBase
-from .subprocessBatchCommands import RunProcessBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
 from .conditionalBatchCommands import If
@@ -36,6 +35,7 @@ from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
 from .reportingBatchCommands import EnvironVarAssign
+from .reportingBatchCommands import PatchPyBatchWithTimings
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile
@@ -57,6 +57,7 @@ from .fileSystemBatchCommands import Touch
 from .fileSystemBatchCommands import Unlock
 from .fileSystemBatchCommands import Ls
 from .fileSystemBatchCommands import FileSizes
+from .fileSystemBatchCommands import SplitFile
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
@@ -66,6 +67,7 @@ from .subprocessBatchCommands import ScriptCommand
 from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
 from .subprocessBatchCommands import Subprocess
+from .subprocessBatchCommands import RunProcessBase
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
@@ -78,6 +80,8 @@ from .svnBatchCommands import SVNLastRepoRev
 from .svnBatchCommands import SVNCheckout
 from .svnBatchCommands import SVNInfo
 from .svnBatchCommands import SVNPropList
+from .svnBatchCommands import SVNAdd
+from .svnBatchCommands import SVNRemove
 
 if sys.platform == "win32":
     from .WinOnlyBatchCommands import WinShortcut
