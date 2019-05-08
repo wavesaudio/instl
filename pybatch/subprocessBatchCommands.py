@@ -12,7 +12,14 @@ import utils
 from .baseClasses import PythonBatchCommandBase
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True, kwargs_defaults={"in_file": None, "out_file": None, "err_file": None}):
+class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
+                     kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True}):
+    """ base class for classes pybatch commands that need to spawn a subprocess
+        input, output, stderr can read/writen to files according to in_file, out_file, err_file
+        Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
+        to stderr, RunProcessBase will raise with error code 123. If stderr_means_err==False the exit code from the
+        subprocess will remain as it was returned from the subprocess. stderr handling will only occur if err_file==None.
+    """
     def __init__(self, ignore_specific_exit_codes=(),  **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
@@ -75,7 +82,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
             if local_stderr:
                 print(local_stderr, file=sys.stderr)
-                if completed_process.returncode == 0:
+                if completed_process.returncode == 0 and self.stderr_means_err:
                     completed_process.returncode = 123
         else:
             err_stream.close()
