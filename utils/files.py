@@ -106,7 +106,7 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
             else:
                 actual_file_path = os.path.realpath(actual_file_path)
         else:
-            raise FileNotFoundError(f"Could not locate local file {actual_file_path}")
+            raise FileNotFoundError(f"Could not locate local file {in_file_or_url}")
         if encoding is None:
             read_mod = "rb"
         else:
