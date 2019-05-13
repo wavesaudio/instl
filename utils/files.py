@@ -205,7 +205,7 @@ def read_from_file_or_url(in_url, config_vars, translate_url_callback=None, expe
         contents_buffer = open_file.fd.read()
         if encoding is not None:  # when reading from url we're not sure what the encoding is
             contents_buffer = utils.unicodify(contents_buffer, encoding=encoding)
-        # check sig or checksum only if they were given
+        # check checksum only if  given
         if expected_checksum is not None:
             if len(contents_buffer) == 0:
                 raise IOError(f"Empty contents returned from {in_url} ; expected checksum: {expected_checksum} ; encoding: {encoding}")

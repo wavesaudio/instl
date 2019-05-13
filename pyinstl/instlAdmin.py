@@ -816,55 +816,6 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def do_create_rsa_keys(self):
-        public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
-        private_key_file = config_vars["PRIVATE_KEY_FILE"].str()
-        pubkey, privkey = rsa.newkeys(4096, poolsize=8)
-        with open(public_key_file, "wb") as wfd:
-            wfd.write(pubkey.save_pkcs1(format='PEM'))
-            self.progress("public key created:", public_key_file)
-        with open(private_key_file, "wb") as wfd:
-            wfd.write(privkey.save_pkcs1(format='PEM'))
-            self.progress("private key created:", private_key_file)
-
-    def do_make_sig(self):
-        private_key = None
-        if "PRIVATE_KEY_FILE" in config_vars:
-            private_key_file = self.path_searcher.find_file(config_vars["PRIVATE_KEY_FILE"].str(),
-                                                            return_original_if_not_found=True)
-            private_key = open(private_key_file, "rb").read()
-        file_to_sign = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
-                                                    return_original_if_not_found=True)
-        file_sigs = utils.create_file_signatures(file_to_sign, private_key_text=private_key)
-        self.progress("sha1:\n", file_sigs["sha1_checksum"])
-        self.progress("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
-
-    def do_check_sig(self):
-        file_to_check = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
-                                                     return_original_if_not_found=True)
-        file_contents = open(file_to_check, "rb").read()
-
-        sha1_checksum = config_vars["__SHA1_CHECKSUM__"].str()
-        if sha1_checksum:
-            checksumOk = utils.check_buffer_checksum(file_contents, sha1_checksum)
-            if checksumOk:
-                self.progress("Checksum OK")
-            else:
-                self.progress("Bad checksum, should be:", utils.get_buffer_checksum(file_contents))
-
-        rsa_signature = config_vars["__RSA_SIGNATURE__"].str()
-        if rsa_signature:
-            if "PUBLIC_KEY_FILE" in config_vars:
-                public_key_file = self.path_searcher.find_file(config_vars["PUBLIC_KEY_FILE"].str(),
-                                                               return_original_if_not_found=True)
-                public_key_text = open(public_key_file, "rb").read()
-
-                signatureOk = utils.check_buffer_signature(file_contents, rsa_signature, public_key_text)
-                if signatureOk:
-                    self.progress("Signature OK")
-                else:
-                    self.progress("Bad Signature")
-
     def do_verify_index(self):
         self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
         self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str(), disable_indexes_during_read=True)

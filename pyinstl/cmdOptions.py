@@ -64,7 +64,6 @@ class CommandLineOptions(object):
     __REMOVE_FROM_DOCK__ = OptionToConfigVar()
     __REPORT_ONLY_INSTALLED__ = OptionToConfigVar()
     __RESTART_THE_DOCK__ = OptionToConfigVar()
-    __RSA_SIGNATURE__ = OptionToConfigVar()
     __RUN_AS_ADMIN__ = OptionToConfigVar()
     __RUN_BATCH__ = OptionToConfigVar()
     __RUN_COMMAND_LIST_IN_PARALLEL__ = OptionToConfigVar()
@@ -143,17 +142,14 @@ def prepare_args_parser(in_command):
             'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-            'check-sig':            {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
             'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
             'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
             'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-            'create-rsa-keys':      {'mode': 'admin', 'options': ('conf',), 'help':  'create private and public keys'},
             'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
             'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
             'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
             'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
-            'make-sig':             {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
             'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
@@ -364,21 +360,6 @@ def prepare_args_parser(in_command):
                                     metavar='file-sizes-file',
                                     dest='__FILE_SIZES_FILE__',
                                     help="")
-
-    elif 'check-sig' == in_command:
-        check_sig_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        check_sig_options.add_argument('--sha1',
-                                required=False,
-                                nargs=1,
-                                metavar='sh1-checksum',
-                                dest='__SHA1_CHECKSUM__',
-                                help="expected sha1 checksum")
-        check_sig_options.add_argument('--rsa',
-                                required=False,
-                                nargs=1,
-                                metavar='rsa-sig',
-                                dest='__RSA_SIGNATURE__',
-                                help="expected rsa SHA-512 signature")
 
     elif 'create-repo-rev-file' == in_command:
         create_repo_rev_file_options = command_parser.add_argument_group(description=in_command+' arguments:')

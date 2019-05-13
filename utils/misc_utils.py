@@ -13,7 +13,6 @@ import stat
 from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
-import rsa
 import logging
 from functools import reduce, wraps
 from itertools import repeat
@@ -262,20 +261,6 @@ def ParallelContinuationIter(*iterables):
         yield list(map(next, continue_iterables))
 
 
-def create_file_signatures(file_path, private_key_text=None):
-    """ create rsa signature and sha1 checksum for a file.
-        return a dict with "SHA-512_rsa_sig" and "sha1_checksum" entries.
-    """
-    retVal = dict()
-    with open(file_path, "rb") as rfd:
-        file_contents = rfd.read()
-        sha1ner = hashlib.sha1()
-        sha1ner.update(file_contents)
-        checksum = sha1ner.hexdigest()
-        retVal["sha1_checksum"] = checksum
-    return retVal
-
-
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
@@ -291,31 +276,6 @@ def compare_checksums(_1st_checksum, _2nd_checksum):
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
     retVal = compare_checksums(checksum, expected_checksum)
-    return retVal
-
-
-def check_buffer_signature(buff, textual_sig, public_key):
-    try:
-        pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
-        binary_sig = base64.b64decode(textual_sig)
-        rsa.verify(buff, binary_sig, pubkeyObj)
-        return True
-    except Exception:
-        return False
-
-
-def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
-    retVal = False
-    if public_key and textual_sig:
-        retVal = check_buffer_signature(buff, textual_sig, public_key)
-    elif expected_checksum:
-        retVal = check_buffer_checksum(buff, expected_checksum)
-    return retVal
-
-
-def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
 
@@ -342,12 +302,6 @@ def get_file_checksum(file_path, follow_symlinks=True):
     else:
         with open(file_path, "rb") as rfd:
             retVal = get_buffer_checksum(rfd.read())
-    return retVal
-
-
-def check_file_signature(file_path, textual_sig, public_key):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
     return retVal
 
 
