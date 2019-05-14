@@ -42,6 +42,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     runtime_duration_by_progress = dict()
+    ignore_progress = False           # set to True when using batch commands out side python batch file
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
@@ -249,7 +250,10 @@ class PythonBatchCommandBase(abc.ABC):
         return the_hash
 
     def progress_msg(self) -> str:
-        the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
+        if PythonBatchCommandBase.ignore_progress:
+            the_progress_msg = ""
+        else:
+            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
 
     def warning_msg_self(self) -> str:
@@ -295,7 +299,7 @@ class PythonBatchCommandBase(abc.ABC):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_timing_measure()
         try:
-            if self.report_own_progress:
+            if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.current_working_dir = os.getcwd()
             self.enter_self()
@@ -341,17 +345,19 @@ class PythonBatchCommandBase(abc.ABC):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     def enter_timing_measure(self):
-        self.enter_time = time.perf_counter()
-        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
-        if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
-            log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+        if not PythonBatchCommandBase.ignore_progress:
+            self.enter_time = time.perf_counter()
+            PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
+            if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+                log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
 
     def exit_timing_measure(self):
-        self.exit_time = time.perf_counter()
-        self.command_time_sec = (self.exit_time - self.enter_time)
-        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
-        if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
-            log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
+        if not PythonBatchCommandBase.ignore_progress:
+            self.exit_time = time.perf_counter()
+            self.command_time_sec = (self.exit_time - self.enter_time)
+            PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
+            if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
+                log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
 
     @contextmanager
     def timing_contextmanager(self):

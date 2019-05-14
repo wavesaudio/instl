@@ -2,6 +2,7 @@ from typing import List
 import re
 import io
 from configVar import config_vars
+from db import DBManager
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
 
@@ -15,7 +16,7 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
         all_args.append(utils.quoteme_single(self.command))
 
     def progress_msg_self(self) -> str:
-        return f'''svn self.command'''
+        return f'''svn {self.command}'''
 
     def get_run_args(self, run_args) -> None:
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
@@ -31,6 +32,45 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
         else:
             retVal = f"{self.url}@{self.repo_rev}"
         return retVal
+
+
+class SVNSetProp(SVNClient):
+    def __init__(self, prop_name, prop_value, file_path, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.prop_name = prop_name
+        self.prop_name = prop_value
+        self.file_path = file_path
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.prop_name))
+        all_args.append(self.unnamed__init__param(self.prop_value))
+        all_args.append(self.unnamed__init__param(self.file_path))
+
+    def progress_msg_self(self) -> str:
+        return f'''svn {self.command} {self.prop_name} {self.prop_value} {self.file_path}'''
+
+    def get_run_args(self, run_args) -> None:
+        run_args.append(self.prop_name)
+        run_args.append(self.prop_value)
+        run_args.append(os.fspath(self.file_path))
+
+
+class SVNDelProp(SVNClient):
+    def __init__(self, prop_name, file_path, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.prop_name = prop_name
+        self.file_path = file_path
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.prop_name))
+        all_args.append(self.unnamed__init__param(self.file_path))
+
+    def progress_msg_self(self) -> str:
+        return f'''svn {self.command} {self.prop_name} {self.file_path}'''
+
+    def get_run_args(self, run_args) -> None:
+        run_args.append(self.prop_name)
+        run_args.append(os.fspath(self.file_path))
 
 
 class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty"}):
@@ -86,6 +126,7 @@ class SVNInfo(SVNClient):
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
 
+
 class SVNPropList(SVNClient):
 
     def __init__(self, **kwargs):
@@ -130,3 +171,27 @@ class SVNRemove(SVNClient):
         run_args.append(self.command)
         run_args.append("--force")
         run_args.append(self.file_to_remove)
+
+
+class SVNInfoReader(DBManager, PythonBatchCommandBase):
+    """
+    read a file created by SVNPropList,SVNInfo, file-sizes
+    possible formats: "info", "text", "props", "file-sizes"
+    self.format = format
+    """
+    def __init__(self, file_to_read, format='text', **kwargs):
+        super().__init__(**kwargs)
+        self.file_to_read = file_to_read
+        self.format = format
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.file_to_read))
+        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+
+    def progress_msg_self(self) -> str:
+        return f'''reading {self.file_to_read}; format={self.format}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        resolved_info_map_path = utils.ResolvedPath(self.file_to_read)
+        self.info_map_table.read_from_file(resolved_info_map_path, a_format=self.format, disable_indexes_during_read=True)

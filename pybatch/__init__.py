@@ -82,6 +82,9 @@ from .svnBatchCommands import SVNInfo
 from .svnBatchCommands import SVNPropList
 from .svnBatchCommands import SVNAdd
 from .svnBatchCommands import SVNRemove
+from .svnBatchCommands import SVNInfoReader
+from .svnBatchCommands import SVNSetProp
+from .svnBatchCommands import SVNDelProp
 
 if sys.platform == "win32":
     from .WinOnlyBatchCommands import WinShortcut

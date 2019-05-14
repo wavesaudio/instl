@@ -65,7 +65,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
                                              'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
-                                             'verify-repo', 'depend']
+                                             'verify-repo', 'depend', 'fix-props']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -173,6 +173,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_COMMAND__" in config_vars:
             self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
+        DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
@@ -189,7 +190,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 config_vars[name] = value
 
         self.get_default_out_file()
-        self.get_default_db_file()
 
     def close(self):
         del self.info_map_table
@@ -201,31 +201,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_OUT_FILE__" not in config_vars:
             if "__MAIN_INPUT_FILE__" in config_vars:
                 config_vars["__MAIN_OUT_FILE__"] = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-
-    def get_default_db_file(self):
-        if "__MAIN_DB_FILE__" not in config_vars:
-            db_base_path = None
-            if "__MAIN_OUT_FILE__" in config_vars:
-                # try to set the db file next to the output file
-                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-            elif "__MAIN_INPUT_FILE__" in config_vars:
-                # if no output file try next to the input file
-                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
-            else:
-                # as last resort try the Logs folder on desktop if one exists
-                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-                if os.path.isdir(logs_dir):
-                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
-
-            if db_base_path:
-                # set the proper extension
-                db_base_path, ext = os.path.splitext(db_base_path)
-                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
-                config_vars["__MAIN_DB_FILE__"] = db_base_path
-                if self.the_command in self.commands_that_need_to_refresh_db_file:
-                    if os.path.isfile(db_base_path):
-                        utils.safe_remove_file(db_base_path)
-                        self.progress(f"removed previous db file {db_base_path}")
 
     def read_require(self, a_node, *args, **kwargs):
         del args

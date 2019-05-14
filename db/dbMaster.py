@@ -355,6 +355,7 @@ class DBAccess(object):
 
     def __get__(self, instance, owner):
         if self._db is None:
+            self.get_default_db_file()
             db_url = os.fspath(config_vars["__MAIN_DB_FILE__"])
             ddls_folder = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
             self._db = DBMaster(db_url, ddls_folder)
@@ -366,6 +367,32 @@ class DBAccess(object):
             self._db.close()
             del self._db
             self._db = None
+
+    def get_default_db_file(self):
+        if "__MAIN_DB_FILE__" not in config_vars:
+            db_base_path = None
+            if "__MAIN_OUT_FILE__" in config_vars:
+                # try to set the db file next to the output file
+                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+            elif "__MAIN_INPUT_FILE__" in config_vars:
+                # if no output file try next to the input file
+                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
+            else:
+                # as last resort try the Logs folder on desktop if one exists
+                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+                if os.path.isdir(logs_dir):
+                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
+
+            if db_base_path:
+                # set the proper extension
+                db_base_path, ext = os.path.splitext(db_base_path)
+                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
+                config_vars["__MAIN_DB_FILE__"] = db_base_path
+
+        if self._owner.refresh_db_file:
+            db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
+            if db_base_path.is_file():
+                utils.safe_remove_file(db_base_path)
 
 
 class TableAccess(object):
@@ -399,3 +426,9 @@ class DBManager(object):
     db = DBAccess()
     info_map_table = TableAccess(SVNTable)
     items_table = TableAccess(IndexItemsTable)
+    refresh_db_file = False
+
+    @classmethod
+    def set_refresh_db_file(cls, to_refresh):
+        cls.refresh_db_file = to_refresh
+

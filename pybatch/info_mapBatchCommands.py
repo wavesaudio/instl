@@ -22,24 +22,6 @@ from .fileSystemBatchCommands import Chmod
 """
 
 
-class InfoMapBase(DBManager, PythonBatchCommandBase):
-    def __init__(self, info_map_file=None, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.info_map_file = info_map_file
-
-    def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
-
-    def progress_msg_self(self) -> str:
-        return f'''{self.__class__.__name__}'''
-
-    def __call__(self, *args, **kwargs) -> None:
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.info_map_file:
-            resolved_info_map_path = utils.ResolvedPath(self.info_map_file)
-            self.info_map_table.read_from_file(resolved_info_map_path, a_format="text", disable_indexes_during_read=True)
-
-
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def __init__(self, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
         super().__init__(**kwargs)
