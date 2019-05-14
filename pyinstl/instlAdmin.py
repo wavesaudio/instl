@@ -991,20 +991,19 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-        with utils.write_to_file_or_stdout(out_file_path) as out_file:
-            what_to_scan = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-            if os.path.isfile(what_to_scan):
-                file_size = os.path.getsize(what_to_scan)
+        out_file_path = config_vars["__MAIN_OUT_FILE__"]
+        with utils.write_to_file_or_stdout(out_file_path.Path) as out_file:
+            what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
+            if what_to_scan.is_file():
+                file_size = what_to_scan.stat().st_size
                 print(what_to_scan+",", file_size, file=out_file)
             else:
-                folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
-                if not self.compiled_forbidden_folder_regex.search(what_to_scan):
+                if not self.compiled_forbidden_folder_regex.search(os.fspath(what_to_scan)):
                     for root, dirs, files in utils.excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
                         for a_file in files:
-                            full_path = os.path.join(root, a_file)
-                            file_size = os.path.getsize(full_path)
-                            partial_path = full_path[folder_to_scan_name_len:]
+                            full_path = Path(root, a_file)
+                            file_size = full_path.stat().st_size
+                            partial_path = full_path.relative_to(what_to_scan)
                             print(partial_path+",", file_size, file=out_file)
 
     def create_info_map(self, svn_folder, results_folder, accum):
@@ -1058,22 +1057,21 @@ class InstlAdmin(InstlInstanceBase):
     def do_create_infomap(self):
         svn_folder = "$(WORKING_SVN_CHECKOUT_FOLDER)"
         results_folder = "$(INFO_MAP_OUTPUT_FOLDER)"
-        accum = BatchAccumulator()  # sub-accumulator
 
-        accum.set_current_section('admin')
+        self.batch_accum.set_current_section('admin')
         self.create_info_map(svn_folder, results_folder, accum)
-        self.batch_accum.merge_with(accum)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_filter_infomap(self):
-        """ filter the full infomap file according to info_map fields in the index """
-        # __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
+        """ filter the full infomap file according to info_map fields in the index
+            __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
+         """
         instl_folder = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        full_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
-        index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        full_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(FULL_INFO_MAP_FILE_NAME)"))
+        index_yaml_path = Path(instl_folder, "index.yaml")
         zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
 
         # read the index
@@ -1092,7 +1090,7 @@ class InstlAdmin(InstlInstanceBase):
             self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
             info_map_items = self.info_map_table.get_required_items()
             if info_map_items:  # could be that no items are linked to the info map file
-                info_map_file_path = os.path.join(instl_folder, infomap_file_name)
+                info_map_file_path = instl_folder.joinpath(infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
 
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
@@ -1101,7 +1099,7 @@ class InstlAdmin(InstlInstanceBase):
                 lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
                 zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
-                zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
+                zip_info_map_file_path = instl_folder.joinpath(zip_infomap_file_name)
                 with Wzip(info_map_file_path, instl_folder) as wzipper:
                     wzipper()
 
@@ -1111,14 +1109,14 @@ class InstlAdmin(InstlInstanceBase):
                 lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
         # write default info map to file
-        default_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(MAIN_INFO_MAP_FILE_NAME)"))
+        default_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(MAIN_INFO_MAP_FILE_NAME)"))
         items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
         self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=items_for_default_info_map, field_to_write=self.fields_relevant_to_info_map)
 
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
-        zip_default_info_map_file_path = config_vars.resolve_str(default_info_map_file_path+"$(WZLIB_EXTENSION)")
+        zip_default_info_map_file_path = Path(default_info_map_file_path, config_vars["WZLIB_EXTENSION"].str())
         with Wzip(default_info_map_file_path, instl_folder) as wzipper:
             wzipper()
 
@@ -1129,15 +1127,15 @@ class InstlAdmin(InstlInstanceBase):
                 self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        index_path = os.path.join(instl_folder_path, "index.yaml")
+        instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        index_path = instl_folder_path.joinpath("index.yaml")
         self.read_yaml_file(index_path)
-        main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
+        main_info_map_path = instl_folder_path.joinpath("info_map.txt")
         self.info_map_table.read_from_file(main_info_map_path)
         instl_folder_path_parts = os.path.normpath(instl_folder_path).split(os.path.sep)
         revision_folder_name = instl_folder_path_parts[-2]
-        revision_file_path = os.path.join(instl_folder_path, "V9_repo_rev.yaml."+revision_folder_name)
-        if not os.path.isfile(revision_file_path):
+        revision_file_path = instl_folder_path.joinpath("V9_repo_rev.yaml."+revision_folder_name)
+        if not revision_file_path.is_file():
             self.progress("file not found", revision_file_path)
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
@@ -1153,7 +1151,7 @@ class InstlAdmin(InstlInstanceBase):
         all_instl_folder_items = self.info_map_table.get_file_items_of_dir('instl')
         for item in all_instl_folder_items:
             if item.leaf in all_info_maps:
-                info_map_full_path = os.path.join(instl_folder_path, item.leaf)
+                info_map_full_path = instl_folder_path.joinpath(item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
                     self.progress(f"""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
