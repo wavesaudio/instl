@@ -40,9 +40,9 @@ class InfoMapBase(DBManager, PythonBatchCommandBase):
             self.info_map_table.read_from_file(resolved_info_map_path, a_format="text", disable_indexes_during_read=True)
 
 
-class CheckDownloadFolderChecksum(InfoMapBase):
-    def __init__(self, info_map_file=None, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
-        super().__init__(info_map_file, **kwargs)
+class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
+    def __init__(self, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
         if not self.raise_on_bad_checksum:
@@ -53,7 +53,6 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         self.missing_files_exception_message = ""
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
 
@@ -62,10 +61,8 @@ class CheckDownloadFolderChecksum(InfoMapBase):
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
-        if self.info_map_file is None:
-            dl_file_items = self.info_map_table.get_download_items(what="file")
-        else:
-            dl_file_items = self.info_map_table.get_items(what="file")
+        dl_file_items = self.info_map_table.get_download_items(what="file")
+
         for file_item in dl_file_items:
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
@@ -98,47 +95,37 @@ class CheckDownloadFolderChecksum(InfoMapBase):
         return report_lines
 
 
-class SetExecPermissionsInSyncFolder(InfoMapBase):
+class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
     def __init__(self, info_map_file=None, **kwargs) -> None:
-        super().__init__(info_map_file, **kwargs)
+        super().__init__(**kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
+        pass
 
     def progress_msg_self(self) -> str:
         return f'''Set exec permissions in download folder'''
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from REQUIRED_INFO_MAP_PATH - if provided
-        if self.info_map_file is not None:
-            # REQUIRED_INFO_MAP_PATH contains only the required files so get the paths
-            # of the executable files
-            exec_file_paths = self.info_map_table.get_exec_file_paths()
-        else:
-            # info_map_file already read, and contains all files, so get the paths
-            # of the *required* executable files
-            exec_file_paths = self.info_map_table.get_required_exec_file_paths()
+        exec_file_paths = self.info_map_table.get_exec_file_paths()
         for file_item_path in exec_file_paths:
             if os.path.isfile(file_item_path):
                 Chmod(file_item_path, "a+x", own_progress_count=0)()
 
 
-class CreateSyncFolders(InfoMapBase):
-    def __init__(self, info_map_file=None, **kwargs) -> None:
-        super().__init__(info_map_file, **kwargs)
+class CreateSyncFolders(DBManager, PythonBatchCommandBase):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param("info_map_file", self.info_map_file, None))
+        pass
 
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
     def __call__(self, *args, **kwargs) -> None:
-        super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
-        if self.info_map_file is None:
-            dl_dir_items = self.info_map_table.get_download_items(what="dir")
-        else:
-            dl_dir_items = self.info_map_table.get_items(what="dir")
+        super().__call__(*args, **kwargs)
+        dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
             self.doing = f"""creating sync folder '{dl_dir}'"""
             MakeDirs(dl_dir.path)()
