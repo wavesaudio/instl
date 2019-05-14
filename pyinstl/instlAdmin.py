@@ -471,51 +471,37 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
-        save_dir = os.getcwd()
-        os.chdir(repo_folder)
+        repo_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
+        with self.batch_accum.sub_accum(Cd(repo_folder)) as repo_folder_accum:
+            info_file = Path(repo_folder.parent, "svn-info-for-fix-props.txt")
+            repo_folder_accum += SVNInfo(out_file=info_file)
+            props_file = Path(repo_folder.parent, "svn-proplist-for-fix-props.txt")
+            repo_folder_accum += SVNPropList(out_file=props_file)
 
-        # read svn info
-        svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", "--depth", "infinity"]
-        proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        my_stdout, my_stderr = proc.communicate()
-        my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
-        if proc.returncode != 0 or my_stderr != "":
-            raise ValueError(f"Could not read info from svn: {my_stderr}")
-        # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
-        with utils.utf8_open("../svn-info-for-fix-props.txt", "w") as wfd:
-            wfd.write(my_stdout)
-        self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
+        if False:
+            self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
+            self.info_map_table.read_from_file(config_vars.resolve_str("../svn-proplist-for-fix-props.txt"), a_format="props")
 
-        # read svn props
-        svn_props_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "proplist", "--depth", "infinity"]
-        proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        my_stdout, my_stderr = proc.communicate()
-        with utils.utf8_open("../svn-proplist-for-fix-props.txt", "w") as wfd:
-            wfd.write(utils.unicodify(my_stdout))
-        self.info_map_table.read_from_file(config_vars.resolve_str("../svn-proplist-for-fix-props.txt"), a_format="props")
+            self.batch_accum += Cd(repo_folder)
 
-        self.batch_accum += Cd(repo_folder)
+            should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
+            self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
-        should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
-        self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
+            for item in self.info_map_table.get_items(what="any"):
+                shouldBeExec = self.should_be_exec(item)
+                for extra_prop in item.extra_props_list():
+                    # print("remove prop", extra_prop, "from", item.path)
+                    self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
+                    self.batch_accum += Progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
+                if item.isExecutable() and not shouldBeExec:
+                    # print("remove prop", "executable", "from", item.path)
+                    self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", 'svn:executable', '"'+item.path+'"') )
+                    self.batch_accum += Progress(" ".join(("remove prop", "executable", "from", item.path)) )
+                elif not item.isExecutable() and shouldBeExec:
+                    # print("add prop", "executable", "to", item.path)
+                    self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
+                    self.batch_accum += Progress(" ".join(("add prop", "executable", "from", item.path)) )
 
-        for item in self.info_map_table.get_items(what="any"):
-            shouldBeExec = self.should_be_exec(item)
-            for extra_prop in item.extra_props_list():
-                # print("remove prop", extra_prop, "from", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
-            if item.isExecutable() and not shouldBeExec:
-                # print("remove prop", "executable", "from", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", 'svn:executable', '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("remove prop", "executable", "from", item.path)) )
-            elif not item.isExecutable() and shouldBeExec:
-                # print("add prop", "executable", "to", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("add prop", "executable", "from", item.path)) )
-
-        os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
@@ -817,9 +803,8 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_verify_index(self):
-        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-        self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str(), disable_indexes_during_read=True)
-
+        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path())
+        self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].Path(), disable_indexes_during_read=True)
         self.verify_index_to_repo()
 
     def do_depend(self):
@@ -989,7 +974,7 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def do_file_sizes(self):
+    def  do_file_sizes(self):
         self.compile_exclude_regexi()
         out_file_path = config_vars["__MAIN_OUT_FILE__"]
         with utils.write_to_file_or_stdout(out_file_path.Path) as out_file:

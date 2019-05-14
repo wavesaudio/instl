@@ -534,7 +534,9 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": No
 
 class FileSizes(PythonBatchCommandBase, essential=True):
     """ create a list of files in a folder and their sizes
+        file paths are listed relative to the top folder
         format is csv: partial-path-to-file, size-of-file
+        files and folders are filtered according to
         useful for admin commands
     """
 
