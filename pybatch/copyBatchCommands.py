@@ -23,6 +23,9 @@ def _fast_copy_file(src, dst):
 
 
 class RsyncClone(PythonBatchCommandBase, essential=True):
+    """ base class for copying file system objects
+        tries to mimic rsync behaviour
+    """
 
     __global_ignore_patterns = list()        # files and folders matching these patterns will not be copied. Applicable for all instances of RsyncClone
     __global_no_hard_link_patterns = list()  # files and folders matching these patterns will not be hard-linked. Applicable for all instances of RsyncClone
@@ -551,4 +554,7 @@ class MoveFileToFile(CopyFileToFile):
 
 
 class RenameFile(MoveFileToFile):
+    """ copy a file into another location and erase the source
+        intermediate folders will be created as needed
+    """
     pass

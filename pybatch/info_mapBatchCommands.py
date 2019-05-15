@@ -23,6 +23,8 @@ from .fileSystemBatchCommands import Chmod
 
 
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
+    """ check checksums in download folder
+    """
     def __init__(self, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.print_report = print_report
@@ -78,6 +80,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
+    """ set execute permissions for files that need such permission  in the download folder """
     def __init__(self, info_map_file=None, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -96,6 +99,8 @@ class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
 
 
 class CreateSyncFolders(DBManager, PythonBatchCommandBase):
+    """ create the download folder hierarchy
+    """
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 

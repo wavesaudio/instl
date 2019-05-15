@@ -8,6 +8,7 @@ from .subprocessBatchCommands import RunProcessBase
 
 
 class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity", "repo_rev": -1}):
+    """ base class for running svn commands """
     def __init__(self, command, **kwargs) -> None:
         super().__init__(**kwargs)
         self.command = command
@@ -35,6 +36,7 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
 
 
 class SVNSetProp(SVNClient):
+    """ calls svn propset """
     def __init__(self, prop_name, prop_value, file_path, **kwargs) -> None:
         super().__init__('propset', **kwargs)
         self.prop_name = prop_name
@@ -57,6 +59,7 @@ class SVNSetProp(SVNClient):
 
 
 class SVNDelProp(SVNClient):
+    """ calls svn propdel """
     def __init__(self, prop_name, file_path, **kwargs) -> None:
         super().__init__('propdel', **kwargs)
         self.prop_name = prop_name
@@ -107,7 +110,7 @@ class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty"}):
 
 
 class SVNCheckout(SVNClient):
-
+    """ calls svn checkout """
     def __init__(self, where, **kwargs):
         super().__init__("checkout", **kwargs)
         self.where = where
@@ -121,7 +124,7 @@ class SVNCheckout(SVNClient):
 
 
 class SVNInfo(SVNClient):
-
+    """ calls svn info """
     def __init__(self, **kwargs):
         super().__init__("info", **kwargs)
 
@@ -130,7 +133,7 @@ class SVNInfo(SVNClient):
 
 
 class SVNPropList(SVNClient):
-
+    """ calls svn proplist """
     def __init__(self, with_values=False, **kwargs):
         super().__init__("proplist", **kwargs)
         self.with_values = with_values
@@ -145,7 +148,7 @@ class SVNPropList(SVNClient):
 
 
 class SVNAdd(SVNClient):
-
+    """ calls svn add """
     def __init__(self, file_to_add, **kwargs):
         super().__init__("add", **kwargs)
         self.file_to_add = file_to_add
@@ -163,7 +166,7 @@ class SVNAdd(SVNClient):
 
 
 class SVNRemove(SVNClient):
-
+    """ calls svn rm """
     def __init__(self, file_to_remove, **kwargs):
         super().__init__("rm", **kwargs)
         self.file_to_remove = file_to_remove
