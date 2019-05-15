@@ -36,9 +36,9 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
 
 class SVNSetProp(SVNClient):
     def __init__(self, prop_name, prop_value, file_path, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__('propset', **kwargs)
         self.prop_name = prop_name
-        self.prop_name = prop_value
+        self.prop_value = prop_value
         self.file_path = file_path
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -50,6 +50,7 @@ class SVNSetProp(SVNClient):
         return f'''svn {self.command} {self.prop_name} {self.prop_value} {self.file_path}'''
 
     def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
         run_args.append(self.prop_name)
         run_args.append(self.prop_value)
         run_args.append(os.fspath(self.file_path))
@@ -57,7 +58,7 @@ class SVNSetProp(SVNClient):
 
 class SVNDelProp(SVNClient):
     def __init__(self, prop_name, file_path, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__('propdel', **kwargs)
         self.prop_name = prop_name
         self.file_path = file_path
 
@@ -69,6 +70,7 @@ class SVNDelProp(SVNClient):
         return f'''svn {self.command} {self.prop_name} {self.file_path}'''
 
     def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
         run_args.append(self.prop_name)
         run_args.append(os.fspath(self.file_path))
 
@@ -129,11 +131,17 @@ class SVNInfo(SVNClient):
 
 class SVNPropList(SVNClient):
 
-    def __init__(self, **kwargs):
+    def __init__(self, with_values=False, **kwargs):
         super().__init__("proplist", **kwargs)
+        self.with_values = with_values
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        pass
+        all_args.append(self.optional_named__init__param("with_values", self.with_values, False))
+
+    def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
+        if self.with_values:
+            run_args.append("--verbose")
 
 
 class SVNAdd(SVNClient):
@@ -167,6 +175,7 @@ class SVNRemove(SVNClient):
         return f'''removing from svn {self.file_to_remove}'''
 
     def get_run_args(self, run_args) -> None:
+        super().get_run_args(run_args)
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
         run_args.append(self.command)
         run_args.append("--force")

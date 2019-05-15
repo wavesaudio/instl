@@ -474,46 +474,44 @@ class InstlAdmin(InstlInstanceBase):
         repo_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
         work_folder_path = repo_folder.parent
 
-        # make sure the database is not created in the svn folder
-        default_db_file = str(config_vars['__MAIN_DB_FILE__'])
-        config_vars['__MAIN_DB_FILE__'].clear()
-        config_vars['__MAIN_DB_FILE__'].append(work_folder_path.joinpath(default_db_file))
-
         PythonBatchCommandBase.ignore_progress = True
         with Cd(repo_folder) as cd_repo_folder:
             self.progress(cd_repo_folder.progress_msg())
             cd_repo_folder()
 
-            info_file = work_folder_path.joinpath("svn-info-for-fix-props.txt")
-            with SVNInfo(out_file=info_file) as info_getter:
-                self.progress(info_getter.progress_msg_self())
-                info_getter()
-
             props_file = work_folder_path.joinpath("svn-proplist-for-fix-props.txt")
+            self.progress(f"get svn proplist to {props_file}")
             with SVNPropList(out_file=props_file) as props_getter:
                 self.progress(props_getter.progress_msg_self())
                 props_getter()
 
-            with SVNInfoReader(info_file, format='info') as info_reader:
-                self.progress(info_reader.progress_msg_self())
-                info_reader()
+            info_file = work_folder_path.joinpath("svn-info-for-fix-props.txt")
+            self.progress(f"get svn info to {info_file}")
+            with SVNInfo(out_file=info_file) as info_getter:
+                self.progress(info_getter.progress_msg_self())
+                info_getter()
 
-            with SVNInfoReader(props_file, format='props') as props_reader:
-                self.progress(props_reader.progress_msg_self())
-                props_reader()
+        with SVNInfoReader(info_file, format='info') as info_reader:
+            self.progress(info_reader.progress_msg_self())
+            info_reader()
+
+        with SVNInfoReader(props_file, format='props') as props_reader:
+            self.progress(props_reader.progress_msg_self())
+            props_reader()
         PythonBatchCommandBase.ignore_progress = False
-        return
+
         should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
-        for item in self.info_map_table.get_items(what="any"):
-            shouldBeExec = self.should_be_exec(item)
-            for extra_prop in item.extra_props_list():
-                self.batch_accum += SVNDelProp("svn:"+extra_prop, item.path)
-            if item.isExecutable() and not shouldBeExec:
-                self.batch_accum += SVNDelProp('svn:executable', item.path)
-            elif not item.isExecutable() and shouldBeExec:
-                self.batch_accum += SVNSetProp('svn:executable', 'yes', item.path)
+        with self.batch_accum.sub_accum(Cd(repo_folder)) as repo_folder_accum:
+            for item in self.info_map_table.get_items(what="any"):
+                shouldBeExec = self.should_be_exec(item)
+                for extra_prop in item.extra_props_list():
+                    repo_folder_accum += SVNDelProp("svn:"+extra_prop, item.path)
+                if item.isExecutable() and not shouldBeExec:
+                    repo_folder_accum += SVNDelProp('svn:executable', item.path)
+                elif not item.isExecutable() and shouldBeExec:
+                    repo_folder_accum += SVNSetProp('svn:executable', 'yes', item.path)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
