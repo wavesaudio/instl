@@ -629,7 +629,7 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     self.batch_accum += Progress(f"not adding {stage_only_item_path} because {svn_item_path_without_aa} exists and is identical")
 
-            elif stage_only_item_path.isdir():
+            elif stage_only_item_path.is_dir():
                 self.raise_if_forbidden_dir(stage_only_item_path)
                 # check that all items under a new folder pass the forbidden file/folder rule
                 for root, dirs, files in os.walk(stage_only_item_path, followlinks=False):
