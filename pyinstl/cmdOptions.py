@@ -138,6 +138,7 @@ def prepare_args_parser(in_command):
         all_command_details.update({
             # converted to instl 2 style
             'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+            'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
             'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
             'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
@@ -149,7 +150,6 @@ def prepare_args_parser(in_command):
             'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
             'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
             'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-            'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
             'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},

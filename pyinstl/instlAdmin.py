@@ -985,14 +985,14 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def  do_file_sizes(self):
+    def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = config_vars["__MAIN_OUT_FILE__"]
-        with utils.write_to_file_or_stdout(out_file_path.Path) as out_file:
+        out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
+        with utils.write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
             if what_to_scan.is_file():
                 file_size = what_to_scan.stat().st_size
-                print(what_to_scan+",", file_size, file=out_file)
+                print(f"{what_to_scan}, {file_size}", file=out_file)
             else:
                 if not self.compiled_forbidden_folder_regex.search(os.fspath(what_to_scan)):
                     for root, dirs, files in utils.excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
@@ -1000,7 +1000,7 @@ class InstlAdmin(InstlInstanceBase):
                             full_path = Path(root, a_file)
                             file_size = full_path.stat().st_size
                             partial_path = full_path.relative_to(what_to_scan)
-                            print(partial_path+",", file_size, file=out_file)
+                            print(f"{partial_path}, {file_size}", file=out_file)
 
     def create_info_map(self, svn_folder, results_folder, accum):
 
