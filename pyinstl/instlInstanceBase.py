@@ -385,7 +385,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.out_file_realpath.endswith(".py"):
             with utils.utf8_open(self.out_file_realpath, 'r') as rfd:
                 py_text = rfd.read()
-                exec(py_text, globals())
+                py_compiled = compile(py_text, os.fspath(self.out_file_realpath), mode='exec', flags=0, dont_inherit=False, optimize=2)
+                exec(py_compiled, globals())
 
         else:
             from subprocess import Popen

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 
 import logging
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 from .baseClasses import PythonBatchCommandBase
 import utils

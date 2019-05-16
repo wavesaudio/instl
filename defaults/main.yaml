@@ -74,6 +74,7 @@ DONT_WRITE_CONFIG_VARS:
     - SVN_REVISION
     - .+_template
     - template_.+
+    - CONFIG_VARS_FOR_ERROR_REPORT
 
 --- !define_Win
 

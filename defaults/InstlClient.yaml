@@ -72,7 +72,7 @@ COPY_SOURCES_ROOT_DIR: $(LOCAL_REPO_SYNC_DIR)
 # if require.yaml exists REQUIRE_REPO_REV will be overridden
 REQUIRE_REPO_REV: 0
 
-# default version for iids that do not have explicity version
+# default version for iids that do not have explicitly version
 DEFAULT_IID_VERSION: 0.0.0
 
 OUTPUT_FORMAT: $(__OUTPUT_FORMAT__)
@@ -85,6 +85,12 @@ SPECIAL_BUILD_IN_IIDS:
 
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
+
+# in case of an error, value of these configVars will appear in the error report
+CONFIG_VARS_FOR_ERROR_REPORT:
+    - REPO_REV
+    - REQUIRE_REPO_REV
+    - BASE_LINKS_URL
 
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:

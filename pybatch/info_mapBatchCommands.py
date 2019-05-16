@@ -5,7 +5,7 @@ import tarfile
 from collections import OrderedDict
 import logging
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 from configVar import config_vars
 import utils

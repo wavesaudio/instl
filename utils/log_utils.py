@@ -56,6 +56,28 @@ def setup_stream_hdlr():
         top_logger.addHandler(strm_hdlr)
 
 
+format_per_level = {logging.CRITICAL: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+                   logging.ERROR: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+                   logging.WARNING: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+                   logging.INFO: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.DEBUG: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+                   logging.NOTSET: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}'}
+
+
+class PerLevelFormatter(logging.Formatter):
+    def __init__(self, format_per_level, **kwargs):
+        super().__init__(**kwargs)
+        self.default_format = self._style._fmt
+        self.format_per_level = format_per_level
+
+    def format(self, record):
+        format_orig = self._style._fmt
+        self._style._fmt = self.format_per_level.get(record.levelno, format_orig)
+        result = super().format(record)
+        self._style._fmt = format_orig
+        return result
+
+
 def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
     '''Setting up a logging handler'''
     log_file_path = Path(log_file_path).resolve()
@@ -69,7 +91,7 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
         fileLogHandler =  logging.FileHandler(log_file_path)
     fileLogHandler.setLevel(level)
     fileLogHandler.set_name(f"(log_file_name)_log_handler")
-    formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}', datefmt='%Y-%m-%d_%H:%M:%S', style='%')
+    formatter = PerLevelFormatter(format_per_level, fmt=format_per_level[logging.CRITICAL], datefmt='%Y-%m-%d_%H:%M:%S', style='%')
 
     fileLogHandler.setFormatter(formatter)
     top_logger.addHandler(fileLogHandler)

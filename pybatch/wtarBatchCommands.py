@@ -14,7 +14,7 @@ import zlib
 from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import SplitFile
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 def can_skip_unwtar(what_to_work_on: Path, where_to_unwtar: Path):

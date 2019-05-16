@@ -12,7 +12,7 @@ import utils
 
 import pybatch
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 

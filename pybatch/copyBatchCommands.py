@@ -7,7 +7,7 @@ from typing import List
 
 
 from .fileSystemBatchCommands import *
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 def _fast_copy_file(src, dst):

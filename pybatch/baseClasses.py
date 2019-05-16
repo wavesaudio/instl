@@ -7,9 +7,10 @@ import time
 from contextlib import contextmanager
 from typing import List
 import logging
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 import utils
+from configVar import config_vars
 
 
 class PythonBatchCommandBase(abc.ABC):
@@ -283,6 +284,10 @@ class PythonBatchCommandBase(abc.ABC):
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': self.current_working_dir,
              })
+
+        for cv in config_vars.get("CONFIG_VARS_FOR_ERROR_REPORT", []).list():
+            self._error_dict[cv] = str(config_vars.get(cv, "unknown"))
+
         if exc_val:
             self._error_dict.update({
                 'exception_type': str(type(exc_val).__name__),

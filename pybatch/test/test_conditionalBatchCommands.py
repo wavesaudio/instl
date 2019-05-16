@@ -3,7 +3,7 @@
 
 import unittest
 import logging
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 from pybatch import *
 
