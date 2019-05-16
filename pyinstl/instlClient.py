@@ -15,6 +15,7 @@ from pybatch import *
 
 
 class InstlClient(InstlInstanceBase):
+    """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.total_self_progress: int = 30000
@@ -61,7 +62,6 @@ class InstlClient(InstlInstanceBase):
             self.__no_copy_iids_by_sync_folder[sync_folder].append(IID)
 
     def do_command(self):
-        # print("client_commands", fixed_command_name)
         active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
 
@@ -106,7 +106,6 @@ class InstlClient(InstlInstanceBase):
 
     def init_default_client_vars(self):
         if "SYNC_BASE_URL" in config_vars:
-            #raise ValueError("'SYNC_BASE_URL' was not defined")
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)
             config_vars["SYNC_BASE_URL_MAIN_ITEM"] = url_main_item
