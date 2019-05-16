@@ -81,9 +81,14 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         if self.err_file is None:
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
             if local_stderr:
-                print(local_stderr, file=sys.stderr)
-                if completed_process.returncode == 0 and self.stderr_means_err:
-                    completed_process.returncode = 123
+                if self.ignore_all_errors:
+                    # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                    # but it will not be interpreted as an error by whoever is running instl
+                    print(local_stderr, file=sys.stdout)
+                else:
+                    print(local_stderr, file=sys.stderr)
+                    if completed_process.returncode == 0 and self.stderr_means_err:
+                        completed_process.returncode = 123
         else:
             err_stream.close()
 
