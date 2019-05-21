@@ -242,7 +242,7 @@ class InstlAdmin(InstlInstanceBase):
             accum += self.platform_helper.popd()
             accum += Echo("done create-links version $(__CURR_REPO_REV__)")
 
-    def do_up2s3(self):
+    def do_up2s3_legacy(self):
         min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
         base_repo_rev = int(config_vars["BASE_REPO_REV"])
         curr_repo_rev = int(config_vars["REPO_REV"])
@@ -1186,3 +1186,62 @@ class InstlAdmin(InstlInstanceBase):
                     else:
                         wfd.write(line)
         return num_translated_guids
+
+    def do_up2s3(self):
+        repo_rev = int(config_vars['TARGET_REPO_REV'])
+        assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
+        assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
+        assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
+
+        config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)
+
+        checkout_url = str(config_vars['SVN_REPO_URL'])
+        checkout_folder = Path(config_vars['SVN_CHECKOUT_FOLDER'])
+        revision_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"))
+        revision_instl_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"))
+        revision_instl_index_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"))
+
+        info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
+        info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
+        info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
+        full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
+
+
+        self.batch_accum.set_current_section('admin')
+        # checkout specific repo-rev to base folder
+        # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+        # will only get the files of that repo-rev instead of the whole repository
+
+        skip_some_actions = False  # to save time during debugging
+
+        checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
+        self.batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
+        self.batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
+
+        self.batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
+        self.batch_accum += CopyDirContentsToDir(checkout_folder, revision_folder_path,
+                                                    hard_links=True, ignore_patterns=[".svn"], preserve_dest_files=False, skip_action=skip_some_actions)
+
+        with self.batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
+            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
+            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
+            sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
+
+        self.batch_accum += IndexYamlReader(revision_instl_index_path)
+        self.batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
+        self.batch_accum += SVNInfoReader(info_map_props_path, format='props')
+        self.batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
+
+        base_rev = int(config_vars["BASE_REPO_REV"])
+        if base_rev > 0:
+            self.batch_accum += SetBaseRevision(base_rev)
+
+        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+
+        self.batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
+        self.batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+
+        self.write_batch_file(self.batch_accum)
+        if bool(config_vars["__RUN_BATCH__"]):
+            self.run_batch_file()

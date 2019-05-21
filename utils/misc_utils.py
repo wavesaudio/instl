@@ -15,7 +15,7 @@ from timeit import default_timer
 from decimal import Decimal
 import logging
 from functools import reduce, wraps
-from itertools import repeat
+import itertools
 import tarfile
 import types
 import asyncio
@@ -243,7 +243,7 @@ def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
     yield from the_iter
-    yield from repeat(continuation_value)
+    yield from itertools.repeat(continuation_value)
 
 
 def ParallelContinuationIter(*iterables):
@@ -779,17 +779,8 @@ def partition_list(in_list, partition_condition):
 
 def iter_grouper(n, iterable):
     """ take iterator and yield groups of size <= n """
-    group = list()
-    while True:
-        try:
-            group.clear()
-            for i in range(n):
-                group.append(next(iterable))
-            if group:
-                yield group
-            else:
-                break
-        except StopIteration:
-            if group:
-                yield group
-            break
+    i = iter(iterable)
+    piece = list(itertools.islice(i, n))
+    while piece:
+        yield piece
+        piece = list(itertools.islice(i, n))

@@ -2,7 +2,7 @@ from typing import List, Any
 import os
 import stat
 import tarfile
-from collections import OrderedDict
+from pathlib import Path
 import logging
 
 log = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ from .fileSystemBatchCommands import MakeDirs
 
 from db import DBManager
 from .fileSystemBatchCommands import Chmod
+from .wtarBatchCommands import Wzip
 
 """
     batch commands that need access to the db and the info_map table
@@ -116,3 +117,115 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
         for dl_dir in dl_dir_items:
             self.doing = f"""creating sync folder '{dl_dir}'"""
             MakeDirs(dl_dir.path)()
+
+
+class SetBaseRevision(DBManager, PythonBatchCommandBase):
+    def __init__(self, base_rev, **kwargs):
+        super().__init__(**kwargs)
+        self.base_rev = base_rev
+
+    def repr_own_args(self, all_args: List[str]):
+        all_args.append(self.unnamed__init__param(self.base_rev))
+
+    def progress_msg_self(self):
+        return f"Set base repo-rev to {self.base_rev}"
+
+    def __call__(self, *args, **kwargs) -> None:
+        super().__call__(*args, **kwargs)
+        self.info_map_table.set_base_revision(self.base_rev)
+
+
+class InfoMapFullWriter(DBManager, PythonBatchCommandBase):
+    """ write all info map table lines to a single file """
+    fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+
+    def __init__(self, out_file, in_format='text', **kwargs):
+        super().__init__(**kwargs)
+        self.out_file = Path(out_file)
+        self.format = format
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.out_file))
+        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+
+    def progress_msg_self(self) -> str:
+        return f'''Create full info_map file'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.info_map_table.write_to_file(self.out_file, field_to_write=InfoMapFullWriter.fields_relevant_to_info_map)
+
+
+class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
+    """ write all info map table to files according to info_map: field in index.yaml """
+    fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+
+    def __init__(self, work_folder, in_format='text', **kwargs):
+        super().__init__(**kwargs)
+        self.work_folder = Path(work_folder)
+        self.format = format
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.work_folder))
+        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+
+    def progress_msg_self(self) -> str:
+        return f'''Create split info_map files'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        # fill the iid_to_svn_item_t table
+        self.info_map_table.populate_IIDToSVNItem()
+
+        # get the list of info map file names
+        info_map_to_item = dict()
+        all_info_map_names = self.items_table.get_unique_detail_values('info_map')
+        for infomap_file_name in all_info_map_names:
+            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
+            info_map_items = self.info_map_table.get_required_items()
+            info_map_to_item[infomap_file_name] = info_map_items
+
+        files_to_add_to_default_info_map = list()  # the named info_map files and their wzip version should be added to the default info_map
+        # write each info map to file
+        for infomap_file_name, info_map_items in info_map_to_item.items():
+            if info_map_items:  # could be that no items are linked to the info map file
+                info_map_file_path = self.work_folder.joinpath(infomap_file_name)
+                self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+                files_to_add_to_default_info_map.append(info_map_file_path)
+
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_info_map_file_path = self.work_folder.joinpath(zip_infomap_file_name)
+                with Wzip(info_map_file_path, self.work_folder, own_progress_count=0) as wzipper:
+                    wzipper()
+                files_to_add_to_default_info_map.append(zip_info_map_file_path)
+
+        # add the default info map
+        default_info_map_file_name = str(config_vars["MAIN_INFO_MAP_FILE_NAME"])
+        default_info_map_file_path = self.work_folder.joinpath(default_info_map_file_name)
+        info_map_items = self.info_map_table.get_items_for_default_infomap()
+        self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+
+        # add a line to default info map for each non default info_map created above
+        with open(default_info_map_file_path, "a") as wfd:
+            for file_to_add in files_to_add_to_default_info_map:
+                file_checksum = utils.get_file_checksum(file_to_add)
+                file_size = file_to_add.stat().st_size
+                # todo: make path relative
+                line_for_main_info_map = f"instl/{file_to_add.name}, f, {config_vars['TARGET_REPO_REV'].str()}, {file_checksum}, {file_size}\n"
+                wfd.write(line_for_main_info_map)
+
+
+
+class IndexYamlReader(DBManager, PythonBatchCommandBase):
+    def __init__(self, index_yaml_path, **kwargs):
+        super().__init__(**kwargs)
+        self.index_yaml_path = Path(index_yaml_path)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.index_yaml_path))
+
+    def progress_msg_self(self) -> str:
+        return f'''read index.yaml from {self.index_yaml_path}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        from pyinstl import IndexYamlReader
+        reader = IndexYamlReader(config_vars)
+        reader.read_yaml_file(self.index_yaml_path)

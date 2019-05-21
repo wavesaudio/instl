@@ -14,6 +14,7 @@ from .baseClasses import PythonBatchCommandBase
 import logging
 log = logging.getLogger(__name__)
 
+
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True}):
     """ base class for classes pybatch commands that need to spawn a subprocess
@@ -301,7 +302,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             self.read_yaml_file(self.config_file)
         with utils.utf8_open(self.python_file, 'r') as rfd:
             py_text = rfd.read()
-            py_compiled = compile(py_text, os.sfpath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
+            py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())
 
 

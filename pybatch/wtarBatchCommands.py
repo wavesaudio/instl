@@ -253,7 +253,7 @@ class Unwtar(PythonBatchCommandBase):
                         continue
 
                     root_Path = Path(root)
-                    tail_folder =root_Path.relative_to(what_to_unwtar)
+                    tail_folder = root_Path.relative_to(what_to_unwtar)
                     where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                     for a_file in files:
                         a_file_path = root_Path.joinpath(a_file)

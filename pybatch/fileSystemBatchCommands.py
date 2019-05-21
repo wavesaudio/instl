@@ -17,6 +17,7 @@ if sys.platform == 'win32':
 import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
+from configVar import config_vars
 
 
 def touch(file_path):
@@ -510,7 +511,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
-class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
+class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
     def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
         super().__init__(**kwargs)
@@ -551,6 +552,12 @@ class FileSizes(PythonBatchCommandBase, essential=True):
 
     def progress_msg_self(self) -> str:
         return f"""File sizes in {self.folder_to_scan}"""
+
+    def compile_exclude_regexi(self):
+        forbidden_folder_regex_list = list(config_vars.get("FOLDER_EXCLUDE_REGEX", [".*"]))
+        self.compiled_forbidden_folder_regex = utils.compile_regex_list_ORed(forbidden_folder_regex_list)
+        forbidden_file_regex_list = list(config_vars.get("FILE_EXCLUDE_REGEX", [".*"]))
+        self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

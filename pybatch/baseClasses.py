@@ -34,6 +34,9 @@ class PythonBatchCommandBase(abc.ABC):
 
         non_representative__dict__keys - list of keys of self.__dict__ that should not be used when comparing or displaying self
     """
+    class SkipActionException(Exception):
+        pass
+
     stage_stack = list()
     instance_counter: int = 0
     total_progress: int = 0
@@ -51,7 +54,8 @@ class PythonBatchCommandBase(abc.ABC):
                        'recursive': False,
                        "reply_config_var": None,
                        "reply_environ_var": None,
-                       'prog_num': 0}
+                       'prog_num': 0,
+                       'skip_action': False}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
@@ -89,7 +93,7 @@ class PythonBatchCommandBase(abc.ABC):
             kwarg_value = kwargs.get(kwarg_name, kwarg_default_value)
             setattr(self, kwarg_name, kwarg_value)
 
-        self.exceptions_to_ignore = []
+        self.exceptions_to_ignore = [PythonBatchCommandBase.SkipActionException]
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
@@ -162,7 +166,8 @@ class PythonBatchCommandBase(abc.ABC):
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
-        pass
+        if self.skip_action:
+            raise PythonBatchCommandBase.SkipActionException()
 
     def unnamed__init__param(self, value):
         value_str = utils.quoteme_raw_by_type(value)

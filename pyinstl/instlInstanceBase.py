@@ -54,6 +54,24 @@ def check_version_compatibility():
     return retVal, message
 
 
+class IndexYamlReader(DBManager, ConfigVarYamlReader):
+
+    def __init__(self, config_vars, **kwargs) -> None:
+        ConfigVarYamlReader.__init__(self, config_vars)
+
+    def init_specific_doc_readers(self):
+        ConfigVarYamlReader.init_specific_doc_readers(self)
+        self.specific_doc_readers["!index"] = self.read_index
+        self.specific_doc_readers["!require"] = self.read_require
+
+    def read_index(self, a_node, *args, **kwargs):
+        self.items_table.read_index_node(a_node, **kwargs)
+
+    def read_require(self, a_node, *args, **kwargs):
+        del args
+        self.items_table.read_require_node(a_node, **kwargs)
+
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
@@ -74,7 +92,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        ConfigVarYamlReader.__init__(self, config_vars)
+        IndexYamlReader.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
@@ -104,7 +122,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
-        ConfigVarYamlReader.init_specific_doc_readers(self)
+        IndexYamlReader.init_specific_doc_readers(self)
         self.specific_doc_readers.pop("__no_tag__", None)
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
@@ -123,9 +141,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines_if_not_exist
             elif acceptibul.startswith("define"):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines
-
-        self.specific_doc_readers["!index"] = self.read_index
-        self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self, short=False):
         instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
@@ -403,8 +418,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        self.items_table.read_index_node(a_node, **kwargs)
-        #self.items_table.read_index_node_one_by_one(a_node, **kwargs)  # for debugging reading index.yaml
+        IndexYamlReader.read_index(a_node, *args, **kwargs)
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 
