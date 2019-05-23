@@ -155,7 +155,8 @@ class InstlMisc(InstlInstanceBase):
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
         out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
-        Ls(*folders_to_list, out_file=out_file, ls_format=ls_format)()
+        for fold in folders_to_list:
+            Ls(fold, out_file=out_file, ls_format=ls_format, out_file_append=True)()
 
     def do_fail(self):
         sleep_before_fail = int(config_vars.get("__FAIL_SLEEP_TIME__", "0") )

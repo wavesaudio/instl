@@ -269,6 +269,7 @@ class InstlClientCopy(InstlClient):
 
     def should_copy_source(self, source, target_folder_path):
         retVal = True
+        reason_not_to_copy = None
         if not self.update_mode:
             top_src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
             top_trg = Path(config_vars.resolve_str(target_folder_path), top_src.name)
@@ -281,26 +282,29 @@ class InstlClientCopy(InstlClient):
                         for avoid_copy_marker in self.avoid_copy_markers:
                             src_marker = src.joinpath(avoid_copy_marker)
                             dst_marker = trg.joinpath(avoid_copy_marker)
-                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
-                            if not retVal:
-                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                            same_checksums = utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if same_checksums:
+                                reason_not_to_copy = f"same checksum Contents/{avoid_copy_marker}"
+                                retVal = False
                                 break
-                    if retVal:
+                    else:
                         # try to Info.xml or Info.plist at top level
                         for avoid_copy_marker in self.avoid_copy_markers:
                             src_marker = top_src.joinpath(avoid_copy_marker)
                             dst_marker = top_trg.joinpath(avoid_copy_marker)
-                            retVal = not utils.compare_files_by_checksum(dst_marker, src_marker)
-                            if not retVal:
-                                #log.info(f"skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
+                            same_checksums = utils.compare_files_by_checksum(dst_marker, src_marker)
+                            if same_checksums:
+                                reason_not_to_copy = f"same checksum {avoid_copy_marker} in top level"
+                                retVal = False
                                 break
                 elif source[1] == "!file":
                     try:
                         if top_src.stat().st_ino == top_trg.stat().st_ino:
                             retVal = False
+                            reason_not_to_copy = f"same inode"
                     except:
                         pass
-        return retVal
+        return retVal, reason_not_to_copy
 
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
         with self.batch_accum.sub_accum(CdStage("copy_to_folder", target_folder_path)) as copy_to_folder_accum:
@@ -319,7 +323,8 @@ class InstlClientCopy(InstlClient):
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     for source in resolved_sources_for_iid:
-                        if self.should_copy_source(source, target_folder_path):
+                        should_copy, reason_not_to_copy = self.should_copy_source(source, target_folder_path)
+                        if should_copy:
                             self.progress(f"copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                             with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                                 num_items_copied_to_folder += 1
@@ -329,7 +334,7 @@ class InstlClientCopy(InstlClient):
                                 if self.mac_current_and_target:
                                     num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
                         else:
-                            self.progress(f"skip copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
+                            self.progress(f"skip copy {source[0]} to {config_vars.resolve_str(target_folder_path)} because {reason_not_to_copy}")
             self.current_iid = None
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks

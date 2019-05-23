@@ -25,13 +25,13 @@ class InstlClientReport(InstlClient):
             config_vars["__MAIN_OUT_FILE__"] = "stdout"
 
     def command_output(self):
-        if not bool(config_vars['__SILENT__']):
+        if not bool(config_vars.get('__SILENT__', "false")):
             out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
             output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 
             if output_format == "json":
-                output_text = json.dumps(self.output_data, indent=1)
+                output_text = json.dumps(self.output_data, indent=1, default=utils.extra_json_serializer)
             elif output_format == "yaml":
                 io_str = io.StringIO()
                 for yaml_data in self.output_data:

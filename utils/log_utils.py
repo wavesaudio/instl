@@ -150,7 +150,7 @@ class JsonLogFormatter(object):
     def format(self, record):
         obj = {attr: getattr(record, attr)
                for attr in self.ATTR_TO_JSON}
-        return json.dumps(obj, indent=4)
+        return json.dumps(obj, indent=4, default=utils.extra_json_serializer)
 
 
 default_logging_level = logging.INFO

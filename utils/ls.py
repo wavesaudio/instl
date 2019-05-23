@@ -11,7 +11,7 @@ from pathlib import Path, PurePath
 import utils
 
 
-def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='text'):
+def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='text'):
     """ Create a manifest of one or more folders or files
         Format is a sequence of characters each specifying what details to include.
         Details are listed in the order they appear in, unless specified as non-positional.
@@ -51,7 +51,6 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
             so 'SCp' actually means 'SCpfd'
     """
     os_names = utils.get_current_os_names()
-    files_or_folders_to_list = sorted([Path(f) for f in files_or_folders_to_list], key=lambda file: file.parts)
     folder_ls_func = None
     item_ls_func = None
     if "Mac" in os_names:
@@ -70,38 +69,37 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     add_remarks = 'M' in ls_format
 
     total_list = list()
-    for root_file_or_folder_path in files_or_folders_to_list:
-        listing_items = list()
-        opening_remarks = list()
-        if add_remarks:
-            opening_remarks.append(f"""# {datetime.datetime.today().isoformat()} listing of {root_file_or_folder_path}""")
+    listing_items = list()
+    opening_remarks = list()
+    if add_remarks:
+        opening_remarks.append(f"""# {datetime.datetime.today().isoformat()} listing of {files_or_folder_to_list}""")
 
-        if utils.is_first_wtar_file(root_file_or_folder_path):
-            listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
-        elif root_file_or_folder_path.is_dir():
-            listing_items.extend(folder_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
-        elif root_file_or_folder_path.is_file() and 'f' in ls_format:
-            root_folder, _ = os.path.split(root_file_or_folder_path)
-            listing_items.append(item_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
-        else:
-            opening_remarks.append(f"""# folder was not found {root_file_or_folder_path}""")
+    if utils.is_first_wtar_file(files_or_folder_to_list):
+        listing_items.extend(wtar_ls_func(files_or_folder_to_list, ls_format=ls_format))
+    elif files_or_folder_to_list.is_dir():
+        listing_items.extend(folder_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=files_or_folder_to_list))
+    elif files_or_folder_to_list.is_file() and 'f' in ls_format:
+        root_folder, _ = os.path.split(files_or_folder_to_list)
+        listing_items.append(item_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=root_folder))
+    else:
+        opening_remarks.append(f"""# folder was not found {files_or_folder_to_list}""")
 
-        if output_format == 'text':
-            total_list.extend(opening_remarks)
-            total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
-            total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
-        elif output_format == 'dicts':
-            for item in listing_items:
-                total_list.append(translate_item_dict_to_be_keyed_by_path(item))
-        elif output_format == 'json':
-            total_list.append({os.fspath(root_file_or_folder_path): translate_json_key_names(listing_items)})
+    if output_format == 'text':
+        total_list.extend(opening_remarks)
+        total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
+        total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
+    elif output_format == 'dicts':
+        for item in listing_items:
+            total_list.append(translate_item_dict_to_be_keyed_by_path(item))
+    elif output_format == 'json':
+        total_list.append({os.fspath(files_or_folder_to_list): translate_json_key_names(listing_items)})
 
     if output_format == 'text':
         retVal = "\n".join(total_list)
     elif output_format == 'dicts':
         retVal = total_list
     elif output_format == 'json':
-        output_json = json.dumps(total_list, indent=1)
+        output_json = json.dumps(total_list, indent=1, default=utils.extra_json_serializer)
         retVal = output_json
     return retVal
 
@@ -356,11 +354,12 @@ def wtar_item_ls_func(item, ls_format):
 
 if __name__ == "__main__":
 
-    path_list = ['/Users/shai/Desktop/wlc.app',
-                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa']
+    path_list = ('/Users/shai/Desktop/wlc.app',
+                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa')
     ls_format = "WMIRLUGSTCpE"  # 'MIRLUGSTCPE'
     for out_format in ('text', 'dicts', 'json'):
-        listing = disk_item_listing(*path_list, ls_format=ls_format, output_format=out_format)
-        with utils.utf8_open("ls."+out_format, "w") as wfd:
-            print(listing, file=wfd)
-            print(os.path.realpath(wfd.name))
+        for a_path in path_list:
+            listing = disk_item_listing(a_path, ls_format=ls_format, output_format=out_format)
+            with utils.utf8_open("ls."+out_format, "w") as wfd:
+                print(listing, file=wfd)
+                print(os.path.realpath(wfd.name))

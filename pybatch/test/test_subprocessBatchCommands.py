@@ -236,7 +236,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_RunInThread_repr(self):
         self.pbt.reprs_test_runner(RunInThread(Ls('rumba', out_file="empty.txt")),
                                    RunInThread(Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')),
-                                   RunInThread(Ls("/Gina/Lollobrigida", r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")))
+                                   RunInThread(Ls(r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")))
 
     def test_RunInThread(self):
         folder_to_list = self.pbt.path_inside_test_folder("folder-to-list")

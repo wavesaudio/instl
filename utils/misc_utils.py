@@ -680,11 +680,22 @@ def get_wtar_total_checksum(wtar_file_path):
     return tar_total_checksum
 
 
+def extra_json_serializer(obj):
+    if isinstance(obj, (collections.deque,)):
+        return list(obj)
+    elif isinstance(obj, PurePath):
+        return os.fspath(obj)
+    else:
+        raise TypeError(f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
+
+
 class JsonExtraTypesEncoder(json.JSONEncoder):
     """ json module does not know to encode deque """
     def default(self, obj):
         if isinstance(obj, (collections.deque,)):
             return list(obj)
+        elif isinstance(obj, PurePath):
+            return os.fspath(obj)
         return json.JSONEncoder.default(self, obj)
 
 

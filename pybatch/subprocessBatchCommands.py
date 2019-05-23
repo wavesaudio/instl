@@ -324,10 +324,8 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         self.what_to_run.own_progress_count = 0
         self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
-        if self.thread_name is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.thread_name))
-        if self.daemon is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.daemon))
+        all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
+        all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
 
     def progress_msg_self(self) -> str:
         return f''''''
