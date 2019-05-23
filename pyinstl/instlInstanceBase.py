@@ -418,7 +418,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        IndexYamlReader.read_index(a_node, *args, **kwargs)
+        IndexYamlReader.read_index(self, a_node, *args, **kwargs)
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 
