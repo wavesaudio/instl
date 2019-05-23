@@ -26,8 +26,9 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
         run_args.append(self.command)
         if self.url_with_repo_rev():
             run_args.append(self.url_with_repo_rev())
-        run_args.append("--depth")
-        run_args.append(self.depth)
+        if self.depth:
+            run_args.append("--depth")
+            run_args.append(self.depth)
         if self.working_copy_path is not None:
             run_args.append(self.working_copy_path)
 
@@ -170,7 +171,7 @@ class SVNAdd(SVNClient):
         run_args.append(self.file_to_add)
 
 
-class SVNRemove(SVNClient):
+class SVNRemove(SVNClient, kwargs_defaults={"depth": None}):
     """ calls svn rm """
     def __init__(self, file_to_remove, **kwargs):
         super().__init__("rm", **kwargs)
@@ -181,8 +182,6 @@ class SVNRemove(SVNClient):
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)
-        run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
-        run_args.append(self.command)
         run_args.append("--force")
         run_args.append(self.file_to_remove)
 
