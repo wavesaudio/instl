@@ -13,10 +13,11 @@ import utils
 
 from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import MakeDirs
-
-from db import DBManager
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
+from .copyBatchCommands import CopyFileToFile
+
+from db import DBManager
 
 """
     batch commands that need access to the db and the info_map table
@@ -213,7 +214,6 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
                 wfd.write(line_for_main_info_map)
 
 
-
 class IndexYamlReader(DBManager, PythonBatchCommandBase):
     def __init__(self, index_yaml_path, **kwargs):
         super().__init__(**kwargs)
@@ -229,3 +229,30 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
         from pyinstl import IndexYamlReader
         reader = IndexYamlReader(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
+
+
+class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
+    def __init__(self, checkout_folder, repo_rev_folder, repo_rev, **kwargs):
+        super().__init__(**kwargs)
+        self.checkout_folder = Path(checkout_folder)
+        self.repo_rev_folder = Path(repo_rev_folder)
+        self.repo_rev = repo_rev
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.checkout_folder))
+        all_args.append(self.unnamed__init__param(self.repo_rev_folder))
+        all_args.append(self.unnamed__init__param(self.repo_rev))
+
+    def progress_msg_self(self) -> str:
+        return f'''Copy repo-rev {self.repo_rev} files from {self.checkout_folder} to {self.repo_rev_folder}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.info_map_table.mark_required_for_revision(self.repo_rev)
+        self.info_map_table.mark_required_for_dir("instl")
+        files_to_copy = self.info_map_table.get_required_items(what="file")
+        for a_file in files_to_copy:
+            source = Path(self.checkout_folder, a_file)
+            target = Path(self.repo_rev_folder, a_file)
+            print(f"copy {source} to {target}")
+            with CopyFileToFile(source, target, own_progress_count=0) as cftf:
+                cftf()

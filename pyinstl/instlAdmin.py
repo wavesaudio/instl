@@ -1194,10 +1194,13 @@ class InstlAdmin(InstlInstanceBase):
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
 
         config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)
+        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
         checkout_url = str(config_vars['SVN_REPO_URL'])
         checkout_folder = Path(config_vars['SVN_CHECKOUT_FOLDER'])
+        checkout_folder_instl_folder_path = checkout_folder.joinpath("instl")
+        checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
+
         revision_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"))
         revision_instl_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"))
         revision_instl_index_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"))
@@ -1220,22 +1223,24 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
 
         self.batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-        self.batch_accum += CopyDirContentsToDir(checkout_folder, revision_folder_path,
-                                                    hard_links=True, ignore_patterns=[".svn"], preserve_dest_files=False, skip_action=skip_some_actions)
-
+        self.batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
         with self.batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
             sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
             sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
             sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
-        self.batch_accum += IndexYamlReader(revision_instl_index_path)
+        self.batch_accum += IndexYamlReader(checkout_folder_index_path)
         self.batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
         self.batch_accum += SVNInfoReader(info_map_props_path, format='props')
         self.batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
-
         base_rev = int(config_vars["BASE_REPO_REV"])
         if base_rev > 0:
             self.batch_accum += SetBaseRevision(base_rev)
+
+        # copy all (and only) the files from repo-rev
+        self.batch_accum += CopySpecificRepoRev(checkout_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
+        # also copy the whole instl folder
+        self.batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
 
         fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
