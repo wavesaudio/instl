@@ -125,22 +125,21 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
     """
     def __init__(self, symlink_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.symlink_to_convert = symlink_to_convert
+        self.symlink_to_convert = Path(symlink_to_convert)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.symlink_to_convert))
+        all_args.append(self.unnamed__init__param(self.symlink_to_convert))
 
     def progress_msg_self(self) -> str:
-        return f"""Create symlink file '{self.symlink_to_convert}'"""
+        return f"""Convert symlink file '{self.symlink_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         symlink_to_convert = Path(os.path.expandvars(self.symlink_to_convert))
         self.doing = f"""convert real symlink '{symlink_to_convert}' to .symlink file"""
         if symlink_to_convert.is_symlink():
-            target_path = symlink_to_convert.resolve()
             link_value = os.readlink(symlink_to_convert)
-            if target_path.is_dir() or target_path.is_file():
+            if symlink_to_convert.is_dir() or symlink_to_convert.is_file():
                 symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
                 symlink_text_path.write_text(link_value)
                 symlink_to_convert.unlink()
@@ -184,9 +183,8 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     """
     def __init__(self, folder_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.folder_to_convert = folder_to_convert
+        self.folder_to_convert = Path(folder_to_convert)
         self.last_symlink_file = None
-        self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_convert))
@@ -195,24 +193,28 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         return f"""Create symlinks files in '{self.folder_to_convert}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         valid_symlinks = list()
         broken_symlinks = list()
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files + dirs:
-                item_path = os.path.join(root, item)
-                if os.path.islink(item_path):
-                    link_value = os.readlink(item_path)
-                    target_path = os.path.realpath(item_path)
-                    self.last_symlink_file = item_path
-                    with SymlinkToSymlinkFile(item_path, own_progress_count=0) as symlink_converter:
-                        symlink_converter()
-                        self.doing = symlink_converter.doing
-                    if os.path.isdir(target_path) or os.path.isfile(target_path):
-                        valid_symlinks.append((item_path, link_value))
-                    else:
-                        broken_symlinks.append((item_path, link_value))
+                item_path = Path(root, item)
+                if item_path.is_symlink():
+                    try:
+                        target = item_path.resolve()
+                        link_value = os.readlink(item_path)
+                        self.last_symlink_file = item_path
+                        with SymlinkToSymlinkFile(item_path, own_progress_count=0) as symlink_converter:
+                            self.doing = f"""convert real symlink i'{item_path}' to .symlink file"""
+                            symlink_converter()
+                        if target.exists():
+                            valid_symlinks.append((item_path, link_value))
+                        else:
+                            broken_symlinks.append((item_path, link_value))
+                    except:
+                        log.warning(f"failed to convert {item_path}")
         if len(broken_symlinks) > 0:
             log.warning("Found broken symlinks")
             for symlink_file, link_value in broken_symlinks:

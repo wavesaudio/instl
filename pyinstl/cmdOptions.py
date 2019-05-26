@@ -131,6 +131,8 @@ def prepare_args_parser(in_command):
             'win-shortcut':         {'mode': 'do_something', 'options': (), 'help':  'create a Windows shortcut'},
             'wtar':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
             'wzip':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
+            'encode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert a real symlink into a .symlink file'},
+            'decode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert .symlink file into a real symlink'}
             })
 
     if in_command not in all_command_details:
