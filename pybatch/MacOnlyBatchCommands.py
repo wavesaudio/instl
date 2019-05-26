@@ -139,10 +139,9 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
         self.doing = f"""convert real symlink '{symlink_to_convert}' to .symlink file"""
         if symlink_to_convert.is_symlink():
             link_value = os.readlink(symlink_to_convert)
-            if symlink_to_convert.is_dir() or symlink_to_convert.is_file():
-                symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
-                symlink_text_path.write_text(link_value)
-                symlink_to_convert.unlink()
+            symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
+            symlink_text_path.write_text(link_value)
+            symlink_to_convert.unlink()
 
 
 class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
@@ -195,30 +194,18 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        valid_symlinks = list()
-        broken_symlinks = list()
         resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files + dirs:
                 item_path = Path(root, item)
                 if item_path.is_symlink():
                     try:
-                        target = item_path.resolve()
-                        link_value = os.readlink(item_path)
                         self.last_symlink_file = item_path
                         with SymlinkToSymlinkFile(item_path, own_progress_count=0) as symlink_converter:
-                            self.doing = f"""convert real symlink i'{item_path}' to .symlink file"""
+                            self.doing = f"""convert symlink '{item_path}' to .symlink file"""
                             symlink_converter()
-                        if target.exists():
-                            valid_symlinks.append((item_path, link_value))
-                        else:
-                            broken_symlinks.append((item_path, link_value))
                     except:
                         log.warning(f"failed to convert {item_path}")
-        if len(broken_symlinks) > 0:
-            log.warning("Found broken symlinks")
-            for symlink_file, link_value in broken_symlinks:
-                log.warning(f"""{symlink_file} -?, {link_value}""")
 
 
 class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
