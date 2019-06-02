@@ -223,7 +223,7 @@ class InstlClientCopy(InstlClient):
                         retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
 
             if len(wtar_base_names) > 0:
-                retVal += Unwtar(source_path_abs, source_path_name)
+                retVal += Unwtar(source_path_abs, os.curdir)
                 #self.unwtar_instructions.append((source_path_abs, source_path_name))
                 #retVal += Unlock(os.curdir, recursive=True)
 

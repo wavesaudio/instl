@@ -234,15 +234,22 @@ class Unwtar(PythonBatchCommandBase):
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
         what_to_unwtar: Path = utils.ResolvedPath(self.what_to_unwtar)
-        destination_folder: Path = utils.ResolvedPath(self.where_to_unwtar) if self.where_to_unwtar else what_to_unwtar.parent
-
-        self._doing = f"""unwtar '{what_to_unwtar}' to '{destination_folder}''"""
 
         if what_to_unwtar.is_file():
             if utils.is_first_wtar_file(what_to_unwtar):
+                if self.where_to_unwtar:
+                    destination_folder: Path = utils.ResolvedPath(self.where_to_unwtar)
+                else:
+                    destination_folder = what_to_unwtar.parent
+                self._doing = f"""unwtar file '{what_to_unwtar}' to '{destination_folder}''"""
                 unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files)
 
         elif what_to_unwtar.is_dir():
+            if self.where_to_unwtar:
+                destination_folder: Path = Path(utils.ResolvedPath(self.where_to_unwtar), what_to_unwtar.name)
+            else:
+                destination_folder = what_to_unwtar
+            self._doing = f"""unwtar folder '{what_to_unwtar}' to '{destination_folder}''"""
             if not can_skip_unwtar(what_to_unwtar, destination_folder):
                 for root, dirs, files in os.walk(what_to_unwtar, followlinks=False):
                     # a hack to prevent unwtarring of the sync folder. Copy command might copy something
@@ -254,10 +261,10 @@ class Unwtar(PythonBatchCommandBase):
 
                     root_Path = Path(root)
                     tail_folder = root_Path.relative_to(what_to_unwtar)
-                    where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                     for a_file in files:
                         a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
+                            where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                             self._doing = f"""unwtarring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
                             unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
             else:
