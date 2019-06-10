@@ -518,7 +518,8 @@ class IndexItemsTable(object):
                                 if detail_name in ("install_sources", "previous_sources") and tag is None:
                                     tag = '!dir'
                                 elif detail_name == "guid":
-                                    value = value.lower()
+                                    if value:
+                                        value = value.lower()
 
                                 if detail_name == "install_sources":
                                     if value.startswith('/'):  # absolute path
