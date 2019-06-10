@@ -190,13 +190,36 @@ class InstlClientCopy(InstlClient):
 
         if len(wtar_items) > 0:
             retVal += Unwtar(source_path_abs, os.curdir)
-            #self.unwtar_instructions.append((source_path_abs, '.'))
-            #retVal += Unlock(os.curdir, recursive=True)
 
-            # fix permissions for any items that were unwtarred
-            # unwtar moved be done with "command-list"
-            # if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-            #    retVal += Chmod(os.curdir, "-R -f a+rwX")
+        return retVal
+
+    def create_copy_instructions_for_dir_extended(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
+        dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
+        if dir_item is not None:
+            retVal = AnonymousAccum()
+            source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
+            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
+            ignores = list(wtar_base_names)
+            source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
+            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+
+            source_path_dir, source_path_name = os.path.split(source_path)
+
+            # if self.mac_current_and_target:
+            #     retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id="$(__USER_ID__)", group_id="", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+            #     for source_item in source_items:
+            #         if not source_item.is_wtar_file() and source_item.isExecutable():
+            #             source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
+            #             # executable files should also get exec bit
+            #             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
+            #
+            # if len(wtar_base_names) > 0:
+            #     retVal += Unwtar(source_path_abs, os.curdir)
+
+            retVal += CopyBundle(source_path_abs, os.curdir, unwtar=(len(wtar_base_names) > 0), ignore_patterns=ignores)
+        else:
+            # it might be a dir that was wtarred
+            retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
         return retVal
 
     def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
@@ -207,9 +230,7 @@ class InstlClientCopy(InstlClient):
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
             ignores = list(wtar_base_names)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            retVal += CopyDirToDir(source_path_abs, os.curdir,
-                                                                               link_dest=True,
-                                                                               ignore_patterns=ignores)
+            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, ignore_patterns=ignores)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -224,13 +245,6 @@ class InstlClientCopy(InstlClient):
 
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, os.curdir)
-                #self.unwtar_instructions.append((source_path_abs, source_path_name))
-                #retVal += Unlock(os.curdir, recursive=True)
-
-                # fix permissions for any items that were unwtarred
-                # unwtar moved be done with "command-list"
-                # if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-                #    retVal += Chmod(source_path_name, "-R -f a+rwX")
         else:
             # it might be a dir that was wtarred
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
