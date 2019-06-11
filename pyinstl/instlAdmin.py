@@ -1189,9 +1189,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up2s3(self):
         repo_rev = int(config_vars['TARGET_REPO_REV'])
-        self.up2s3_repo_rev(repo_rev)
+        self.up2s3_repo_rev(repo_rev, self.batch_accum)
 
-    def up2s3_repo_rev(self, repo_rev):
+    def up2s3_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
@@ -1213,7 +1213,7 @@ class InstlAdmin(InstlInstanceBase):
         info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
         full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
 
-        self.batch_accum.set_current_section('admin')
+        batch_accum.set_current_section('admin')
         # checkout specific repo-rev to base folder
         # full checkout might take a long time so checking out to base folder, if done in repo-rev order
         # will only get the files of that repo-rev instead of the whole repository
@@ -1221,38 +1221,38 @@ class InstlAdmin(InstlInstanceBase):
         skip_some_actions = False  # to save time during debugging
 
         checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
-        self.batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
-        self.batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
+        batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
+        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
 
-        self.batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-        self.batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
-        with self.batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
+        batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
+        batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
+        with batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
             sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
             sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
             sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
-        self.batch_accum += IndexYamlReader(checkout_folder_index_path)
-        self.batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
-        self.batch_accum += SVNInfoReader(info_map_props_path, format='props')
-        self.batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
+        batch_accum += IndexYamlReader(checkout_folder_index_path)
+        batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
+        batch_accum += SVNInfoReader(info_map_props_path, format='props')
+        batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
         base_rev = int(config_vars["BASE_REPO_REV"])
         if base_rev > 0:
-            self.batch_accum += SetBaseRevision(base_rev)
+            batch_accum += SetBaseRevision(base_rev)
 
         # copy all (and only) the files from repo-rev
-        self.batch_accum += CopySpecificRepoRev(checkout_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
+        batch_accum += CopySpecificRepoRev(checkout_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
         # also copy the whole instl folder
-        self.batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
+        batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
 
         fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
-        self.batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
-        self.batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+        batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
+        batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
 
-        with self.batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+        with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
             sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
-        self.write_batch_file(self.batch_accum)
+        self.write_batch_file(batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
@@ -1272,13 +1272,20 @@ class InstlAdmin(InstlInstanceBase):
             if poped is not None:
                 key = str(poped[0])
                 if key == trigger_redis_key:
+                    if poped[1] == "stop":
+                        print(f"{trigger_redis_key} received 'stop' no more waiting on {trigger_redis_key}")
+                        break
+
                     repo_rev = int(poped[1])
                     print(f"{trigger_redis_key} repo-rev {repo_rev} triggered")
                     config_vars['TARGET_REPO_REV'] = repo_rev
                     config_vars['__MAIN_OUT_FILE__'] = f"{trigger_redis_key}:{repo_rev}.py"
                     config_vars["__RUN_BATCH__"] = True
                     try:
-                        self.up2s3_repo_rev(repo_rev)
+                        self.reset_db()
+                        batch_accum = PythonBatchCommandAccum()
+                        self.up2s3_repo_rev(repo_rev, batch_accum)
+
                         print(f"{trigger_redis_key} up2s3 of repo-rev {repo_rev} done")
                         r.lpush(done_redis_key, repo_rev)
                     except Exception as ex:
