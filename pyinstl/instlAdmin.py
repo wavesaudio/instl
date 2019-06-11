@@ -1210,7 +1210,6 @@ class InstlAdmin(InstlInstanceBase):
         info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
         full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
 
-
         self.batch_accum.set_current_section('admin')
         # checkout specific repo-rev to base folder
         # full checkout might take a long time so checking out to base folder, if done in repo-rev order
@@ -1246,6 +1245,9 @@ class InstlAdmin(InstlInstanceBase):
 
         self.batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
         self.batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+
+        with self.batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+            sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
