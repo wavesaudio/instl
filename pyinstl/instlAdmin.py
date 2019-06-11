@@ -1189,6 +1189,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up2s3(self):
         repo_rev = int(config_vars['TARGET_REPO_REV'])
+        self.up2s3_repo_rev(repo_rev)
+
+    def up2s3_repo_rev(self, repo_rev):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
@@ -1252,3 +1255,32 @@ class InstlAdmin(InstlInstanceBase):
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
+
+    def do_wait_on_commit_trigger(self):
+        import time
+        import redis
+
+        redis_host = config_vars['REDIS_HOST'].str()
+        redis_port = config_vars['REDIS_PORT'].int()
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        trigger_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
+        done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
+
+        while True:
+            print(f"wait_on_commit_trigger: {redis_host}:{redis_port} {trigger_redis_key}")
+            poped = r.brpop(trigger_redis_key, 60)
+            if poped is not None:
+                key = str(poped[0])
+                if key == trigger_redis_key:
+                    repo_rev = int(poped[1])
+                    print(f"{trigger_redis_key} repo-rev {repo_rev} triggered")
+                    config_vars['TARGET_REPO_REV'] = repo_rev
+                    config_vars['__MAIN_OUT_FILE__'] = f"{trigger_redis_key}:{repo_rev}.py"
+                    config_vars["__RUN_BATCH__"] = True
+                    try:
+                        self.up2s3_repo_rev(repo_rev)
+                        print(f"{trigger_redis_key} up2s3 of repo-rev {repo_rev} done")
+                        r.lpush(done_redis_key, repo_rev)
+                    except Exception as ex:
+                        print(f"Exception {ex} in {trigger_redis_key} up2s3 of repo-rev {repo_rev}")
+            time.sleep(1)
