@@ -382,3 +382,23 @@ class Subprocess(RunProcessBase, essential=True):
         run_args.append(subprocess_exe)
         for arg in self.subprocess_args:
             run_args.append(os.path.expandvars(arg))
+
+
+class ExternalPythonExec(Subprocess):
+    '''A class that enables running python processes under the native python installed on the machine'''
+    def __init__(self, *subprocess_args, **kwargs):
+        '''Setting subprocess_exe to an empty string to exclude it from the repr'''
+        super().__init__('', *subprocess_args, **kwargs)
+
+    def repr_own_args(self, all_args: List[str]):
+        '''Removing subprocess_exe from the repr'''
+        super().repr_own_args(all_args)
+        all_args.pop(0)  # Removing empty string
+
+    def get_run_args(self, run_args) -> None:
+        '''Injecting the relevant OS python process into the run args instead of the empty string'''
+        super().get_run_args(run_args)
+        python_executables = {'win32': ['py',  '-3.6'], 'darwin': ['python3.6']}
+        run_args.pop(0)  # Removing empty string
+        for arg in reversed(python_executables[sys.platform]):
+            run_args.insert(0, arg)
