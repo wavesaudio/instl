@@ -20,6 +20,7 @@ from .copyBatchCommands import CopyFileToDir
 from .copyBatchCommands import CopyFileToFile
 from .copyBatchCommands import MoveDirToDir
 from .copyBatchCommands import RenameFile
+from .copyBatchCommands import CopyBundle
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
@@ -75,6 +76,10 @@ from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 from .info_mapBatchCommands import CheckDownloadFolderChecksum
 from .info_mapBatchCommands import SetExecPermissionsInSyncFolder
 from .info_mapBatchCommands import CreateSyncFolders
+from .info_mapBatchCommands import InfoMapFullWriter
+from .info_mapBatchCommands import InfoMapSplitWriter
+from .info_mapBatchCommands import SetBaseRevision
+from .info_mapBatchCommands import IndexYamlReader
 
 from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev
@@ -83,6 +88,10 @@ from .svnBatchCommands import SVNInfo
 from .svnBatchCommands import SVNPropList
 from .svnBatchCommands import SVNAdd
 from .svnBatchCommands import SVNRemove
+from .svnBatchCommands import SVNInfoReader
+from .svnBatchCommands import SVNSetProp
+from .svnBatchCommands import SVNDelProp
+from .svnBatchCommands import SVNCleanup
 
 if sys.platform == "win32":
     from .WinOnlyBatchCommands import WinShortcut

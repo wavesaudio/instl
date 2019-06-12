@@ -7,9 +7,10 @@ import time
 from contextlib import contextmanager
 from typing import List
 import logging
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 import utils
+from configVar import config_vars
 
 
 class PythonBatchCommandBase(abc.ABC):
@@ -33,6 +34,9 @@ class PythonBatchCommandBase(abc.ABC):
 
         non_representative__dict__keys - list of keys of self.__dict__ that should not be used when comparing or displaying self
     """
+    class SkipActionException(Exception):
+        pass
+
     stage_stack = list()
     instance_counter: int = 0
     total_progress: int = 0
@@ -42,6 +46,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_context_manager: bool = True   # when true need to be created as context manager
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     runtime_duration_by_progress = dict()
+    ignore_progress = False           # set to True when using batch commands out side python batch file
 
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
@@ -49,7 +54,8 @@ class PythonBatchCommandBase(abc.ABC):
                        'recursive': False,
                        "reply_config_var": None,
                        "reply_environ_var": None,
-                       'prog_num': 0}
+                       'prog_num': 0,
+                       'skip_action': False}
     kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
@@ -87,7 +93,7 @@ class PythonBatchCommandBase(abc.ABC):
             kwarg_value = kwargs.get(kwarg_name, kwarg_default_value)
             setattr(self, kwarg_name, kwarg_value)
 
-        self.exceptions_to_ignore = []
+        self.exceptions_to_ignore = [PythonBatchCommandBase.SkipActionException]
         self.child_batch_commands = []
         self.enter_time = None
         self.exit_time = None
@@ -160,7 +166,8 @@ class PythonBatchCommandBase(abc.ABC):
 
     @abc.abstractmethod
     def __call__(self, *args, **kwargs):
-        pass
+        if self.skip_action:
+            raise PythonBatchCommandBase.SkipActionException()
 
     def unnamed__init__param(self, value):
         value_str = utils.quoteme_raw_by_type(value)
@@ -249,7 +256,10 @@ class PythonBatchCommandBase(abc.ABC):
         return the_hash
 
     def progress_msg(self) -> str:
-        the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
+        if PythonBatchCommandBase.ignore_progress:
+            the_progress_msg = ""
+        else:
+            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
         return the_progress_msg
 
     def warning_msg_self(self) -> str:
@@ -279,6 +289,10 @@ class PythonBatchCommandBase(abc.ABC):
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': self.current_working_dir,
              })
+
+        for cv in config_vars.get("CONFIG_VARS_FOR_ERROR_REPORT", []).list():
+            self._error_dict[cv] = str(config_vars.get(cv, "unknown"))
+
         if exc_val:
             self._error_dict.update({
                 'exception_type': str(type(exc_val).__name__),
@@ -295,7 +309,7 @@ class PythonBatchCommandBase(abc.ABC):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_timing_measure()
         try:
-            if self.report_own_progress:
+            if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
                 log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
             self.current_working_dir = os.getcwd()
             self.enter_self()
@@ -341,17 +355,19 @@ class PythonBatchCommandBase(abc.ABC):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     def enter_timing_measure(self):
-        self.enter_time = time.perf_counter()
-        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
-        if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
-            log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+        if not PythonBatchCommandBase.ignore_progress:
+            self.enter_time = time.perf_counter()
+            PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
+            if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+                log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
 
     def exit_timing_measure(self):
-        self.exit_time = time.perf_counter()
-        self.command_time_sec = (self.exit_time - self.enter_time)
-        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
-        if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
-            log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
+        if not PythonBatchCommandBase.ignore_progress:
+            self.exit_time = time.perf_counter()
+            self.command_time_sec = (self.exit_time - self.enter_time)
+            PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
+            if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
+                log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
 
     @contextmanager
     def timing_contextmanager(self):

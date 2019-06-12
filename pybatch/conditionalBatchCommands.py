@@ -25,7 +25,7 @@ class If(PythonBatchCommandBase, essential=True):
             all_args.append(f"if_false={repr(self.if_false)}")
 
     def progress_msg_self(self) -> str:
-        return f''''''
+        return f'''If({repr(self.condition)})'''
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

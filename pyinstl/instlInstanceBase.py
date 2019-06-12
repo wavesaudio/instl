@@ -54,6 +54,24 @@ def check_version_compatibility():
     return retVal, message
 
 
+class IndexYamlReader(DBManager, ConfigVarYamlReader):
+
+    def __init__(self, config_vars, **kwargs) -> None:
+        ConfigVarYamlReader.__init__(self, config_vars)
+
+    def init_specific_doc_readers(self):
+        ConfigVarYamlReader.init_specific_doc_readers(self)
+        self.specific_doc_readers["!index"] = self.read_index
+        self.specific_doc_readers["!require"] = self.read_require
+
+    def read_index(self, a_node, *args, **kwargs):
+        self.items_table.read_index_node(a_node, **kwargs)
+
+    def read_require(self, a_node, *args, **kwargs):
+        del args
+        self.items_table.read_require_node(a_node, **kwargs)
+
+
 # noinspection PyPep8Naming
 class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
@@ -65,7 +83,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
                                              'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
-                                             'verify-repo', 'depend']
+                                             'verify-repo', 'depend', 'fix-props']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -74,7 +92,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        ConfigVarYamlReader.__init__(self, config_vars)
+        IndexYamlReader.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
@@ -104,7 +122,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
-        ConfigVarYamlReader.init_specific_doc_readers(self)
+        IndexYamlReader.init_specific_doc_readers(self)
         self.specific_doc_readers.pop("__no_tag__", None)
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
@@ -123,9 +141,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines_if_not_exist
             elif acceptibul.startswith("define"):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines
-
-        self.specific_doc_readers["!index"] = self.read_index
-        self.specific_doc_readers["!require"] = self.read_require
 
     def get_version_str(self, short=False):
         instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
@@ -173,6 +188,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_COMMAND__" in config_vars:
             self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
+        DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
@@ -189,7 +205,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 config_vars[name] = value
 
         self.get_default_out_file()
-        self.get_default_db_file()
 
     def close(self):
         del self.info_map_table
@@ -201,31 +216,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_OUT_FILE__" not in config_vars:
             if "__MAIN_INPUT_FILE__" in config_vars:
                 config_vars["__MAIN_OUT_FILE__"] = "$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
-
-    def get_default_db_file(self):
-        if "__MAIN_DB_FILE__" not in config_vars:
-            db_base_path = None
-            if "__MAIN_OUT_FILE__" in config_vars:
-                # try to set the db file next to the output file
-                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-            elif "__MAIN_INPUT_FILE__" in config_vars:
-                # if no output file try next to the input file
-                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
-            else:
-                # as last resort try the Logs folder on desktop if one exists
-                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-                if os.path.isdir(logs_dir):
-                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
-
-            if db_base_path:
-                # set the proper extension
-                db_base_path, ext = os.path.splitext(db_base_path)
-                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
-                config_vars["__MAIN_DB_FILE__"] = db_base_path
-                if self.the_command in self.commands_that_need_to_refresh_db_file:
-                    if os.path.isfile(db_base_path):
-                        utils.safe_remove_file(db_base_path)
-                        self.progress(f"removed previous db file {db_base_path}")
 
     def read_require(self, a_node, *args, **kwargs):
         del args
@@ -410,7 +400,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.out_file_realpath.endswith(".py"):
             with utils.utf8_open(self.out_file_realpath, 'r') as rfd:
                 py_text = rfd.read()
-                exec(py_text, globals())
+                py_compiled = compile(py_text, os.fspath(self.out_file_realpath), mode='exec', flags=0, dont_inherit=False, optimize=2)
+                exec(py_compiled, globals())
 
         else:
             from subprocess import Popen
@@ -427,8 +418,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        self.items_table.read_index_node(a_node, **kwargs)
-        #self.items_table.read_index_node_one_by_one(a_node, **kwargs)  # for debugging reading index.yaml
+        IndexYamlReader.read_index(self, a_node, *args, **kwargs)
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 

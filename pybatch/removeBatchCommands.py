@@ -8,7 +8,7 @@ import logging
 import utils
 from pybatch import PythonBatchCommandBase
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 class RmFile(PythonBatchCommandBase, essential=True):

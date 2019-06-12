@@ -242,7 +242,7 @@ class InstlAdmin(InstlInstanceBase):
             accum += self.platform_helper.popd()
             accum += Echo("done create-links version $(__CURR_REPO_REV__)")
 
-    def do_up2s3(self):
+    def do_up2s3_legacy(self):
         min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
         base_repo_rev = int(config_vars["BASE_REPO_REV"])
         curr_repo_rev = int(config_vars["REPO_REV"])
@@ -471,51 +471,48 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
-        repo_folder = os.fspath(config_vars["SVN_CHECKOUT_FOLDER"])
-        save_dir = os.getcwd()
-        os.chdir(repo_folder)
+        repo_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
+        work_folder_path = repo_folder.parent
 
-        # read svn info
-        svn_info_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "info", "--depth", "infinity"]
-        proc = subprocess.Popen(svn_info_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        my_stdout, my_stderr = proc.communicate()
-        my_stdout, my_stderr = utils.unicodify(my_stdout), utils.unicodify(my_stderr)
-        if proc.returncode != 0 or my_stderr != "":
-            raise ValueError(f"Could not read info from svn: {my_stderr}")
-        # write svn info to file for debugging and reference. But go one folder up so not to be in the svn repo.
-        with utils.utf8_open("../svn-info-for-fix-props.txt", "w") as wfd:
-            wfd.write(my_stdout)
-        self.info_map_table.read_from_file("../svn-info-for-fix-props.txt", a_format="info")
+        PythonBatchCommandBase.ignore_progress = True
+        with Cd(repo_folder) as cd_repo_folder:
+            self.progress(cd_repo_folder.progress_msg())
+            cd_repo_folder()
 
-        # read svn props
-        svn_props_command = [os.fspath(config_vars["SVN_CLIENT_PATH"]), "proplist", "--depth", "infinity"]
-        proc = subprocess.Popen(svn_props_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        my_stdout, my_stderr = proc.communicate()
-        with utils.utf8_open("../svn-proplist-for-fix-props.txt", "w") as wfd:
-            wfd.write(utils.unicodify(my_stdout))
-        self.info_map_table.read_from_file(config_vars.resolve_str("../svn-proplist-for-fix-props.txt"), a_format="props")
+            props_file = work_folder_path.joinpath("svn-proplist-for-fix-props.txt")
+            self.progress(f"get svn proplist to {props_file}")
+            with SVNPropList(out_file=props_file) as props_getter:
+                self.progress(props_getter.progress_msg_self())
+                props_getter()
 
-        self.batch_accum += Cd(repo_folder)
+            info_file = work_folder_path.joinpath("svn-info-for-fix-props.txt")
+            self.progress(f"get svn info to {info_file}")
+            with SVNInfo(out_file=info_file) as info_getter:
+                self.progress(info_getter.progress_msg_self())
+                info_getter()
+
+        with SVNInfoReader(info_file, format='info') as info_reader:
+            self.progress(info_reader.progress_msg_self())
+            info_reader()
+
+        with SVNInfoReader(props_file, format='props') as props_reader:
+            self.progress(props_reader.progress_msg_self())
+            props_reader()
+        PythonBatchCommandBase.ignore_progress = False
 
         should_be_exec_regex_list = list(config_vars["EXEC_PROP_REGEX"])
         self.compiled_should_be_exec_regex = utils.compile_regex_list_ORed(should_be_exec_regex_list)
 
-        for item in self.info_map_table.get_items(what="any"):
-            shouldBeExec = self.should_be_exec(item)
-            for extra_prop in item.extra_props_list():
-                # print("remove prop", extra_prop, "from", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", "svn:"+extra_prop, '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("remove prop", extra_prop, "from", item.path)) )
-            if item.isExecutable() and not shouldBeExec:
-                # print("remove prop", "executable", "from", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propdel", 'svn:executable', '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("remove prop", "executable", "from", item.path)) )
-            elif not item.isExecutable() and shouldBeExec:
-                # print("add prop", "executable", "to", item.path)
-                self.batch_accum += " ".join( (os.fspath(config_vars["SVN_CLIENT_PATH"]), "propset", 'svn:executable', 'yes', '"'+item.path+'"') )
-                self.batch_accum += Progress(" ".join(("add prop", "executable", "from", item.path)) )
+        with self.batch_accum.sub_accum(Cd(repo_folder)) as repo_folder_accum:
+            for item in self.info_map_table.get_items(what="any"):
+                shouldBeExec = self.should_be_exec(item)
+                for extra_prop in item.extra_props_list():
+                    repo_folder_accum += SVNDelProp("svn:"+extra_prop, item.path)
+                if item.isExecutable() and not shouldBeExec:
+                    repo_folder_accum += SVNDelProp('svn:executable', item.path)
+                elif not item.isExecutable() and shouldBeExec:
+                    repo_folder_accum += SVNSetProp('svn:executable', 'yes', item.path)
 
-        os.chdir(save_dir)
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
@@ -629,7 +626,7 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     self.batch_accum += Progress(f"not adding {stage_only_item_path} because {svn_item_path_without_aa} exists and is identical")
 
-            elif stage_only_item_path.isdir():
+            elif stage_only_item_path.is_dir():
                 self.raise_if_forbidden_dir(stage_only_item_path)
                 # check that all items under a new folder pass the forbidden file/folder rule
                 for root, dirs, files in os.walk(stage_only_item_path, followlinks=False):
@@ -816,59 +813,9 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def do_create_rsa_keys(self):
-        public_key_file = config_vars["PUBLIC_KEY_FILE"].str()
-        private_key_file = config_vars["PRIVATE_KEY_FILE"].str()
-        pubkey, privkey = rsa.newkeys(4096, poolsize=8)
-        with open(public_key_file, "wb") as wfd:
-            wfd.write(pubkey.save_pkcs1(format='PEM'))
-            self.progress("public key created:", public_key_file)
-        with open(private_key_file, "wb") as wfd:
-            wfd.write(privkey.save_pkcs1(format='PEM'))
-            self.progress("private key created:", private_key_file)
-
-    def do_make_sig(self):
-        private_key = None
-        if "PRIVATE_KEY_FILE" in config_vars:
-            private_key_file = self.path_searcher.find_file(config_vars["PRIVATE_KEY_FILE"].str(),
-                                                            return_original_if_not_found=True)
-            private_key = open(private_key_file, "rb").read()
-        file_to_sign = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
-                                                    return_original_if_not_found=True)
-        file_sigs = utils.create_file_signatures(file_to_sign, private_key_text=private_key)
-        self.progress("sha1:\n", file_sigs["sha1_checksum"])
-        self.progress("SHA-512_rsa_sig:\n", file_sigs.get("SHA-512_rsa_sig", "no private key"))
-
-    def do_check_sig(self):
-        file_to_check = self.path_searcher.find_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]),
-                                                     return_original_if_not_found=True)
-        file_contents = open(file_to_check, "rb").read()
-
-        sha1_checksum = config_vars["__SHA1_CHECKSUM__"].str()
-        if sha1_checksum:
-            checksumOk = utils.check_buffer_checksum(file_contents, sha1_checksum)
-            if checksumOk:
-                self.progress("Checksum OK")
-            else:
-                self.progress("Bad checksum, should be:", utils.get_buffer_checksum(file_contents))
-
-        rsa_signature = config_vars["__RSA_SIGNATURE__"].str()
-        if rsa_signature:
-            if "PUBLIC_KEY_FILE" in config_vars:
-                public_key_file = self.path_searcher.find_file(config_vars["PUBLIC_KEY_FILE"].str(),
-                                                               return_original_if_not_found=True)
-                public_key_text = open(public_key_file, "rb").read()
-
-                signatureOk = utils.check_buffer_signature(file_contents, rsa_signature, public_key_text)
-                if signatureOk:
-                    self.progress("Signature OK")
-                else:
-                    self.progress("Bad Signature")
-
     def do_verify_index(self):
-        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-        self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].str(), disable_indexes_during_read=True)
-
+        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path())
+        self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].Path(), disable_indexes_during_read=True)
         self.verify_index_to_repo()
 
     def do_depend(self):
@@ -1040,21 +987,20 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
-            what_to_scan = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-            if os.path.isfile(what_to_scan):
-                file_size = os.path.getsize(what_to_scan)
-                print(what_to_scan+",", file_size, file=out_file)
+            what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
+            if what_to_scan.is_file():
+                file_size = what_to_scan.stat().st_size
+                print(f"{what_to_scan}, {file_size}", file=out_file)
             else:
-                folder_to_scan_name_len = len(what_to_scan)+1 # +1 for the last '\'
-                if not self.compiled_forbidden_folder_regex.search(what_to_scan):
+                if not self.compiled_forbidden_folder_regex.search(os.fspath(what_to_scan)):
                     for root, dirs, files in utils.excluded_walk(what_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
                         for a_file in files:
-                            full_path = os.path.join(root, a_file)
-                            file_size = os.path.getsize(full_path)
-                            partial_path = full_path[folder_to_scan_name_len:]
-                            print(partial_path+",", file_size, file=out_file)
+                            full_path = Path(root, a_file)
+                            file_size = full_path.stat().st_size
+                            partial_path = full_path.relative_to(what_to_scan)
+                            print(f"{partial_path}, {file_size}", file=out_file)
 
     def create_info_map(self, svn_folder, results_folder, accum):
 
@@ -1107,22 +1053,21 @@ class InstlAdmin(InstlInstanceBase):
     def do_create_infomap(self):
         svn_folder = "$(WORKING_SVN_CHECKOUT_FOLDER)"
         results_folder = "$(INFO_MAP_OUTPUT_FOLDER)"
-        accum = BatchAccumulator()  # sub-accumulator
 
-        accum.set_current_section('admin')
+        self.batch_accum.set_current_section('admin')
         self.create_info_map(svn_folder, results_folder, accum)
-        self.batch_accum.merge_with(accum)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_filter_infomap(self):
-        """ filter the full infomap file according to info_map fields in the index """
-        # __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
+        """ filter the full infomap file according to info_map fields in the index
+            __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
+         """
         instl_folder = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        full_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
-        index_yaml_path = os.path.join(instl_folder, "index.yaml")
+        full_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(FULL_INFO_MAP_FILE_NAME)"))
+        index_yaml_path = Path(instl_folder, "index.yaml")
         zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
 
         # read the index
@@ -1141,7 +1086,7 @@ class InstlAdmin(InstlInstanceBase):
             self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
             info_map_items = self.info_map_table.get_required_items()
             if info_map_items:  # could be that no items are linked to the info map file
-                info_map_file_path = os.path.join(instl_folder, infomap_file_name)
+                info_map_file_path = instl_folder.joinpath(infomap_file_name)
                 self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
 
                 info_map_checksum = utils.get_file_checksum(info_map_file_path)
@@ -1150,7 +1095,7 @@ class InstlAdmin(InstlInstanceBase):
                 lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
                 zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
-                zip_info_map_file_path = os.path.join(instl_folder, zip_infomap_file_name)
+                zip_info_map_file_path = instl_folder.joinpath(zip_infomap_file_name)
                 with Wzip(info_map_file_path, instl_folder) as wzipper:
                     wzipper()
 
@@ -1160,14 +1105,14 @@ class InstlAdmin(InstlInstanceBase):
                 lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
 
         # write default info map to file
-        default_info_map_file_path = config_vars.resolve_str(os.path.join(instl_folder, "$(MAIN_INFO_MAP_FILE_NAME)"))
+        default_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(MAIN_INFO_MAP_FILE_NAME)"))
         items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
         self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=items_for_default_info_map, field_to_write=self.fields_relevant_to_info_map)
 
         with open(default_info_map_file_path, "a") as wfd:
             wfd.write("\n".join(lines_for_main_info_map))
 
-        zip_default_info_map_file_path = config_vars.resolve_str(default_info_map_file_path+"$(WZLIB_EXTENSION)")
+        zip_default_info_map_file_path = Path(default_info_map_file_path, config_vars["WZLIB_EXTENSION"].str())
         with Wzip(default_info_map_file_path, instl_folder) as wzipper:
             wzipper()
 
@@ -1178,15 +1123,15 @@ class InstlAdmin(InstlInstanceBase):
                 self.info_map_table.read_from_file(f2r)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        index_path = os.path.join(instl_folder_path, "index.yaml")
+        instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        index_path = instl_folder_path.joinpath("index.yaml")
         self.read_yaml_file(index_path)
-        main_info_map_path = os.path.join(instl_folder_path, "info_map.txt")
+        main_info_map_path = instl_folder_path.joinpath("info_map.txt")
         self.info_map_table.read_from_file(main_info_map_path)
         instl_folder_path_parts = os.path.normpath(instl_folder_path).split(os.path.sep)
         revision_folder_name = instl_folder_path_parts[-2]
-        revision_file_path = os.path.join(instl_folder_path, "V9_repo_rev.yaml."+revision_folder_name)
-        if not os.path.isfile(revision_file_path):
+        revision_file_path = instl_folder_path.joinpath("V9_repo_rev.yaml."+revision_folder_name)
+        if not revision_file_path.is_file():
             self.progress("file not found", revision_file_path)
         self.read_yaml_file(revision_file_path)
         index_checksum = utils.get_file_checksum(index_path)
@@ -1202,7 +1147,7 @@ class InstlAdmin(InstlInstanceBase):
         all_instl_folder_items = self.info_map_table.get_file_items_of_dir('instl')
         for item in all_instl_folder_items:
             if item.leaf in all_info_maps:
-                info_map_full_path = os.path.join(instl_folder_path, item.leaf)
+                info_map_full_path = instl_folder_path.joinpath(item.leaf)
                 info_map_checksum = utils.get_file_checksum(info_map_full_path)
                 if item.checksum != info_map_checksum:
                     self.progress(f"""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
@@ -1241,3 +1186,62 @@ class InstlAdmin(InstlInstanceBase):
                     else:
                         wfd.write(line)
         return num_translated_guids
+
+    def do_up2s3(self):
+        repo_rev = int(config_vars['TARGET_REPO_REV'])
+        assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
+        assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
+        assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
+
+        config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)
+
+        checkout_url = str(config_vars['SVN_REPO_URL'])
+        checkout_folder = Path(config_vars['SVN_CHECKOUT_FOLDER'])
+        revision_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"))
+        revision_instl_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"))
+        revision_instl_index_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"))
+
+        info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
+        info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
+        info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
+        full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
+
+
+        self.batch_accum.set_current_section('admin')
+        # checkout specific repo-rev to base folder
+        # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+        # will only get the files of that repo-rev instead of the whole repository
+
+        skip_some_actions = False  # to save time during debugging
+
+        checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
+        self.batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
+        self.batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
+
+        self.batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
+        self.batch_accum += CopyDirContentsToDir(checkout_folder, revision_folder_path,
+                                                    hard_links=True, ignore_patterns=[".svn"], preserve_dest_files=False, skip_action=skip_some_actions)
+
+        with self.batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
+            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
+            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
+            sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
+
+        self.batch_accum += IndexYamlReader(revision_instl_index_path)
+        self.batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
+        self.batch_accum += SVNInfoReader(info_map_props_path, format='props')
+        self.batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
+
+        base_rev = int(config_vars["BASE_REPO_REV"])
+        if base_rev > 0:
+            self.batch_accum += SetBaseRevision(base_rev)
+
+        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+
+        self.batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
+        self.batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+
+        self.write_batch_file(self.batch_accum)
+        if bool(config_vars["__RUN_BATCH__"]):
+            self.run_batch_file()

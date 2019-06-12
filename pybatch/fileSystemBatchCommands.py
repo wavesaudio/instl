@@ -17,6 +17,7 @@ if sys.platform == 'win32':
 import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
+from configVar import config_vars
 
 
 def touch(file_path):
@@ -510,31 +511,36 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
 
 
-class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"out_file": None}):
+class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
-    def __init__(self, *folders_to_list, ls_format='*', **kwargs) -> None:
+    def __init__(self, folder_to_list, out_file, ls_format='*', out_file_append=False, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.folder_to_list = Path(folder_to_list)
+        self.out_file = Path(out_file)
         self.ls_format = ls_format
-        self.folders_to_list = sorted(folders_to_list)
+        self.out_file_append = out_file_append
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.folders_to_list)
-        all_args.append( f"""ls_format='{self.ls_format}'""")
+        all_args.append(self.unnamed__init__param(self.folder_to_list))
+        all_args.append(self.unnamed__init__param(self.out_file))
+        all_args.append(self.optional_named__init__param("ls_format", self.ls_format, '*'))
+        all_args.append(self.optional_named__init__param("out_file_append", self.out_file_append, False))
 
     def progress_msg_self(self) -> str:
-        return f"""List {utils.quoteme_raw_if_list(self.folders_to_list, one_element_list_as_string=True)} to '{self.out_file}'"""
+        return f"""List {os.fspath(self.folder_to_list)} to '{os.fspath(self.out_file)}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_list = [utils.ResolvedPath(folder_path) for folder_path in self.folders_to_list]
-        the_listing = utils.disk_item_listing(*resolved_folder_list, ls_format=self.ls_format)
-        with utils.write_to_file_or_stdout(self.out_file) as wfd:
+        the_listing = utils.disk_item_listing(self.folder_to_list, ls_format=self.ls_format)
+        with utils.write_to_file_or_stdout(self.out_file, append_to_file=self.out_file_append) as wfd:
             wfd.write(the_listing)
 
 
 class FileSizes(PythonBatchCommandBase, essential=True):
     """ create a list of files in a folder and their sizes
+        file paths are listed relative to the top folder
         format is csv: partial-path-to-file, size-of-file
+        files and folders are filtered according to
         useful for admin commands
     """
 
@@ -549,6 +555,12 @@ class FileSizes(PythonBatchCommandBase, essential=True):
 
     def progress_msg_self(self) -> str:
         return f"""File sizes in {self.folder_to_scan}"""
+
+    def compile_exclude_regexi(self):
+        forbidden_folder_regex_list = list(config_vars.get("FOLDER_EXCLUDE_REGEX", [".*"]))
+        self.compiled_forbidden_folder_regex = utils.compile_regex_list_ORed(forbidden_folder_regex_list)
+        forbidden_file_regex_list = list(config_vars.get("FILE_EXCLUDE_REGEX", [".*"]))
+        self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

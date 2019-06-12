@@ -48,21 +48,11 @@ command:
             If --start-progress and --total-progress options are given, check-checksum will output progress messages starting with the number given in --start-progress with a total given in total-progress. Progress message for action N would be:
             Progress start-progress-number+N of total-progress;
 
-    check-sig:
-        short: Check file against it's RSA signature and expected sha1 checksum (utility command)
-        long: |
-            Usage: instl check-sig --in file_to_check --config-file path_to_config_file [--sha1 expected_sha1_checksum] [--rsa rsa_signature]
-            file_to_check is the file for which RSA signature and/or sha1 checksum will be checked.
-            path_to_config_file is a YAML configuration file with relevant variables.
-            If --rsa option is given, check-sig will verify the signature agains the file using the public key (variable: PUBLIC_KEY) supplied in the config file.
-            If --sha2 option is given check-sig will calculate the file's sha1 checksum and compare the result to the given checksum.
-            check-sig is a utility command, it is not needed for creating or using instl-based installer.
-
     checksum:
         short: calculate sha1 checksum for a file or files in a folder (utility command)
         long: |
             Usage: instl checksum --in path_to_file_or_folder_to_checksum
-            checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as check-sig or check-checksum commands do.
+            checksum command just calculates the file(s)'s checksum, it does not check against any given checksum as or check-checksum command does.
             checksum is a utility command, it is not needed for creating or using instl-based installer.
 
     copy:
@@ -111,14 +101,6 @@ command:
             The variables in the created file are specified in REPO_REV_FILE_VARS variable.
             This command is intended to be called by the create-links command.
 
-    create-rsa-keys:
-        short: Create private and public RSA keys (admin command)
-        long: |
-            Usage: instl create-rsa-keys --config-file path_to_config_file.
-            Private key is written to a file named in variable PRIVATE_KEY_FILE which defaults to "$(REPO_NAME).private_key".
-            Public key is written to a file named in variable PUBLIC_KEY_FILE which defaults to "$(REPO_NAME).public_key".
-            Variables PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, REPO_NAME are read from path_to_config_file.
-            Key size is 4096. Keys are produced in PEM format.
     depend:
         short: Create a full dependencies list from index.yaml (admin command)
         long: |
@@ -182,13 +164,6 @@ command:
                 * (default): Mac - IRLUGSTCPE, Windows - TDSUGCP
             If --limit is supplied only these subfolder will be listed.
             *==number of links.
-
-    make-sig:
-        short: Create RSA signature and sha1 checksum for a file (admin command)
-        long: |
-            Usage: instl make-sig --in file_to_sig --config-file path_to_config_file
-            RSA signature is created using the private key (variable: PRIVATE_KEY) supplied in the config file.
-            make-sig is a utility command, it is not needed for creating or using instl-based installer.
 
     parallel-run:
         short: Run processes in parallel (utility command)

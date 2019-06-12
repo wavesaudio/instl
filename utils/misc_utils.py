@@ -13,10 +13,9 @@ import stat
 from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
-import rsa
 import logging
 from functools import reduce, wraps
-from itertools import repeat
+import itertools
 import tarfile
 import types
 import asyncio
@@ -244,7 +243,7 @@ def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
     yield from the_iter
-    yield from repeat(continuation_value)
+    yield from itertools.repeat(continuation_value)
 
 
 def ParallelContinuationIter(*iterables):
@@ -262,20 +261,6 @@ def ParallelContinuationIter(*iterables):
         yield list(map(next, continue_iterables))
 
 
-def create_file_signatures(file_path, private_key_text=None):
-    """ create rsa signature and sha1 checksum for a file.
-        return a dict with "SHA-512_rsa_sig" and "sha1_checksum" entries.
-    """
-    retVal = dict()
-    with open(file_path, "rb") as rfd:
-        file_contents = rfd.read()
-        sha1ner = hashlib.sha1()
-        sha1ner.update(file_contents)
-        checksum = sha1ner.hexdigest()
-        retVal["sha1_checksum"] = checksum
-    return retVal
-
-
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
@@ -291,31 +276,6 @@ def compare_checksums(_1st_checksum, _2nd_checksum):
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
     retVal = compare_checksums(checksum, expected_checksum)
-    return retVal
-
-
-def check_buffer_signature(buff, textual_sig, public_key):
-    try:
-        pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
-        binary_sig = base64.b64decode(textual_sig)
-        rsa.verify(buff, binary_sig, pubkeyObj)
-        return True
-    except Exception:
-        return False
-
-
-def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
-    retVal = False
-    if public_key and textual_sig:
-        retVal = check_buffer_signature(buff, textual_sig, public_key)
-    elif expected_checksum:
-        retVal = check_buffer_checksum(buff, expected_checksum)
-    return retVal
-
-
-def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
 
@@ -342,12 +302,6 @@ def get_file_checksum(file_path, follow_symlinks=True):
     else:
         with open(file_path, "rb") as rfd:
             retVal = get_buffer_checksum(rfd.read())
-    return retVal
-
-
-def check_file_signature(file_path, textual_sig, public_key):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
     return retVal
 
 
@@ -726,11 +680,22 @@ def get_wtar_total_checksum(wtar_file_path):
     return tar_total_checksum
 
 
+def extra_json_serializer(obj):
+    if isinstance(obj, (collections.deque,)):
+        return list(obj)
+    elif isinstance(obj, PurePath):
+        return os.fspath(obj)
+    else:
+        raise TypeError(f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
+
+
 class JsonExtraTypesEncoder(json.JSONEncoder):
     """ json module does not know to encode deque """
     def default(self, obj):
         if isinstance(obj, (collections.deque,)):
             return list(obj)
+        elif isinstance(obj, PurePath):
+            return os.fspath(obj)
         return json.JSONEncoder.default(self, obj)
 
 
@@ -825,17 +790,8 @@ def partition_list(in_list, partition_condition):
 
 def iter_grouper(n, iterable):
     """ take iterator and yield groups of size <= n """
-    group = list()
-    while True:
-        try:
-            group.clear()
-            for i in range(n):
-                group.append(next(iterable))
-            if group:
-                yield group
-            else:
-                break
-        except StopIteration:
-            if group:
-                yield group
-            break
+    i = iter(iterable)
+    piece = list(itertools.islice(i, n))
+    while piece:
+        yield piece
+        piece = list(itertools.islice(i, n))

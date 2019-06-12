@@ -155,7 +155,8 @@ class InstlMisc(InstlInstanceBase):
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
         out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
 
-        Ls(*folders_to_list, out_file=out_file, ls_format=ls_format)()
+        for fold in folders_to_list:
+            Ls(fold, out_file=out_file, ls_format=ls_format, out_file_append=True)()
 
     def do_fail(self):
         sleep_before_fail = int(config_vars.get("__FAIL_SLEEP_TIME__", "0") )
@@ -218,3 +219,19 @@ class InstlMisc(InstlInstanceBase):
             abort_file_path = config_vars["ABORT_FILE"].Path()
         print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
         utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
+
+    def do_encode_symlink(self):
+        symlink_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=False)
+        if symlink_path.is_symlink():
+            with SymlinkToSymlinkFile(symlink_path, own_progress_count=0, report_own_progress=False) as sltslf:
+                sltslf()
+        else:
+            print(f"{symlink_path} is not a symlink")
+
+    def do_decode_symlink(self):
+        symlink_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        if symlink_file_path.is_file() and symlink_file_path.suffix == ".symlink":
+            with SymlinkFileToSymlink(symlink_file_path, own_progress_count=0, report_own_progress=False) as slftsl:
+                slftsl()
+        else:
+            print(f"{symlink_file_path} is not a .symlink file")

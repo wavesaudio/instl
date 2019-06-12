@@ -7,7 +7,7 @@ from typing import List
 
 
 from .fileSystemBatchCommands import *
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 def _fast_copy_file(src, dst):
@@ -23,6 +23,9 @@ def _fast_copy_file(src, dst):
 
 
 class RsyncClone(PythonBatchCommandBase, essential=True):
+    """ base class for copying file system objects
+        tries to mimic rsync behaviour
+    """
 
     __global_ignore_patterns = list()        # files and folders matching these patterns will not be copied. Applicable for all instances of RsyncClone
     __global_no_hard_link_patterns = list()  # files and folders matching these patterns will not be hard-linked. Applicable for all instances of RsyncClone
@@ -551,4 +554,34 @@ class MoveFileToFile(CopyFileToFile):
 
 
 class RenameFile(MoveFileToFile):
+    """ copy a file into another location and erase the source
+        intermediate folders will be created as needed
+    """
     pass
+
+
+class CopyBundle(RsyncClone):
+    """ Do all that is needed in order to copy a bundle:
+        - unwtar files
+        - copy not wtar files
+        - set permissions and ownership
+        Optionally avoid copying by comparing Info.xml or Info.plist
+    """
+
+    def __init__(self, source, destination, unwtar=False, **kwargs):
+        super().__init__(src=None, dst=None, **kwargs)
+        self.source = Path(source)
+        self.destination = Path(destination)
+        self.unwtar = unwtar
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(os.fspath(self.source)))
+        all_args.append(self.unnamed__init__param(os.fspath(self.destination)))
+        all_args.append(self.optional_named__init__param("unwtar", self.unwtar, "False"))
+
+    def progress_msg_self(self) -> str:
+        return f"""CopyBundle {os.fspath(self.source)} to '{os.fspath(self.destination)}'"""
+
+    def __call__(self, *args, **kwargs) -> None:
+        with CopyDirToDir(self.source, self.destination, link_dest=self.link_dest, ignore_patterns=self.ignore_patterns) as cdtd:
+            cdtd()

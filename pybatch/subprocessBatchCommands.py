@@ -11,6 +11,9 @@ from threading import Thread
 import utils
 from .baseClasses import PythonBatchCommandBase
 
+import logging
+log = logging.getLogger(__name__)
+
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True}):
@@ -81,9 +84,14 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         if self.err_file is None:
             local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
             if local_stderr:
-                print(local_stderr, file=sys.stderr)
-                if completed_process.returncode == 0 and self.stderr_means_err:
-                    completed_process.returncode = 123
+                if self.ignore_all_errors:
+                    # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                    # but it will not be interpreted as an error by whoever is running instl
+                    print(local_stderr, file=sys.stdout)
+                else:
+                    print(local_stderr, file=sys.stderr)
+                    if completed_process.returncode == 0 and self.stderr_means_err:
+                        completed_process.returncode = 123
         else:
             err_stream.close()
 
@@ -294,7 +302,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             self.read_yaml_file(self.config_file)
         with utils.utf8_open(self.python_file, 'r') as rfd:
             py_text = rfd.read()
-            py_compiled = compile(py_text, self.python_file, mode='exec', flags=0, dont_inherit=False, optimize=2)
+            py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())
 
 
@@ -316,10 +324,8 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         self.what_to_run.own_progress_count = 0
         self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
-        if self.thread_name is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.thread_name))
-        if self.daemon is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.daemon))
+        all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
+        all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
 
     def progress_msg_self(self) -> str:
         return f''''''

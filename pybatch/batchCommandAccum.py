@@ -87,7 +87,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""import sys""")
         opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_by_type(instl_folder)})""")
         opening_code_lines.append(f"""import logging""")
-        opening_code_lines.append(f"""log = logging.getLogger()""")
+        opening_code_lines.append(f"""log = logging.getLogger(__name__)""")
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""from configVar import config_vars""")
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")

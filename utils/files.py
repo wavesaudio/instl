@@ -56,13 +56,15 @@ def last_url_item(url: str) -> str:
 
 
 class write_to_file_or_stdout(object):
-    def __init__(self, file_path) -> None:
+    def __init__(self, file_path, append_to_file=False) -> None:
         self.file_path = file_path
+        self.append_to_file = append_to_file
         self.fd = sys.stdout
 
     def __enter__(self) -> TextIO:
         if self.file_path != "stdout":
-            self.fd = utf8_open(self.file_path, "w")
+            open_mode = 'a' if self.append_to_file else 'w'
+            self.fd = utf8_open(self.file_path, open_mode)
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
@@ -205,7 +207,7 @@ def read_from_file_or_url(in_url, config_vars, translate_url_callback=None, expe
         contents_buffer = open_file.fd.read()
         if encoding is not None:  # when reading from url we're not sure what the encoding is
             contents_buffer = utils.unicodify(contents_buffer, encoding=encoding)
-        # check sig or checksum only if they were given
+        # check checksum only if  given
         if expected_checksum is not None:
             if len(contents_buffer) == 0:
                 raise IOError(f"Empty contents returned from {in_url} ; expected checksum: {expected_checksum} ; encoding: {encoding}")

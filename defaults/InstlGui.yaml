@@ -41,7 +41,6 @@ __COMMANDS_WITH_LIMIT_OPTION__:
   - fix-symlinks
   - wtar
   - stage2svn
-  - fix-props
   - fix-perm
 
 __ADMIN_CALL_INSTL_STANDARD_TEMPLATE__:

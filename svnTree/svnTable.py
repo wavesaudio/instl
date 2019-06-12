@@ -404,8 +404,8 @@ class SVNTable(object):
             if record and record["Path"] != ".":  # in case there was no extra line at the end of file
                 yield create_list_from_record(record)
 
+        row_yielder = yield_row(rfd)
         with self.db.transaction() as curs:
-            rows = [row for row in yield_row(rfd)]
             insert_q = """
                 INSERT INTO svn_item_t (path, revision,
                                       checksum,
@@ -414,7 +414,9 @@ class SVNTable(object):
                                       required, need_download, extra_props)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, rows)
+            for rows in utils.iter_grouper(10000, row_yielder):
+                #print(f"read another {len(rows)} rows from {rfd.name}")
+                curs.executemany(insert_q, rows)
 
     def read_from_text(self, rfd):
         dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
@@ -448,8 +450,8 @@ class SVNTable(object):
                         row_data.append(0)
                     yield row_data
 
+        row_yielder = yield_row(rfd)
         with self.db.transaction() as curs:
-            rows = [row for row in yield_row(rfd)]
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       checksum, size, url, download_path,
@@ -459,7 +461,9 @@ class SVNTable(object):
                                       symlinkFlag)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, rows)
+            for rows in utils.iter_grouper(10000, row_yielder):
+                #print(f"read another {len(rows)} rows from {rfd.name}")
+                curs.executemany(insert_q, rows)
 
     @staticmethod
     def get_wtar_file_status(file_name) -> Tuple[bool, bool]:
@@ -534,15 +538,17 @@ class SVNTable(object):
                         row_data.extend((0, relative_path))  # wtarFlag, unwtarred
                     yield row_data
 
+        row_yielder = yield_row(in_folder)
         with self.db.transaction() as curs:
-            rows = [row for row in yield_row(in_folder)]
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       level, parent, leaf,
                                       fileFlag, symlinkFlag, wtarFlag, unwtarred )
                  VALUES(?,?,?,?,?,?,?,?,?,?);
                 """
-            curs.executemany(insert_q, rows)
+            for rows in utils.iter_grouper(10000, row_yielder):
+                #print(f"read another {len(rows)} rows from {in_folder}")
+                curs.executemany(insert_q, rows)
 
     def num_items(self, item_filter="all-items") -> int:
         count = 0
@@ -602,14 +608,16 @@ class SVNTable(object):
                         log.warning(f"""weird line {line}, {line_num}""")
                     yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
 
+        row_yielder = yield_row(rfd)
         with self.db.transaction() as curs:
-            rows = [row for row in yield_row(rfd)]
             update_q = """
                 UPDATE  svn_item_t
                 SET size = :new_size
                 WHERE path = :old_path
                 """
-            curs.executemany(update_q, rows)
+            for rows in utils.iter_grouper(10000, row_yielder):
+                #print(f"read another {len(rows)} rows from {rfd.name}")
+                curs.executemany(update_q, rows)
 
     def read_props(self, rfd) -> None:
         props_line_re = re.compile("""

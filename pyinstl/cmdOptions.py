@@ -64,7 +64,6 @@ class CommandLineOptions(object):
     __REMOVE_FROM_DOCK__ = OptionToConfigVar()
     __REPORT_ONLY_INSTALLED__ = OptionToConfigVar()
     __RESTART_THE_DOCK__ = OptionToConfigVar()
-    __RSA_SIGNATURE__ = OptionToConfigVar()
     __RUN_AS_ADMIN__ = OptionToConfigVar()
     __RUN_BATCH__ = OptionToConfigVar()
     __RUN_COMMAND_LIST_IN_PARALLEL__ = OptionToConfigVar()
@@ -132,35 +131,35 @@ def prepare_args_parser(in_command):
             'win-shortcut':         {'mode': 'do_something', 'options': (), 'help':  'create a Windows shortcut'},
             'wtar':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
             'wzip':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
+            'encode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert a real symlink into a .symlink file'},
+            'decode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert .symlink file into a real symlink'}
             })
 
     if in_command not in all_command_details:
         # admin commands
         all_command_details.update({
             # converted to instl 2 style
+            'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
+            'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
+            'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
+            'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
             'stage2svn':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
             'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
+            'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
+            'up2s3':                {'mode': 'admin', 'options': ('conf', 'out', 'run', 'rev'), 'help': 'upload revision to s3'},
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-            'check-sig':            {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'check sha1 checksum and/or rsa signature for a file'},
             'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
             'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
             'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-            'create-rsa-keys':      {'mode': 'admin', 'options': ('conf',), 'help':  'create private and public keys'},
-            'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
-            'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
-            'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
-            'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
-            'make-sig':             {'mode': 'admin', 'options': ('in', 'conf',), 'help':  'create sha1 checksum and rsa signature for a file'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
             'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
             'up-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
-            'up2s3':                {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
+            'up2s3_legacy':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
-            'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
             'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
             })
 
@@ -328,6 +327,15 @@ def prepare_args_parser(in_command):
                                     dest='__MAIN_DB_FILE__',
                                     help="database file")
 
+    if 'rev' in command_details['options']:
+        rev_options = command_parser.add_argument_group(description='revision:')
+        rev_options.add_argument('--rev',
+                                required=True,
+                                nargs=1,
+                                metavar='revision',
+                                dest='TARGET_REPO_REV',
+                                help="revision to create work on")
+
     # the following option groups each belong only to a single command
     if 'read-yaml' == in_command:#__SILENT__
         read_yaml_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -364,21 +372,6 @@ def prepare_args_parser(in_command):
                                     metavar='file-sizes-file',
                                     dest='__FILE_SIZES_FILE__',
                                     help="")
-
-    elif 'check-sig' == in_command:
-        check_sig_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        check_sig_options.add_argument('--sha1',
-                                required=False,
-                                nargs=1,
-                                metavar='sh1-checksum',
-                                dest='__SHA1_CHECKSUM__',
-                                help="expected sha1 checksum")
-        check_sig_options.add_argument('--rsa',
-                                required=False,
-                                nargs=1,
-                                metavar='rsa-sig',
-                                dest='__RSA_SIGNATURE__',
-                                help="expected rsa SHA-512 signature")
 
     elif 'create-repo-rev-file' == in_command:
         create_repo_rev_file_options = command_parser.add_argument_group(description=in_command+' arguments:')
