@@ -103,7 +103,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
     def log_result(self, log_lvl, message, exc_val):
         if self.stderr:
-            message += f'; STDERR: {self.stderr.decode()}'
+            message += f'; STDERR: {utils.unicodify(self.stderr)}'
         super().log_result(log_lvl, message, exc_val)
 
     def repr_own_args(self, all_args: List[str]) -> None:
