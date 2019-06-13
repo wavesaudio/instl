@@ -806,7 +806,7 @@ class InstlAdmin(InstlInstanceBase):
             limit_checkout_url = checkout_url
             if limit_info[0] != "":
                 limit_checkout_url += "/" + limit_info[0]
-            self.batch_accum += SVNCheckout(url=limit_checkout_url, where=limit_info[1], depth="infinity")
+            self.batch_accum += SVNCheckout(url=limit_checkout_url, working_copy_path=limit_info[1], depth="infinity")
             self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], hard_links=False, ignore_patterns=[".svn", ".DS_Store"], delete_extraneous_files=True)
 
         self.write_batch_file(self.batch_accum)

@@ -242,7 +242,7 @@ class InstlGui(InstlInstanceBase):
         config_path = str(config_vars.get("ADMIN_GUI_CONFIG_FILE", ""))
         if config_path != "":
             if os.path.isfile(config_path):
-                config_vars["__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
+                config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
                 self.read_yaml_file(config_path)
                 self.admin_config_file_dirty = False
             else:
