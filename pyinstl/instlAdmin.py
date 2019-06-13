@@ -1244,10 +1244,9 @@ class InstlAdmin(InstlInstanceBase):
         # also copy the whole instl folder
         batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
 
-        fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
-
         batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
         batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+        batch_accum += CreateRepoRevFile()
 
         with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
             sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
