@@ -11,12 +11,20 @@ import collections
 from typing import List, Optional, Union
 
 
-def str_to_bool(the_str, default=False):
+def something_to_bool(something, default=False):
     retVal = default
-    if the_str.lower() in ("yes", "true", "y", 't'):
-        retVal = True
-    elif the_str.lower() in ("no", "false", "n", "f"):
-        retVal = False
+    if isinstance(something, bool):
+        retVal = something
+    elif isinstance(something, int):
+        if something == 0:
+            retVal = False
+        else:
+            retVal = True
+    elif isinstance(something, str):
+        if something.lower() in ("yes", "true", "y", 't', '1'):
+            retVal = True
+        elif something.lower() in ("no", "false", "n", "f", '0'):
+            retVal = False
     return retVal
 
 
@@ -58,7 +66,7 @@ class ConfigVar:
         """
         retVal = False
         if len(self.values) == 1:
-            retVal = str_to_bool(self.values[0], False)
+            retVal = something_to_bool(self.values[0], False)
         return retVal
 
     def __contains__(self, val: str) -> bool:
