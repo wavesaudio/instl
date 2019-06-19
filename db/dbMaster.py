@@ -137,6 +137,7 @@ class DBMaster(object):
     def close(self):
         if self.__conn:
             self.__conn.close()
+            self.__conn = None
         if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
                 average = stats.time/stats.count
@@ -432,3 +433,11 @@ class DBManager(object):
     def set_refresh_db_file(cls, to_refresh):
         cls.refresh_db_file = to_refresh
 
+    @classmethod
+    def reset_db(cls):
+        if cls.db:
+            cls.db.close()
+        cls.db = DBAccess()
+        cls.info_map_table = TableAccess(SVNTable)
+        cls.items_table = TableAccess(IndexItemsTable)
+        cls.refresh_db_file = False

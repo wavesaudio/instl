@@ -80,6 +80,8 @@ from .info_mapBatchCommands import InfoMapFullWriter
 from .info_mapBatchCommands import InfoMapSplitWriter
 from .info_mapBatchCommands import SetBaseRevision
 from .info_mapBatchCommands import IndexYamlReader
+from .info_mapBatchCommands import CopySpecificRepoRev
+from .info_mapBatchCommands import CreateRepoRevFile
 
 from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev
