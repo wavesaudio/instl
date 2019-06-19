@@ -19,8 +19,9 @@ from configVar import config_vars
 
 
 tab_names = {
-    'ADMIN':   'Admin',
-    'CLIENT':  'Client'
+    'ADMIN':  'Admin',
+    'CLIENT': 'Client',
+    'REDIS':  'Redis'
 }
 
 if getattr(os, "setsid", None):
@@ -118,8 +119,15 @@ class InstlGui(InstlInstanceBase):
         self.admin_vars["DISPLAY_SVN_URL_AND_REPO_REV"] = TkConfigVarStr("DISPLAY_SVN_URL_AND_REPO_REV")
         self.admin_vars["ADMIN_GUI_LIMIT"] = TkConfigVarStr("ADMIN_GUI_LIMIT")
         self.admin_vars["ADMIN_GUI_RUN_BATCH"] = TkConfigVarInt("ADMIN_GUI_RUN_BATCH")
-
         self.limit_path_entry_widget = None
+
+        self.redis_vars = dict()
+        self.redis_vars["REDIS_HOST"] = TkConfigVarStr("REDIS_HOST")
+        self.redis_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
+        self.redis_vars["REDIS_KEY_NAME_1"] = TkConfigVarStr("REDIS_KEY_NAME_1")
+        self.redis_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUEE_1")
+
+        self.redis_conn = None
 
     def realign_from_config_vars(self, var_dict):
         for v in var_dict.values():
@@ -460,6 +468,8 @@ class InstlGui(InstlInstanceBase):
             value = self.T_admin.get("1.0",END)
         elif self.tab_name == tab_names['CLIENT']:
             value = self.T_client.get("1.0",END)
+        elif self.tab_name == tab_names['REDIS']:
+            value = self.T_client.get("1.0",END)
 
         if value not in ["", "\n"]:
             self.master.clipboard_clear()
@@ -539,6 +549,8 @@ class InstlGui(InstlInstanceBase):
             self.update_admin_state()
         elif self.tab_name == tab_names['CLIENT']:
             self.update_client_state()
+        elif self.tab_name == tab_names['REDIS']:
+            self.update_redis_state()
         else:
             log.info(f"""Unknown tab {self.tab_name}""")
 
@@ -552,9 +564,11 @@ class InstlGui(InstlInstanceBase):
 
         client_frame = self.create_client_frame(self.notebook)
         admin_frame = self.create_admin_frame(self.notebook)
+        redis_frame = self.create_redis_frame(self.notebook)
 
         self.notebook.add(client_frame, text='Client')
         self.notebook.add(admin_frame, text='Admin')
+        self.notebook.add(redis_frame, text='Redis')
 
         to_be_selected_tab_name = config_vars["SELECTED_TAB"].str()
         for tab_id in self.notebook.tabs():
@@ -591,6 +605,43 @@ class InstlGui(InstlInstanceBase):
         else:
             log.info(f"""{path_to_yaml} read OK""")
 
+    def create_redis_frame(self, master):
+
+        self.realign_from_config_vars(self.redis_vars)
+
+        redis_frame = Frame(master)
+        redis_frame.grid(row=0, column=1)
+
+        curr_row = 0
+        Label(redis_frame, text="Host:").grid(row=curr_row, column=0)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_HOST"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        self.redis_vars["REDIS_HOST"].trace('w', self.update_redis_state)
+
+        curr_row += 1
+        Label(redis_frame, text="Port:").grid(row=curr_row, column=0)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_PORT"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        self.redis_vars["REDIS_PORT"].trace('w', self.update_redis_state)
+
+        curr_row += 1
+        Label(redis_frame, text="Key:").grid(row=curr_row, column=0)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_KEY_NAME_1"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        Label(redis_frame, text="Value:").grid(row=curr_row, column=2)
+        Label(redis_frame, text="", textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]).grid(row=curr_row, column=3)
+
+
+        return redis_frame
+
+    def update_redis_state(self, *args):
+        self.realign_from_tk_vars(self.redis_vars)
+
+        host = config_vars["REDIS_HOST"].str()
+        port = config_vars["REDIS_PORT"].int()
+
+        if self.redis_conn is not None:
+            if self.redis_conn.host != host or self.redis_conn.port != port:
+                self.redis_conn = None
+        if self.redis_conn is None:
+            self.redis_conn = utils.RedisClient(host, port)
 
 class ToolTip(Toplevel):
     """
