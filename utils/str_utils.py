@@ -149,7 +149,7 @@ def unicodify(in_something, encoding='utf-8'):
         if isinstance(in_something, str):
             retVal = in_something
         elif isinstance(in_something, bytes):
-            retVal = in_something.decode(encoding)
+            retVal = in_something.decode(encoding, errors='replace')
         else:
             retVal = str(in_something)
     else:
@@ -177,9 +177,9 @@ def bool_int_to_str(in_bool_int):
 
 
 def str_to_bool_int(the_str):
-    if the_str.lower() in ("yes", "true", "y", 't'):
+    if the_str.lower() in ("yes", "true", "y", 't', '1'):
         retVal = 1
-    elif the_str.lower() in ("no", "false", "n", "f"):
+    elif the_str.lower() in ("no", "false", "n", "f", '0'):
         retVal = 0
     else:
         raise ValueError(f"Cannot translate {the_str} to bool-int")

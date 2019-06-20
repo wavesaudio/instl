@@ -12,3 +12,4 @@ import platform
 current_os = platform.system()
 if current_os == 'Darwin':
     from .dockutil import dock_util
+from .redisClient import RedisClient
