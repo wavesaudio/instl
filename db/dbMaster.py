@@ -134,6 +134,10 @@ class DBMaster(object):
     def create_function(self, func_name, num_params, func_ptr):
         self.__conn.create_function(func_name, num_params, func_ptr)
 
+    def close_and_delete(self):
+        self.close()
+        os.unlink(self.db_file_path)
+
     def close(self):
         if self.__conn:
             self.__conn.close()
@@ -436,7 +440,7 @@ class DBManager(object):
     @classmethod
     def reset_db(cls):
         if cls.db:
-            cls.db.close()
+            cls.db.close_and_delete()
         cls.db = DBAccess()
         cls.info_map_table = TableAccess(SVNTable)
         cls.items_table = TableAccess(IndexItemsTable)
