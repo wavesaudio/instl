@@ -5,6 +5,7 @@
 import sys
 import os
 import subprocess
+import functools
 from time import time
 import shlex
 from tkinter import *
@@ -60,8 +61,12 @@ class TkConfigVar(Variable):
             config_vars[self.config_var_name] = value
         Variable.__init__(self, master, value, config_var_name)
 
+    def value_from_config_var(self):
+        retVal = self.convert_type_func(str(config_vars.get(self.config_var_name, self._default)))
+        return retVal
+
     def get(self):
-        retVal = self.convert_type_func(config_vars.get(self.config_var_name, self._default))
+        retVal = self.value_from_config_var()
         return retVal
 
     def set(self, value):
@@ -69,7 +74,8 @@ class TkConfigVar(Variable):
         Variable.set(self, value)
 
     def realign_from_config_var(self):  # in case we know the configVar changed
-        Variable.set(self, self.get())
+        value = self.value_from_config_var()
+        Variable.set(self, value)
 
     def realign_from_tk_var(self):  # in case we know the tk changed
         config_vars[self.config_var_name] = Variable.get(self)
@@ -125,7 +131,9 @@ class InstlGui(InstlInstanceBase):
         self.redis_vars["REDIS_HOST"] = TkConfigVarStr("REDIS_HOST")
         self.redis_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
         self.redis_vars["REDIS_KEY_NAME_1"] = TkConfigVarStr("REDIS_KEY_NAME_1")
-        self.redis_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUEE_1")
+        self.redis_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUE_1")
+        self.redis_vars["REDIS_KEY_NAME_2"] = TkConfigVarStr("REDIS_KEY_NAME_2")
+        self.redis_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
 
         self.redis_conn = None
 
@@ -610,26 +618,61 @@ class InstlGui(InstlInstanceBase):
         self.realign_from_config_vars(self.redis_vars)
 
         redis_frame = Frame(master)
-        redis_frame.grid(row=0, column=1)
+        redis_frame.grid(row=0, column=2)
 
         curr_row = 0
         Label(redis_frame, text="Host:").grid(row=curr_row, column=0)
-        Entry(redis_frame, textvariable=self.redis_vars["REDIS_HOST"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_HOST"]).grid(row=curr_row, column=1, columnspan=1, sticky=W)
         self.redis_vars["REDIS_HOST"].trace('w', self.update_redis_state)
 
-        curr_row += 1
-        Label(redis_frame, text="Port:").grid(row=curr_row, column=0)
-        Entry(redis_frame, textvariable=self.redis_vars["REDIS_PORT"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
+        Label(redis_frame, text="Port:").grid(row=curr_row, column=2)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_PORT"]).grid(row=curr_row, column=3, columnspan=2, sticky=W)
         self.redis_vars["REDIS_PORT"].trace('w', self.update_redis_state)
+
+        redis_frame.grid_rowconfigure(0)
 
         curr_row += 1
         Label(redis_frame, text="Key:").grid(row=curr_row, column=0)
         Entry(redis_frame, textvariable=self.redis_vars["REDIS_KEY_NAME_1"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        Label(redis_frame, text="Value:").grid(row=curr_row, column=2)
-        Label(redis_frame, text="", textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]).grid(row=curr_row, column=3)
+        self.redis_vars["REDIS_KEY_NAME_1"].trace('w', self.update_redis_state)
+        Label(redis_frame, text="Value:").grid(row=curr_row, column=3, sticky=W)
+        Entry(redis_frame, text="baba ganush", textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]).grid(row=curr_row, column=4, sticky=W)  # , textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]
+        Button(redis_frame, width=3, text="get",
+               command=functools.partial(self.get_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=5, sticky=W)
+        Button(redis_frame, width=3, text="set",
+               command=functools.partial(self.set_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=6, sticky=W)
+        Button(redis_frame, width=4, text="lpush",
+               command=functools.partial(self.lpush_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=7, sticky=W)
 
+        #redis_frame.grid_columnconfigure(0, minsize=80)
+        #redis_frame.grid_columnconfigure(1, minsize=300)
+        #redis_frame.grid_columnconfigure(2, minsize=80)
+        #redis_frame.grid_columnconfigure(3)
 
         return redis_frame
+
+    def lpush_redis_key(self, key_config_var, value_config_var):
+        self.realign_from_tk_vars(self.redis_vars)
+        key_to_set = config_vars[key_config_var].str()
+        value_to_push = config_vars[value_config_var].str()
+        self.redis_conn.lpush(key_to_set, value_to_push)
+
+    def get_redis_key(self, key_config_var, result_config_var):
+        self.redis_vars[key_config_var].realign_from_tk_var()
+        key_to_get = config_vars[key_config_var].str()
+        value = self.redis_conn.get(key_to_get)
+        if value is None:
+            value = "UNKNOWN KEY"
+        config_vars[result_config_var] = value
+        self.redis_vars[result_config_var].realign_from_config_var()
+
+    def set_redis_key(self, key_config_var, value_config_var):
+        self.redis_vars[key_config_var].realign_from_tk_var()
+        self.redis_vars[value_config_var].realign_from_tk_var()
+        key_to_set = config_vars[key_config_var].str()
+        value_to_set = config_vars[value_config_var].str()
+        self.redis_conn.set(key_to_set, value_to_set)
+        self.redis_vars[value_config_var].realign_from_config_var()
 
     def update_redis_state(self, *args):
         self.realign_from_tk_vars(self.redis_vars)
@@ -642,6 +685,7 @@ class InstlGui(InstlInstanceBase):
                 self.redis_conn = None
         if self.redis_conn is None:
             self.redis_conn = utils.RedisClient(host, port)
+
 
 class ToolTip(Toplevel):
     """
