@@ -135,7 +135,7 @@ class InstlGui(InstlInstanceBase):
         self.redis_vars["REDIS_KEY_NAME_2"] = TkConfigVarStr("REDIS_KEY_NAME_2")
         self.redis_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
 
-        self.redis_conn = None
+        self.redis_conn: utils.RedisClient = None
 
     def realign_from_config_vars(self, var_dict):
         for v in var_dict.values():
@@ -643,6 +643,8 @@ class InstlGui(InstlInstanceBase):
                command=functools.partial(self.set_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=6, sticky=W)
         Button(redis_frame, width=4, text="lpush",
                command=functools.partial(self.lpush_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=7, sticky=W)
+        Button(redis_frame, width=4, text="del",
+               command=functools.partial(self.remove_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=8, sticky=W)
 
         #redis_frame.grid_columnconfigure(0, minsize=80)
         #redis_frame.grid_columnconfigure(1, minsize=300)
@@ -651,8 +653,16 @@ class InstlGui(InstlInstanceBase):
 
         return redis_frame
 
+    def remove_redis_key(self, key_config_var, value_config_var=None):
+        self.redis_vars[key_config_var].realign_from_tk_var()
+        key_to_remove = config_vars[key_config_var].str()
+        self.redis_conn.delete(key_to_remove)
+        if value_config_var is not None:
+            self.redis_vars[value_config_var].set("")
+
     def lpush_redis_key(self, key_config_var, value_config_var):
-        self.realign_from_tk_vars(self.redis_vars)
+        self.redis_vars[key_config_var].realign_from_tk_var()
+        self.redis_vars[value_config_var].realign_from_tk_var()
         key_to_set = config_vars[key_config_var].str()
         value_to_push = config_vars[value_config_var].str()
         self.redis_conn.lpush(key_to_set, value_to_push)
