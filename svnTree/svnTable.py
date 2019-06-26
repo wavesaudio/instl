@@ -988,8 +988,13 @@ class SVNTable(object):
             retVal = curs.rowcount
         return retVal
 
-    def get_file_paths_of_dir(self, dir_path):
-        query_text = """
+    def get_recursive_paths_in_dir(self, dir_path, what="file"):
+        if what not in ("file", "dir", "any"):
+            raise ValueError(f"{what} not a valid filter for get_item")
+
+        file_or_dir_clause = {"file": "AND fileFlag=1", "dir": "AND fileFlag=0", "any": ""}[what]
+
+        query_text = f"""
             WITH RECURSIVE get_children(__ID) AS
             (
                 SELECT first_item_t._id
@@ -1002,10 +1007,10 @@ class SVNTable(object):
                 FROM svn_item_t child_item_t, get_children
                 WHERE child_item_t.parent_id = get_children.__ID
             )
-            SELECT _id, path, leaf
+            SELECT _id, path, leaf, fileFlag
             FROM svn_item_t
             WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
-            AND fileFlag=1
+            {file_or_dir_clause}
             ORDER BY _id
             """
         with self.db.selection() as curs:
