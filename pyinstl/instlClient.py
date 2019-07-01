@@ -456,7 +456,7 @@ class InstlClient(InstlInstanceBase):
                             info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
                             need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
                     if need_to_sync:
-                        item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
+                        item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
                         if source_tag == '!dir':
                             source_parent = "/".join(resolved_source_parts[:-1])
                             for item in item_paths:
@@ -476,7 +476,7 @@ class InstlClient(InstlInstanceBase):
                         self.progress(f"avoid download {num_ignored_files} files of {iid}, Info.xml has not changed")
 
                 else:
-                    item_paths = self.info_map_table.get_file_paths_of_dir(dir_path=source)
+                    item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),

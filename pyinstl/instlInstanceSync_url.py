@@ -150,11 +150,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             for disk_item in files:
                 item_full_path = PurePath(root, disk_item)
                 item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
-                files_to_check.append((item_partial_path, item_full_path))
-        redundant_files_indexes = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
+                files_to_check.append(item_partial_path)
+        files_to_check.sort()
+        redundant_files = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
         rm_commands = AnonymousAccum()
-        for i in redundant_files_indexes:
-            rm_commands += RmFile(str(files_to_check[i][1]))
+        for f in redundant_files:
+            item_full_path = pure_local_sync_dir.joinpath(f)
+            #log.info(f"remove redundant {item_full_path}")
+            rm_commands += RmFile(f)
         return rm_commands
 
     def create_download_instructions(self):

@@ -118,7 +118,10 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
             self.doing = f"""creating sync folder '{dl_dir}'"""
-            MakeDirs(dl_dir.path)()
+            if dl_dir.download_path:  # direct_sync items have absolute path in member .download_path
+                MakeDirs(dl_dir.download_path)()
+            else:  # cache items have relative path in member .path
+                MakeDirs(dl_dir.path)()
 
 
 class SetBaseRevision(DBManager, PythonBatchCommandBase):

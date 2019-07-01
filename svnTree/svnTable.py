@@ -726,40 +726,56 @@ class SVNTable(object):
         """
         retVal = list()
 
-        with self.db.selection() as curs:
-            create_table_text = """CREATE TEMP TABLE paths_from_disk_t (item_num INTEGER, path TEXT);"""
+        with self.db.transaction() as curs:
+            create_table_text = """CREATE TEMP TABLE cache_folder_file_paths_t (path TEXT, remove BOOLEAN DEFAULT 1);"""
             curs.execute(create_table_text)
 
             # each partial path is inserted with it's index in the list
-            list_of_inserts = [(i, path_pair[0]) for i, path_pair in enumerate(files_to_check)]
-            insert_text = """INSERT INTO paths_from_disk_t (item_num, path) VALUES (?, ?);"""
-            curs.executemany(insert_text, list_of_inserts)
+            list_of_inserts = [(p,) for p in files_to_check]
+            insert_q = """INSERT INTO cache_folder_file_paths_t (path) VALUES (?);"""
+            curs.executemany(insert_q, list_of_inserts)
 
-            # this query will select all files found in the sync folder that are not in the info_map
+            # create a list of files that should stay in the cache folder.
+            # the list is a combination of:
+            # - all files in known info_map files
+            # - all files appearing in IIDs that have custom info_map files.
+            # Since we do not know the exact path of such files, we append % to the folder names and later use LIKE
+
+            create_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_t (path TEXT);"""
+            curs.execute(create_table_text)
+
+            path_that_should_stay_q = """
+                    INSERT INTO do_not_remove_file_paths_t (path)  
+                    select install_sources_t.detail_value||"%" as __path
+                    from index_item_detail_t AS install_sources_t, index_item_detail_t as info_map_t
+                    where install_sources_t.detail_name == "install_sources"
+                            and info_map_t.detail_name == "info_map"
+                            and info_map_t.owner_iid == install_sources_t.owner_iid
+                    Union
+                    select svn_item_t.path as __path from svn_item_t
+                    order by __path
+                    """
+            curs.execute(path_that_should_stay_q)
+
+            # this query will mark not to remove all files found in the sync folder that are not in the info_map
             # database, BUT will exclude those files in folders that have their own info_map for
             # items that are not currently being installed.
-            query_text = """
-                SELECT file_index
-                FROM
-                (SELECT  paths_from_disk_t.item_num AS file_index
-                  FROM paths_from_disk_t
-                  WHERE UPPER(paths_from_disk_t.path) NOT IN (SELECT UPPER(path) FROM svn_item_t))
 
-                WHERE file_index NOT IN (
-                    SELECT paths_from_disk_t.item_num
-                    FROM paths_from_disk_t
-                    JOIN index_item_detail_t AS sources_t
-                        ON sources_t.detail_name = 'install_sources'
-                        AND paths_from_disk_t.path LIKE sources_t.detail_value || "/%"
-                    JOIN index_item_t ON
-                        index_item_t.install_status = 0
-                        AND index_item_t.iid = sources_t.owner_iid
-                    JOIN index_item_detail_t AS info_map_t ON
-                        info_map_t.detail_name = 'info_map'
-                        AND index_item_t.iid = info_map_t.owner_iid)
+            update_paths_q = f"""
+                UPDATE cache_folder_file_paths_t
+                SET remove = 0
+                WHERE cache_folder_file_paths_t.path  in
+                (SELECT cache_folder_file_paths_t.path FROM cache_folder_file_paths_t, do_not_remove_file_paths_t
+                WHERE cache_folder_file_paths_t.path LIKE do_not_remove_file_paths_t.path)
                 """
-            curs.execute(query_text)
-            retVal.extend([fr[0] for fr in curs.fetchall()])
+            curs.execute(update_paths_q)
+
+            get_to_remove_q = """
+                SELECT path from cache_folder_file_paths_t
+                WHERE remove=1
+                """
+            retVal.extend(self.db.select_and_fetchall(get_to_remove_q))
+
         return retVal
 
     def get_items(self, what="any") -> List[SVNRow]:
@@ -988,8 +1004,13 @@ class SVNTable(object):
             retVal = curs.rowcount
         return retVal
 
-    def get_file_paths_of_dir(self, dir_path):
-        query_text = """
+    def get_recursive_paths_in_dir(self, dir_path, what="file"):
+        if what not in ("file", "dir", "any"):
+            raise ValueError(f"{what} not a valid filter for get_item")
+
+        file_or_dir_clause = {"file": "AND fileFlag=1", "dir": "AND fileFlag=0", "any": ""}[what]
+
+        query_text = f"""
             WITH RECURSIVE get_children(__ID) AS
             (
                 SELECT first_item_t._id
@@ -1002,10 +1023,10 @@ class SVNTable(object):
                 FROM svn_item_t child_item_t, get_children
                 WHERE child_item_t.parent_id = get_children.__ID
             )
-            SELECT _id, path, leaf
+            SELECT _id, path, leaf, fileFlag
             FROM svn_item_t
             WHERE svn_item_t._id IN (SELECT __ID FROM get_children)
-            AND fileFlag=1
+            {file_or_dir_clause}
             ORDER BY _id
             """
         with self.db.selection() as curs:
