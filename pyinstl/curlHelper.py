@@ -98,7 +98,6 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
             wfd_list = list()
             for file_name in file_name_list:
                 wfd = utils.utf8_open_for_write(file_name, "w")
-                log.info(utils.get_file_owner(file_name))
                 wfd_list.append(wfd)
 
             # write the header in each file

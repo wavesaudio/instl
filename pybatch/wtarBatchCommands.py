@@ -61,6 +61,7 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
                     if copy_owner:
                         from pybatch import Chown
                         first_wtar_file_st = os.stat(wtar_file_paths[0])
+                        #log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
                         Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
 
         if no_artifacts:
@@ -244,7 +245,7 @@ class Unwtar(PythonBatchCommandBase):
                 else:
                     destination_folder = what_to_unwtar.parent
                 self._doing = f"""unwtar file '{what_to_unwtar}' to '{destination_folder}''"""
-                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
 
         elif what_to_unwtar.is_dir():
             if self.where_to_unwtar:
@@ -268,7 +269,7 @@ class Unwtar(PythonBatchCommandBase):
                         if utils.is_first_wtar_file(a_file_path):
                             where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                             self._doing = f"""unwtarring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
-                            unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                            unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
             else:
                 log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
