@@ -97,8 +97,8 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
             # open the files make sure they have r/w permissions and are utf-8
             wfd_list = list()
             for file_name in file_name_list:
-                wfd = utils.utf8_open(file_name, "w")
-                utils.make_open_file_read_write_for_all(wfd)
+                wfd = utils.utf8_open_for_write(file_name, "w")
+                log.info(utils.get_file_owner(file_name))
                 wfd_list.append(wfd)
 
             # write the header in each file

@@ -338,6 +338,6 @@ class CreateRepoRevFile(PythonBatchCommandBase):
                                               explicit_start=True, sort_mappings=True)
         repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
-        with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
+        with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", repo_rev_folder_path)

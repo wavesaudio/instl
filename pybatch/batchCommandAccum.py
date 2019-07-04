@@ -88,6 +88,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_by_type(instl_folder)})""")
         opening_code_lines.append(f"""import logging""")
         opening_code_lines.append(f"""log = logging.getLogger(__name__)""")
+        opening_code_lines.append(f"""import utils""")
+        opening_code_lines.append(f"""utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())""")
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""from configVar import config_vars""")
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")

@@ -44,10 +44,12 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
         with utils.MultiFileReader("br", wtar_file_paths) as fd:
             with tarfile.open(fileobj=fd) as tar:
                 tar_total_checksum = tar.pax_headers.get("total_checksum")
+                #log.debug(f"total checksum for tarfile(s) {wtar_file_paths} {tar_total_checksum}")
                 if tar_total_checksum:
                     if os.path.exists(destination_path):
                         with utils.ChangeDirIfExists(destination_folder):
                             disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+                            #log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
 
                         if disk_total_checksum == tar_total_checksum:
                             do_the_unwtarring = False

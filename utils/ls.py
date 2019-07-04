@@ -360,6 +360,6 @@ if __name__ == "__main__":
     for out_format in ('text', 'dicts', 'json'):
         for a_path in path_list:
             listing = disk_item_listing(a_path, ls_format=ls_format, output_format=out_format)
-            with utils.utf8_open("ls."+out_format, "w") as wfd:
+            with utils.utf8_open_for_write("ls."+out_format, "w") as wfd:
                 print(listing, file=wfd)
                 print(os.path.realpath(wfd.name))

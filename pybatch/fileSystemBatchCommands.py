@@ -566,6 +566,7 @@ class FileSizes(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.compile_exclude_regexi()
         with open(self.out_file, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             if os.path.isfile(self.folder_to_scan):
                 file_size = os.path.getsize(self.folder_to_scan)
                 wfd.write(f"{self.folder_to_scan}, {file_size}\n")
@@ -603,6 +604,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         with open(self.file_path, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
 
@@ -669,6 +671,7 @@ class SplitFile(PythonBatchCommandBase, essential=True):
         with open(self.file_to_split, "rb") as fts:
             for part_size, part_path in splits:
                 with open(part_path, "wb") as pfd:
+                    utils.chown_chmod_on_fd(pfd)
                     pfd.write(fts.read(part_size))
         if self.remove_original:
             self.file_to_split.unlink()
@@ -694,6 +697,7 @@ class JoinFile(PythonBatchCommandBase, essential=True):
         files_to_join = utils.find_split_files(self.file_to_join)
         joined_file_path = self.file_to_join.parent.joinpath(self.file_to_join.stem)
         with open(joined_file_path, "wb") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             for part_file in files_to_join:
                 with open(part_file, "rb") as rfd:
                     wfd.write(rfd.read())

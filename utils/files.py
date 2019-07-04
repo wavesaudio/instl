@@ -20,11 +20,84 @@ import urllib.request, urllib.error, urllib.parse
 
 from typing import Optional, TextIO
 
+
+global_acting_uid = -1
+global_acting_gid = -1
+
+
+def set_acting_ids(uid, gid):
+    global global_acting_uid
+    global_acting_uid = uid
+    global global_acting_gid
+    global_acting_gid = gid
+
+
 import utils
 
 
-def utf8_open(*args, **kwargs) -> TextIO:
-    return open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+def utf8_open_for_read(*args, **kwargs) -> TextIO:
+    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    return retVal
+
+
+def utf8_open_for_write(*args, **kwargs) -> TextIO:
+    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    chown_chmod_on_fd(retVal)
+    return retVal
+
+
+def chown_chmod_on_fd(fd, user=-1, group=-1):
+    if user == -1:
+        user = global_acting_uid
+    if group == -1:
+        group = global_acting_gid
+    if user != -1 or group != -1:
+        try:
+            if hasattr(os, 'fchown'):
+                os.fchown(fd.fileno(), user, group)
+        except Exception:
+            try:
+                if hasattr(os, 'chown'):
+                    os.chown(fd.name, user, group)
+            except Exception as ex:
+                log.warning(f"""chown_chmod_on_fd: chown failed for {fd.name}; {ex}""")
+    try:
+        if hasattr(os, 'fchmod'):
+            os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+    except Exception:
+        try:
+            if hasattr(os, 'chmod'):
+                os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        except Exception as ex:
+            log.warning(f"""chown_chmod_on_fd: chmod failed for {fd.name}; {ex}""")
+    return f"""chown_chmod_on_fd: {fd.name} u:{user}, g:{group}"""
+
+
+def chown_chmod_on_path(in_path, user=-1, group=-1):
+    if user == -1:
+        user = global_acting_uid
+    if group == -1:
+        group = global_acting_gid
+    if user != -1 or group != -1:
+        try:
+            if hasattr(os, 'chown'):
+                os.fchown(in_path, user, group)
+        except Exception as ex:
+            log.warning(f"""chown_chmod_on_path: chown failed for {in_path}; {ex}""")
+        try:
+            if hasattr(os, 'chmod'):
+                os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+        except Exception as ex:
+            log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
+    return f"""chown_chmod_on_path: {in_path} u:{user}, g:{group}"""
+
+
+def get_file_owner(in_path):
+    try:
+        the_stat = os.stat(in_path)
+        return f"""get_file_owner: {in_path} u:{the_stat.st_uid}, g:{the_stat.st_gid}"""
+    except Exception as ex:
+        return f"""get_file_owner: {in_path} Exception {ex}"""
 
 
 def main_url_item(url: str) -> str:
@@ -64,7 +137,7 @@ class write_to_file_or_stdout(object):
     def __enter__(self) -> TextIO:
         if self.file_path != "stdout":
             open_mode = 'a' if self.append_to_file else 'w'
-            self.fd = utf8_open(self.file_path, open_mode)
+            self.fd = utf8_open_for_write(self.file_path, open_mode)
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
@@ -123,6 +196,7 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
     buffer = utils.unicodify(buffer) # make sure text is unicode
     if save_to_path and in_file_or_url != save_to_path:
         with open(save_to_path, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             wfd.write(buffer)
     return buffer, actual_file_path
 
@@ -245,7 +319,7 @@ def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, tran
         contents_buffer = read_from_file_or_url(in_url, config_vars, translate_url_callback, expected_checksum, encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
-                make_open_file_read_write_for_all(wfd)
+                chown_chmod_on_fd(wfd)
                 wfd.write(contents_buffer)
     return cached_file_path
 
@@ -275,6 +349,7 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
         if need_decompress:
             decompressed = zlib.decompress(open(cached_file_path, "rb").read())
             with open(final_file_path, "wb") as wfd:
+                utils.chown_chmod_on_fd(wfd)
                 wfd.write(decompressed)
         else:
             smart_copy_file(cached_file_path, final_file_path)
@@ -332,28 +407,6 @@ def safe_remove_file_system_object(path_to_file_system_object, followlinks=False
             safe_remove_file(path_to_file_system_object)
     except Exception:
         pass
-
-
-def make_open_file_read_write_for_all(fd, user=-1, group=-1):
-    try:
-        if hasattr(os, 'fchmod'):
-            os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-    except Exception:
-        try:
-            if hasattr(os, 'chmod'):
-                os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-        except Exception:
-            log.warning(f"""make_open_file_read_write_for_all: chmod failed for {fd.name}""")
-    if user != -1 or group != -1:
-        try:
-            if hasattr(os, 'fchown'):
-                os.fchown(fd.fileno(), user, group)
-        except Exception:
-            try:
-                if hasattr(os, 'chown'):
-                    os.chown(fd.name, user, group)
-            except Exception:
-                log.warning(f"""make_open_file_read_write_for_all: chown failed for {fd.name}""")
 
 
 def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):

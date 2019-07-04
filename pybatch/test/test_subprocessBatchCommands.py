@@ -269,6 +269,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
 
+    def test_Subprocess_detached(self):
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Subprocess("/Applications/BBEdit.app/Contents/MacOS/BBEdit", "/Users/shai/Desktop/wle issue/check-wle-ver.command", detach=True)
+        self.pbt.exec_and_capture_output()
+
     def test_run_process_abort(self):
         '''This test validates the abort function of run_process.
         It runs a python script that never ends and tests that once the abort file is deleted the process stops'''

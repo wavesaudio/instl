@@ -293,7 +293,7 @@ class SVNTable(object):
         return "\n".join([item.__repr__() for item in self.get_items()])
 
     def repr_to_file(self, file_path) -> None:
-        with utils.utf8_open(file_path, "w") as wfd:
+        with utils.utf8_open_for_write(file_path, "w") as wfd:
             wfd.write(self.__repr__())
 
     def valid_read_formats(self) -> List[str]:

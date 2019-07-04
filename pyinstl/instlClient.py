@@ -105,6 +105,9 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
+        utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())
+        log.info(f"""acting_uid: {utils.global_acting_uid}, acting_gid: {utils.global_acting_gid}""")
+
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)

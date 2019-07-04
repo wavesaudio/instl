@@ -112,8 +112,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             return dl_commands
 
     def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
-        with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
+        with utils.utf8_open_for_write(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
                 if config_file is None:  # None means to insert a wait
                     wfd.write("wait\n")
@@ -227,9 +226,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if config_vars["__CURRENT_OS__"].str() == "Mac":  # owner issue only relevant on Mac
             download_roots = self.instlObj.info_map_table.get_download_roots()
             if download_roots:
-                chown_accum += Progress("Adjust ownership and permissions ...")
                 for dr in download_roots:
-                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                    chown_accum += Progress(f"Adjust ownership and permissions {dr}...")
+                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
         return chown_accum
 
 
