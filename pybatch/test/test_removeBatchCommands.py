@@ -30,7 +30,7 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchRemove(unittest.TestCase):
@@ -48,7 +48,26 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.reprs_test_runner(RmFile(r"\just\remove\me\already"))
 
     def test_RmFile(self):
-        pass
+        file_easy_to_remove = self.pbt.path_inside_test_folder("file_easy_to_remove")
+        self.assertFalse(file_easy_to_remove.exists(), f"file exists '{file_easy_to_remove}'")
+        file_hard_to_remove = self.pbt.path_inside_test_folder("file_hard_to_remove")
+        self.assertFalse(file_hard_to_remove.exists(), f"file exists '{file_hard_to_remove}'")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Touch(file_easy_to_remove)
+        self.pbt.batch_accum += Touch(file_hard_to_remove)
+        self.pbt.batch_accum += Chmod(file_hard_to_remove, "a-wr")
+        self.pbt.batch_accum += Chown(file_hard_to_remove, user_id=502, group_id=20)
+        self.pbt.exec_and_capture_output("create file to remove")
+        self.assertTrue(file_easy_to_remove.exists(), f"file was not created '{file_easy_to_remove}'")
+        self.assertTrue(file_hard_to_remove.exists(), f"file was not created '{file_hard_to_remove}'")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += RmFile(file_easy_to_remove)
+        self.pbt.batch_accum += RmFile(file_hard_to_remove)
+        self.pbt.exec_and_capture_output("remove file to remove")
+        self.assertFalse(file_easy_to_remove.exists(), f"file was not removed '{file_easy_to_remove}'")
+        self.assertFalse(file_hard_to_remove.exists(), f"file was not removed '{file_hard_to_remove}'")
 
     def test_RmDir_repr(self):
        self.pbt.reprs_test_runner(RmDir(r"\just\remove\me\already"))
