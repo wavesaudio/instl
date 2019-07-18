@@ -106,7 +106,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             else:
                 dl_end_message = "Downloading 1 file done"
 
-            dl_commands += Chown(path="$(LOCAL_REPO_SYNC_DIR)", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True)
+            for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
+                dl_commands += Chown(path=sync_dir, user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True)
             dl_commands += Progress(dl_end_message)
 
             return dl_commands
