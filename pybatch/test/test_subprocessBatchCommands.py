@@ -270,8 +270,13 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
     def test_Subprocess_detached(self):
+        if running_on_Mac:
+            path_to_exec = "/Applications/BBEdit.app/Contents/MacOS/BBEdit"
+        elif running_on_Win:
+            path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
+
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += Subprocess("/Applications/BBEdit.app/Contents/MacOS/BBEdit", "/Users/shai/Desktop/wle issue/check-wle-ver.command", detach=True)
+        self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)
         self.pbt.exec_and_capture_output()
 
     def test_run_process_abort(self):
