@@ -376,37 +376,42 @@ class ChangeDirIfExists(object):
             os.chdir(self.savedPath)
 
 
-def safe_remove_file(path_to_file):
+def safe_remove_file(path_to_file, ignore_errors=True):
     """ solves a problem with python 2.7 where os.remove raises if the file does not exist  """
     try:
         os.remove(path_to_file)
     except FileNotFoundError:  # os.remove raises is the file does not exists
         pass
-    return path_to_file
+    except Exception as ex:
+        if not ignore_errors:
+            raise
 
 
 def safe_remove_folder(path_to_folder, ignore_errors=True):
     try:
-        shutil.rmtree(path_to_folder)
-    except Exception:
+        shutil.rmtree(path_to_folder, ignore_errors=ignore_errors)
+    except FileNotFoundError:
         pass
-    return path_to_folder
+    except Exception as ex:
+        if not ignore_errors:
+            raise
 
 
-def safe_remove_file_system_object(path_to_file_system_object, followlinks=False):
+def safe_remove_file_system_object(path_to_file_system_object, followlinks=False, ignore_errors=True):
     try:
         if os.path.islink(path_to_file_system_object):
             if followlinks:
                 real_path = os.path.realpath(path_to_file_system_object)
-                safe_remove_file_system_object(real_path)
+                safe_remove_file_system_object(real_path, ignore_errors)
             else:
                 os.unlink(path_to_file_system_object)
         elif os.path.isdir(path_to_file_system_object):
-            safe_remove_folder(path_to_file_system_object)
+            safe_remove_folder(path_to_file_system_object, ignore_errors)
         elif os.path.isfile(path_to_file_system_object):
-            safe_remove_file(path_to_file_system_object)
-    except Exception:
-        pass
+            safe_remove_file(path_to_file_system_object, ignore_errors)
+    except Exception as ex:
+        if not ignore_errors:
+            raise
 
 
 def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None, followlinks=False):

@@ -425,6 +425,7 @@ class Chmod(RunProcessBase, essential=True):
         return actual_who, flags, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
+        the_path = os.fspath(utils.ResolvedPath(self.path))
         if sys.platform == 'darwin':
             run_args.append("chmod")
             if self.ignore_all_errors:
@@ -432,11 +433,17 @@ class Chmod(RunProcessBase, essential=True):
             if self.recursive:
                 run_args.append("-R")
             run_args.append(self.mode)
+            run_args.append(the_path)
         elif sys.platform == 'win32':
             run_args.append('attrib')
+            if 'w' in self.mode:
+                run_args.append("-R")
             if self.recursive:
-                run_args.append('/s')
-        run_args.append(utils.ResolvedPath(self.path))
+                run_args.append(the_path+"\\**")
+                run_args.append('/S')
+            else:
+                run_args.append(the_path)
+            run_args.append('/D')
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -464,12 +471,16 @@ class Chmod(RunProcessBase, essential=True):
         elif sys.platform == 'win32':
             if self.recursive:
                 self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
+                self.shell = True
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
                 who, perms, operation = self.parse_symbolic_mode_win(self.mode)
                 self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}''"""
 
+                # on windows uncheck the read-only flag
+                if 'w' in self.mode:
+                    os.chmod(resolved_path, stat.S_IWRITE)
                 accounts = list()
                 for name in who:
                     user, domain, type = win32security.LookupAccountName("", name)

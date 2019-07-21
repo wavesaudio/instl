@@ -12,7 +12,7 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import SplitFile
+from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,16 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
                             do_the_unwtarring = False
                             log.debug(f"{wtar_file_paths[0]} skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
-                    utils.safe_remove_file_system_object(destination_path)
+                    if os.path.exists(destination_path):
+                        try:
+                            utils.safe_remove_file_system_object(destination_path, ignore_errors=False)
+                        except PermissionError as pe:
+                            ChmodAndChown(destination_path, "a+rw", int(config_vars.get("ACTING_UID", -1)),
+                                              int(config_vars.get("ACTING_GID", -1)),
+                                              recursive=True, own_progress_count=0)()
+                            log.debug(f"failed to remove {destination_path}, retrying after ChmodAndChow")
+                            utils.safe_remove_file_system_object(destination_path, ignore_errors=True)
+                            log.debug(f"2nd safe_remove_file_system_object on on {destination_path} done")
                     tar.extractall(destination_folder)
 
                     if copy_owner:
