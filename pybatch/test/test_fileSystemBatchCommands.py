@@ -30,7 +30,7 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchFileSystem(unittest.TestCase):
@@ -235,10 +235,27 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertEqual(concatenated_content, expected_content)
 
     def test_Chown_repr(self):
-        pass
+        self.pbt.reprs_test_runner(Chown("/a/file/to/append", 123, 456),
+                                   Chown("/a/file/to/append", None, 456),
+                                   Chown("/a/file/to/append", 123, None),
+                                   Chown("/a/file/to/append", None, None))
 
     def test_Chown(self):
-        pass
+        user_id = 502
+        group_id = 20
+        file_to_chown: Path = self.pbt.path_inside_test_folder("chown-this-file")
+        self.assertFalse(file_to_chown.exists(), f"file exists '{file_to_chown}'")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Touch(file_to_chown)
+        self.pbt.batch_accum += Chmod(file_to_chown, "a+rw")
+        self.pbt.batch_accum += Chown(file_to_chown,user_id=user_id, group_id=group_id)
+        self.pbt.exec_and_capture_output("chown")
+
+        file_stat = file_to_chown.stat()
+        self.assertEqual(file_stat.st_uid, user_id, f"user should be {user_id} not {file_stat.st_uid}")
+        self.assertEqual(file_stat.st_gid, group_id, f"user should be {group_id} not {file_stat.st_gid}")
+
 
     def test_Chmod_repr(self):
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)

@@ -30,7 +30,7 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchWtar(unittest.TestCase):

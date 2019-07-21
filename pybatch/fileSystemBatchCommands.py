@@ -332,6 +332,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if (self.user_id, self.group_id) != (-1, -1):
             # os.chown is not recursive so call the system's chown
             if self.recursive:
+                self.doing = f"""change owner (recursive) of '{self.path}' to '{self.user_id}:{self.group_id}'"""
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
@@ -442,6 +443,7 @@ class Chmod(RunProcessBase, essential=True):
         if sys.platform == 'darwin':
             # os.chmod is not recursive so call the system's chmod
             if self.recursive:
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
@@ -461,10 +463,12 @@ class Chmod(RunProcessBase, essential=True):
 
         elif sys.platform == 'win32':
             if self.recursive:
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
                 who, perms, operation = self.parse_symbolic_mode_win(self.mode)
+                self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}''"""
 
                 accounts = list()
                 for name in who:
@@ -507,8 +511,10 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
-        Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0)()
-        Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
+        with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0) as owner_chaner:
+            owner_chaner()
+        with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0) as mode_changer:
+            mode_changer()
 
 
 class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):

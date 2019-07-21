@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 from pybatch import *
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchWin(unittest.TestCase):

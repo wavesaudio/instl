@@ -59,10 +59,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
                  hard_links=True,
                  ignore_dangling_symlinks=False,
                  delete_extraneous_files=False,
-                 copy_owner=True,
+                 copy_owner=False,
                  verbose=0,
                  dry_run=False,
-                 copy_stat=True,
+                 copy_stat=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.src = src
@@ -112,10 +112,10 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         params.append(self.optional_named__init__param("hard_links", self.hard_links, True))
         params.append(self.optional_named__init__param("ignore_dangling_symlinks", self.ignore_dangling_symlinks, False))
         params.append(self.optional_named__init__param("delete_extraneous_files", self.delete_extraneous_files, False))
-        params.append(self.optional_named__init__param("copy_owner", self.copy_owner, True))
+        params.append(self.optional_named__init__param("copy_owner", self.copy_owner, False))
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
-        params.append(self.optional_named__init__param("copy_stat", self.copy_stat, True))
+        params.append(self.optional_named__init__param("copy_stat", self.copy_stat, False))
         all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:

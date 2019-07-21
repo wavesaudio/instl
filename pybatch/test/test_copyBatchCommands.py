@@ -21,7 +21,7 @@ from pybatch import PythonBatchCommandAccum
 from configVar import config_vars
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchCopy(unittest.TestCase):
