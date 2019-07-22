@@ -191,7 +191,7 @@ class ConfigVar:
             for val in values:
                 self.extend(val)  # flatten nested lists
         elif isinstance(values, os.PathLike):
-            self.extend(os.fspath(values))
+            self.append(os.fspath(values))
         else:
             raise TypeError(f"cofigVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
 

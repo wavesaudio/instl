@@ -60,11 +60,17 @@ pyz = PYZ(a.pure, a.zipped_data,
 
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
+          exclude_binaries=True,
           name='instl',
           debug=False,
           strip=None,
           upx=False, # does not work even if True
+          runtime_tmpdir="runtime_tmpdir",
           console=True )
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+                strip=None,
+               upx=False,
+               name='instl')

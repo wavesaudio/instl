@@ -9,7 +9,7 @@ sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 import os
 import re
 import json
-import inspect
+from pathlib import Path
 import logging
 import tempfile
 import appdirs
@@ -65,9 +65,13 @@ def get_instl_launch_command():
 
 
 def get_data_folder():
+    application_path = get_path_to_instl_app()
     data_folder = None
     if getattr(sys, 'frozen', False):
-        data_folder = getattr(sys, '_MEIPASS', None)
+        data_folder: Path = Path(application_path).parent
+        defaults_folder: Path = data_folder.joinpath('defaults')
+        if not defaults_folder.is_dir():
+            data_folder = getattr(sys, '_MEIPASS', None)
     elif __file__:
         data_folder = os.path.dirname(os.path.realpath(__file__))
     return data_folder
