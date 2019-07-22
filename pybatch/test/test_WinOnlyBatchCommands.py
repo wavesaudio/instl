@@ -149,6 +149,12 @@ class TestPythonBatchWin(unittest.TestCase):
             self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryKey', "lalalal", reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output(expected_exception=FileNotFoundError)
 
+    def test_DeleteRegistryKey_non_existing(self):
+        for reg_num_bits in (64, 32):
+            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', 'SOFTWARE\Waves Audio\testךשלדגחכךדגלכ_non_existing', reg_num_bits=reg_num_bits)
+            self.pbt.exec_and_capture_output()
+
     def test_DeleteRegistryValues_repr(self):
         list_of_objs = list()
         for reg_num_bits in (64, 32):
