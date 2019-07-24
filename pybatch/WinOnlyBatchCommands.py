@@ -1,8 +1,8 @@
 import os
 from typing import Dict, List
 import winreg
-from win32com.client import Dispatch
-
+from win32com.client import Dispatch, DispatchEx
+import pywintypes
 
 from .baseClasses import PythonBatchCommandBase
 from .subprocessBatchCommands import RunProcessBase
@@ -16,6 +16,7 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         self.shortcut_path = shortcut_path
         self.target_path = target_path
         self.run_as_admin = run_as_admin
+        self.exceptions_to_ignore.append(AttributeError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
@@ -26,6 +27,7 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
         shell = Dispatch("WScript.Shell")
         resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
         os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
@@ -35,6 +37,7 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         working_directory, target_name = os.path.split(resolved_target_path)
         shortcut.WorkingDirectory = working_directory
         shortcut.save()
+
         if self.run_as_admin:
             import pythoncom
             from win32com.shell import shell, shellcon
