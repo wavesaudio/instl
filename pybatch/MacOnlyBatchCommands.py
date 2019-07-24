@@ -1,4 +1,5 @@
 import os
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -166,10 +167,20 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink_target = symlink_file_to_convert.read_text()
         self.doing = f"""convert symlink file '{symlink_file_to_convert}' to real symlink to target '{symlink_target}'"""
         symlink = Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
-        if symlink.is_symlink() or symlink.is_file():
+        it_was = None
+        if symlink.is_symlink():
             symlink.unlink()
+            it_was = "symlink"
+        elif symlink.is_file():
+            symlink.unlink()
+            it_was = "file"
         elif symlink.is_dir():
-            raise IsADirectoryError(f"a directory was found where a symlink was expected {symlink}")
+            shutil.rmtree(symlink)
+            it_was = "folder"
+
+        if symlink.exists():
+            raise IsADirectoryError(f"{it_was} '{symlink}' a  was found and could not be removed")
+
         symlink.symlink_to(symlink_target)
         symlink_file_to_convert.unlink()
 
