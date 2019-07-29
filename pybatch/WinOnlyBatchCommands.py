@@ -1,6 +1,8 @@
 import os
 from typing import Dict, List
 import winreg
+import pythoncom
+from win32com.shell import shell, shellcon
 from win32com.client import Dispatch, DispatchEx
 import pywintypes
 
@@ -27,31 +29,29 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path))
+        target_path = os.path.expandvars(os.fspath(self.target_path))
+        working_directory, target_name = os.path.split(target_path)
 
-        shell = Dispatch("WScript.Shell")
-        resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
-        os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
-        shortcut = shell.CreateShortCut(resolved_shortcut_path)
-        resolved_target_path = os.fspath(utils.ResolvedPath(self.target_path))
-        shortcut.Targetpath = resolved_target_path
-        working_directory, target_name = os.path.split(resolved_target_path)
-        shortcut.WorkingDirectory = working_directory
-        shortcut.save()
+        shortcut_obj = pythoncom.CoCreateInstance(
+            shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
+        persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
+        shortcut_obj.SetPath(target_path)
+        shortcut_obj.SetWorkingDirectory(working_directory)
+        persist_file.Save(shortcut_path, 0)
 
         if self.run_as_admin:
-            import pythoncom
-            from win32com.shell import shell, shellcon
             link_data = pythoncom.CoCreateInstance(
                 shell.CLSID_ShellLink,
                 None,
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
-            file.Load(resolved_shortcut_path)
+            file.Load(shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
-                file.Save(resolved_shortcut_path, 0)
+                file.Save(shortcut_path, 0)
 
 
 class BaseRegistryKey(PythonBatchCommandBase):
