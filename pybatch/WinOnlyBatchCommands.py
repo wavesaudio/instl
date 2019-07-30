@@ -128,7 +128,7 @@ class ReadRegistryValue(BaseRegistryKey):
         self.the_value = None
 
     def progress_msg_self(self) -> str:
-        return f"Reading {self.sub_key}\\{self.value_name} -> {self.the_value}"
+        return f"Reading Registry {self.sub_key}\\{self.value_name} -> {self.the_value}"
 
     def __call__(self, *args, **kwargs) -> str:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -157,7 +157,7 @@ class CreateRegistryKey(BaseRegistryKey):
         self.permission_flag = winreg.KEY_ALL_ACCESS
 
     def progress_msg_self(self) -> str:
-        return f"Creating sub_key {self.top_key}\\{self.sub_key}"
+        return f"Creating Registry sub_key {self.top_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -183,7 +183,7 @@ class CreateRegistryValues(BaseRegistryKey):
         all_args.append(f"value_dict={utils.quoteme_raw_by_type(self.value_dict)}")
 
     def progress_msg_self(self) -> str:
-        return f"Creating values {self.sub_key} -> {self.value_dict}"
+        return f"Creating Registry values {self.sub_key} -> {self.value_dict}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -204,7 +204,7 @@ class DeleteRegistryKey(BaseRegistryKey):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def progress_msg_self(self) -> str:
-        return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
+        return f"Deleting Registry sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -229,7 +229,7 @@ class DeleteRegistryValues(BaseRegistryKey):
         self.named_members_repr(all_args)
 
     def progress_msg_self(self) -> str:
-        return f"Deleting values {self.sub_key} -> {self.values}"
+        return f"Deleting Registry values {self.sub_key} -> {self.values}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

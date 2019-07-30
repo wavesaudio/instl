@@ -57,14 +57,16 @@ class InstlInstanceSync_url(InstlInstanceSync):
             "http://some.base.url/" + "07/27" + "/path/to/file"
             The download path is the resolved file item's download_path
         """
+
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
+        url_start_cache = dict()
         for file_item in in_file_list:
             source_url = file_item.url
             if source_url is None:
                 repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
-                url_start = self.sync_base_url
-                source_url = '/'.join(utils.make_one_list(url_start, repo_rev_folder_hierarchy, file_item.path))
+                sync_base_url = self.instlObj.info_map_table.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)", url_start_cache)
+                source_url = '/'.join(utils.make_one_list(sync_base_url, repo_rev_folder_hierarchy, file_item.path))
             self.instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=file_item.size, download_last=source_url.endswith('Info.xml'))
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 

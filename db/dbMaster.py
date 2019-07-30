@@ -300,7 +300,7 @@ class DBMaster(object):
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:
-                    if len(all_results[0]) == 1:
+                    if len(all_results[0]) == 1:  # all_results is a list of one item lists, so flaten and return a list of items
                         retVal.extend([res[0] for res in all_results])
                     else:
                         retVal.extend(all_results)
