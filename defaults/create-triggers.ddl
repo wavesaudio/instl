@@ -125,3 +125,21 @@ BEGIN
                     WHERE active_operating_systems_t._id=NEW.os_id)
      WHERE index_item_detail_t._id = NEW._id;
 END;
+
+-- when svn_item_t row is marked as required, set needed_for_iid to the iid that caused the row to be required
+CREATE TRIGGER IF NOT EXISTS set_needed_for_iid_after_required_is_set
+AFTER UPDATE OF required ON svn_item_t
+WHEN NEW.required = 1
+BEGIN
+    UPDATE svn_item_t
+    SET needed_for_iid = (
+        SELECT owner_iid FROM index_item_detail_t
+        WHERE index_item_detail_t.detail_name == 'install_sources'
+        AND (
+              NEW.unwtarred == index_item_detail_t.detail_value
+                OR
+              NEW.path LIKE index_item_detail_t.detail_value || "/%"
+            )
+        )
+    WHERE NEW._id == svn_item_t._id;
+END;

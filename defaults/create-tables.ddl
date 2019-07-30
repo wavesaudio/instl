@@ -57,7 +57,8 @@ CREATE TABLE svn_item_t
     unwtarred TEXT,
     symlinkFlag INTEGER,
     ignore INTEGER DEFAULT 0,
-    needed_for_iid TEXT
+    needed_for_iid TEXT,
+    FOREIGN KEY(needed_for_iid) REFERENCES index_item_t(iid)
 );
 
 
