@@ -883,23 +883,10 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_download_items_sync_info(self):
-        """ get just the fields required to calc urls"""
-        query_text = """
-            SELECT path, revision, size, download_path, url FROM svn_item_t
-            WHERE need_download == 1
-            AND fileFlag = 1
-            ORDER BY _id
-            """
-        with self.db.selection("get_download_items") as curs:
-            curs.execute(query_text)
-            retVal = curs.fetchall()
-        return retVal
-
-    def get_download_items(self, what: str="any") -> List[SVNRow]:
+    def get_download_items(self, what: str = "any") -> List[SVNRow]:
         """
         get_items applies a filter and return all items
-        :param: filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :param: what: one of "any", "file", "dir"
         :return: all items returned by applying the filter called filter_name
         """
         if what not in ("any", "file", "dir"):

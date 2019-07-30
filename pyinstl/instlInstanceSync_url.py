@@ -60,11 +60,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
         for file_item in in_file_list:
-            source_url = file_item['url']
+            source_url = file_item.url
             if source_url is None:
-                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
-                source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
-            self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'], download_last=source_url.endswith('Info.xml'))
+                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
+                url_start = self.sync_base_url
+                source_url = '/'.join(utils.make_one_list(url_start, repo_rev_folder_hierarchy, file_item.path))
+            self.instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=file_item.size, download_last=source_url.endswith('Info.xml'))
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
@@ -177,7 +178,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if to_sync_num_files == 0:
             return dl_commands
 
-        file_list = self.instlObj.info_map_table.get_download_items_sync_info()
+        file_list = self.instlObj.info_map_table.get_download_items(what="file")
         if False:   # need to rethink how to calc mount point sizes efficiently
             mount_points_to_size = total_sizes_by_mount_point(file_list)
 

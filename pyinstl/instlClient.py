@@ -449,7 +449,6 @@ class InstlClient(InstlInstanceBase):
             else:
                 resolved_install_folder = install_folder
 
-
             if source_tag in ('!dir', '!dir_cont'):
                 if direct_sync:
                     # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
