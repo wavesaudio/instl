@@ -189,7 +189,7 @@ class InstlClientCopy(InstlClient):
                             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec(), recursive=True, ignore_all_errors=True)
 
         if len(wtar_items) > 0:
-            retVal += Unwtar(source_path_abs, os.curdir)
+            retVal += Unwtar(source_path_abs, os.pardir)  # to parent otherwise unwtar will create a folder inside the current folder, e.g. Utilities/Utilities. This issue is unique to !dir_cont
 
         return retVal
 
