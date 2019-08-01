@@ -12,6 +12,7 @@ from collections import defaultdict
 import stat
 import zlib
 import tempfile
+import datetime
 
 import utils
 import aYaml
@@ -1255,38 +1256,50 @@ class InstlAdmin(InstlInstanceBase):
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
-    def do_wait_on_commit_trigger(self):
+    def do_wait_on_action_trigger(self):
         import time
         import redis
 
         redis_host = config_vars['REDIS_HOST'].str()
         redis_port = config_vars['REDIS_PORT'].int()
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
-        trigger_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
-        done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
+        trigger_commit_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
+        trigger_activate_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
 
+        log_redis_key = config_vars['ACTION_LOG_REDIS_KEY'].str()
+        #done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
+
+        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_redis_key)
+
+        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on} {trigger_activate_redis_key}")
         while True:
-            print(f"wait_on_commit_trigger: {redis_host}:{redis_port} {trigger_redis_key}")
-            poped = r.brpop(trigger_redis_key, 60)
+            print(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
+            poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
             if poped is not None:
                 key = str(poped[0])
-                if key == trigger_redis_key:
-                    if poped[1] == "stop":
-                        print(f"{trigger_redis_key} received 'stop' no more waiting on {trigger_redis_key}")
-                        break
+                value = str(poped[1])
 
-                    repo_rev = int(poped[1])
-                    print(f"{trigger_redis_key} repo-rev {repo_rev} triggered")
+                r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} poped key: {key} value: {value}")
+                if value == "stop":
+                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} received stop")
+                    break
+
+                if key == trigger_commit_redis_key:
+                    domain, version, repo_rev = value.split(":")
+                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} version: {version} repo-rev {repo_rev}")
                     config_vars['TARGET_REPO_REV'] = repo_rev
-                    config_vars['__MAIN_OUT_FILE__'] = f"{trigger_redis_key}:{repo_rev}.py"
+                    config_vars['__MAIN_OUT_FILE__'] = f"up2s3_{domain}_{version}_{repo_rev}.py"
                     config_vars["__RUN_BATCH__"] = True
                     try:
                         self.reset_db()
                         batch_accum = PythonBatchCommandAccum()
                         self.up2s3_repo_rev(repo_rev, batch_accum)
 
-                        print(f"{trigger_redis_key} up2s3 of repo-rev {repo_rev} done")
-                        r.lpush(done_redis_key, repo_rev)
                     except Exception as ex:
-                        print(f"Exception {ex} in {trigger_redis_key} up2s3 of repo-rev {repo_rev}")
+                        print(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
+                elif key == trigger_activate_redis_key:
+                    pass
+                else:
+                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} poped {key} unknown key: {key}")
             time.sleep(1)
+        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} ended waiting on {trigger_keys_to_wait_on}")
