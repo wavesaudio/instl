@@ -524,7 +524,7 @@ class IndexItemsTable(object):
                                 if detail_name == "install_sources":
                                     if value.startswith('/'):  # absolute path
                                         new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
-                                                        detail_name, value[1:],tag)
+                                                        detail_name, value[1:], tag)
                                         details.append(new_detail)
                                     else:  # relative path
                                         # because 'common' is in both groups this will create 2 index_item_detail_t

@@ -105,6 +105,9 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
+        utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())
+        log.info(f"""acting_uid: {utils.global_acting_uid}, acting_gid: {utils.global_acting_gid}""")
+
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)
@@ -435,6 +438,8 @@ class InstlClient(InstlInstanceBase):
         sync_and_source = self.items_table.get_sync_folders_and_sources_for_active_iids()
 
         items_to_update = list()
+        local_repo_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
+        config_vars.setdefault("ALL_SYNC_DIRS", local_repo_sync_dir)
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
             log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
@@ -443,7 +448,6 @@ class InstlClient(InstlInstanceBase):
                 resolved_install_folder = config_vars.resolve_str(install_folder)
             else:
                 resolved_install_folder = install_folder
-            local_repo_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
 
             if source_tag in ('!dir', '!dir_cont'):
                 if direct_sync:
@@ -456,6 +460,7 @@ class InstlClient(InstlInstanceBase):
                             info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
                             need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
                     if need_to_sync:
+                        config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                         item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
                         if source_tag == '!dir':
                             source_parent = "/".join(resolved_source_parts[:-1])
@@ -485,6 +490,7 @@ class InstlClient(InstlInstanceBase):
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
                 if direct_sync:
+                    config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                     for item in items_for_file:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),

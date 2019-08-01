@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True}):
+                     kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True, "detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -46,57 +46,64 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-        if self.script:
-            self.shell = True
-            assert len(run_args) == 1
-        elif self.shell and len(run_args) == 1:
-            if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
-                #run_args = shlex.split(run_args[0])
-                #run_args = [p.replace(" ", r"\ ") for p in run_args]
-                #run_args = " ".join(run_args)
-                run_args = run_args[0]
-            elif sys.platform == 'win32':
-                run_args = run_args[0]
-        if self.out_file:
-            out_stream = open(self.out_file, "w")
+        if self.detach:
+            pid = os.spawnlp(os.P_NOWAIT, *run_args)
+            # in https://docs.python.org/3.6/library/subprocess.html#replacing-the-os-spawn-family
+            # the recommended way to replace os.spawnlp(os.P_NOWAIT,.. is by using subprocess.Popen,
+            # but it does not work properly
+            #pid = subprocess.Popen(run_args).pid
         else:
-            out_stream = subprocess.PIPE
-        if self.in_file:
-            in_stream = open(self.in_file, "r")
-        else:
-            in_stream = None
-        if self.err_file:
-            err_stream = open(self.err_file, "w")
-        else:
-            err_stream = subprocess.PIPE
-        completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
+            if self.script:
+                self.shell = True
+                assert len(run_args) == 1
+            elif self.shell and len(run_args) == 1:
+                if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
+                    #run_args = shlex.split(run_args[0])
+                    #run_args = [p.replace(" ", r"\ ") for p in run_args]
+                    #run_args = " ".join(run_args)
+                    run_args = run_args[0]
+                elif sys.platform == 'win32':
+                    run_args = run_args[0]
+            if self.out_file:
+                err_stream = utils.utf8_open_for_write(self.out_file, "w")
+            else:
+                out_stream = subprocess.PIPE
+            if self.in_file:
+                in_stream = open(self.in_file, "r")
+            else:
+                in_stream = None
+            if self.err_file:
+                err_stream = utils.utf8_open_for_write(self.err_file, "w")
+            else:
+                err_stream = subprocess.PIPE
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
-        if self.in_file:
-            in_stream.close()
+            if self.in_file:
+                in_stream.close()
 
-        if self.out_file is None:
-            local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
-            if local_stdout:
-                print(local_stdout)
-        else:
-            out_stream.close()
+            if self.out_file is None:
+                local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
+                if local_stdout:
+                    print(local_stdout)
+            else:
+                out_stream.close()
 
-        if self.err_file is None:
-            local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
-            if local_stderr:
-                if self.ignore_all_errors:
-                    # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
-                    # but it will not be interpreted as an error by whoever is running instl
-                    print(local_stderr, file=sys.stdout)
-                else:
-                    print(local_stderr, file=sys.stderr)
-                    if completed_process.returncode == 0 and self.stderr_means_err:
-                        completed_process.returncode = 123
-        else:
-            err_stream.close()
+            if self.err_file is None:
+                local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
+                if local_stderr:
+                    if self.ignore_all_errors:
+                        # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                        # but it will not be interpreted as an error by whoever is running instl
+                        print(local_stderr, file=sys.stdout)
+                    else:
+                        print(local_stderr, file=sys.stderr)
+                        if completed_process.returncode == 0 and self.stderr_means_err:
+                            completed_process.returncode = 123
+            else:
+                err_stream.close()
 
-        completed_process.check_returncode()
-        self.handle_completed_process(completed_process)
+            completed_process.check_returncode()
+            self.handle_completed_process(completed_process)
 
     def handle_completed_process(self, completed_process):
         pass
@@ -231,7 +238,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
             batch_extension = ".bat"
         commands_text = "\n".join(the_lines)
         batch_file_path = Path(self.dir, self.var_name + batch_extension)
-        with open(batch_file_path, "w") as batch_file:
+        with utils.utf8_open_for_write(batch_file_path, "w") as batch_file:
             batch_file.write(commands_text)
         os.chmod(batch_file.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
@@ -265,7 +272,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         commands = list()
         resolved_config_file = utils.ResolvedPath(self.config_file)
         self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
-        with utils.utf8_open(resolved_config_file, "r") as rfd:
+        with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
                 if line and line[0] != "#":
@@ -300,7 +307,7 @@ class Exec(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.config_file is not None:
             self.read_yaml_file(self.config_file)
-        with utils.utf8_open(self.python_file, 'r') as rfd:
+        with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
             py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())

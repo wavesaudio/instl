@@ -320,10 +320,10 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
         if self.config_file is not None:
             reader = ConfigVarYamlReader(config_vars)
             reader.read_yaml_file(self.config_file)
-        with utils.utf8_open(self.unresolved_file, "r") as rfd:
+        with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
-        with utils.utf8_open(self.resolved_file, "w") as wfd:
+        with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
             wfd.write(resolved_text)
 
 
@@ -382,7 +382,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase, essential=True):
         progress_comment_re = re.compile(""".+prog_num=(?P<progress>\d+).+\s+$""")
         py_batch_with_timings = self.path_to_py_batch.with_suffix(".timings.py")
         last_progress_reported = 0
-        with open(self.path_to_py_batch) as rfd, open(py_batch_with_timings, "w") as wfd:
+        with utils.utf8_open_for_read(self.path_to_py_batch) as rfd, utils.utf8_open_for_write(py_batch_with_timings, "w") as wfd:
             for line in rfd.readlines():
                 line_to_print = line
                 match = progress_comment_re.fullmatch(line)

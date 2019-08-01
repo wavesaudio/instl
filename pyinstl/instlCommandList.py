@@ -38,7 +38,7 @@ class CommandListRunner(object):
     def prepare_command_list_from_file(self):
         command_list = list()
         config_file = os.fspath(config_vars["__CONFIG_FILE__"])
-        with utils.utf8_open(config_file, "r") as rfd:
+        with utils.utf8_open_for_read(config_file, "r") as rfd:
             command_lines = rfd.readlines()
 
         for command_line in command_lines:

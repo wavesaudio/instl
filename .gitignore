@@ -8,3 +8,4 @@ instl-gui.yaml
 python_batch_test_results
 .mypy_cache
 configVar/test/test_out.yaml
+venv

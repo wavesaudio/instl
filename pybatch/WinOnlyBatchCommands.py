@@ -1,8 +1,10 @@
 import os
 from typing import Dict, List
 import winreg
-from win32com.client import Dispatch
-
+import pythoncom
+from win32com.shell import shell, shellcon
+from win32com.client import Dispatch, DispatchEx
+import pywintypes
 
 from .baseClasses import PythonBatchCommandBase
 from .subprocessBatchCommands import RunProcessBase
@@ -16,6 +18,7 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         self.shortcut_path = shortcut_path
         self.target_path = target_path
         self.run_as_admin = run_as_admin
+        self.exceptions_to_ignore.append(AttributeError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
@@ -26,29 +29,29 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        shell = Dispatch("WScript.Shell")
-        resolved_shortcut_path = os.path.expandvars(self.shortcut_path)
-        os.makedirs(os.path.dirname(resolved_shortcut_path), exist_ok=True)
-        shortcut = shell.CreateShortCut(resolved_shortcut_path)
-        resolved_target_path = os.fspath(utils.ResolvedPath(self.target_path))
-        shortcut.Targetpath = resolved_target_path
-        working_directory, target_name = os.path.split(resolved_target_path)
-        shortcut.WorkingDirectory = working_directory
-        shortcut.save()
+        shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path))
+        target_path = os.path.expandvars(os.fspath(self.target_path))
+        working_directory, target_name = os.path.split(target_path)
+
+        shortcut_obj = pythoncom.CoCreateInstance(
+            shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
+        persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
+        shortcut_obj.SetPath(target_path)
+        shortcut_obj.SetWorkingDirectory(working_directory)
+        persist_file.Save(shortcut_path, 0)
+
         if self.run_as_admin:
-            import pythoncom
-            from win32com.shell import shell, shellcon
             link_data = pythoncom.CoCreateInstance(
                 shell.CLSID_ShellLink,
                 None,
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
-            file.Load(resolved_shortcut_path)
+            file.Load(shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
-                file.Save(resolved_shortcut_path, 0)
+                file.Save(shortcut_path, 0)
 
 
 class BaseRegistryKey(PythonBatchCommandBase):
@@ -125,7 +128,7 @@ class ReadRegistryValue(BaseRegistryKey):
         self.the_value = None
 
     def progress_msg_self(self) -> str:
-        return f"Reading {self.sub_key}\\{self.value_name} -> {self.the_value}"
+        return f"Reading Registry {self.sub_key}\\{self.value_name} -> {self.the_value}"
 
     def __call__(self, *args, **kwargs) -> str:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -154,7 +157,7 @@ class CreateRegistryKey(BaseRegistryKey):
         self.permission_flag = winreg.KEY_ALL_ACCESS
 
     def progress_msg_self(self) -> str:
-        return f"Creating sub_key {self.top_key}\\{self.sub_key}"
+        return f"Creating Registry sub_key {self.top_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -180,7 +183,7 @@ class CreateRegistryValues(BaseRegistryKey):
         all_args.append(f"value_dict={utils.quoteme_raw_by_type(self.value_dict)}")
 
     def progress_msg_self(self) -> str:
-        return f"Creating values {self.sub_key} -> {self.value_dict}"
+        return f"Creating Registry values {self.sub_key} -> {self.value_dict}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -201,7 +204,7 @@ class DeleteRegistryKey(BaseRegistryKey):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def progress_msg_self(self) -> str:
-        return f"Deleting sub_key {self.sub_key}\\{self.sub_key}"
+        return f"Deleting Registry sub_key {self.sub_key}\\{self.sub_key}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -226,7 +229,7 @@ class DeleteRegistryValues(BaseRegistryKey):
         self.named_members_repr(all_args)
 
     def progress_msg_self(self) -> str:
-        return f"Deleting values {self.sub_key} -> {self.values}"
+        return f"Deleting Registry values {self.sub_key} -> {self.values}"
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

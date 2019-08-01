@@ -332,6 +332,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if (self.user_id, self.group_id) != (-1, -1):
             # os.chown is not recursive so call the system's chown
             if self.recursive:
+                self.doing = f"""change owner (recursive) of '{self.path}' to '{self.user_id}:{self.group_id}'"""
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
@@ -424,6 +425,7 @@ class Chmod(RunProcessBase, essential=True):
         return actual_who, flags, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
+        the_path = os.fspath(utils.ResolvedPath(self.path))
         if sys.platform == 'darwin':
             run_args.append("chmod")
             if self.ignore_all_errors:
@@ -431,17 +433,24 @@ class Chmod(RunProcessBase, essential=True):
             if self.recursive:
                 run_args.append("-R")
             run_args.append(self.mode)
+            run_args.append(the_path)
         elif sys.platform == 'win32':
             run_args.append('attrib')
+            if 'w' in self.mode:
+                run_args.append("-R")
             if self.recursive:
-                run_args.append('/s')
-        run_args.append(utils.ResolvedPath(self.path))
+                run_args.append(the_path+"\\**")
+                run_args.append('/S')
+            else:
+                run_args.append(the_path)
+            run_args.append('/D')
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if sys.platform == 'darwin':
             # os.chmod is not recursive so call the system's chmod
             if self.recursive:
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
@@ -461,11 +470,17 @@ class Chmod(RunProcessBase, essential=True):
 
         elif sys.platform == 'win32':
             if self.recursive:
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
+                self.shell = True
                 return super().__call__(args, kwargs)
             else:
                 resolved_path = utils.ResolvedPath(self.path)
                 who, perms, operation = self.parse_symbolic_mode_win(self.mode)
+                self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}''"""
 
+                # on windows uncheck the read-only flag
+                if 'w' in self.mode:
+                    os.chmod(resolved_path, stat.S_IWRITE)
                 accounts = list()
                 for name in who:
                     user, domain, type = win32security.LookupAccountName("", name)
@@ -507,8 +522,10 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ResolvedPath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
-        Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0)()
-        Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0)()
+        with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0) as owner_chaner:
+            owner_chaner()
+        with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0) as mode_changer:
+            mode_changer()
 
 
 class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):
@@ -566,6 +583,7 @@ class FileSizes(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.compile_exclude_regexi()
         with open(self.out_file, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             if os.path.isfile(self.folder_to_scan):
                 file_size = os.path.getsize(self.folder_to_scan)
                 wfd.write(f"{self.folder_to_scan}, {file_size}\n")
@@ -603,6 +621,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         with open(self.file_path, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
 
@@ -669,6 +688,7 @@ class SplitFile(PythonBatchCommandBase, essential=True):
         with open(self.file_to_split, "rb") as fts:
             for part_size, part_path in splits:
                 with open(part_path, "wb") as pfd:
+                    utils.chown_chmod_on_fd(pfd)
                     pfd.write(fts.read(part_size))
         if self.remove_original:
             self.file_to_split.unlink()
@@ -694,6 +714,7 @@ class JoinFile(PythonBatchCommandBase, essential=True):
         files_to_join = utils.find_split_files(self.file_to_join)
         joined_file_path = self.file_to_join.parent.joinpath(self.file_to_join.stem)
         with open(joined_file_path, "wb") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             for part_file in files_to_join:
                 with open(part_file, "rb") as rfd:
                     wfd.write(rfd.read())

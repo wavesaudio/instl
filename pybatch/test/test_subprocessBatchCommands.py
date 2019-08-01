@@ -32,7 +32,7 @@ if len(current_os_names) > 1:
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
 
-from test_PythonBatchBase import *
+from .test_PythonBatchBase import *
 
 
 class TestPythonBatchSubprocess(unittest.TestCase):
@@ -267,6 +267,16 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += MakeDirs(folder_)
         self.pbt.batch_accum += Subprocess("python3.6", "--version")
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
+        self.pbt.exec_and_capture_output()
+
+    def test_Subprocess_detached(self):
+        if running_on_Mac:
+            path_to_exec = "/Applications/BBEdit.app/Contents/MacOS/BBEdit"
+        elif running_on_Win:
+            path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)
         self.pbt.exec_and_capture_output()
 
     def test_run_process_abort(self):

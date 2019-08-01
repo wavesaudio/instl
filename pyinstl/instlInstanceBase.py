@@ -222,8 +222,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.items_table.read_require_node(a_node, **kwargs)
 
     def write_require_file(self, file_path, require_dict):
-        with utils.utf8_open(file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
+        with utils.utf8_open_for_write(file_path, "w") as wfd:
 
             define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str()},
                                                 '!define', "definitions",
@@ -398,7 +397,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def run_batch_file(self):
         if self.out_file_realpath.endswith(".py"):
-            with utils.utf8_open(self.out_file_realpath, 'r') as rfd:
+            with utils.utf8_open_for_read(self.out_file_realpath, 'r') as rfd:
                 py_text = rfd.read()
                 py_compiled = compile(py_text, os.fspath(self.out_file_realpath), mode='exec', flags=0, dont_inherit=False, optimize=2)
                 exec(py_compiled, globals())

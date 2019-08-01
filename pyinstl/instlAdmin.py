@@ -104,7 +104,7 @@ class InstlAdmin(InstlInstanceBase):
         if os.path.isfile(create_links_done_stamp_file):
             if revision == current_base_repo_rev:  # revision is the new base_repo_rev
                 try:
-                    previous_base_repo_rev = int(utils.utf8_open(create_links_done_stamp_file, "r").read())  # try to read the previous
+                    previous_base_repo_rev = int(utils.utf8_open_for_read(create_links_done_stamp_file, "r").read())  # try to read the previous
                     if previous_base_repo_rev == current_base_repo_rev:
                         retVal = False
                     else:
@@ -434,12 +434,12 @@ class InstlAdmin(InstlInstanceBase):
         # repo rev file is written to the admin folder and to the repo-rev folder
         os.makedirs(config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
         admin_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with utils.utf8_open(admin_folder_path, "w") as wfd:
+        with utils.utf8_open_for_write(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", admin_folder_path)
         repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
-        with utils.utf8_open(repo_rev_folder_path, "w") as wfd:
+        with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", repo_rev_folder_path)
 

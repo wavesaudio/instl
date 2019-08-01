@@ -35,7 +35,7 @@ def plugin_bundle(in_os, in_path):
     retVal = None
     xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
     if os.path.exists(xml_path):
-        with utils.utf8_open(xml_path, "r") as rfd:
+        with utils.utf8_open_for_read(xml_path, "r") as rfd:
             info_xml = rfd.read()
             match = plugin_version_and_guid_re.match(info_xml)
             if match:

@@ -12,7 +12,7 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import SplitFile
+from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown
 
 log = logging.getLogger(__name__)
 
@@ -44,21 +44,33 @@ def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=F
         with utils.MultiFileReader("br", wtar_file_paths) as fd:
             with tarfile.open(fileobj=fd) as tar:
                 tar_total_checksum = tar.pax_headers.get("total_checksum")
+                #log.debug(f"total checksum for tarfile(s) {wtar_file_paths} {tar_total_checksum}")
                 if tar_total_checksum:
                     if os.path.exists(destination_path):
                         with utils.ChangeDirIfExists(destination_folder):
                             disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+                            #log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
 
                         if disk_total_checksum == tar_total_checksum:
                             do_the_unwtarring = False
                             log.debug(f"{wtar_file_paths[0]} skipping unwtarring because item exists and is identical to archive")
                 if do_the_unwtarring:
-                    utils.safe_remove_file_system_object(destination_path)
+                    if os.path.exists(destination_path):
+                        try:
+                            utils.safe_remove_file_system_object(destination_path, ignore_errors=False)
+                        except PermissionError as pe:
+                            ChmodAndChown(destination_path, "a+rw", int(config_vars.get("ACTING_UID", -1)),
+                                              int(config_vars.get("ACTING_GID", -1)),
+                                              recursive=True, own_progress_count=0)()
+                            log.debug(f"failed to remove {destination_path}, retrying after ChmodAndChow")
+                            utils.safe_remove_file_system_object(destination_path, ignore_errors=True)
+                            log.debug(f"2nd safe_remove_file_system_object on on {destination_path} done")
                     tar.extractall(destination_folder)
 
                     if copy_owner:
                         from pybatch import Chown
                         first_wtar_file_st = os.stat(wtar_file_paths[0])
+                        #log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
                         Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
 
         if no_artifacts:
@@ -242,7 +254,7 @@ class Unwtar(PythonBatchCommandBase):
                 else:
                     destination_folder = what_to_unwtar.parent
                 self._doing = f"""unwtar file '{what_to_unwtar}' to '{destination_folder}''"""
-                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
 
         elif what_to_unwtar.is_dir():
             if self.where_to_unwtar:
@@ -266,7 +278,7 @@ class Unwtar(PythonBatchCommandBase):
                         if utils.is_first_wtar_file(a_file_path):
                             where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
                             self._doing = f"""unwtarring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
-                            unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files)
+                            unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
             else:
                 log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 

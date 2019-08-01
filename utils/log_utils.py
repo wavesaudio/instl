@@ -86,9 +86,9 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
     top_logger = logging.getLogger()
 
     if rotate:
-        fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, maxBytes=5000000, backupCount=10)
+        fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, encoding='utf-8', maxBytes=5000000, backupCount=10)
     else:
-        fileLogHandler =  logging.FileHandler(log_file_path)
+        fileLogHandler =  logging.FileHandler(log_file_path, encoding='utf-8')
     fileLogHandler.setLevel(level)
     fileLogHandler.set_name(f"(log_file_name)_log_handler")
     formatter = PerLevelFormatter(format_per_level, fmt=format_per_level[logging.CRITICAL], datefmt='%Y-%m-%d_%H:%M:%S', style='%')

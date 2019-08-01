@@ -100,6 +100,7 @@ class DBMaster(object):
         if not self.__conn:
             create_new_db = not os.path.isfile(self.db_file_path)
             self.__conn = sqlite3.connect(self.db_file_path)
+            utils.chown_chmod_on_path(self.db_file_path)
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:
@@ -303,7 +304,7 @@ class DBMaster(object):
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:
-                    if len(all_results[0]) == 1:
+                    if len(all_results[0]) == 1:  # all_results is a list of one item lists, so flaten and return a list of items
                         retVal.extend([res[0] for res in all_results])
                     else:
                         retVal.extend(all_results)

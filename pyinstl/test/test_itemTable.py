@@ -10,7 +10,7 @@ sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 from pyinstl.indexItemTable import IndexItemsTable
 import aYaml
-
+import utils
 
 def timing(f):
     def wrap(*args):
@@ -86,6 +86,7 @@ if False:
         as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')
         as_yaml_doc.ReduceOneItemLists()
         with open(self.out_file_path, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             aYaml.writeAsYaml(as_yaml_doc, wfd)
 
 

@@ -59,7 +59,7 @@ class SVNRow(object):
                 'checksum', 'size', 'url', 'fileFlag',
                 'wtarFlag', 'leaf', 'parent', 'level',
                 'required', 'need_download', 'download_path',
-                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag', 'ignore')
+                'download_root', 'extra_props', 'parent_id', 'unwtarred', 'symlinkFlag', 'ignore', 'needed_for_iid')
     fields_relevant_to_dirs = ('path', 'parent', 'level', 'flags', 'revision', 'required')
     fields_relevant_to_str = ('path', 'flags', 'revision', 'checksum', 'size', 'url')
 
@@ -85,6 +85,7 @@ class SVNRow(object):
         self.unwtarred =        svn_item_tuple[18]
         self.symlinkFlag =      svn_item_tuple[19]
         self.ignore =           svn_item_tuple[20]
+        self.needed_for_iid =   svn_item_tuple[21]
 
     def __repr__(self) -> str:
         isDir = not self.fileFlag
@@ -93,6 +94,7 @@ class SVNRow(object):
                 ", checksum:{self.checksum}, size:{self.size}"
                 ", url:{self.url}"
                 ", required:{self.required}, need_download:{self.need_download}, ignore:{self.ignore}"
+                ", needed_for_iid:{needed_for_iid}"
                 ", extra_props:{self.extra_props}, parent:{self.parent}>"
                 ", download_path:{self.download_path}"
                 )
@@ -108,6 +110,8 @@ class SVNRow(object):
             retVal = f"{retVal}, {self.url}"
         if self.download_path:
             retVal = f"{retVal}, dl_path:'{self.download_path}'"
+        if self.needed_for_iid:
+            retVal = f"{retVal}, {self.needed_for_iid}"
         return retVal
 
     def str_specific_fields(self, fields_to_repr: List[str]) -> str:
@@ -293,7 +297,7 @@ class SVNTable(object):
         return "\n".join([item.__repr__() for item in self.get_items()])
 
     def repr_to_file(self, file_path) -> None:
-        with utils.utf8_open(file_path, "w") as wfd:
+        with utils.utf8_open_for_write(file_path, "w") as wfd:
             wfd.write(self.__repr__())
 
     def valid_read_formats(self) -> List[str]:
@@ -883,23 +887,10 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_download_items_sync_info(self):
-        """ get just the fields required to calc urls"""
-        query_text = """
-            SELECT path, revision, size, download_path, url FROM svn_item_t
-            WHERE need_download == 1
-            AND fileFlag = 1
-            ORDER BY _id
-            """
-        with self.db.selection("get_download_items") as curs:
-            curs.execute(query_text)
-            retVal = curs.fetchall()
-        return retVal
-
-    def get_download_items(self, what: str="any") -> List[SVNRow]:
+    def get_download_items(self, what: str = "any") -> List[SVNRow]:
         """
         get_items applies a filter and return all items
-        :param: filter_name: one of predefined baked queries, e.g.: "all-files", "all-dirs", "all-items"
+        :param: what: one of "any", "file", "dir"
         :return: all items returned by applying the filter called filter_name
         """
         if what not in ("any", "file", "dir"):
@@ -1509,4 +1500,28 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
+    def get_sync_base_url_for_iid(self, iid: str, default_url: str, cache: Dict) -> str:
+        """ find the base url for downloading files belonging to a specific iid
+            if not found return the default_url.
+            results are cached to avoid calling the database for each file
+        """
+        sync_base_url = cache.get(iid, None)
+        if sync_base_url is None:
+            query_text = f"""
+                SELECT index_item_detail_t.detail_value AS the_url, min(index_item_detail_t.generation) AS gen FROM index_item_detail_t
+                WHERE
+                        index_item_detail_t.owner_iid == "{iid}"
+                    AND
+                        index_item_detail_t.detail_name == "sync_base_url"
+                LIMIT 1
+            """
+            # sqlite execute will return 1 row with empty values if nothing was found. Not sure why.
+            base_url_rows = self.db.select_and_fetchall(query_text)
+            if len(base_url_rows) > 0 and len(base_url_rows[0]) > 0 and base_url_rows[0][0] is not None:
+                sync_base_url = base_url_rows[0]['the_url']
+            else:
+                sync_base_url = default_url
+            sync_base_url = config_vars.resolve_str(sync_base_url)
+            cache[iid] = sync_base_url
 
+        return sync_base_url

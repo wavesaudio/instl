@@ -57,14 +57,17 @@ class InstlInstanceSync_url(InstlInstanceSync):
             "http://some.base.url/" + "07/27" + "/path/to/file"
             The download path is the resolved file item's download_path
         """
+
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
+        url_start_cache = dict()
         for file_item in in_file_list:
-            source_url = file_item['url']
+            source_url = file_item.url
             if source_url is None:
-                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item['revision'])
-                source_url = '/'.join(utils.make_one_list(self.sync_base_url, repo_rev_folder_hierarchy, file_item['path']))
-            self.instlObj.dl_tool.add_download_url(source_url, file_item['download_path'], verbatim=source_url==['url'], size=file_item['size'], download_last=source_url.endswith('Info.xml'))
+                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
+                sync_base_url = self.instlObj.info_map_table.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)", url_start_cache)
+                source_url = '/'.join(utils.make_one_list(sync_base_url, repo_rev_folder_hierarchy, file_item.path))
+            self.instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=file_item.size, download_last=source_url.endswith('Info.xml'))
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
@@ -106,14 +109,14 @@ class InstlInstanceSync_url(InstlInstanceSync):
             else:
                 dl_end_message = "Downloading 1 file done"
 
-            dl_commands += Chown(path="$(LOCAL_REPO_SYNC_DIR)", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True)
+            for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
+                dl_commands += Chown(path=sync_dir, user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True)
             dl_commands += Progress(dl_end_message)
 
             return dl_commands
 
     def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
-        with utils.utf8_open(parallel_run_config_file_path, "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd, int(config_vars["__USER_ID__"]), int(config_vars["__GROUP_ID__"]))
+        with utils.utf8_open_for_write(parallel_run_config_file_path, "w") as wfd:
             for config_file in config_files:
                 if config_file is None:  # None means to insert a wait
                     wfd.write("wait\n")
@@ -177,7 +180,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if to_sync_num_files == 0:
             return dl_commands
 
-        file_list = self.instlObj.info_map_table.get_download_items_sync_info()
+        file_list = self.instlObj.info_map_table.get_download_items(what="file")
         if False:   # need to rethink how to calc mount point sizes efficiently
             mount_points_to_size = total_sizes_by_mount_point(file_list)
 
@@ -227,9 +230,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         if config_vars["__CURRENT_OS__"].str() == "Mac":  # owner issue only relevant on Mac
             download_roots = self.instlObj.info_map_table.get_download_roots()
             if download_roots:
-                chown_accum += Progress("Adjust ownership and permissions ...")
                 for dr in download_roots:
-                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(__USER_ID__)", group_id="$(__GROUP_ID__)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                    chown_accum += Progress(f"Adjust ownership and permissions {dr}...")
+                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
         return chown_accum
 
 
