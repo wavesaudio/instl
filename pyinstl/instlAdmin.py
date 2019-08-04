@@ -1295,7 +1295,8 @@ class InstlAdmin(InstlInstanceBase):
                     config_vars['__MAIN_OUT_FILE__'] = f"up2s3_{domain}_{major_version}_{repo_rev}.py"
                     config_vars["__RUN_BATCH__"] = True
 
-                    self.read_yaml_file(config_vars['DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH'].str())
+                    domain_and_major_version_specific_yaml = config_vars['DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH'].str()
+                    self.read_yaml_file(domain_and_major_version_specific_yaml)
 
                     try:
                         self.reset_db()
