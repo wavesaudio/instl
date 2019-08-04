@@ -137,7 +137,10 @@ class DBMaster(object):
 
     def close_and_delete(self):
         self.close()
-        os.unlink(self.db_file_path)
+        try:
+            os.unlink(self.db_file_path)
+        except FileNotFoundError:
+            pass
 
     def close(self):
         if self.__conn:

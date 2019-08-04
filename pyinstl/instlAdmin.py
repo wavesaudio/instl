@@ -1285,15 +1285,22 @@ class InstlAdmin(InstlInstanceBase):
                     break
 
                 if key == trigger_commit_redis_key:
-                    domain, version, repo_rev = value.split(":")
-                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} version: {version} repo-rev {repo_rev}")
+                    domain, major_version, repo_rev = value.split(":")
+                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+
+                    config_vars['TARGET_DOMAIN'] = domain
+                    config_vars['TARGET_MAJOR_VERSION'] = major_version
                     config_vars['TARGET_REPO_REV'] = repo_rev
-                    config_vars['__MAIN_OUT_FILE__'] = f"up2s3_{domain}_{version}_{repo_rev}.py"
+
+                    config_vars['__MAIN_OUT_FILE__'] = f"up2s3_{domain}_{major_version}_{repo_rev}.py"
                     config_vars["__RUN_BATCH__"] = True
+
+                    self.read_yaml_file(config_vars['DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH'].str())
+
                     try:
                         self.reset_db()
                         batch_accum = PythonBatchCommandAccum()
-                        self.up2s3_repo_rev(repo_rev, batch_accum)
+                        self.up2s3_repo_rev(int(repo_rev), batch_accum)
 
                     except Exception as ex:
                         print(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
