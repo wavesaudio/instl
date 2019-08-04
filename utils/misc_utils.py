@@ -3,6 +3,7 @@
 
 import sys
 import os
+import platform
 import re
 import hashlib
 import base64
@@ -32,7 +33,14 @@ log = logging.getLogger()
 
 
 def Is64Windows():
+    """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
     return 'PROGRAMFILES(X86)' in os.environ
+
+
+def Is64Mac():
+    """Check if the installed version of osx is greater than 14 (Mojave).
+    such versions cannot run anymore 32 bit apps """
+    return int(platform.mac_ver()[0].split('.')[1]) > 14
 
 
 def Is32Windows():
@@ -55,10 +63,12 @@ def GetProgramFiles64():
 
 def get_current_os_names() -> Tuple[str, ...]:
     retVal: Tuple[str, ...] = ()
-    import platform
     current_os = platform.system()
     if current_os == 'Darwin':
-        retVal = ('Mac',)
+        if Is64Mac():
+            retVal = ('Mac', 'Mac64')
+        else:
+            retVal = ('Mac', 'Mac32')
     elif current_os == 'Windows':
         if Is64Windows():
             retVal = ('Win', 'Win64')
