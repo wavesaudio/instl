@@ -1271,7 +1271,7 @@ class InstlAdmin(InstlInstanceBase):
 
         trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_redis_key)
 
-        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on} {trigger_activate_redis_key}")
+        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on}")
         while True:
             print(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
