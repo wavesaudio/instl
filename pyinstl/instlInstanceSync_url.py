@@ -34,6 +34,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
         # TODO
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         self.instlObj.progress(f"{need_download_dirs_num} folders to create")
+
+        for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
+            if config_vars["__CURRENT_OS__"].str() == "Mac":
+                create_sync_folders_commands += Chown(path=sync_dir, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
+            elif config_vars["__CURRENT_OS__"].str() == "Win":
+                create_sync_folders_commands += FullACLForEveryone(path=sync_dir)
+
         return create_sync_folders_commands
 
     def get_cookie_for_sync_urls(self, sync_base_url):
@@ -109,8 +116,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
             else:
                 dl_end_message = "Downloading 1 file done"
 
-            for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
-                dl_commands += Chown(path=sync_dir, user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True)
             dl_commands += Progress(dl_end_message)
 
             return dl_commands
@@ -232,7 +237,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if download_roots:
                 for dr in download_roots:
                     chown_accum += Progress(f"Adjust ownership and permissions {dr}...")
-                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
         return chown_accum
 
 

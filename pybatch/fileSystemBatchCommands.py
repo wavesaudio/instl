@@ -301,8 +301,8 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
     def __init__(self, path: os.PathLike, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
         super().__init__(**kwargs)
         self.path = path
-        self.user_id: Union[int, str]  = user_id   if user_id  else -1
-        self.group_id: Union[int, str] = group_id  if group_id else -1
+        self.user_id: int  = int(user_id)   if user_id  else -1
+        self.group_id: int = int(group_id)  if group_id else -1
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:

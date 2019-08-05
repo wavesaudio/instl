@@ -212,3 +212,23 @@ class TestPythonBatchWin(unittest.TestCase):
                                                      resource_type="ICONGROUP",
                                                      resource_name="IDI_ICON1")
         self.pbt.exec_and_capture_output()
+
+    def test_FullACLForEveryone_repr(self):
+        list_of_objs = (FullACLForEveryone('/baba/ganush'),
+                        FullACLForEveryone('/baba/ganush', recursive=True),
+                        FullACLForEveryone('/baba/ganush', recursive=False))
+
+        self.pbt.reprs_test_runner(*list_of_objs)
+
+    def test_FullACLForEveryone(self):
+        """ create folder and change ACL for group Everyone to full control with inheritance
+            we do not yet have code to read ACL so checking the pemissions can only be done manually
+        """
+        folder_to_test = self.pbt.path_inside_test_folder("folder-to-test")
+        folder_to_ = self.pbt.path_inside_test_folder("folder-to-test")
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(folder_to_test)
+        self.pbt.batch_accum += FullACLForEveryone(folder_to_test)
+
+        self.pbt.exec_and_capture_output()
