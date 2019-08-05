@@ -110,7 +110,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 dl_end_message = "Downloading 1 file done"
 
             for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
-                dl_commands += Chown(path=sync_dir, user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True)
+                dl_commands += Chown(path=sync_dir, user_id=int(config_vars.get("", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
             dl_commands += Progress(dl_end_message)
 
             return dl_commands
@@ -232,7 +232,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             if download_roots:
                 for dr in download_roots:
                     chown_accum += Progress(f"Adjust ownership and permissions {dr}...")
-                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                    chown_accum += ChmodAndChown(path=dr, mode="a+rwX", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
         return chown_accum
 
 

@@ -144,7 +144,7 @@ class InstlClientCopy(InstlClient):
 
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
-                    retVal += ChmodAndChown(path=source_file.name(), mode=source_file.chmod_spec(), user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=False)
+                    retVal += ChmodAndChown(path=source_file.name(), mode=source_file.chmod_spec(), user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=False)
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
@@ -184,7 +184,7 @@ class InstlClientCopy(InstlClient):
                 for source_item in source_items:
                     if source_item.wtarFlag == 0:
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path)
-                        retVal += ChmodAndChown(path=source_path_relative_to_current_dir, mode="a+rw", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                        retVal += ChmodAndChown(path=source_path_relative_to_current_dir, mode="a+rw", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                         if source_item.isExecutable():
                             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec(), recursive=True, ignore_all_errors=True)
 
@@ -236,7 +236,7 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if self.mac_current_and_target:
-                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id="$(ACTING_UID)", group_id="$(ACTING_GID)", recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
