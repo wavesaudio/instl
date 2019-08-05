@@ -5,6 +5,7 @@ import pythoncom
 from win32com.shell import shell, shellcon
 from win32com.client import Dispatch, DispatchEx
 import pywintypes
+from pathlib import Path
 
 from .baseClasses import PythonBatchCommandBase
 from .subprocessBatchCommands import RunProcessBase
@@ -295,6 +296,7 @@ class ResHackerAddResource(RunProcessBase):
             return f"""Add resource '{self.resource_type}/{self.resource_name}' to '{self.trg}'"""
         else:
             return f"""Add resource {self.resource_source_file} to '{self.trg}'"""
+
     def get_run_args(self, run_args) -> None:
         resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
         if not os.path.isfile(resolved_reshacker_path):
@@ -316,3 +318,25 @@ class ResHackerAddResource(RunProcessBase):
                          "addoverwrite"])
         if self.resource_type and self.resource_name:
             run_args.extend(["-mask", f"""{self.resource_type},{self.resource_name},0"""])
+
+
+class FullACLForEveryone(RunProcessBase):
+    """ Give group 'Everyone' all possible permissions """
+    def __init__(self, path: os.PathLike,**kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path = Path(path)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_by_type(self.path))
+
+    def progress_msg_self(self):
+        return f"FullACLForEveryone for {self.path}"
+
+    def get_run_args(self, run_args) -> None:
+        run_args.extend(["icacls",
+                         os.fspath(self.path),
+                         "/grant",
+                         "*S-1-1-0:(OI)(CI)F",
+                         "/q"])
+        if self.recursive:
+            run_args.append("/t")

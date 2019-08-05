@@ -105,6 +105,7 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import DeleteRegistryValues
     from .WinOnlyBatchCommands import ResHackerAddResource
     from .WinOnlyBatchCommands import ResHackerCompileResource
+    from .WinOnlyBatchCommands import FullACLForEveryone
 
 if sys.platform == "darwin":
     from .MacOnlyBatchCommands import CreateSymlink
