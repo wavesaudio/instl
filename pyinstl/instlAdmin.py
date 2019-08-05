@@ -1222,14 +1222,15 @@ class InstlAdmin(InstlInstanceBase):
         skip_some_actions = False  # to save time during debugging
 
         checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
-        batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
-        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
+        if sorted(checkout_folder.rglob('*')):   # check if folder is empty
+            batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions, stderr_means_err=False)
+        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions, stderr_means_err=False)
 
         batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
         batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
         with batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
-            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
-            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
+            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
+            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
             sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
         batch_accum += IndexYamlReader(checkout_folder_index_path)
@@ -1297,7 +1298,8 @@ class InstlAdmin(InstlInstanceBase):
 
                     domain_and_major_version_specific_yaml = config_vars['DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH'].str()
                     self.read_yaml_file(domain_and_major_version_specific_yaml)
-
+                    config_file_specific_yaml = config_vars['__CONFIG_FILE__'].str()
+                    self.read_yaml_file(config_file_specific_yaml)
                     try:
                         self.reset_db()
                         batch_accum = PythonBatchCommandAccum()

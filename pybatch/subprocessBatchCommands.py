@@ -66,8 +66,10 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
             if self.out_file:
                 err_stream = utils.utf8_open_for_write(self.out_file, "w")
+                out_stream = None
             else:
                 out_stream = subprocess.PIPE
+                err_stream = None
             if self.in_file:
                 in_stream = open(self.in_file, "r")
             else:
@@ -85,7 +87,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                 local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
                 if local_stdout:
                     print(local_stdout)
-            else:
+            elif out_stream:
                 out_stream.close()
 
             if self.err_file is None:

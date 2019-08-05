@@ -295,7 +295,7 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
-            self.progress("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
+            log.warning("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
 
         # create checksum for the main info_map file
@@ -333,11 +333,11 @@ class CreateRepoRevFile(PythonBatchCommandBase):
                 raise ValueError(f"{var} is missing cannot write repo rev file")
 
         # create yaml out of the variables
-        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
+        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
         repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
         with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
-            self.progress("created", repo_rev_folder_path)
+            log.info(f"""create {repo_rev_folder_path}""")
