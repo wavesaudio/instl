@@ -25,22 +25,24 @@ from utils import misc_utils as utils
 top_logger = logging.getLogger()
 
 
-def config_logger():
-    if '--no-stdout' not in sys.argv:
+def config_logger(argv=None):
+    if argv is None:
+        argv = sys.argv
+    if '--no-stdout' not in argv:
         setup_stream_hdlr()
     # command line options relating to logging are parsed here, as soon as possible
-    if '--log' in sys.argv:
+    if '--log' in argv:
         try:
-            log_option_index = sys.argv.index('--log')
-            for i_log_file in range(log_option_index+1, len(sys.argv)):
-                log_file_path = sys.argv[i_log_file]
+            log_option_index = argv.index('--log')
+            for i_log_file in range(log_option_index+1, len(argv)):
+                log_file_path = argv[i_log_file]
                 if not log_file_path.startswith('-'):
                     setup_file_logging(log_file_path, rotate=False)
                 else:
                     break
         except:
             pass
-    elif '--no-system-log' not in sys.argv:
+    elif '--no-system-log' not in argv:
         system_log_file_path = utils.get_system_log_file_path()
         setup_file_logging(system_log_file_path)
 

@@ -64,23 +64,27 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
                 elif sys.platform == 'win32':
                     run_args = run_args[0]
+
+            out_stream = None
+            in_stream = None
+            err_stream = None
+
             if self.out_file:
-                err_stream = utils.utf8_open_for_write(self.out_file, "w")
-                out_stream = None
+                out_stream = utils.utf8_open_for_write(self.out_file, "w")
             else:
                 out_stream = subprocess.PIPE
-                err_stream = None
+
             if self.in_file:
                 in_stream = open(self.in_file, "r")
-            else:
-                in_stream = None
+
             if self.err_file:
                 err_stream = utils.utf8_open_for_write(self.err_file, "w")
             else:
                 err_stream = subprocess.PIPE
+
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
-            if self.in_file:
+            if in_stream:
                 in_stream.close()
 
             if self.out_file is None:

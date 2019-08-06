@@ -207,6 +207,8 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         default_info_map_file_path = self.work_folder.joinpath(default_info_map_file_name)
         info_map_items = self.info_map_table.get_items_for_default_infomap()
         self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+        with Wzip(default_info_map_file_path, self.work_folder, own_progress_count=0) as wzipper:
+            wzipper()
 
         # add a line to default info map for each non default info_map created above
         with open(default_info_map_file_path, "a") as wfd:
@@ -280,16 +282,7 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         if "REPO_REV_FILE_VARS" not in config_vars:
             # must have a list of variable names to write to the repo-rev file
             raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])
-        config_vars["REPO_REV"] = "$(TARGET_REPO_REV)"  # override the repo rev from the config file
-
-        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))
-
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"].str())
-        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
-
-        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
-
+        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])  # list of configVars to write to the repo-rev file
         # check that the variable names from REPO_REV_FILE_VARS do not contain
         # names that must not be made public
         dangerous_intersection = set(repo_rev_vars).intersection(
@@ -298,45 +291,42 @@ class CreateRepoRevFile(PythonBatchCommandBase):
             log.warning("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
 
-        # create checksum for the main info_map file
-        info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
-        zip_info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))  # should we consider zipped files or not
+        zip_extension = ""
         if use_zlib:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)"
-            info_map_checksum = utils.get_file_checksum(zip_info_map_file)
-        else:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt"
-            info_map_checksum = utils.get_file_checksum(info_map_file)
-        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)"
-        config_vars["INFO_MAP_CHECKSUM"] = info_map_checksum
+            zip_extension = config_vars.get("WZLIB_EXTENSION", ".wzip").str()
 
-        # create checksum for the main index.yaml file
-        # zip the index file
-        local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
-        zip_local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
-        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
-        with open(zip_local_index_file, "wb") as wfd:
-            wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
+        revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
 
-        if use_zlib:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)"
-            index_file_checksum = utils.get_file_checksum(zip_local_index_file)
-        else:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"
-            index_file_checksum = utils.get_file_checksum(local_index_file)
-        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)"
-        config_vars["INDEX_CHECKSUM"] = index_file_checksum
+        # create checksum for the main info_map file, either wzipped or not
+        main_info_map_file_name = "info_map.txt"+zip_extension
+        main_info_map_file = revision_instl_folder_path.joinpath(main_info_map_file_name)
+        main_info_map_checksum = utils.get_file_checksum(main_info_map_file)
+
+        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+main_info_map_file_name
+        config_vars["INFO_MAP_CHECKSUM"] = main_info_map_checksum
+
+        # create checksum for the main index.yaml file, either wzipped or not
+        index_file_name = "index.yaml"+zip_extension
+        index_file_path = revision_instl_folder_path.joinpath(index_file_name)
+
+        config_vars["INDEX_CHECKSUM"] = utils.get_file_checksum(index_file_path)
+        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+index_file_name
+
+        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
+        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
 
         # check that all variables are present
-        for var in repo_rev_vars:
-            if var not in config_vars:
-                raise ValueError(f"{var} is missing cannot write repo rev file")
+        # <class 'list'>: ['INSTL_FOLDER_BASE_URL', 'REPO_REV_FOLDER_HIERARCHY', 'SYNC_BASE_URL']
+        missing_vars = [var for var in repo_rev_vars if var not in config_vars]
+        if missing_vars:
+            raise ValueError(f"{missing_vars} are missing cannot write repo rev file")
 
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
-        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = config_vars.resolve_str("$(UPLOAD_REVISION_INSTL_FOLDER)/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
 
         with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)

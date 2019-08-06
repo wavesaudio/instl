@@ -1201,13 +1201,13 @@ class InstlAdmin(InstlInstanceBase):
         config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
         checkout_url = str(config_vars['SVN_REPO_URL'])
-        checkout_folder = Path(config_vars['SVN_CHECKOUT_FOLDER'])
-        checkout_folder_instl_folder_path = checkout_folder.joinpath("instl")
+        checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
+        checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
         checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
 
-        revision_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"))
-        revision_instl_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"))
-        revision_instl_index_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"))
+        revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
+        revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
+        revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
 
         info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
         info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
@@ -1221,17 +1221,21 @@ class InstlAdmin(InstlInstanceBase):
 
         skip_some_actions = False  # to save time during debugging
 
-        checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
-        if sorted(checkout_folder.rglob('*')):   # check if folder is empty
-            batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions, stderr_means_err=False)
-        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions, stderr_means_err=False)
+        #checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
+        if checkout_base_folder.is_dir():   # check if folder is indeed svn checkout folder
+            if checkout_base_folder.joinpath(".svn").is_dir():
+                batch_accum += SVNCleanup(working_copy_path=checkout_base_folder, skip_action=skip_some_actions, stderr_means_err=False)
+            else:
+                shutil.rmtree(checkout_base_folder)
+
+        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
 
         batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
         batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
-        with batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
+        with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
             sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
             sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
-            sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
+            sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
         batch_accum += IndexYamlReader(checkout_folder_index_path)
         batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
@@ -1242,12 +1246,13 @@ class InstlAdmin(InstlInstanceBase):
             batch_accum += SetBaseRevision(base_rev)
 
         # copy all (and only) the files from repo-rev
-        batch_accum += CopySpecificRepoRev(checkout_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
+        batch_accum += CopySpecificRepoRev(checkout_base_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
         # also copy the whole instl folder
         batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
 
         batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
         batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+        batch_accum += Wzip(revision_instl_index_path)
         batch_accum += CreateRepoRevFile()
 
         with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
@@ -1260,6 +1265,10 @@ class InstlAdmin(InstlInstanceBase):
     def do_wait_on_action_trigger(self):
         import time
         import redis
+        import multiprocessing as mp
+        sys.path.append(os.pardir)
+        sys.path.append(f"{os.pardir}/{os.pardir}")
+        from . import instl_own_main
 
         redis_host = config_vars['REDIS_HOST'].str()
         redis_port = config_vars['REDIS_PORT'].int()
@@ -1271,6 +1280,9 @@ class InstlAdmin(InstlInstanceBase):
         #done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
 
         trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_redis_key)
+
+        main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
+        main_input_folder = main_input_file.parent
 
         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on}")
         while True:
@@ -1286,24 +1298,33 @@ class InstlAdmin(InstlInstanceBase):
                     break
 
                 if key == trigger_commit_redis_key:
-                    domain, major_version, repo_rev = value.split(":")
-                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
-
-                    config_vars['TARGET_DOMAIN'] = domain
-                    config_vars['TARGET_MAJOR_VERSION'] = major_version
-                    config_vars['TARGET_REPO_REV'] = repo_rev
-
-                    config_vars['__MAIN_OUT_FILE__'] = f"up2s3_{domain}_{major_version}_{repo_rev}.py"
-                    config_vars["__RUN_BATCH__"] = True
-
-                    domain_and_major_version_specific_yaml = config_vars['DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH'].str()
-                    self.read_yaml_file(domain_and_major_version_specific_yaml)
-                    config_file_specific_yaml = config_vars['__CONFIG_FILE__'].str()
-                    self.read_yaml_file(config_file_specific_yaml)
                     try:
-                        self.reset_db()
-                        batch_accum = PythonBatchCommandAccum()
-                        self.up2s3_repo_rev(int(repo_rev), batch_accum)
+                        domain, major_version, repo_rev = value.split(":")
+                        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+
+                        domain_major_version_folder = main_input_folder.joinpath(domain, major_version)
+                        domain_major_version_config_file = domain_major_version_folder.joinpath("config.yaml")
+                        up2s3_yaml_dict = {
+                            'TARGET_DOMAIN': domain,
+                            'TARGET_MAJOR_VERSION': major_version,
+                            'TARGET_REPO_REV': repo_rev,
+                            "__include__": [os.fspath(domain_major_version_config_file),
+                                            os.fspath(main_input_file)]
+                        }
+
+                        work_folder: Path = domain_major_version_folder.joinpath("work_area")
+                        work_folder.mkdir(parents=True, exist_ok=True)
+                        yaml_work_file = work_folder.joinpath(f"up2s3_{domain}_{major_version}_{repo_rev}.yaml")
+                        with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
+
+                            define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
+                                                                '!define', "definitions",
+                                                                explicit_start=True, sort_mappings=True)
+
+                            aYaml.writeAsYaml(define_dict, wfd)
+                        up2s3_process = mp.Process (target=instl_own_main, args=(str(config_vars["__INSTL_EXE_PATH__"]) ,["up2s3", "--config-file", os.fspath(yaml_work_file)]))
+                        up2s3_process.start()
+                        up2s3_process.join()
 
                     except Exception as ex:
                         print(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
