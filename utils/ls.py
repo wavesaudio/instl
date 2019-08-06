@@ -280,15 +280,23 @@ def win_item_ls(the_path, ls_format, root_folder=None):
         elif format_char == 'S':
             the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
         elif format_char == 'U':
-            sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorOwner()
-            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-            the_parts[format_char] = domain+"\\"+name  # user
+            try:
+                sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
+                owner_sid = sd.GetSecurityDescriptorOwner()
+                name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                the_parts[format_char] = domain+"\\"+name  # user
+            except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                the_parts[format_char] = "Unknown user"
+
         elif format_char == 'G':
-            sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorGroup()
-            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-            the_parts[format_char] = domain+"\\"+name  # group
+            try:
+                sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
+                owner_sid = sd.GetSecurityDescriptorGroup()
+                name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                the_parts[format_char] = domain+"\\"+name  # group
+            except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                the_parts[format_char] = "Unknown group"
+
         elif format_char == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts[format_char] = utils.get_file_checksum(the_path)
