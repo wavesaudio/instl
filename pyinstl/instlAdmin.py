@@ -1282,7 +1282,7 @@ class InstlAdmin(InstlInstanceBase):
         trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_redis_key)
 
         main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
-        main_input_folder = main_input_file.parent
+        main_config_folder = main_input_file.parent
 
         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on}")
         while True:
@@ -1302,8 +1302,8 @@ class InstlAdmin(InstlInstanceBase):
                         domain, major_version, repo_rev = value.split(":")
                         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
 
-                        domain_major_version_folder = main_input_folder.joinpath(domain, major_version)
-                        domain_major_version_config_file = domain_major_version_folder.joinpath("config.yaml")
+                        domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
+                        domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
                         up2s3_yaml_dict = {
                             'TARGET_DOMAIN': domain,
                             'TARGET_MAJOR_VERSION': major_version,
@@ -1312,7 +1312,7 @@ class InstlAdmin(InstlInstanceBase):
                                             os.fspath(main_input_file)]
                         }
 
-                        work_folder: Path = domain_major_version_folder.joinpath("work_area")
+                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev)
                         work_folder.mkdir(parents=True, exist_ok=True)
                         yaml_work_file = work_folder.joinpath(f"up2s3_{domain}_{major_version}_{repo_rev}.yaml")
                         with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
@@ -1322,7 +1322,15 @@ class InstlAdmin(InstlInstanceBase):
                                                                 explicit_start=True, sort_mappings=True)
 
                             aYaml.writeAsYaml(define_dict, wfd)
-                        up2s3_process = mp.Process (target=instl_own_main, args=(str(config_vars["__INSTL_EXE_PATH__"]) ,["up2s3", "--config-file", os.fspath(yaml_work_file)]))
+
+                        work_log_file = work_folder.joinpath(f"up2s3_{domain}_{major_version}_{repo_rev}.log")
+                        up2s3_process = mp.Process (target=instl_own_main,
+                                                    name=f"up2s3_{domain}_{major_version}_{repo_rev}",
+                                                    args=(str(config_vars["__INSTL_EXE_PATH__"]),
+                                                          ["up2s3",
+                                                           "--config-file", os.fspath(yaml_work_file),
+                                                           "--log", os.fspath(work_log_file),
+                                                           "--run"]))
                         up2s3_process.start()
                         up2s3_process.join()
 
