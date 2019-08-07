@@ -1276,7 +1276,7 @@ class InstlAdmin(InstlInstanceBase):
 
                 if key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
                     try:
-                        instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}
+                        instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}[key]
                         domain, major_version, repo_rev = value.split(":")
                         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn {trigger_commit_redis_key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
 
@@ -1304,7 +1304,7 @@ class InstlAdmin(InstlInstanceBase):
                         up2s3_process = mp.Process (target=instl_own_main,
                                                     name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
                                                     args=(str(config_vars["__INSTL_EXE_PATH__"]),
-                                                          [{instl_command_name},
+                                                          [instl_command_name,
                                                            "--config-file", os.fspath(yaml_work_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
@@ -1318,7 +1318,7 @@ class InstlAdmin(InstlInstanceBase):
             time.sleep(1)
         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} ended waiting on {trigger_keys_to_wait_on}")
 
-    def activate_repo_rev(self):
+    def do_activate_repo_rev(self):
         import boto3
 
         s3_resource = boto3.resource('s3')
@@ -1332,8 +1332,8 @@ class InstlAdmin(InstlInstanceBase):
         ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name,
                                                Prefix=repo_rev_file_specific_key)
         list_of_files = ls_response['Contents']
-        if len(list_of_files) != 1 or list_of_files["Key"] != repo_rev_file_specific_key:
-            raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket")
+        if len(list_of_files) != 1 or list_of_files[0]["Key"] != repo_rev_file_specific_key:
+            raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
 
         s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
                                      Bucket=bucket_name, Key=repo_rev_file_activated_key)
