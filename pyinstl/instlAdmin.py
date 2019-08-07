@@ -434,41 +434,15 @@ class InstlAdmin(InstlInstanceBase):
 
         # repo rev file is written to the admin folder and to the repo-rev folder
         os.makedirs(config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
-        admin_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        admin_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_SPECIFIC_NAME)")
         with utils.utf8_open_for_write(admin_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", admin_folder_path)
-        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
+        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_SPECIFIC_NAME)")
 
         with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             self.progress("created", repo_rev_folder_path)
-
-    def do_up_repo_rev(self):
-        self.batch_accum.set_current_section('admin')
-
-        just_with_number = int(config_vars["__JUST_WITH_NUMBER__"])
-        if just_with_number > 0:
-            config_vars["REPO_REV"] = "$(__JUST_WITH_NUMBER__)"
-
-        if just_with_number == 0:
-            self.batch_accum += " ".join(["aws", "s3", "cp",
-                                "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-                               "--content-type", 'text/plain'
-                                ])
-            self.batch_accum += Progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
-
-        self.batch_accum += " ".join( ["aws", "s3", "cp",
-                           "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "--content-type", 'text/plain'
-                            ] )
-        self.batch_accum += Progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
-
-        self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
@@ -1257,6 +1231,9 @@ class InstlAdmin(InstlInstanceBase):
 
         with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
             sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
+            repo_rev_file_path = config_vars["REPO_REV_FILE_PATH"].str()
+            sub_accum += Subprocess("aws", "s3", "cp", config_vars["REPO_REV_FILE_PATH"].str(), "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+
 
         self.write_batch_file(batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -1274,12 +1251,12 @@ class InstlAdmin(InstlInstanceBase):
         redis_port = config_vars['REDIS_PORT'].int()
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         trigger_commit_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
-        trigger_activate_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
+        trigger_activate_rep_rev_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
 
         log_redis_key = config_vars['ACTION_LOG_REDIS_KEY'].str()
         #done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
 
-        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_redis_key)
+        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key)
 
         main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
         main_config_folder = main_input_file.parent
@@ -1297,37 +1274,37 @@ class InstlAdmin(InstlInstanceBase):
                     r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} received stop")
                     break
 
-                if key == trigger_commit_redis_key:
+                if key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
                     try:
+                        instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}
                         domain, major_version, repo_rev = value.split(":")
-                        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn commit triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn {trigger_commit_redis_key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
 
                         domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
                         domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
                         up2s3_yaml_dict = {
+
                             'TARGET_DOMAIN': domain,
                             'TARGET_MAJOR_VERSION': major_version,
                             'TARGET_REPO_REV': repo_rev,
                             "__include__": [os.fspath(domain_major_version_config_file),
                                             os.fspath(main_input_file)]
                         }
+                        define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
+                                                            '!define', "definitions",
+                                                            explicit_start=True, sort_mappings=True)
 
                         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev)
                         work_folder.mkdir(parents=True, exist_ok=True)
-                        yaml_work_file = work_folder.joinpath(f"up2s3_{domain}_{major_version}_{repo_rev}.yaml")
+                        yaml_work_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
                         with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
-
-                            define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
-                                                                '!define', "definitions",
-                                                                explicit_start=True, sort_mappings=True)
-
                             aYaml.writeAsYaml(define_dict, wfd)
 
-                        work_log_file = work_folder.joinpath(f"up2s3_{domain}_{major_version}_{repo_rev}.log")
+                        work_log_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
                         up2s3_process = mp.Process (target=instl_own_main,
-                                                    name=f"up2s3_{domain}_{major_version}_{repo_rev}",
+                                                    name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
                                                     args=(str(config_vars["__INSTL_EXE_PATH__"]),
-                                                          ["up2s3",
+                                                          [{instl_command_name},
                                                            "--config-file", os.fspath(yaml_work_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
@@ -1336,9 +1313,30 @@ class InstlAdmin(InstlInstanceBase):
 
                     except Exception as ex:
                         print(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
-                elif key == trigger_activate_redis_key:
-                    pass
                 else:
                     r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} poped {key} unknown key: {key}")
             time.sleep(1)
         r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} ended waiting on {trigger_keys_to_wait_on}")
+
+    def activate_repo_rev(self):
+        import boto3
+
+        s3_resource = boto3.resource('s3')
+        bucket_name = str(config_vars["S3_BUCKET_NAME"])
+        repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])
+        repo_rev_file_specific_key = "admin/"+repo_rev_file_specific_name
+
+        repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])
+        repo_rev_file_activated_key = "admin/"+repo_rev_file_activated_name
+
+        ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name,
+                                               Prefix=repo_rev_file_specific_key)
+        list_of_files = ls_response['Contents']
+        if len(list_of_files) != 1 or list_of_files["Key"] != repo_rev_file_specific_key:
+            raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket")
+
+        s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
+                                     Bucket=bucket_name, Key=repo_rev_file_activated_key)
+
+
+

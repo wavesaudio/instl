@@ -326,8 +326,8 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
-        repo_rev_folder_path = config_vars.resolve_str("$(UPLOAD_REVISION_INSTL_FOLDER)/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-
-        with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
+        repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"]
+        with utils.utf8_open_for_write(repo_rev_file_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
-            log.info(f"""create {repo_rev_folder_path}""")
+            log.info(f"""create {repo_rev_file_path}""")
+

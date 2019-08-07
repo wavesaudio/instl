@@ -285,7 +285,7 @@ command:
             up-repo-rev will create a repo_rev file according to the information in the config file, and upload said repo_rev file to s3 bucket to a top level folder called 'admin'. The contents of the repo_rev file are a list of variables defined in the "REPO_REV_FILE_VARS" variable of the config file. Typically these variables would be: REPO_REV, REPO_TYPE, SYNC_BASE_URL.
             relevant variables:
                 S3_BUCKET_NAME
-                REPO_REV_FILE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
+                REPO_REV_FILE_BASE_NAME, REPO_REV_FILE_BASE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
 
     up2s3:
         short: Upload revision specific folders created with the create-links command (admin command)

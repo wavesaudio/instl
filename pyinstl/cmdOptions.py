@@ -139,6 +139,7 @@ def prepare_args_parser(in_command):
         # admin commands
         all_command_details.update({
             # converted to instl 2 style
+            'activate-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
             'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
             'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
@@ -158,7 +159,6 @@ def prepare_args_parser(in_command):
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
             'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
-            'up-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
             'up2s3_legacy':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
             'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
@@ -383,7 +383,7 @@ def prepare_args_parser(in_command):
                                 dest='TARGET_REPO_REV',
                                 help="revision to create file for")
 
-    elif 'up-repo-rev' == in_command:
+    elif 'activate-repo-rev' == in_command:
         up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
         up_repo_rev_options.add_argument('--just-with-number', '-j',
                             required=False,
