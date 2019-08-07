@@ -4,21 +4,13 @@
 import os
 import sys
 import filecmp
-import io
-import re
-import shutil
-import subprocess
-from collections import defaultdict
-import stat
-import zlib
-import tempfile
+import multiprocessing as mp
+import time
 import datetime
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
-from configVar import config_vars
-from svnTree import SVNTable
 from pybatch import *
 
 
@@ -429,8 +421,7 @@ class InstlAdmin(InstlInstanceBase):
 
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
-        repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
-                                              explicit_start=True, sort_mappings=True)
+        repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "", explicit_start=True, sort_mappings=True)
 
         # repo rev file is written to the admin folder and to the repo-rev folder
         os.makedirs(config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
@@ -1195,7 +1186,6 @@ class InstlAdmin(InstlInstanceBase):
 
         skip_some_actions = False  # to save time during debugging
 
-        #checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
         if checkout_base_folder.is_dir():   # check if folder is indeed svn checkout folder
             if checkout_base_folder.joinpath(".svn").is_dir():
                 batch_accum += SVNCleanup(working_copy_path=checkout_base_folder, skip_action=skip_some_actions, stderr_means_err=False)
@@ -1234,51 +1224,56 @@ class InstlAdmin(InstlInstanceBase):
             repo_rev_file_path = config_vars["REPO_REV_FILE_PATH"].str()
             sub_accum += Subprocess("aws", "s3", "cp", config_vars["REPO_REV_FILE_PATH"].str(), "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
 
-
         self.write_batch_file(batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def do_wait_on_action_trigger(self):
-        import time
         import redis
-        import multiprocessing as mp
         sys.path.append(os.pardir)
         sys.path.append(f"{os.pardir}/{os.pardir}")
         from . import instl_own_main
 
-        redis_host = config_vars['REDIS_HOST'].str()
-        redis_port = config_vars['REDIS_PORT'].int()
-        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
-        trigger_commit_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
-        trigger_activate_rep_rev_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
-
-        log_redis_key = config_vars['ACTION_LOG_REDIS_KEY'].str()
-        #done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
-
-        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key)
-
+        # config yaml such as stout-config.yaml with definitions needed for this funciton to work
         main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
+        # other config files are assumed to exist below the flder where main_input_file is found
         main_config_folder = main_input_file.parent
 
-        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} started waiting on {trigger_keys_to_wait_on}")
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+
+        # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating a commit of repo-rev 369 for V11 on production happened
+        trigger_commit_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
+
+        # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating request to activate of repo-rev 369 for V11 on production happened
+        trigger_activate_rep_rev_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
+        log_redis_key = config_vars['ACTION_LOG_REDIS_KEY'].str()
+
+        # heartbeat_redis_key: regular counter increments will be send to this key
+        heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
+
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key)
+        log.info(f"heartbeat on: {heartbeat_redis_key}")
+
         while True:
-            print(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
+            r.incr(heartbeat_redis_key, 1)
+            log.info(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
             if poped is not None:
                 key = str(poped[0])
                 value = str(poped[1])
 
-                r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} poped key: {key} value: {value}")
+                log.info(f"popped key: {key}, value: {value}")
                 if value == "stop":
-                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} received stop")
+                    log.info(f"received stop")
                     break
 
                 if key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
                     try:
                         instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}[key]
                         domain, major_version, repo_rev = value.split(":")
-                        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} svn {trigger_commit_redis_key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                        log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
 
                         domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
                         domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
@@ -1311,32 +1306,41 @@ class InstlAdmin(InstlInstanceBase):
                         up2s3_process.start()
                         up2s3_process.join()
 
+                        r.incr(key+":counter", 1)
+                        r.hset(key+":log", value, datetime.datetime.now())
+
                     except Exception as ex:
-                        print(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
+                        log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
                 else:
-                    r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} poped {key} unknown key: {key}")
+                    log.info(f"popped unknown key: {key}")
+
             time.sleep(1)
-        r.lpush(log_redis_key, f"{datetime.datetime.now().isoformat()} ended waiting on {trigger_keys_to_wait_on}")
+        log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
 
     def do_activate_repo_rev(self):
         import boto3
 
         s3_resource = boto3.resource('s3')
         bucket_name = str(config_vars["S3_BUCKET_NAME"])
-        repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])
+        repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])  # file name for a specific repo-rev file e.g. V9_repo_rev.yaml.236
         repo_rev_file_specific_key = "admin/"+repo_rev_file_specific_name
 
-        repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])
+        repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
         repo_rev_file_activated_key = "admin/"+repo_rev_file_activated_name
 
-        ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name,
-                                               Prefix=repo_rev_file_specific_key)
+        # find if the specific file exists in the admin folder of the bucket
+        ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name, Prefix=repo_rev_file_specific_key)
         list_of_files = ls_response['Contents']
         if len(list_of_files) != 1 or list_of_files[0]["Key"] != repo_rev_file_specific_key:
             raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
 
+        # now copy the specific file to be the activated file, this is done directly on s3
         s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
                                      Bucket=bucket_name, Key=repo_rev_file_activated_key)
+        log.info(f"activated repo-rev {config_vars['TARGET_REPO_REV']} for {config_vars['TARGET_MAJOR_VERSION']} on {config_vars['TARGET_DOMAIN']}")
 
-
+        # download the activated file to the work folder for reference
+        activated_repo_rev_file_copy_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
+        s3_resource.meta.client.download_file(Bucket=bucket_name, Key="repo_rev_file_activated_key", Filename=activated_repo_rev_file_copy_path)
+        log.info(f"downloaded activated repo-rev file to {activated_repo_rev_file_copy_path}")
 
