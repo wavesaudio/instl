@@ -83,7 +83,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
                                              'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
-                                             'verify-repo', 'depend', 'fix-props']
+                                             'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)

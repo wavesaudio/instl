@@ -1162,6 +1162,7 @@ class InstlAdmin(InstlInstanceBase):
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
 
+        config_vars["REPO_REV"] = str(repo_rev)
         config_vars["__CURR_REPO_REV__"] = str(repo_rev)
         config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
@@ -1221,8 +1222,8 @@ class InstlAdmin(InstlInstanceBase):
 
         with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
             sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-            repo_rev_file_path = config_vars["REPO_REV_FILE_PATH"].str()
-            sub_accum += Subprocess("aws", "s3", "cp", config_vars["REPO_REV_FILE_PATH"].str(), "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+            repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
+            sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
 
         self.write_batch_file(batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -1260,6 +1261,7 @@ class InstlAdmin(InstlInstanceBase):
             r.incr(heartbeat_redis_key, 1)
             log.info(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
+            r.incr(heartbeat_redis_key, 1)
             if poped is not None:
                 key = str(poped[0])
                 value = str(poped[1])
@@ -1304,10 +1306,11 @@ class InstlAdmin(InstlInstanceBase):
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
                         up2s3_process.start()
+                        r.incr(heartbeat_redis_key, 1)
                         up2s3_process.join()
 
                         r.incr(key+":counter", 1)
-                        r.hset(key+":log", value, datetime.datetime.now())
+                        r.hset(key+":log", value, str(datetime.datetime.now()))
 
                     except Exception as ex:
                         log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
@@ -1329,9 +1332,20 @@ class InstlAdmin(InstlInstanceBase):
         repo_rev_file_activated_key = "admin/"+repo_rev_file_activated_name
 
         # find if the specific file exists in the admin folder of the bucket
-        ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name, Prefix=repo_rev_file_specific_key)
-        list_of_files = ls_response['Contents']
-        if len(list_of_files) != 1 or list_of_files[0]["Key"] != repo_rev_file_specific_key:
+        def is_file_in_s3(s3_resource, bucket_name, path_in_bucket):
+            retVal = False
+            try:
+                ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name, Prefix=path_in_bucket)
+                list_of_files = ls_response['Contents']
+                for file in list_of_files:
+                    if file["Key"] == path_in_bucket:
+                        retVal = True
+                        break
+            except Exception:
+                pass
+            return retVal
+
+        if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_specific_key):
             raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
 
         # now copy the specific file to be the activated file, this is done directly on s3
@@ -1339,8 +1353,11 @@ class InstlAdmin(InstlInstanceBase):
                                      Bucket=bucket_name, Key=repo_rev_file_activated_key)
         log.info(f"activated repo-rev {config_vars['TARGET_REPO_REV']} for {config_vars['TARGET_MAJOR_VERSION']} on {config_vars['TARGET_DOMAIN']}")
 
+        if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_activated_key):
+            raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
+
         # download the activated file to the work folder for reference
         activated_repo_rev_file_copy_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
-        s3_resource.meta.client.download_file(Bucket=bucket_name, Key="repo_rev_file_activated_key", Filename=activated_repo_rev_file_copy_path)
+        s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=activated_repo_rev_file_copy_path)
         log.info(f"downloaded activated repo-rev file to {activated_repo_rev_file_copy_path}")
 
