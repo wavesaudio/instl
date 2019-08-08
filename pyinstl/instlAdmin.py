@@ -7,6 +7,7 @@ import filecmp
 import multiprocessing as mp
 import time
 import datetime
+import re
 
 import utils
 import aYaml
@@ -1357,7 +1358,20 @@ class InstlAdmin(InstlInstanceBase):
             raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
 
         # download the activated file to the work folder for reference
-        activated_repo_rev_file_copy_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
-        s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=activated_repo_rev_file_copy_path)
-        log.info(f"downloaded activated repo-rev file to {activated_repo_rev_file_copy_path}")
+        copy_of_activated_repo_rev_file_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
+        s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
+        log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
+        with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
+            repo_rev_file_text = rfd.read()
+            match = re.match("REPO_REV:\s+(?P<repo_rev>\d+)")
+            if match:
+                actual_activated_repo_rev_from_s3 = int(match.group('repo_rev'))
+                if actual_activated_repo_rev_from_s3 == config_vars['TARGET_REPO_REV'].int():
+                    log.info(f"verified activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3}")
+                else:
+                    raise ValueError(f"actiated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3} not {config_vars['TARGET_REPO_REV']}")
+            else:
+                raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
+
+
 

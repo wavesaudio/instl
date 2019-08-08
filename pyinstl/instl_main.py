@@ -16,7 +16,7 @@ import string
 import sqlite3
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
-from utils import InstlException
+from pyinstl.instlException import InstlException
 import utils
 from utils.log_utils import config_logger
 
@@ -27,11 +27,13 @@ log.setLevel(logging.DEBUG)
 os.umask(0)
 
 
-current_os_names = utils.get_current_os_names()
-os_family_name = current_os_names[0]
-os_second_name = current_os_names[0]
-if len(current_os_names) > 1:
-    os_second_name = current_os_names[1]
+class OSNamer:
+    def __init__(self):
+        self.current_os_names = utils.get_current_os_names()
+        self.os_family_name = self.current_os_names[0]
+        self.os_second_name = self.current_os_names[0]
+        if len(self.current_os_names) > 1:
+            self.os_second_name = self.current_os_names[1]
 
 
 def get_path_to_instl_app(launch_file):
@@ -50,11 +52,12 @@ def get_instl_launch_command(launch_file):
     """
     @return: returns the path to this
     """
+    os_namer = OSNamer()
     launch_command = None
     if getattr(sys, 'frozen', False):
         launch_command = utils.quoteme_double(os.fspath(Path(sys.executable)))
     elif launch_file:
-        if os_family_name == "Win":
+        if os_namer.os_family_name == "Win":
             launch_command = " ".join((utils.quoteme_double(os.fspath(Path(sys.executable))), utils.quoteme_double(os.fspath(Path(launch_file)))))
         else:
             launch_command = utils.quoteme_double(os.fspath(Path(launch_file)))
@@ -107,6 +110,7 @@ class InvocationReporter(object):
 def instl_own_main(launch_file, argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
+    os_namer = OSNamer()
     with InvocationReporter(argv):
         options = CommandLineOptions()
         command_names = read_command_line_options(options, argv)
@@ -120,9 +124,9 @@ def instl_own_main(launch_file, argv):
                         "__PYSQLITE3_VERSION__": sqlite3.version,
                         "__SQLITE_VERSION__": sqlite3.sqlite_version,
                         "__COMMAND_NAMES__": command_names,
-                        "__CURRENT_OS__": os_family_name,
-                        "__CURRENT_OS_SECOND_NAME__": os_second_name,
-                        "__CURRENT_OS_NAMES__": current_os_names,
+                        "__CURRENT_OS__": os_namer.os_family_name,
+                        "__CURRENT_OS_SECOND_NAME__": os_namer.os_second_name,
+                        "__CURRENT_OS_NAMES__": os_namer.current_os_names,
                         "__SITE_DATA_DIR__": os.path.normpath(appdirs.site_data_dir()),
                         "__SITE_CONFIG_DIR__": os.path.normpath(appdirs.site_config_dir()),
                         "__USER_DATA_DIR__": os.path.normpath(appdirs.user_data_dir()),
@@ -139,7 +143,7 @@ def instl_own_main(launch_file, argv):
                         "__ARGV__": argv
                         }
 
-        if os_family_name != "Win":
+        if os_namer.os_family_name != "Win":
             initial_vars.update(
                         {"__USER_ID__": str(os.getuid()),
                          "__GROUP_ID__": str(os.getgid())})
@@ -165,7 +169,7 @@ def instl_own_main(launch_file, argv):
             instance.init_from_cmd_line_options(options)
             instance.do_command()
         elif options.mode == "admin":
-            if os_family_name not in ("Linux", "Mac"):
+            if os_namer.os_family_name not in ("Linux", "Mac"):
                 raise EnvironmentError("instl admin commands can only run under Mac or Linux")
             from pyinstl.instlAdmin import InstlAdmin
             instance = InstlAdmin(initial_vars)

@@ -2,3 +2,4 @@ awscli
 redis
 aws
 boto3
+pip
