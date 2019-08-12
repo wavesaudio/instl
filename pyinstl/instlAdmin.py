@@ -1,5 +1,7 @@
 #!/usr/bin/env python3.6
 
+import logging
+log = logging.getLogger()
 
 import os
 import sys
@@ -8,6 +10,8 @@ import multiprocessing as mp
 import time
 import datetime
 import re
+import redis
+import boto3
 
 import utils
 import aYaml
@@ -1163,82 +1167,100 @@ class InstlAdmin(InstlInstanceBase):
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
 
-        config_vars["REPO_REV"] = str(repo_rev)
-        config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        checkout_url = str(config_vars['SVN_REPO_URL'])
-        checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
-        checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
-        checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        try:
 
-        revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
-        revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
-        revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
+            # heartbeat_redis_key: regular counter increments will be send to this key
+            heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
+            r.incr(heartbeat_redis_key, 1)
+            r.set(config_vars["UPLOAD_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
-        info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
-        info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
-        info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
-        full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
+            config_vars["REPO_REV"] = str(repo_rev)
+            config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
-        batch_accum.set_current_section('admin')
-        # checkout specific repo-rev to base folder
-        # full checkout might take a long time so checking out to base folder, if done in repo-rev order
-        # will only get the files of that repo-rev instead of the whole repository
+            checkout_url = str(config_vars['SVN_REPO_URL'])
+            checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
+            checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
+            checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
 
-        skip_some_actions = False  # to save time during debugging
+            revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
+            revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
+            revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
 
-        if checkout_base_folder.is_dir():   # check if folder is indeed svn checkout folder
-            if checkout_base_folder.joinpath(".svn").is_dir():
-                batch_accum += SVNCleanup(working_copy_path=checkout_base_folder, skip_action=skip_some_actions, stderr_means_err=False)
-            else:
-                shutil.rmtree(checkout_base_folder)
+            info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
+            info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
+            info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
+            full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
 
-        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
+            batch_accum.set_current_section('admin')
+            # checkout specific repo-rev to base folder
+            # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+            # will only get the files of that repo-rev instead of the whole repository
 
-        batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-        batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
-        with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
-            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
-            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
-            sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
+            skip_some_actions = False  # to save time during debugging
 
-        batch_accum += IndexYamlReader(checkout_folder_index_path)
-        batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
-        batch_accum += SVNInfoReader(info_map_props_path, format='props')
-        batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
-        base_rev = int(config_vars["BASE_REPO_REV"])
-        if base_rev > 0:
-            batch_accum += SetBaseRevision(base_rev)
+            if checkout_base_folder.is_dir():   # check if folder is indeed svn checkout folder
+                if checkout_base_folder.joinpath(".svn").is_dir():
+                    batch_accum += SVNCleanup(working_copy_path=checkout_base_folder, skip_action=skip_some_actions, stderr_means_err=False)
+                else:
+                    shutil.rmtree(checkout_base_folder)
 
-        # copy all (and only) the files from repo-rev
-        batch_accum += CopySpecificRepoRev(checkout_base_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
-        # also copy the whole instl folder
-        batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
+            batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
 
-        batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
-        batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
-        batch_accum += Wzip(revision_instl_index_path)
-        batch_accum += CreateRepoRevFile()
+            batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
+            batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
+            with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
+                sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
+                sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
+                sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
-        with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
-            sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-            repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
-            sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+            batch_accum += IndexYamlReader(checkout_folder_index_path)
+            batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
+            batch_accum += SVNInfoReader(info_map_props_path, format='props')
+            batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
+            base_rev = int(config_vars["BASE_REPO_REV"])
+            if base_rev > 0:
+                batch_accum += SetBaseRevision(base_rev)
 
-        self.write_batch_file(batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
+            # copy all (and only) the files from repo-rev
+            batch_accum += CopySpecificRepoRev(checkout_base_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
+            # also copy the whole instl folder
+            batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
+
+            batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
+            batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+            batch_accum += Wzip(revision_instl_index_path)
+            batch_accum += CreateRepoRevFile()
+
+            with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+                sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
+                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
+                sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+
+            self.write_batch_file(batch_accum)
+            if bool(config_vars["__RUN_BATCH__"]):
+                self.run_batch_file()
+            r.incr(heartbeat_redis_key, 1)
+            r.rpush(config_vars["UPLOADED_REPO_REVS_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+        except Exception as ex:
+            print(f"up2s3_repo_rev exception {ex}")
+            raise
+        finally:
+            r.set(config_vars["UPLOAD_IN_PROGRESS_REDIS_KEY"].str(), "None")
 
     def do_wait_on_action_trigger(self):
-        import redis
+
         sys.path.append(os.pardir)
         sys.path.append(f"{os.pardir}/{os.pardir}")
         from . import instl_own_main
 
         # config yaml such as stout-config.yaml with definitions needed for this funciton to work
         main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
-        # other config files are assumed to exist below the flder where main_input_file is found
+        # other config files are assumed to exist below the folder where main_input_file is found
         main_config_folder = main_input_file.parent
 
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
@@ -1249,7 +1271,6 @@ class InstlAdmin(InstlInstanceBase):
 
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating request to activate of repo-rev 369 for V11 on production happened
         trigger_activate_rep_rev_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
-        log_redis_key = config_vars['ACTION_LOG_REDIS_KEY'].str()
 
         # heartbeat_redis_key: regular counter increments will be send to this key
         heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
@@ -1281,16 +1302,15 @@ class InstlAdmin(InstlInstanceBase):
                         domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
                         domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
                         up2s3_yaml_dict = {
-
+                            "__include__": [os.fspath(domain_major_version_config_file),
+                                            os.fspath(main_input_file)],
                             'TARGET_DOMAIN': domain,
                             'TARGET_MAJOR_VERSION': major_version,
                             'TARGET_REPO_REV': repo_rev,
-                            "__include__": [os.fspath(domain_major_version_config_file),
-                                            os.fspath(main_input_file)]
                         }
                         define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
                                                             '!define', "definitions",
-                                                            explicit_start=True, sort_mappings=True)
+                                                            explicit_start=True, sort_mappings=False)
 
                         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev)
                         work_folder.mkdir(parents=True, exist_ok=True)
@@ -1306,9 +1326,11 @@ class InstlAdmin(InstlInstanceBase):
                                                            "--config-file", os.fspath(yaml_work_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
+                        r.incr(heartbeat_redis_key, 1)
                         up2s3_process.start()
                         r.incr(heartbeat_redis_key, 1)
                         up2s3_process.join()
+                        r.incr(heartbeat_redis_key, 1)
 
                         r.incr(key+":counter", 1)
                         r.hset(key+":log", value, str(datetime.datetime.now()))
@@ -1322,56 +1344,71 @@ class InstlAdmin(InstlInstanceBase):
         log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
 
     def do_activate_repo_rev(self):
-        import boto3
 
-        s3_resource = boto3.resource('s3')
-        bucket_name = str(config_vars["S3_BUCKET_NAME"])
-        repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])  # file name for a specific repo-rev file e.g. V9_repo_rev.yaml.236
-        repo_rev_file_specific_key = "admin/"+repo_rev_file_specific_name
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
 
-        repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
-        repo_rev_file_activated_key = "admin/"+repo_rev_file_activated_name
+        try:
+            # heartbeat_redis_key: regular counter increments will be send to this key
+            heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
+            r.incr(heartbeat_redis_key, 1)
+            r.set(config_vars["ACTIVATE_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
-        # find if the specific file exists in the admin folder of the bucket
-        def is_file_in_s3(s3_resource, bucket_name, path_in_bucket):
-            retVal = False
-            try:
-                ls_response = s3_resource.meta.client.list_objects_v2(Bucket=bucket_name, Prefix=path_in_bucket)
-                list_of_files = ls_response['Contents']
-                for file in list_of_files:
-                    if file["Key"] == path_in_bucket:
-                        retVal = True
-                        break
-            except Exception:
-                pass
-            return retVal
+            s3_resource = boto3.resource('s3')
+            bucket_name = str(config_vars["S3_BUCKET_NAME"])
+            repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])  # file name for a specific repo-rev file e.g. V9_repo_rev.yaml.236
+            repo_rev_file_specific_key = f"admin/{repo_rev_file_specific_name}"
 
-        if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_specific_key):
-            raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
+            repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
+            repo_rev_file_activated_key = "admin/{repo_rev_file_activated_name}"
 
-        # now copy the specific file to be the activated file, this is done directly on s3
-        s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
-                                     Bucket=bucket_name, Key=repo_rev_file_activated_key)
-        log.info(f"activated repo-rev {config_vars['TARGET_REPO_REV']} for {config_vars['TARGET_MAJOR_VERSION']} on {config_vars['TARGET_DOMAIN']}")
+            # find if the specific file exists in the admin folder of the bucket
+            def is_file_in_s3(_s3_resource, _bucket_name, path_in_bucket):
+                retVal = False
+                try:
+                    ls_response = _s3_resource.meta.client.list_objects_v2(Bucket=_bucket_name, Prefix=path_in_bucket)
+                    list_of_files = ls_response['Contents']
+                    for file in list_of_files:
+                        if file["Key"] == path_in_bucket:
+                            retVal = True
+                            break
+                except Exception:
+                    pass
+                return retVal
 
-        if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_activated_key):
-            raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
+            if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_specific_key):
+                raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
 
-        # download the activated file to the work folder for reference
-        copy_of_activated_repo_rev_file_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
-        s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
-        log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
-        with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
-            repo_rev_file_text = rfd.read()
-            match = re.match("REPO_REV:\s+(?P<repo_rev>\d+)")
-            if match:
-                actual_activated_repo_rev_from_s3 = int(match.group('repo_rev'))
-                if actual_activated_repo_rev_from_s3 == config_vars['TARGET_REPO_REV'].int():
-                    log.info(f"verified activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3}")
+            # now copy the specific file to be the activated file, this is done directly on s3
+            s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
+                                         Bucket=bucket_name, Key=repo_rev_file_activated_key)
+            log.info(f"activated repo-rev {config_vars['TARGET_REPO_REV']} for {config_vars['TARGET_MAJOR_VERSION']} on {config_vars['TARGET_DOMAIN']}")
+
+            if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_activated_key):
+                raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
+
+            # download the activated file to the work folder for reference
+            copy_of_activated_repo_rev_file_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
+            s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
+            log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
+            with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
+                repo_rev_file_text = rfd.read()
+                match = re.search(r"^REPO_REV:\s+(?P<repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
+                if match:
+                    actual_activated_repo_rev_from_s3 = int(match.group('repo_rev'))
+                    if actual_activated_repo_rev_from_s3 == config_vars['TARGET_REPO_REV'].int():
+                        log.info(f"verified activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3}")
+                    else:
+                        raise ValueError(f"actiated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3} not {config_vars['TARGET_REPO_REV']}")
                 else:
-                    raise ValueError(f"actiated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3} not {config_vars['TARGET_REPO_REV']}")
-            else:
-                raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
+                    raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
 
+            r.set(config_vars["ACTIVATED_REPO_REV_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
 
+        except Exception as ex:
+            print(f"do_activate_repo_rev exception {ex}")
+            raise
+        finally:
+            r.set(config_vars["ACTIVATE_IN_PROGRESS_REDIS_KEY"].str(), "None")
 
