@@ -1237,7 +1237,7 @@ class InstlAdmin(InstlInstanceBase):
             batch_accum += CreateRepoRevFile()
 
             with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
-                sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
+                sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")
                 repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
                 sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
 
