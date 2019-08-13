@@ -774,6 +774,10 @@ class InstlAdmin(InstlInstanceBase):
         else:
             limit_info_list.append(("", svn_folder, stage_folder))
 
+        if svn_folder.is_dir():
+            with self.batch_accum.sub_accum(Cd(svn_folder)) as suba:
+                suba += SVNCleanup()
+
         for limit_info in limit_info_list:
             limit_checkout_url = checkout_url
             if limit_info[0] != "":

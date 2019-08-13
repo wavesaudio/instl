@@ -327,6 +327,9 @@ class InstlGui(InstlInstanceBase):
         self.realign_from_tk_vars(self.admin_vars)
         self.read_admin_config_files()
 
+        _, input_file_base_name = os.path.split(config_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].raw())
+        config_vars["ADMIN_GUI_CONFIG_FILE_NAME"] = input_file_base_name
+
         if self.admin_vars["ADMIN_GUI_CMD"].get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')
         else:
