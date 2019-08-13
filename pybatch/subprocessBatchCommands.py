@@ -293,16 +293,16 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
 
 
 class Exec(PythonBatchCommandBase, essential=True):
-    def __init__(self, python_file, config_file=None, reuse_db=True, **kwargs):
+    def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
-        self.config_file = config_file
+        self.config_files = config_files
         self.reuse_db = reuse_db
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.python_file))
-        if self.config_file is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.config_file))
+        if self.config_files:
+            all_args.append(utils.quoteme_raw_by_type(self.config_files))
         if not self.reuse_db:
             all_args.append(f"reuse_db={self.reuse_db}")
 
@@ -311,8 +311,9 @@ class Exec(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_file is not None:
-            self.read_yaml_file(self.config_file)
+        if self.config_files:
+            for config_file in self.config_files:
+                self.read_yaml_file(config_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
             py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)

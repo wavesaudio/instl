@@ -274,7 +274,7 @@ def prepare_args_parser(in_command):
         is_required = 'conf' in command_details['options']
         config_file_options.add_argument('--config-file', '-s',
                                     required=is_required,
-                                    nargs=1,
+                                    nargs='+',
                                     metavar='path-to-config-file',
                                     dest='__CONFIG_FILE__',
                                     help="path to config-file")

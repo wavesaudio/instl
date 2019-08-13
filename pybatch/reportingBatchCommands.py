@@ -297,29 +297,30 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__c
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
-    def __init__(self, unresolved_file, resolved_file=None, config_file=None, **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, **kwargs):
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
         if resolved_file:
             self.resolved_file = resolved_file
         else:
             self.resolved_file = self.unresolved_file
-        self.config_file = config_file
+        self.config_files = config_files
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
         if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
-        all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
+        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
 
     def __call__(self, *args, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_file is not None:
+        if self.config_files is not None:
             reader = ConfigVarYamlReader(config_vars)
-            reader.read_yaml_file(self.config_file)
+            for config_file in self.config_files:
+                reader.read_yaml_file(config_file)
         with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)

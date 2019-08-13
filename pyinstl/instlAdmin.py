@@ -30,14 +30,15 @@ class InstlAdmin(InstlInstanceBase):
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
-            config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+            config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__[0])-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
     def set_default_variables(self):
         if "__CONFIG_FILE__" in config_vars:
-            config_file_resolved = self.path_searcher.find_file(os.fspath(config_vars["__CONFIG_FILE__"]), return_original_if_not_found=True)
-            config_vars["__CONFIG_FILE_PATH__"] = config_file_resolved
+            for config_file in config_vars["__CONFIG_FILE__"].list():
+                config_file_resolved = self.path_searcher.find_file(os.fspath(config_file), return_original_if_not_found=True)
+                config_vars.setdefault("__CONFIG_FILE_PATH__", default=None).append(config_file_resolved)
 
-            self.read_yaml_file(config_file_resolved)
+                self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
 
     def do_command(self):
@@ -1259,7 +1260,7 @@ class InstlAdmin(InstlInstanceBase):
         from . import instl_own_main
 
         # config yaml such as stout-config.yaml with definitions needed for this funciton to work
-        main_input_file = config_vars["__CONFIG_FILE__"].Path(resolve=True)
+        main_input_file = Path(config_vars["__CONFIG_FILE__"][0]).resolve()
         # other config files are assumed to exist below the folder where main_input_file is found
         main_config_folder = main_input_file.parent
 

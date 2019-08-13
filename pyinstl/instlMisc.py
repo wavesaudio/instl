@@ -181,20 +181,20 @@ class InstlMisc(InstlInstanceBase):
         print(col_formats[2].format("total checksum", total_checksum))
 
     def do_resolve(self):
-        config_file = config_vars.get("__CONFIG_FILE__", None).str()
+        config_files = config_vars.get("__CONFIG_FILE__", []).list()
         input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
         output_file = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        ResolveConfigVarsInFile(input_file, output_file, config_file=config_file)()
+        ResolveConfigVarsInFile(input_file, output_file, config_files=config_files)()
 
     def do_exec(self):
         try:
             py_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
-            config_file = None
+            config_files = None
             if "__CONFIG_FILE__" in config_vars:
-                config_file = config_vars.get("__CONFIG_FILE__").Path(resolve=True)
+                config_files = [Path(config_file) for config_file in config_vars["__CONFIG_FILE__"].list()]
 
-            with Exec(py_file_path, config_file, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
+            with Exec(py_file_path, config_files, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
                 exec_le()
         except Exception as ex:
             log.error(f"""Exception while exec {py_file_path}, {ex}""")

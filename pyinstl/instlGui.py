@@ -11,13 +11,14 @@ import shlex
 from tkinter import *
 from tkinter.ttk import *
 import logging
+from pathlib import Path
 log = logging.getLogger()
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
-
+import functools
 
 tab_names = {
     'ADMIN':  'Admin',
@@ -118,7 +119,8 @@ class InstlGui(InstlInstanceBase):
 
         self.admin_vars = dict()
         self.admin_vars["ADMIN_GUI_CMD"] = TkConfigVarStr("ADMIN_GUI_CMD")
-        self.admin_vars["ADMIN_GUI_CONFIG_FILE"] = TkConfigVarStr("ADMIN_GUI_CONFIG_FILE")
+        self.admin_vars["ADMIN_GUI_TARGET_CONFIG_FILE"] = TkConfigVarStr("ADMIN_GUI_TARGET_CONFIG_FILE")
+        self.admin_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"] = TkConfigVarStr("ADMIN_GUI_LOCAL_CONFIG_FILE")
         self.admin_vars["ADMIN_GUI_OUT_BATCH_FILE"] = TkConfigVarStr("ADMIN_GUI_OUT_BATCH_FILE")
         self.admin_vars["__STAGING_INDEX_FILE__"] = TkConfigVarStr("__STAGING_INDEX_FILE__")
         self.admin_vars["SYNC_BASE_URL"] = TkConfigVarStr("SYNC_BASE_URL")
@@ -208,12 +210,12 @@ class InstlGui(InstlInstanceBase):
             self.client_vars["CLIENT_GUI_OUT_FILE"].set(retVal)
             self.update_client_state()
 
-    def get_admin_config_file(self):
+    def get_admin_config_file(self, path_config_var):
         import tkinter.filedialog
 
         retVal = tkinter.filedialog.askopenfilename()
         if retVal:
-            self.admin_vars["ADMIN_GUI_CONFIG_FILE"].set(retVal)
+            self.admin_vars[path_config_var].set(retVal)
             self.update_admin_state()
 
     def get_admin_output_file(self):
@@ -223,18 +225,20 @@ class InstlGui(InstlInstanceBase):
         if retVal:
             self.admin_vars["ADMIN_GUI_OUT_BATCH_FILE"].set(retVal)
 
-    def open_file_for_edit(self, path_to_file):
-        if path_to_file == "": return
-        path_to_file = os.path.relpath(path_to_file)
-        if not os.path.isfile(path_to_file):
-            log.info(f"""File not found:{path_to_file}""")
-            return
+    def open_file_for_edit(self, path_to_file=None, config_var_containing_path_to_file=None):
+        if not path_to_file:
+            path_to_file = config_vars.get(config_var_containing_path_to_file, "").str()
+        if path_to_file:
+            path_to_file = Path(path_to_file).resolve()
+            if not path_to_file.is_file():
+                log.info(f"""File not found:{path_to_file}""")
+                return
 
-        try:
-            # noinspection PyUnresolvedReferences
-            os.startfile(path_to_file, 'edit')
-        except AttributeError:
-            subprocess.call(['open', path_to_file])
+            try:
+                # noinspection PyUnresolvedReferences
+                os.startfile(path_to_file, 'edit')
+            except AttributeError:
+                subprocess.call(['open', path_to_file])
 
     def create_client_command_line(self):
         retVal = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), config_vars["CLIENT_GUI_CMD"].str(),
@@ -307,20 +311,21 @@ class InstlGui(InstlInstanceBase):
         self.T_client.insert(END, config_vars.resolve_str(command_line))
         self.T_client.configure(state='disabled')
 
-    def read_admin_config_file(self, *args, **kwargs):
-        config_path = str(config_vars.get("ADMIN_GUI_CONFIG_FILE", ""))
-        if config_path:
-            if os.path.isfile(config_path):
-                config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
-                self.read_yaml_file(config_path)
-            else:
-                log.info(f"""File not found: {config_path}""")
-            _, input_file_base_name = os.path.split(config_path)
-            config_vars["ADMIN_GUI_CONFIG_FILE_NAME"] = input_file_base_name
+    def read_admin_config_files(self, *args, **kwargs):
+        for config_file_var in ("ADMIN_GUI_TARGET_CONFIG_FILE", "ADMIN_GUI_LOCAL_CONFIG_FILE"):
+            config_path = str(config_vars.get(config_file_var, ""))
+            if config_path:
+                if os.path.isfile(config_path):
+                    config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
+                    self.read_yaml_file(config_path)
+                else:
+                    log.info(f"""File not found: {config_path}""")
+                #_, input_file_base_name = os.path.split(config_path)
+                #config_vars["ADMIN_GUI_LOCAL_CONFIG_FILE_NAME"] = input_file_base_name
 
     def update_admin_state(self, *args):
         self.realign_from_tk_vars(self.admin_vars)
-        self.read_admin_config_file()
+        self.read_admin_config_files()
 
         if self.admin_vars["ADMIN_GUI_CMD"].get() in self.commands_that_accept_limit_option:
             self.limit_path_entry_widget.configure(state='normal')
@@ -390,38 +395,40 @@ class InstlGui(InstlInstanceBase):
         self.admin_run_batch_file_checkbox = Checkbutton(admin_frame, text="Run batch file", variable=self.admin_vars["ADMIN_GUI_RUN_BATCH"], command=self.update_admin_state)
         self.admin_run_batch_file_checkbox.grid(row=curr_row, column=2, columnspan=2, sticky=E)
 
-        # path to config file
-        curr_row += 1
-        Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
-        configFilePathEntry = Entry(admin_frame, textvariable=self.admin_vars["ADMIN_GUI_CONFIG_FILE"])
-        configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
-        ToolTip(configFilePathEntry, msg="path instl repository config file")
-        self.admin_vars["ADMIN_GUI_CONFIG_FILE"].trace('w', self.read_admin_config_file)
+        # path to config files
 
-        openConfigButt = Button(admin_frame, width=2, text="...", command=self.get_admin_config_file)
-        openConfigButt.grid(row=curr_row, column=3, sticky=W)
-        ToolTip(openConfigButt, msg="open admin config file")
+        for config_file_type, config_file_config_var_name in (('target', "ADMIN_GUI_TARGET_CONFIG_FILE"), ('local', "ADMIN_GUI_LOCAL_CONFIG_FILE")):
+            curr_row += 1
+            Label(admin_frame, text=f"{config_file_type} config file:").grid(row=curr_row, column=0, sticky=E)
+            configFilePathEntry = Entry(admin_frame, textvariable=self.admin_vars[config_file_config_var_name])
+            configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
+            ToolTip(configFilePathEntry, msg=f"{config_file_type} config file")
+            self.admin_vars[config_file_config_var_name].trace('w', self.read_admin_config_files)
 
-        editConfigButt = Button(admin_frame, width=4, text="Edit",
-                                command=lambda: self.open_file_for_edit(config_vars["ADMIN_GUI_CONFIG_FILE"].str()))
-        editConfigButt.grid(row=curr_row, column=4, sticky=W)
-        ToolTip(editConfigButt, msg="edit admin config file")
+            openConfigButt = Button(admin_frame, width=2, text="...", command=functools.partial(self.get_admin_config_file, config_file_config_var_name))
+            openConfigButt.grid(row=curr_row, column=3, sticky=W)
+            ToolTip(openConfigButt, msg="open {config_file_type} config file")
 
-        checkConfigButt = Button(admin_frame, width=3, text="Chk",
-                                 command=lambda: self.check_yaml(config_vars["ADMIN_GUI_CONFIG_FILE"].str()))
-        checkConfigButt.grid(row=curr_row, column=5, sticky=W)
-        ToolTip(checkConfigButt, msg="read admin config file to check it's structure")
+            editConfigButt = Button(admin_frame, width=4, text="Edit",
+                                    command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file=config_file_config_var_name))
+            editConfigButt.grid(row=curr_row, column=4, sticky=W)
+            ToolTip(editConfigButt, msg=f"edit {config_file_type} config file")
+
+            checkConfigButt = Button(admin_frame, width=3, text="Chk",
+                                     command=functools.partial(self.check_yaml, config_var_containing_path_to_file=config_file_config_var_name))
+            checkConfigButt.grid(row=curr_row, column=5, sticky=W)
+            ToolTip(checkConfigButt, msg=f"read {config_file_type} config file to check it's structure")
 
         # path to stage index file
         curr_row += 1
         Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
         Label(admin_frame, text="---", textvariable=self.admin_vars["__STAGING_INDEX_FILE__"]).grid(row=curr_row, column=1, columnspan=2, sticky=W)
 
-        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(config_vars["__STAGING_INDEX_FILE__"].str()))
+        editIndexButt = Button(admin_frame, width=4, text="Edit", command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file="__STAGING_INDEX_FILE__"))
         editIndexButt.grid(row=curr_row, column=4, sticky=W)
         ToolTip(editIndexButt, msg="edit repository index")
 
-        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(config_vars["__STAGING_INDEX_FILE__"].str()))
+        checkIndexButt = Button(admin_frame, width=3, text="Chk", command=functools.partial(self.check_yaml, config_var_containing_path_to_file="__STAGING_INDEX_FILE__"))
         checkIndexButt.grid(row=curr_row, column=5, sticky=W)
         ToolTip(checkIndexButt, msg="read repository index to check it's structure")
 
@@ -445,7 +452,7 @@ class InstlGui(InstlInstanceBase):
         Entry(admin_frame, textvariable=self.admin_vars["ADMIN_GUI_OUT_BATCH_FILE"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
         Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
         Button(admin_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(config_vars["ADMIN_GUI_OUT_BATCH_FILE"].str())).grid(row=curr_row, column=4, sticky=W)
+                command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file="ADMIN_GUI_OUT_BATCH_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # relative path to limit folder
         curr_row += 1
@@ -511,9 +518,9 @@ class InstlGui(InstlInstanceBase):
         self.client_vars["CLIENT_GUI_IN_FILE"].trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit",
-               command=lambda: self.open_file_for_edit(config_vars["CLIENT_GUI_IN_FILE"].str())).grid(row=curr_row, column=4, sticky=W)
+               command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file="CLIENT_GUI_IN_FILE")).grid(row=curr_row, column=4, sticky=W)
         Button(client_frame, width=3, text="Chk",
-               command=lambda: self.check_yaml(config_vars["CLIENT_GUI_IN_FILE"].str())).grid(row=curr_row, column=5, sticky=W)
+               command=functools.partial(self.check_yaml, config_var_containing_path_to_file="CLIENT_GUI_IN_FILE")).grid(row=curr_row, column=5, sticky=W)
 
         # path to output file
         curr_row += 1
@@ -522,7 +529,7 @@ class InstlGui(InstlInstanceBase):
         self.client_vars["CLIENT_GUI_OUT_FILE"].trace('w', self.update_client_state)
         Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
         Button(client_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(config_vars["CLIENT_GUI_OUT_FILE"].str())).grid(row=curr_row, column=4, sticky=W)
+                command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file="CLIENT_GUI_OUT_FILE")).grid(row=curr_row, column=4, sticky=W)
 
         # s3 user credentials
         curr_row += 1
@@ -592,18 +599,24 @@ class InstlGui(InstlInstanceBase):
 
         self.master.mainloop()
 
-    def check_yaml(self, path_to_yaml):
-        command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",
-                        "--in", path_to_yaml, "--silent"]
+    def check_yaml(self, path_to_yaml=None, config_var_containing_path_to_file=None):
 
-        try:
-            if getattr(os, "setsid", None):
-                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
-            else:
-                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
-        except OSError:
-            log.info(f"""Cannot run: {command_line}""")
-            return
+        if not path_to_yaml:
+            path_to_yaml = config_vars.get(config_var_containing_path_to_file, "").str()
+
+        if path_to_yaml:
+
+            command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",
+                            "--in", path_to_yaml, "--silent"]
+
+            try:
+                if getattr(os, "setsid", None):
+                    check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+                else:
+                    check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+            except OSError:
+                log.info(f"""Cannot run: {command_line}""")
+                return
 
         unused_stdout, unused_stderr = check_yaml_process.communicate()
         return_code = check_yaml_process.returncode
