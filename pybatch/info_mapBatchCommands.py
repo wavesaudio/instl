@@ -184,9 +184,19 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         info_map_to_item = dict()
         all_info_map_names = self.items_table.get_unique_detail_values('info_map')
         for infomap_file_name in all_info_map_names:
-            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
-            info_map_items = self.info_map_table.get_required_items()
-            info_map_to_item[infomap_file_name] = info_map_items
+            info_map_file_path = self.work_folder.joinpath(infomap_file_name)
+            if info_map_file_path.is_file():
+                log.info(f"{infomap_file_name} was found so no need to create it")
+                # file already exists, probably copied from the "Common" repository
+                # just checking that the fie is also zipped
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_info_map_file_path = self.work_folder.joinpath(zip_infomap_file_name)
+                if not zip_info_map_file_path.is_file():
+                    raise FileNotFoundError(f"found {info_map_file_path} but not {zip_info_map_file_path}")
+            else:
+                self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
+                info_map_items = self.info_map_table.get_required_items()
+                info_map_to_item[infomap_file_name] = info_map_items
 
         files_to_add_to_default_info_map = list()  # the named info_map files and their wzip version should be added to the default info_map
         # write each info map to file

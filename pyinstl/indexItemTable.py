@@ -1355,6 +1355,22 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
+    def get_info_map_and_sync_base_urls(self, detail_name):
+        """ select all unique info_map names and their sync_base_url - if any
+            results is a list of tuples: [(C1_Setups_Library_IID, None),
+                                          (Instrument_Data_Electric200__SD_Sample_Library_IID, $(BASE_LINKS_URL)/Common)]
+        """
+        query_text = """
+          SELECT DISTINCT index_item_detail_info_map_t.detail_value, index_item_detail_sync_base_url_t.detail_value
+          FROM index_item_detail_t AS index_item_detail_info_map_t
+          LEFT JOIN  index_item_detail_t AS index_item_detail_sync_base_url_t
+          ON index_item_detail_sync_base_url_t.detail_name = 'sync_base_url'
+          AND index_item_detail_info_map_t.owner_iid = index_item_detail_sync_base_url_t.owner_iid
+          WHERE index_item_detail_info_map_t.detail_name = 'info_map'
+          ORDER BY index_item_detail_info_map_t.detail_value
+        """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
 
 
 
