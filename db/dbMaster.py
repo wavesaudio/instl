@@ -100,7 +100,7 @@ class DBMaster(object):
         if not self.__conn:
             create_new_db = not os.path.isfile(self.db_file_path)
             self.__conn = sqlite3.connect(self.db_file_path)
-            utils.chown_chmod_on_path(self.db_file_path)
+            os.chmod(self.db_file_path, 0o666)
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:

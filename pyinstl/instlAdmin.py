@@ -1366,7 +1366,7 @@ class InstlAdmin(InstlInstanceBase):
             repo_rev_file_specific_key = f"admin/{repo_rev_file_specific_name}"
 
             repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
-            repo_rev_file_activated_key = "admin/{repo_rev_file_activated_name}"
+            repo_rev_file_activated_key = f"admin/{repo_rev_file_activated_name}"
 
             # find if the specific file exists in the admin folder of the bucket
             def is_file_in_s3(_s3_resource, _bucket_name, path_in_bucket):
