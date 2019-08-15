@@ -1317,7 +1317,8 @@ class InstlAdmin(InstlInstanceBase):
                                                             '!define', "definitions",
                                                             explicit_start=True, sort_mappings=False)
 
-                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev)
+                        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(repo_rev)
+                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev_work_folder)
                         work_folder.mkdir(parents=True, exist_ok=True)
                         yaml_work_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
                         with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
