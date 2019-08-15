@@ -1415,7 +1415,7 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
 
-            r.lpush(config_vars["ACTIVATED_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.lpush(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
 
         except Exception as ex:
