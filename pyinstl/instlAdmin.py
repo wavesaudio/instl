@@ -1297,8 +1297,12 @@ class InstlAdmin(InstlInstanceBase):
                 if value == "stop":
                     log.info(f"received stop")
                     break
+                elif value == "ping":
+                    ping_redis_key = f"{key}:ping"
+                    r.incr(ping_redis_key, 1)
+                    log.info(f"ping incremented {ping_redis_key}")
 
-                if key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
+                elif key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
                     try:
                         instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}[key]
                         domain, major_version, repo_rev = value.split(":")
