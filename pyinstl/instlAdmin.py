@@ -1249,14 +1249,16 @@ class InstlAdmin(InstlInstanceBase):
             self.write_batch_file(batch_accum)
             if bool(config_vars["__RUN_BATCH__"]):
                 self.run_batch_file()
-            r.rpush(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
+
+            r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             r.incr(heartbeat_redis_key, 1)
+
         except Exception as ex:
             print(f"up2s3_repo_rev exception {ex}")
             raise
         finally:
-            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "None")
+            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def do_wait_on_action_trigger(self):
 
@@ -1343,9 +1345,6 @@ class InstlAdmin(InstlInstanceBase):
                         up2s3_process.join()
                         r.incr(heartbeat_redis_key, 1)
 
-                        r.incr(key+":counter", 1)
-                        r.hset(key+":log", value, str(datetime.datetime.now()))
-
                     except Exception as ex:
                         log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
                 else:
@@ -1415,12 +1414,12 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
 
-            r.lpush(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.hset(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
 
         except Exception as ex:
             print(f"do_activate_repo_rev exception {ex}")
             raise
         finally:
-            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "None")
+            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
