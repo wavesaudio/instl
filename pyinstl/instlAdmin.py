@@ -17,6 +17,7 @@ import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
+from .instlException import InstlException
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -521,11 +522,11 @@ class InstlAdmin(InstlInstanceBase):
 
     def raise_if_forbidden_file(self, item_to_check):
         if self.compiled_forbidden_file_regex.search(os.fspath(item_to_check)):
-            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
 
     def raise_if_forbidden_dir(self, item_to_check):
         if self.compiled_forbidden_folder_regex.search(os.fspath(item_to_check)):
-            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
@@ -574,7 +575,7 @@ class InstlAdmin(InstlInstanceBase):
             stage_only_item_path = Path(comparator.left, svn_only_item)
             svn_item_path = Path(comparator.right, svn_only_item)
             if stage_only_item_path.is_symlink():
-                raise utils.InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif stage_only_item_path.is_file():
                 self.raise_if_forbidden_file(stage_only_item_path)
 
@@ -610,7 +611,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += CopyDirToDir(stage_only_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"], preserve_dest_files=False)
                 self.batch_accum += Progress(f"copy dir {stage_only_item_path}")
             else:
-                raise utils.InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
+                raise InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
 
         # copy changed items:
 
@@ -622,7 +623,7 @@ class InstlAdmin(InstlInstanceBase):
             left_item_path = Path(comparator.left, diff_item)
             svn_item_path = Path(comparator.right, diff_item)
             if left_item_path.is_symlink():
-                raise utils.InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif left_item_path.is_file():
                 self.raise_if_forbidden_file(left_item_path)
 
@@ -639,7 +640,7 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     self.batch_accum += Progress(f"identical {left_item_path}")
             else:
-                raise utils.InstlException(left_item_path+" not a different file or symlink, an abomination!")
+                raise InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
         # removed items:
         for svn_only_item in sorted(comparator.right_only):

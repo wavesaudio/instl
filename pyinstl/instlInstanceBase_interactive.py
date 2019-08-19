@@ -13,6 +13,7 @@ import appdirs
 
 import utils
 from configVar import config_vars
+from .instlException import InstlException
 
 
 current_os = platform.system()
@@ -144,7 +145,7 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super().onecmd(line)
-        except utils.InstlException as ie:
+        except InstlException as ie:
             print("instl exception", ie.message)
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception:
