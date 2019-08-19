@@ -1181,7 +1181,7 @@ class InstlAdmin(InstlInstanceBase):
 
             # heartbeat_redis_key: regular counter increments will be send to this key
             heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
-            r.incr(heartbeat_redis_key, 1)
+            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             config_vars["REPO_REV"] = str(repo_rev)
@@ -1254,7 +1254,7 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
-            r.incr(heartbeat_redis_key, 1)
+            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
 
         except Exception as ex:
             print(f"up2s3_repo_rev exception {ex}")
@@ -1290,10 +1290,10 @@ class InstlAdmin(InstlInstanceBase):
         log.info(f"heartbeat on: {heartbeat_redis_key}")
 
         while True:
-            r.incr(heartbeat_redis_key, 1)
+            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             log.info(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
-            r.incr(heartbeat_redis_key, 1)
+            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             if poped is not None:
                 key = str(poped[0])
                 value = str(poped[1])
@@ -1341,11 +1341,11 @@ class InstlAdmin(InstlInstanceBase):
                                                            "--config-file", os.fspath(yaml_work_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
-                        r.incr(heartbeat_redis_key, 1)
+                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
                         up2s3_process.start()
-                        r.incr(heartbeat_redis_key, 1)
+                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
                         up2s3_process.join()
-                        r.incr(heartbeat_redis_key, 1)
+                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
 
                     except Exception as ex:
                         log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
@@ -1364,7 +1364,7 @@ class InstlAdmin(InstlInstanceBase):
         try:
             # heartbeat_redis_key: regular counter increments will be send to this key
             heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
-            r.incr(heartbeat_redis_key, 1)
+            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             s3_resource = boto3.resource('s3')
