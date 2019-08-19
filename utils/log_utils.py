@@ -97,6 +97,7 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
 
     fileLogHandler.setFormatter(formatter)
     top_logger.addHandler(fileLogHandler)
+    print(f"logging to  {log_file_path}")
 
 
 class ParentLogFilter(logging.Filter):

@@ -1181,7 +1181,7 @@ class InstlAdmin(InstlInstanceBase):
             # heartbeat_redis_key: regular counter increments will be send to this key
             heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
             r.incr(heartbeat_redis_key, 1)
-            r.set(config_vars["UPLOAD_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
+            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
@@ -1249,13 +1249,16 @@ class InstlAdmin(InstlInstanceBase):
             self.write_batch_file(batch_accum)
             if bool(config_vars["__RUN_BATCH__"]):
                 self.run_batch_file()
+
+            r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             r.incr(heartbeat_redis_key, 1)
-            r.rpush(config_vars["UPLOADED_REPO_REVS_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+
         except Exception as ex:
             print(f"up2s3_repo_rev exception {ex}")
             raise
         finally:
-            r.set(config_vars["UPLOAD_IN_PROGRESS_REDIS_KEY"].str(), "None")
+            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def do_wait_on_action_trigger(self):
 
@@ -1272,16 +1275,16 @@ class InstlAdmin(InstlInstanceBase):
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating a commit of repo-rev 369 for V11 on production happened
-        trigger_commit_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
+        trigger_commit_redis_key = config_vars['UPLOAD_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
 
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating request to activate of repo-rev 369 for V11 on production happened
-        trigger_activate_rep_rev_redis_key = config_vars['ACTIVATE_REPO_REV_TRIGGER_REDIS_KEY'].str()
+        activate_repo_rev_waiting_list_redis_key = config_vars['ACTIVATE_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
 
         # heartbeat_redis_key: regular counter increments will be send to this key
         heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
-        trigger_keys_to_wait_on = (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key)
+        trigger_keys_to_wait_on = (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key)
         log.info(f"heartbeat on: {heartbeat_redis_key}")
 
         while True:
@@ -1297,10 +1300,14 @@ class InstlAdmin(InstlInstanceBase):
                 if value == "stop":
                     log.info(f"received stop")
                     break
+                elif value == "ping":
+                    ping_redis_key = f"{key}:ping"
+                    r.incr(ping_redis_key, 1)
+                    log.info(f"ping incremented {ping_redis_key}")
 
-                if key in (trigger_commit_redis_key, trigger_activate_rep_rev_redis_key):
+                elif key in (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key):
                     try:
-                        instl_command_name = {trigger_commit_redis_key: "up2s3", trigger_activate_rep_rev_redis_key: "activate-repo-rev"}[key]
+                        instl_command_name = {trigger_commit_redis_key: "up2s3", activate_repo_rev_waiting_list_redis_key: "activate-repo-rev"}[key]
                         domain, major_version, repo_rev = value.split(":")
                         log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
 
@@ -1317,7 +1324,8 @@ class InstlAdmin(InstlInstanceBase):
                                                             '!define', "definitions",
                                                             explicit_start=True, sort_mappings=False)
 
-                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev)
+                        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(repo_rev)
+                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev_work_folder)
                         work_folder.mkdir(parents=True, exist_ok=True)
                         yaml_work_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
                         with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
@@ -1337,9 +1345,6 @@ class InstlAdmin(InstlInstanceBase):
                         up2s3_process.join()
                         r.incr(heartbeat_redis_key, 1)
 
-                        r.incr(key+":counter", 1)
-                        r.hset(key+":log", value, str(datetime.datetime.now()))
-
                     except Exception as ex:
                         log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
                 else:
@@ -1358,7 +1363,7 @@ class InstlAdmin(InstlInstanceBase):
             # heartbeat_redis_key: regular counter increments will be send to this key
             heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
             r.incr(heartbeat_redis_key, 1)
-            r.set(config_vars["ACTIVATE_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
+            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             s3_resource = boto3.resource('s3')
             bucket_name = str(config_vars["S3_BUCKET_NAME"])
@@ -1366,7 +1371,7 @@ class InstlAdmin(InstlInstanceBase):
             repo_rev_file_specific_key = f"admin/{repo_rev_file_specific_name}"
 
             repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
-            repo_rev_file_activated_key = "admin/{repo_rev_file_activated_name}"
+            repo_rev_file_activated_key = f"admin/{repo_rev_file_activated_name}"
 
             # find if the specific file exists in the admin folder of the bucket
             def is_file_in_s3(_s3_resource, _bucket_name, path_in_bucket):
@@ -1409,11 +1414,12 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
 
-            r.set(config_vars["ACTIVATED_REPO_REV_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.hset(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
 
         except Exception as ex:
             print(f"do_activate_repo_rev exception {ex}")
             raise
         finally:
-            r.set(config_vars["ACTIVATE_IN_PROGRESS_REDIS_KEY"].str(), "None")
+            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
