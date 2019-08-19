@@ -1400,21 +1400,28 @@ class InstlAdmin(InstlInstanceBase):
             if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_activated_key):
                 raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
 
+            target_domain = config_vars["TARGET_DOMAIN"].str()
+            major_version = config_vars["TARGET_MAJOR_VERSION"].str()
+            target_repo_rev = config_vars["TARGET_REPO_REV"].int()
+
+            repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(target_repo_rev)
+            work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(target_domain, major_version, repo_rev_work_folder)
+
             # download the activated file to the work folder for reference
-            copy_of_activated_repo_rev_file_path = config_vars.resolve_str("$(UPLOAD_WORK_AREA)/$(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/$(TARGET_REPO_REV)/$(REPO_REV_FILE_BASE_NAME)")
+            copy_of_activated_repo_rev_file_path = config_vars.resolve_str(f"{work_folder}/$(REPO_REV_FILE_BASE_NAME)")
             s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
             log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
             with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
                 repo_rev_file_text = rfd.read()
-                match = re.search(r"^REPO_REV:\s+(?P<repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
+                match = re.search(r"^REPO_REV:\s+(?P<target_repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
                 if match:
-                    actual_activated_repo_rev_from_s3 = int(match.group('repo_rev'))
-                    if actual_activated_repo_rev_from_s3 == config_vars['TARGET_REPO_REV'].int():
-                        log.info(f"verified activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3}")
+                    actual_activated_repo_rev_from_s3 = int(match.group('target_repo_rev'))
+                    if actual_activated_repo_rev_from_s3 == target_repo_rev:
+                        log.info(f"verified activated repo-rev for {target_domain} {major_version} is {actual_activated_repo_rev_from_s3}")
                     else:
-                        raise ValueError(f"actiated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']} is {actual_activated_repo_rev_from_s3} not {config_vars['TARGET_REPO_REV']}")
+                        raise ValueError(f"activated repo-rev for {target_domain} {major_version} is {actual_activated_repo_rev_from_s3} not {target_repo_rev}")
                 else:
-                    raise ValueError(f"could not verify activated repo-rev for {config_vars['TARGET_DOMAIN']} {config_vars['TARGET_MAJOR_VERSION']}")
+                    raise ValueError(f"regex could find 'REPO_REV:' in {copy_of_activated_repo_rev_file_path}")
 
             r.hset(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
