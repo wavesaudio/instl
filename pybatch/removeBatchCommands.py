@@ -225,13 +225,13 @@ class RmDirContents(PythonBatchCommandBase, essential=True):
             all_args.append(self.named__init__param("exclude", self.exclude))
 
     def progress_msg_self(self):
-        return f"""Removem Dir Contents {self.path_to_folder}"""
+        return f"""Remove Dir Contents {self.path_to_folder}"""
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         folder_to_clean = utils.ResolvedPath(self.path_to_folder)
         for item in os.scandir(folder_to_clean):
             if item.name not in self.exclude:
-                with RmFileOrDir(item, own_progress_count=0) as rfod:
+                with RmFileOrDir(item.path, own_progress_count=0) as rfod:
                     rfod()
 
