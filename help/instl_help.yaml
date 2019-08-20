@@ -62,16 +62,6 @@ command:
             instl's copy command will create a batch file containing instructions to copy files to their designated locations on disk. Said files were previously downloaded using the sync command. Definition of what to copy to which destination is taken from the instl-config-yaml-file.
             Keep in mind that copy command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually install the files.
 
-    create-folders:
-        short: Create folders in preparation for sync (utility command)
-        long: |
-            Usage: instl create-folders --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
-            For each item marked as folder in path-to-input-file create-folders will create the folder relative to the current directory.
-            path-to-input-file should be a path to a file in info_map.txt format containing a list of the folders to check.
-            create-folders command is used in the batch created by the sync or synccopy commands and path-to-input-file would be bookkeeping/to_sync_info_map.txt.
-            If --start-progress and --total-progress options are given, check-checksum will output progress messages starting with the number given in --start-progress with a total given in total-progress. Progress message for action N would be:
-            Progress start-progress-number+N of total-progress;
-
     create-infomap:
         short: Creates infomap file from local svn repository (admin command)
         long: |
@@ -201,13 +191,6 @@ command:
             Usage: instl run-process [--abort-file path-to-abort-file] executable-to-run [args ...]
             run-process will launch a single process with the supplied arguments.
             if --abort-file is given, run-process will watch that the file exists and if not will kill the process,
-
-    set-exec:
-        short: Sets the executable bit for certine files (utility command)
-        long: |
-            Usage: instl set-exec --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
-            Sets the executable bit for files marked as such in path-to-input-file. Paths are relative to current directory.
-            set-exec command is used in the batch file created by the copy or synccopy commands.
 
     stage2svn:
         short: Update svn from a staging folder (admin command)

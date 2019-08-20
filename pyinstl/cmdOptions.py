@@ -113,26 +113,19 @@ def prepare_args_parser(in_command):
             'check-checksum':       {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
             'checksum':             {'mode': 'do_something', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
             'command-list':         {'mode': 'do_something', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
-            'create-folders':       {'mode': 'do_something', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
             'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
             'fail':                 {'mode': 'do_something', 'options': (), 'help': "fail and return exit code"},
             'help':                 {'mode': 'do_something', 'options': (), 'help':  'help'},
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
-            'mac-dock':             {'mode': 'do_something', 'options': (), 'help': "add or remove to Mac OS's Dock"},
             'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
-            'remove-empty-folders': {'mode': 'do_something', 'options': ('in', ), 'help':  'remove folders is they are empty'},
             'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
             'run-process':          {'mode': 'do_something', 'options': (), 'help':  'Run a processes with optional abort file'},
-            'set-exec':             {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
             'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
             'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
             'unwtar':               {'mode': 'do_something', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
             'version':              {'mode': 'do_something', 'options': (), 'help':  'display instl version'},
-            'win-shortcut':         {'mode': 'do_something', 'options': (), 'help':  'create a Windows shortcut'},
             'wtar':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
             'wzip':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
-            'encode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert a real symlink into a .symlink file'},
-            'decode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert .symlink file into a real symlink'}
             })
 
     if in_command not in all_command_details:
@@ -391,54 +384,6 @@ def prepare_args_parser(in_command):
                             metavar='just-with-number',
                             dest='__JUST_WITH_NUMBER__',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
-
-    elif 'win-shortcut' == in_command:
-        short_cut_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        short_cut_options.add_argument('--shortcut',
-                            required=True,
-                            nargs=1,
-                            metavar='shortcut',
-                            dest='__SHORTCUT_PATH__',
-                            help="path to the shortcut itself")
-        short_cut_options.add_argument('--target',
-                                       required=True,
-                                       nargs=1,
-                                       metavar='target',
-                                       dest='__SHORTCUT_TARGET_PATH__',
-                                       help="path to the item being shortcut")
-        short_cut_options.add_argument('--run-as-admin',
-                                       required=False,
-                                       default=False,
-                                       action='store_true',
-                                       dest='__RUN_AS_ADMIN__',
-                                       help="set run as admin flag")
-
-    elif 'mac-dock' == in_command:
-        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        mac_dock_options.add_argument('--path',
-                                required=False,
-                                nargs=1,
-                                metavar='dock-item-path',
-                                dest='__DOCK_ITEM_PATH__',
-                                help="path to dock item")
-        mac_dock_options.add_argument('--label',
-                                required=False,
-                                nargs=1,
-                                metavar='dock-item-label',
-                                dest='__DOCK_ITEM_LABEL__',
-                                help="label for dock item")
-        mac_dock_options.add_argument('--remove',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='__REMOVE_FROM_DOCK__',
-                                help="remove from dock")
-        mac_dock_options.add_argument('--restart',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='__RESTART_THE_DOCK__',
-                                help="restart the dock")
 
     elif 'unwtar' == in_command:
         unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')

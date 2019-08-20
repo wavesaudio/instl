@@ -55,7 +55,7 @@ class InstlClientCopy(InstlClient):
             pass  # if it did not work - forget it
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
-        with self.batch_accum.sub_accum(Stage("create_folders")) as create_folders_section:
+        with self.batch_accum.sub_accum(Stage("create folders")) as create_folders_section:
             for target_folder_path in folder_list:
                 create_folders_section += MakeDirs(target_folder_path)
 
