@@ -38,7 +38,7 @@ def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbea
             print(f"Exception in heartbeat_redis {ex}")
 
     thread_name = "redis heartbeat"
-    x = threading.Thread(target=heartbeat_redis, args=(redis_host, redis_port, heartbeat_key, heartbeat_interval), daemon=True, thread_name=thread_name)
+    x = threading.Thread(target=heartbeat_redis, args=(redis_host, redis_port, heartbeat_key, heartbeat_interval), daemon=True, name=thread_name)
     x.start()
 
 
