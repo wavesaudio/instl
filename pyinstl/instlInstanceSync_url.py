@@ -35,7 +35,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
         self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
-        for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
+        all_sync_dirs = set(config_vars["ALL_SYNC_DIRS"])
+        for sync_dir in sorted(all_sync_dirs):
             if config_vars["__CURRENT_OS__"].str() == "Mac":
                 create_sync_folders_commands += Chown(path=sync_dir, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
             elif config_vars["__CURRENT_OS__"].str() == "Win":
@@ -89,7 +90,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         dl_commands = AnonymousAccum()
 
         main_out_file_dir, main_out_file_leaf = os.path.split(os.fspath(config_vars["__MAIN_OUT_FILE__"]))
-        curl_config_folder = os.path.join(main_out_file_dir, "curl")
+        curl_config_folder = os.path.join(main_out_file_dir, main_out_file_leaf+"_curl")
         os.makedirs(curl_config_folder, exist_ok=True)
         curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
         num_config_files = int(config_vars["PARALLEL_SYNC"])
