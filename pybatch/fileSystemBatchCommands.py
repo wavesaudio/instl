@@ -344,7 +344,7 @@ class Chmod(RunProcessBase, essential=True):
     """ change mode read.write/execute permissions for a file or folder"""
 
     if sys.platform == 'darwin':
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+|-|=)(?P<perm>[rwxX]+)$""")
+        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>[+\-=])(?P<perm>[rwxX]+)$""")
     elif sys.platform == 'win32':
         symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+)(?P<perm>[rwx]+)$""")
 

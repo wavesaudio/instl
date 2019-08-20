@@ -213,10 +213,13 @@ class RmDirContents(PythonBatchCommandBase, essential=True):
     """ remove all items in a folder (unless item is excluded)
         but leave the folder itself
     """
-    def __init__(self, path_to_folder: os.PathLike, exclude: List=[], **kwargs) -> None:
+    def __init__(self, path_to_folder: os.PathLike, exclude: List=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_folder: os.PathLike = path_to_folder
-        self.exclude = sorted(exclude)
+        if exclude is not None:
+            self.exclude = sorted(exclude)
+        else:
+            self.exclude = []
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:

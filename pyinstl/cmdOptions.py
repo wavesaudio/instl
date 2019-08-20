@@ -145,14 +145,8 @@ def prepare_args_parser(in_command):
             'wait-on-action-trigger': {'mode': 'admin', 'options': ('conf',), 'help': 'wait for svn commit and upload revision to s3'},
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-            'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
-            'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
-            'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-            'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
-            'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
-            'up2s3_legacy':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
             'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
             })
@@ -339,42 +333,6 @@ def prepare_args_parser(in_command):
                             action='store_true',
                             dest='__SILENT__',
                             help="minimal output")
-    elif 'trans' == in_command:
-        trans_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        trans_options.add_argument('--props', '-p',
-                                required=False,
-                                nargs=1,
-                                metavar='path-to-props-file',
-                                dest='__PROPS_FILE__',
-                                help="file to read svn properties from")
-
-        trans_options.add_argument('--base-repo-rev',
-                                required=False,
-                                nargs=1,
-                                metavar='base-repo-rev',
-                                dest='BASE_REPO_REV',
-                                help="minimal version, all version below will be changed to base-repo-rev")
-        trans_options.add_argument('--base-url',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='base-url',
-                                    dest='__BASE_URL__',
-                                    help="")
-        trans_options.add_argument('--file-sizes',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='file-sizes-file',
-                                    dest='__FILE_SIZES_FILE__',
-                                    help="")
-
-    elif 'create-repo-rev-file' == in_command:
-        create_repo_rev_file_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        create_repo_rev_file_options.add_argument('--rev',
-                                required=False,
-                                nargs=1,
-                                metavar='revision-to-create-file-for',
-                                dest='TARGET_REPO_REV',
-                                help="revision to create file for")
 
     elif 'activate-repo-rev' == in_command:
         up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -393,7 +351,7 @@ def prepare_args_parser(in_command):
                                 action='store_true',
                                 dest='__NO_WTAR_ARTIFACTS__',
                                 help="remove all .wtar files and .done files")
-    elif in_command in ('create-links', 'up2s3'):
+    elif in_command in ('up2s3',):
         which_revision_options = command_parser.add_argument_group(description=in_command+' arguments:')
         which_revision_options.add_argument('--revision',
                                 required=False,
