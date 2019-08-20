@@ -12,12 +12,34 @@ import datetime
 import re
 import redis
 import boto3
+import threading
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
 from .instlException import InstlException
+
+
+def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbeat_interval):
+    """ start a daemon thread that will periodically set a redis key to a string containing the current date/time
+        a daemon thread will stop when the application quits, so no need to join the thread
+    """
+    def heartbeat_redis(redis_host, redis_port, heartbeat_key, heartbeat_interval):
+        try:
+            r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+            while True:
+                now_time = time.time()
+                r.set(heartbeat_key, str(datetime.datetime.fromtimestamp(now_time)))
+                time_to_sleep = max(now_time + heartbeat_interval - time.time(), 0.01)
+                #print(f"{now_time} {time_to_sleep}")
+                time.sleep(time_to_sleep)
+        except Exception as ex:
+            print(f"Exception in heartbeat_redis {ex}")
+
+    thread_name = "redis heartbeat"
+    x = threading.Thread(target=heartbeat_redis, args=(redis_host, redis_port, heartbeat_key, heartbeat_interval), daemon=True, thread_name=thread_name)
+    x.start()
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -1178,10 +1200,6 @@ class InstlAdmin(InstlInstanceBase):
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         try:
-
-            # heartbeat_redis_key: regular counter increments will be send to this key
-            heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
-            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             config_vars["REPO_REV"] = str(repo_rev)
@@ -1254,7 +1272,6 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
-            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
 
         except Exception as ex:
             print(f"up2s3_repo_rev exception {ex}")
@@ -1282,18 +1299,16 @@ class InstlAdmin(InstlInstanceBase):
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating request to activate of repo-rev 369 for V11 on production happened
         activate_repo_rev_waiting_list_redis_key = config_vars['ACTIVATE_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
 
-        # heartbeat_redis_key: regular counter increments will be send to this key
+        # heartbeat_redis_key: regular time stamps will be send to this key
         heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
+        start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         trigger_keys_to_wait_on = (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key)
-        log.info(f"heartbeat on: {heartbeat_redis_key}")
 
         while True:
-            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             log.info(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
-            poped = r.brpop(trigger_keys_to_wait_on, timeout=60)
-            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
+            poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
                 value = str(poped[1])
@@ -1341,18 +1356,16 @@ class InstlAdmin(InstlInstanceBase):
                                                            "--config-file", os.fspath(yaml_work_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
-                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
+
                         up2s3_process.start()
-                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
                         up2s3_process.join()
-                        r.set(heartbeat_redis_key, str(datetime.datetime.now()))
 
                     except Exception as ex:
                         log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
                 else:
                     log.info(f"popped unknown key: {key}")
 
-            time.sleep(1)
+            time.sleep(2)
         log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
 
     def do_activate_repo_rev(self):
@@ -1362,9 +1375,6 @@ class InstlAdmin(InstlInstanceBase):
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
 
         try:
-            # heartbeat_redis_key: regular counter increments will be send to this key
-            heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
-            r.set(heartbeat_redis_key, str(datetime.datetime.now()))
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             s3_resource = boto3.resource('s3')
