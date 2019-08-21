@@ -1,3 +1,5 @@
+-- noinspection SqlResolveForFile
+
 -- noinspection SqlNoDataSourceInspectionForFile
 
 -- item found on disk that has a guid. This trigger will find the IID

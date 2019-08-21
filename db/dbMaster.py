@@ -316,7 +316,8 @@ class DBMaster(object):
         return retVal
 
     def lock_table(self, table_name):
-        query_text = f"""
+        query_text = f"""-- noinspection SqlResolveForFile
+
             CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
             BEFORE INSERT ON {table_name}
             BEGIN

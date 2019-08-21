@@ -82,7 +82,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
-                                             'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
+                                             'doit', 'report-versions', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev']
 
     def __init__(self, initial_vars=None) -> None:

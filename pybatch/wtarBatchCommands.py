@@ -333,7 +333,10 @@ class Wzip(PythonBatchCommandBase):
             all_args.append(utils.quoteme_raw_by_type(self.where_to_put_wzip))
 
     def progress_msg_self(self) -> str:
-        return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
+        if self.where_to_put_wzip:
+            return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
+        else:
+            return f"""Zip '{self.what_to_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

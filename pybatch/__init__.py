@@ -44,6 +44,7 @@ from .removeBatchCommands import RmFileOrDir
 from .removeBatchCommands import RemoveEmptyFolders
 from .removeBatchCommands import RmGlob
 from .removeBatchCommands import RmGlobs
+from .removeBatchCommands import RmDirContents
 
 from .fileSystemBatchCommands import AppendFileToFile
 from .fileSystemBatchCommands import Cd

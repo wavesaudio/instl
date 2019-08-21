@@ -199,3 +199,35 @@ class TestPythonBatchRemove(unittest.TestCase):
         for f in files_that_should_not_be_removed:
             fp = Path(folder_to_glob, f)
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+    def test_RmDirContents_repr(self):
+        list_of_objs = list()
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za"))
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za", ["pendicular"]))
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za", ["*.pendicular", "i*regular.??"]))
+        self.pbt.reprs_test_runner(*list_of_objs)
+
+    def test_RmDirContents(self):
+        folder_to_clear = self.pbt.path_inside_test_folder("folder-to-clear")
+
+        files_that_should_be_removed = ["abc.kif", "cba.kmf", "hi-mama", "mama-hi", "mama"]
+        files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDirs(folder_to_clear)
+        with self.pbt.batch_accum.sub_accum(Cd(folder_to_clear)) as cd_accum:
+            for f in files_that_should_be_removed + files_that_should_not_be_removed:
+                cd_accum += Touch(f)
+
+        self.pbt.batch_accum += RmDirContents(os.fspath(folder_to_clear), exclude=files_that_should_not_be_removed)
+        self.pbt.exec_and_capture_output()
+
+        for f in files_that_should_be_removed:
+            fp = Path(folder_to_clear, f)
+            self.assertFalse(fp.is_file(), f"{self.pbt.which_test} : file was not removed {fp}")
+
+        for f in files_that_should_not_be_removed:
+            fp = Path(folder_to_clear, f)
+            self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+

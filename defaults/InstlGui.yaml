@@ -21,7 +21,6 @@ __ADMIN_GUI_CMD_LIST__:
   - stage2svn
   - fix-props
   - depend
-  - create-infomap
 
 __COMMANDS_WITH_RUN_OPTION__:
   - sync
@@ -34,7 +33,6 @@ __COMMANDS_WITH_RUN_OPTION__:
   - stage2svn
   - fix-props
   - fix-perm
-  - create-infomap
 
 __COMMANDS_WITH_LIMIT_OPTION__:
   - svn2stage

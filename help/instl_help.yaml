@@ -62,45 +62,6 @@ command:
             instl's copy command will create a batch file containing instructions to copy files to their designated locations on disk. Said files were previously downloaded using the sync command. Definition of what to copy to which destination is taken from the instl-config-yaml-file.
             Keep in mind that copy command does not actually copy anything, unless the --run flag is given. You will need to run the produced batch file in order to actually install the files.
 
-    create-folders:
-        short: Create folders in preparation for sync (utility command)
-        long: |
-            Usage: instl create-folders --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
-            For each item marked as folder in path-to-input-file create-folders will create the folder relative to the current directory.
-            path-to-input-file should be a path to a file in info_map.txt format containing a list of the folders to check.
-            create-folders command is used in the batch created by the sync or synccopy commands and path-to-input-file would be bookkeeping/to_sync_info_map.txt.
-            If --start-progress and --total-progress options are given, check-checksum will output progress messages starting with the number given in --start-progress with a total given in total-progress. Progress message for action N would be:
-            Progress start-progress-number+N of total-progress;
-
-    create-infomap:
-        short: Creates infomap file from local svn repository (admin command)
-        long: |
-            Usage: instl create-infomap --config-file config_file --out create-infomap.sh [--run]
-            "Looks for svn repository in variable $(WORKING_SVN_CHECKOUT_FOLDER) and creates a full info_map.txt file on level above this folder.
-            The info_map.txt file has for each dir or file in the repository a line in the format:
-            file-path, f|d[x], repo-rev, sha1 cehcsum, file size
-            for example:
-                Common/Data/IR1Impulses/Basic/Hall1_mcg.wir, f, 27, 85f7fd7757aa458998886ea07e083424bfdb050c, 680044
-            and for directories:
-                Common/Data/IR1Impulses/Basic, d, 27"
-
-    create-links:
-        short: Maintains a folder of revision specific folders ready to be uploaded by the up2s3 command (admin command)
-        long: |
-            Usage: instl create-links --config-file config_file --out create-links.sh [--all-revisions] [--run]
-            For each revision of the svn repository, starting with the base revision, create-links will checkout the revision from svn to a Base folder, and copy the files to a folder named after the revision. Copying is done using hard links and hence the name of the command. In addition create-links will create info_map files describing the contents of the specific revision. A revision folder created successfully will contain a stamp file, that will cause the folder to be skipped the next time create-links is called.
-            All information about the svn repository url, the location of the top level links folder, the base revision etc, is taken from the config file.
-            relevant variables: REPO_NAME, SVN_REPO_URL, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV
-            if --all-revisions option is given create-links will work on all revisions in the svn reporsitory starting with BASE_REPO_REV. Otherwise only revisions upto REPO_REV will be considered.
-            Keep in mind that create-links command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create the links.
-
-    create-repo-rev-file:
-        short: creates a file containing basic information about a specific revision (admin command)
-        long: |
-            The created file can be uploaded to s3 once the specific revision is ready for distribution, using up-repo-rev command.
-            The variables in the created file are specified in REPO_REV_FILE_VARS variable.
-            This command is intended to be called by the create-links command.
-
     depend:
         short: Create a full dependencies list from index.yaml (admin command)
         long: |
@@ -202,13 +163,6 @@ command:
             run-process will launch a single process with the supplied arguments.
             if --abort-file is given, run-process will watch that the file exists and if not will kill the process,
 
-    set-exec:
-        short: Sets the executable bit for certine files (utility command)
-        long: |
-            Usage: instl set-exec --in path-to-input-file [--start-progress start-progress-number] [--total-progress total-progress-number]
-            Sets the executable bit for files marked as such in path-to-input-file. Paths are relative to current directory.
-            set-exec command is used in the batch file created by the copy or synccopy commands.
-
     stage2svn:
         short: Update svn from a staging folder (admin command)
         long: |
@@ -288,13 +242,11 @@ command:
                 REPO_REV_FILE_BASE_NAME, REPO_REV_FILE_BASE_NAME, REPO_REV_FILE_VARS, REPO_TYPE, REPO_REV, REPO_NAME
 
     up2s3:
-        short: Upload revision specific folders created with the create-links command (admin command)
+        short: Upload a whole revision from SVN to s3 (admin command)
         long: |
-            Usage: instl up2s3 --config-file config_file --out up2s3.sh  [--all-revisions] [--run]
-            For each revision folder created with the create-links command, up2s3 will remove the files not belonging to the specific revision and upload the remaining files to s3. A revision folder uploaded successfully will contain a stamp file, that will cause the folder to be skipped the next time up2s3 is called.
-            All information about the the location of the top level links folder, the s3 url and s3 passwords, is taken from the config file.
-            relevant variables: REPO_NAME, ROOT_LINKS_FOLDER_REPO, BASE_REPO_REV, S3_BUCKET_NAME
-            if --all-revisions option is given up2s3 will work on all revisions in the svn reporsitory starting with BASE_REPO_REV. Otherwise only revisions upto REPO_REV will be considered.
+            Usage: instl up2s3 --config-file config_file [--out ....] [--run]
+            u2s3 will checout the repo-rev as specified in the confile-file, create all the info_map files and others and upload the whole thing
+            to s3.
             Keep in mind that up2s3 command does not actually do anything, unless the --run flag is given. You will need to run the produced batch file in order to actually create upload the links.
 
     verify-index:

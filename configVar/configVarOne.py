@@ -147,6 +147,9 @@ class ConfigVar:
     def list(self) -> List:
         return list(iter(self))
 
+    def set(self) -> List:
+        return set(iter(self))
+
     def int(self) -> int:
         return int(self)
 

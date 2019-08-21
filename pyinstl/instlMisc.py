@@ -91,18 +91,6 @@ class InstlMisc(InstlInstanceBase):
         info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()
 
-    def do_set_exec(self):
-        self.progress_staccato_command = True
-        info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        SetExecPermissionsInSyncFolder(info_map_file)
-
-    def do_create_folders(self):
-        self.progress_staccato_command = True
-        self.info_map_table.read_from_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
-        dir_items = self.info_map_table.get_items(what="dir")
-        MakeDirs(*dir_items)
-        self.dynamic_progress(f"Create folder {dir_item.path}")
-
     def do_test_import(self):
         import importlib
 
@@ -116,30 +104,10 @@ class InstlMisc(InstlInstanceBase):
             log.error(f"""missing modules {bad_modules}""")
             sys.exit(17)
 
-    def do_remove_empty_folders(self):
-        folder_to_remove = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        files_to_ignore = list(config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []))
-
-        RemoveEmptyFolders(folder_to_remove, files_to_ignore=files_to_ignore)()
-
-    def do_win_shortcut(self):
-        shortcut_path = config_vars["__SHORTCUT_PATH__"].str()
-        target_path = os.fspath(config_vars["__SHORTCUT_TARGET_PATH__"])
-        run_as_admin =  bool(config_vars.get("__RUN_AS_ADMIN__", "False"))
-        WinShortcut(shortcut_path, target_path, run_as_admin)()
-
     def do_translate_url(self):
         url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)
-
-    def do_mac_dock(self):
-        path_to_item = str(config_vars.get("__DOCK_ITEM_PATH__", ""))
-        label_for_item = str(config_vars.get("__DOCK_ITEM_LABEL__", ""))
-        restart_the_doc = bool(config_vars["__RESTART_THE_DOCK__"])
-        remove = bool(config_vars["__REMOVE_FROM_DOCK__"])
-
-        MacDock(path_to_item, label_for_item, restart_the_doc, remove)()
 
     def do_ls(self):
         main_folder_to_list = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
@@ -219,19 +187,3 @@ class InstlMisc(InstlInstanceBase):
             abort_file_path = config_vars["ABORT_FILE"].Path()
         print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
         utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
-
-    def do_encode_symlink(self):
-        symlink_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=False)
-        if symlink_path.is_symlink():
-            with SymlinkToSymlinkFile(symlink_path, own_progress_count=0, report_own_progress=False) as sltslf:
-                sltslf()
-        else:
-            print(f"{symlink_path} is not a symlink")
-
-    def do_decode_symlink(self):
-        symlink_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
-        if symlink_file_path.is_file() and symlink_file_path.suffix == ".symlink":
-            with SymlinkFileToSymlink(symlink_file_path, own_progress_count=0, report_own_progress=False) as slftsl:
-                slftsl()
-        else:
-            print(f"{symlink_file_path} is not a .symlink file")

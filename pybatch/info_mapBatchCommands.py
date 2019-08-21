@@ -133,7 +133,7 @@ class SetBaseRevision(DBManager, PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.base_rev))
 
     def progress_msg_self(self):
-        return f"Set base repo-rev to {self.base_rev}"
+        return f"Set base-repo-rev to repo-rev#{self.base_rev}"
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
@@ -260,7 +260,7 @@ class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.repo_rev))
 
     def progress_msg_self(self) -> str:
-        return f'''Copy repo-rev {self.repo_rev} files from {self.checkout_folder} to {self.repo_rev_folder}'''
+        return f'''Copy files of repo-rev#{self.repo_rev} from {self.checkout_folder} to {self.repo_rev_folder}'''
 
     def __call__(self, *args, **kwargs) -> None:
         self.info_map_table.mark_required_for_revision(self.repo_rev)
@@ -286,7 +286,7 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         pass
 
     def progress_msg_self(self) -> str:
-        return f'''create repo-rev file for {config_vars["TARGET_REPO_REV"].str()}'''
+        return f'''create file for repo-rev#{config_vars["TARGET_REPO_REV"].str()}'''
 
     def __call__(self, *args, **kwargs) -> None:
         if "REPO_REV_FILE_VARS" not in config_vars:

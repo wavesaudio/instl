@@ -175,7 +175,6 @@ class RmGlob(PythonBatchCommandBase, essential=True):
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
-
 class RmGlobs(PythonBatchCommandBase, essential=True):
     """ remove files matching any pattern in the given list
         - all files and folders matching the patterns will be removed
@@ -206,4 +205,36 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
                     rfod()
 
 
-# todo: class EmptyDir that will remove all contents from dir
+#def unnamed__init__param(self, value):
+#def named__init__param(self, name, value):
+#def optional_named__init__param(self, name, value, default=None):
+
+class RmDirContents(PythonBatchCommandBase, essential=True):
+    """ remove all items in a folder (unless item is excluded)
+        but leave the folder itself
+    """
+    def __init__(self, path_to_folder: os.PathLike, exclude: List=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path_to_folder: os.PathLike = path_to_folder
+        if exclude is not None:
+            self.exclude = sorted(exclude)
+        else:
+            self.exclude = []
+        self.exceptions_to_ignore.append(FileNotFoundError)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.path_to_folder))
+        if self.exclude:
+            all_args.append(self.named__init__param("exclude", self.exclude))
+
+    def progress_msg_self(self):
+        return f"""Remove Dir Contents {self.path_to_folder}"""
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        folder_to_clean = utils.ResolvedPath(self.path_to_folder)
+        for item in os.scandir(folder_to_clean):
+            if item.name not in self.exclude:
+                with RmFileOrDir(item.path, own_progress_count=0) as rfod:
+                    rfod()
+

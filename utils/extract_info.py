@@ -281,7 +281,11 @@ extract_info_funcs_by_extension = {
 
 
 class check_binaries_versions_filter_with_ignore_regexes(object):
-    def __init__(self, ignore_file_regexes=[".^"], ignore_folder_regexes=[".^"]):
+    def __init__(self, ignore_file_regexes=None, ignore_folder_regexes=None):
+        if ignore_file_regexes is None:
+            ignore_file_regexes = [".^"]
+        if ignore_folder_regexes is None:
+            ignore_folder_regexes = [".^"]
         self.compiled_ignore_file_regex = None
         self.compiled_ignore_folder_regex = None
         self.set_file_ignore_regexes(ignore_file_regexes)
