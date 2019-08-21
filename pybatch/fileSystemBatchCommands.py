@@ -99,7 +99,7 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.cur_path = None
         self.own_progress_count = len(self.paths_to_make)
         if sys.platform == 'win32':
-            self.own_progress_count *= 2
+            self.own_progress_count *= 2  # because of FullACLForEveryone
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.extend(utils.quoteme_raw_by_type(path) for path in self.paths_to_make)
