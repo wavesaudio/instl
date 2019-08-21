@@ -788,12 +788,32 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
-
+            self.send_up2s3_email()
         except Exception as ex:
             print(f"up2s3_repo_rev exception {ex}")
+            self.send_up2s3_email(exception=ex)
             raise
         finally:
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
+
+    def send_up2s3_email(self, exception=None):
+        try:
+            status = "completed" if exception is None else "failed"
+            subject = f"""upload of {config_vars['TARGET_MAJOR_VERSION'].str()} repo-rev {config_vars["TARGET_REPO_REV"].str()} to {config_vars["TARGET_DOMAIN"].str()} {status}"""
+
+            content = config_vars.resolve_str("""
+                s3 bucket: $(S3_BUCKET_NAME)
+                folder: $(TARGET_MAJOR_VERSION)
+                repo-rev: $(TARGET_REPO_REV)
+            """)
+            if exception is not None:
+                content += f"""
+                    FAILED with exception:
+                    {exception}
+                """
+            utils.send_email(subject=subject, content=content, sender=config_vars['EMAIL_SENDER'], recipients=list(config_vars['UPLOAD_EMAIL_RECIPIENTS']), smtp_server=str(config_vars['SMTP_SERVER']), smtp_port=int(config_vars['SMTP_PORT']))
+        except Exception as ex:
+            print(f"send_up2s3_email exception {ex}")
 
     def do_wait_on_action_trigger(self):
 
