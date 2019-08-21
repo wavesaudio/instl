@@ -86,7 +86,7 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
 
 class MakeDirs(PythonBatchCommandBase, essential=True):
     """ Create one or more dirs
-        when remove_obstacles==True if one of the paths is a file it will be removed
+        when remove_obstacles==True if one of the paths is a file it will be removed, and permissions/owner adjusted
         when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
         it it always OK for a dir to already exists
         Tests: TestPythonBatch.test_MakeDirs_*
@@ -98,8 +98,8 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
         self.remove_obstacles = remove_obstacles
         self.cur_path = None
         self.own_progress_count = len(self.paths_to_make)
-        if sys.platform == 'win32':
-            self.own_progress_count *= 2  # because of FullACLForEveryone
+        if self.remove_obstacles:
+            self.own_progress_count *= 2  # because of FullACLForEveryone/Chown
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.extend(utils.quoteme_raw_by_type(path) for path in self.paths_to_make)
@@ -122,9 +122,13 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
                     os.unlink(resolved_path_to_make)
             self.doing = f"""creating a folder '{resolved_path_to_make}'"""
             resolved_path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
-            if sys.platform == 'win32':
-                with FullACLForEveryone(self.cur_path) as grant_permissions:
-                    grant_permissions()
+            if self.remove_obstacles:
+                if sys.platform == 'win32':
+                    with FullACLForEveryone(self.cur_path) as grant_permissions:
+                        grant_permissions()
+                elif sys.platform == 'darwin':
+                    with Chown(path=self.cur_path, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=False) as grant_permissions:
+                        grant_permissions()
 
 
 class MakeDirsWithOwner(MakeDirs, essential=True):

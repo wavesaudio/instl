@@ -31,16 +31,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         create_sync_folders_commands += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
         create_sync_folders_commands += CreateSyncFolders()
-        # TODO
-        # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
-        self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
-        all_sync_dirs = set(config_vars["ALL_SYNC_DIRS"])
-        for sync_dir in sorted(all_sync_dirs):
-            if config_vars["__CURRENT_OS__"].str() == "Mac":
-                create_sync_folders_commands += Chown(path=sync_dir, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
-            elif config_vars["__CURRENT_OS__"].str() == "Win":
-                create_sync_folders_commands += FullACLForEveryone(path=sync_dir)
+        self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
         return create_sync_folders_commands
 
