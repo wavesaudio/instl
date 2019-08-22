@@ -36,8 +36,7 @@ mandatory_template_fields= ('subject', 'sender', 'recipients', 'content')
 def send_email_from_template_file(path_to_template):
     import configVar  # helps avoid circular imports
 
-    resolved_path_to_template = configVar.config_vars.resolve_str(path_to_template)
-    with open(resolved_path_to_template, 'r') as rfd:
+    with open(path_to_template, 'r') as rfd:
         template_text = rfd.read()
         template_dict = eval(template_text)
 

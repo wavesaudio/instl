@@ -5,6 +5,7 @@ log = logging.getLogger()
 
 import os
 import sys
+import traceback
 import filecmp
 import multiprocessing as mp
 import time
@@ -986,5 +987,5 @@ class InstlAdmin(InstlInstanceBase):
             ResolveConfigVarsInFile(path_to_template, path_to_resolved)()
             utils.send_email_from_template_file(path_to_resolved)
         except Exception as ex:
-            with open(path_to_resolved, "+w") as wfd:
-                wfd.write(f"\nFailed to send email\n{ex}")
+            with open(path_to_resolved, "a") as wfd:
+                wfd.write(f"\nFailed to send email\n{traceback.format_exc()}")
