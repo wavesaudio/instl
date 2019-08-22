@@ -796,7 +796,7 @@ class InstlAdmin(InstlInstanceBase):
             print(f"up2s3_repo_rev exception {ex}")
             raise
         finally:
-            utils.send_email_from_template_file("$(UP2S3_EMAIL_TEMPLATE_PATH)")
+            self.send_email_from_template_file(config_vars["UP2S3_EMAIL_TEMPLATE_PATH"].Path())
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def do_wait_on_action_trigger(self):
@@ -846,7 +846,11 @@ class InstlAdmin(InstlInstanceBase):
                     try:
                         instl_command_name = {trigger_commit_redis_key: "up2s3", activate_repo_rev_waiting_list_redis_key: "activate-repo-rev"}[key]
                         domain, major_version, repo_rev = value.split(":")
+                        config_vars["TARGET_DOMAIN"] = domain
+                        config_vars["TARGET_MAJOR_VERSION"] = major_version
+                        config_vars["TARGET_REPO_REV"] = repo_rev
                         log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                        config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
 
                         domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
                         domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
@@ -856,24 +860,22 @@ class InstlAdmin(InstlInstanceBase):
                             'TARGET_DOMAIN': domain,
                             'TARGET_MAJOR_VERSION': major_version,
                             'TARGET_REPO_REV': repo_rev,
+                            'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
                         }
                         define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
                                                             '!define', "definitions",
                                                             explicit_start=True, sort_mappings=False)
 
-                        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(repo_rev)
-                        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(domain, major_version, repo_rev_work_folder)
-                        work_folder.mkdir(parents=True, exist_ok=True)
-                        yaml_work_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
-                        with utils.utf8_open_for_write(yaml_work_file, "w") as wfd:
+                        work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
+                        with utils.utf8_open_for_write(work_config_file, "w") as wfd:
                             aYaml.writeAsYaml(define_dict, wfd)
 
-                        work_log_file = work_folder.joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
+                        work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
                         up2s3_process = mp.Process (target=instl_own_main,
                                                     name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
                                                     args=(str(config_vars["__INSTL_EXE_PATH__"]),
                                                           [instl_command_name,
-                                                           "--config-file", os.fspath(yaml_work_file),
+                                                           "--config-file", os.fspath(work_config_file),
                                                            "--log", os.fspath(work_log_file),
                                                            "--run"]))
 
@@ -936,9 +938,7 @@ class InstlAdmin(InstlInstanceBase):
             target_domain = config_vars["TARGET_DOMAIN"].str()
             major_version = config_vars["TARGET_MAJOR_VERSION"].str()
             target_repo_rev = config_vars["TARGET_REPO_REV"].int()
-
-            repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(target_repo_rev)
-            work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(target_domain, major_version, repo_rev_work_folder)
+            work_folder = config_vars["TARGET_WORK_FOLDER"].Path()
 
             # download the activated file to the work folder for reference
             copy_of_activated_repo_rev_file_path = config_vars.resolve_str(f"{work_folder}/$(REPO_REV_FILE_BASE_NAME)")
@@ -965,6 +965,26 @@ class InstlAdmin(InstlInstanceBase):
             print(f"do_activate_repo_rev exception {ex}")
             raise
         finally:
-            utils.send_email_from_template_file("$(ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH)")
+            self.send_email_from_template_file(config_vars["ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH"].Path())
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
+    def get_work_folder(self):
+        """ calculate the path of the work folder for specific repo_rev/major_version/domain
+            create the folder
+            assign the path to configVar
+        """
+
+        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
+        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
+        work_folder.mkdir(parents=True, exist_ok=True)
+        return work_folder
+
+    def send_email_from_template_file(self, path_to_template):
+        work_folder = config_vars["TARGET_WORK_FOLDER"].Path()
+        path_to_resolved = work_folder.joinpath(path_to_template.name)
+        try:
+            ResolveConfigVarsInFile(path_to_template, path_to_resolved)()
+            utils.send_email_from_template_file(path_to_resolved)
+        except Exception as ex:
+            with open(path_to_resolved, "+w") as wfd:
+                wfd.write(f"\nFailed to send email\n{ex}")

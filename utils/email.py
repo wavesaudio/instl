@@ -34,22 +34,15 @@ mandatory_template_fields= ('subject', 'sender', 'recipients', 'content')
 
 
 def send_email_from_template_file(path_to_template):
-    import configVar  # helps avoid circulr imports
-    try:
-        resolved_path_to_template = configVar.config_vars.resolve_str(path_to_template)
-        with open(resolved_path_to_template, 'r') as rfd:
-            template_text = rfd.read()
-            template_dict = eval(template_text)
+    import configVar  # helps avoid circular imports
 
-        for k,v in template_dict.items():
-            if isinstance(v, str):
-                template_dict[k] = configVar.config_vars.resolve_str(v)
+    resolved_path_to_template = configVar.config_vars.resolve_str(path_to_template)
+    with open(resolved_path_to_template, 'r') as rfd:
+        template_text = rfd.read()
+        template_dict = eval(template_text)
 
-        for name in mandatory_template_fields:
-            assert name in template_dict.keys(), f"mandatory filed {name} was not found in template {resolved_path_to_template}"
+    for name in mandatory_template_fields:
+        assert name in template_dict.keys(), f"mandatory field {name} was not found in template {resolved_path_to_template}"
 
-        senderrs = send_email(**template_dict)
-        if senderrs:
-            print(senderrs)
-    except Exception as ex:
-        print(ex)
+    senderrs = send_email(**template_dict)
+    return senderrs
