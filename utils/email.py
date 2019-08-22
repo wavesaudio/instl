@@ -27,4 +27,5 @@ def send_email(subject, content, sender, recipients, smtp_server, smtp_port):
     msg['X-Priority'] = priorities_dict[priority]
     msg.attach(MIMEText(content, content_type))
 
-    server.sendmail(sender, recipients, msg.as_string())
+    senderrs = server.sendmail(sender, recipients, msg.as_string())
+    return senderrs

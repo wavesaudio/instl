@@ -12,7 +12,7 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from configVar import config_vars
 from pybatch import *
-
+from .connectionBase import connection_factory
 
 class InstlClient(InstlInstanceBase):
     """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
@@ -66,7 +66,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        self.read_yaml_file(main_input_file_path)
+        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars))
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
             raise Exception(errorMessage)

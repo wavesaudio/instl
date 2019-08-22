@@ -14,7 +14,6 @@ from pathlib import Path
 import logging
 log = logging.getLogger()
 
-from pyinstl import connectionBase
 import zlib
 import urllib.request, urllib.error, urllib.parse
 
@@ -164,7 +163,7 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None):
+def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None, connection_obj=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
@@ -189,7 +188,8 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
         with open(actual_file_path, "r", encoding=encoding) as rdf:
             buffer = rdf.read()
     else:
-        session = connectionBase.connection_factory(config_vars).get_session(in_file_or_url)
+        assert connection_obj, "no connection_obj given"
+        session = connection_obj.get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
