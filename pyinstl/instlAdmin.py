@@ -811,9 +811,10 @@ class InstlAdmin(InstlInstanceBase):
                     FAILED with exception:
                     {exception}
                 """
-            utils.send_email(subject=subject, content=content, sender=config_vars['EMAIL_SENDER'], recipients=list(config_vars['UPLOAD_EMAIL_RECIPIENTS']), smtp_server=str(config_vars['SMTP_SERVER']), smtp_port=int(config_vars['SMTP_PORT']))
+            utils.send_email(subject=subject, content=content, sender=str(config_vars['EMAIL_SENDER']), recipients=list(config_vars['UPLOAD_EMAIL_RECIPIENTS']), smtp_server=str(config_vars['SMTP_SERVER']), smtp_port=int(config_vars['SMTP_PORT']))
+            log.info("email was send about successful up2s3")
         except Exception as ex:
-            print(f"send_up2s3_email exception {ex}")
+            log.info(f"failed to send email about up2s3 {ex}")
 
     def do_wait_on_action_trigger(self):
 
