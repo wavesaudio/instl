@@ -796,7 +796,7 @@ class InstlAdmin(InstlInstanceBase):
             print(f"up2s3_repo_rev exception {ex}")
             raise
         finally:
-            self.send_up2s3_email("$(UP2S3_EMAIL_TEMPLATE_PATH)")
+            utils.send_email_from_template_file("$(UP2S3_EMAIL_TEMPLATE_PATH)")
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def do_wait_on_action_trigger(self):
@@ -965,6 +965,6 @@ class InstlAdmin(InstlInstanceBase):
             print(f"do_activate_repo_rev exception {ex}")
             raise
         finally:
-            self.send_up2s3_email("$(ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH)")
+            utils.send_email_from_template_file("$(ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH)")
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 

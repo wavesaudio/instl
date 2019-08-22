@@ -6,9 +6,6 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from configVar import config_vars
-
-
 def send_email(subject, content, sender, recipients, smtp_server, smtp_port):
 
     server = smtplib.SMTP(smtp_server, smtp_port)
@@ -37,15 +34,16 @@ mandatory_template_fields= ('subject', 'sender', 'recipients', 'content')
 
 
 def send_email_from_template_file(path_to_template):
+    import configVar  # helps avoid circulr imports
     try:
-        resolved_path_to_template = config_vars.resolve_str(path_to_template)
+        resolved_path_to_template = configVar.config_vars.resolve_str(path_to_template)
         with open(resolved_path_to_template, 'r') as rfd:
             template_text = rfd.read()
             template_dict = eval(template_text)
 
         for k,v in template_dict.items():
             if isinstance(v, str):
-                template_dict[k] = config_vars.resolve_str(v)
+                template_dict[k] = configVar.config_vars.resolve_str(v)
 
         for name in mandatory_template_fields:
             assert name in template_dict.keys(), f"mandatory filed {name} was not found in template {resolved_path_to_template}"
