@@ -12,4 +12,4 @@ current_os = platform.system()
 if current_os == 'Darwin':
     from .dockutil import dock_util
 from .redisClient import RedisClient
-from .email import send_email
+from .email import send_email, send_email_from_template_file

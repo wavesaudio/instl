@@ -718,6 +718,8 @@ class InstlAdmin(InstlInstanceBase):
         try:
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
+            config_vars['UP2S3_STATUS'] = "FAILED"
+            config_vars['UP2S3_EXCEPTION'] = ""
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
             config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
@@ -788,33 +790,14 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
-            self.send_up2s3_email()
+            config_vars['UP2S3_STATUS'] = "Completed"
         except Exception as ex:
+            config_vars['UP2S3_EXCEPTION'] = f"{ex}"
             print(f"up2s3_repo_rev exception {ex}")
-            self.send_up2s3_email(exception=ex)
             raise
         finally:
+            self.send_up2s3_email("$(UP2S3_EMAIL_TEMPLATE_PATH)")
             r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
-
-    def send_up2s3_email(self, exception=None):
-        try:
-            status = "completed" if exception is None else "failed"
-            subject = f"""upload of {config_vars['TARGET_MAJOR_VERSION'].str()} repo-rev {config_vars["TARGET_REPO_REV"].str()} to {config_vars["TARGET_DOMAIN"].str()} {status}"""
-
-            content = config_vars.resolve_str("""
-                s3 bucket: $(S3_BUCKET_NAME)
-                folder: $(TARGET_MAJOR_VERSION)
-                repo-rev: $(TARGET_REPO_REV)
-            """)
-            if exception is not None:
-                content += f"""
-                    FAILED with exception:
-                    {exception}
-                """
-            utils.send_email(subject=subject, content=content, sender=str(config_vars['EMAIL_SENDER']), recipients=list(config_vars['UPLOAD_EMAIL_RECIPIENTS']), smtp_server=str(config_vars['SMTP_SERVER']), smtp_port=int(config_vars['SMTP_PORT']))
-            log.info("email was send about successful up2s3")
-        except Exception as ex:
-            log.info(f"failed to send email about up2s3 {ex}")
 
     def do_wait_on_action_trigger(self):
 
@@ -914,6 +897,9 @@ class InstlAdmin(InstlInstanceBase):
         try:
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
+            config_vars['ACTIVATE_STATUS'] = "FAILED"
+            config_vars['ACTIVATE_EXCEPTION'] = ""
+
             s3_resource = boto3.resource('s3')
             bucket_name = str(config_vars["S3_BUCKET_NAME"])
             repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])  # file name for a specific repo-rev file e.g. V9_repo_rev.yaml.236
@@ -972,10 +958,13 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            config_vars['ACTIVATE_STATUS'] = "Completed"
 
         except Exception as ex:
+            config_vars['ACTIVATE_EXCEPTION'] = f"{ex}"
             print(f"do_activate_repo_rev exception {ex}")
             raise
         finally:
+            self.send_up2s3_email("$(ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH)")
             r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
