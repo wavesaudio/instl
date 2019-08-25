@@ -823,9 +823,6 @@ class InstlAdmin(InstlInstanceBase):
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        # read_config_files_redis_key: will force re-read of the config files
-        read_config_files_redis_key = config_vars['READ_CONFIG_FILES_REDIS_KEY'].str()
-
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating a commit of repo-rev 369 for V11 on production happened
         trigger_commit_redis_key = config_vars['UPLOAD_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
 
