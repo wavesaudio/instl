@@ -726,7 +726,6 @@ class InstlAdmin(InstlInstanceBase):
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         try:
-            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             config_vars['UP2S3_STATUS'] = "FAILED"
             config_vars['UP2S3_EXCEPTION'] = ""
@@ -807,7 +806,6 @@ class InstlAdmin(InstlInstanceBase):
             raise
         finally:
             self.send_email_from_template_file(config_vars["UP2S3_EMAIL_TEMPLATE_PATH"].Path())
-            r.set(config_vars["UPLOAD_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def do_wait_on_action_trigger(self):
 
@@ -823,27 +821,24 @@ class InstlAdmin(InstlInstanceBase):
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating a commit of repo-rev 369 for V11 on production happened
-        trigger_commit_redis_key = config_vars['UPLOAD_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
-
-        # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating request to activate of repo-rev 369 for V11 on production happened
-        activate_repo_rev_waiting_list_redis_key = config_vars['ACTIVATE_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
+        waiting_list_redis_key = config_vars['WAITING_LIST_REDIS_KEY'].str()
 
         # heartbeat_redis_key: regular time stamps will be send to this key
         heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
         start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
-        trigger_keys_to_wait_on = (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key)
-
+        trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
-            log.info(f"wait on redis lists: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
-            log.info(f"standard value: domain:version:repo-rev, e.g. beta:V11:17")
-            log.info(f"special values: stop, ping, reload-config-files")
+            log.info(f"wait on redis list: {redis_host}:{redis_port} {waiting_list_redis_key}")
+            log.info(f"to upload: lpush {waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+            log.info(f"to activate: lpush {waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+            log.info(f"special values: push {waiting_list_redis_key} stop|ping|reload-config-files")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
                 value = str(poped[1])
+                r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), value)
 
                 log.info(f"popped key: {key}, value: {value}")
                 if value == "stop":
@@ -856,11 +851,11 @@ class InstlAdmin(InstlInstanceBase):
                 elif value == "reload-config-files":
                     log.info(f"reloading config files {config_vars['__CONFIG_FILE__'].list()}")
                     self.read_config_files(reset_previous=True)
-                elif key in (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key):
+                else:
                     with config_vars.push_scope_context(use_cache=True):
                         try:
-                            instl_command_name = {trigger_commit_redis_key: "up2s3", activate_repo_rev_waiting_list_redis_key: "activate-repo-rev"}[key]
-                            domain, major_version, repo_rev = value.split(":")
+                            what_to_do, domain, major_version, repo_rev = value.split(":")
+                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do]
                             config_vars["TARGET_DOMAIN"] = domain
                             config_vars["TARGET_MAJOR_VERSION"] = major_version
                             config_vars["TARGET_REPO_REV"] = repo_rev
@@ -898,10 +893,9 @@ class InstlAdmin(InstlInstanceBase):
                             up2s3_process.join()
 
                         except Exception as ex:
-                            log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
-                else:
-                    log.info(f"popped unknown key: {key}")
+                            log.info(f"Exception {ex} while hadling {key} {value}")
 
+            r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             time.sleep(2)
         log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
 
@@ -912,7 +906,6 @@ class InstlAdmin(InstlInstanceBase):
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
 
         try:
-            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str())
 
             config_vars['ACTIVATE_STATUS'] = "FAILED"
             config_vars['ACTIVATE_EXCEPTION'] = ""
@@ -981,7 +974,6 @@ class InstlAdmin(InstlInstanceBase):
             raise
         finally:
             self.send_email_from_template_file(config_vars["ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH"].Path())
-            r.set(config_vars["ACTIVATE_REPO_REV_IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
 
     def get_work_folder(self):
         """ calculate the path of the work folder for specific repo_rev/major_version/domain
