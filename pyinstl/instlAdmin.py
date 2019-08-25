@@ -51,12 +51,18 @@ class InstlAdmin(InstlInstanceBase):
         self.total_self_progress = 1000
         self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+        self.config_vars_stack_size_before_reading_config_files = None
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
             config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__[0])-$(__MAIN_COMMAND__).$(BATCH_EXT)"
 
-    def set_default_variables(self):
+    def read_config_files(self, reset_previous=False):
+        if reset_previous:
+            config_vars.resize_stack(self.config_vars_stack_size_before_reading_config_files)
+        self.config_vars_stack_size_before_reading_config_files = config_vars.stack_size()
+
+        config_vars.push_scope()
         if "__CONFIG_FILE__" in config_vars:
             for config_file in config_vars["__CONFIG_FILE__"].list():
                 config_file_resolved = self.path_searcher.find_file(os.fspath(config_file), return_original_if_not_found=True)
@@ -64,6 +70,9 @@ class InstlAdmin(InstlInstanceBase):
 
                 self.read_yaml_file(config_file_resolved)
             self.resolve_defined_paths()
+
+    def set_default_variables(self):
+        self.read_config_files()
 
     def do_command(self):
         self.set_default_variables()
@@ -806,13 +815,16 @@ class InstlAdmin(InstlInstanceBase):
         sys.path.append(f"{os.pardir}/{os.pardir}")
         from . import instl_own_main
 
-        # config yaml such as stout-config.yaml with definitions needed for this funciton to work
+        # config yaml such as stout-config.yaml with definitions needed for this function to work
         main_input_file = Path(config_vars["__CONFIG_FILE__"][0]).resolve()
         # other config files are assumed to exist below the folder where main_input_file is found
         main_config_folder = main_input_file.parent
 
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+
+        # read_config_files_redis_key: will force re-read of the config files
+        read_config_files_redis_key = config_vars['READ_CONFIG_FILES_REDIS_KEY'].str()
 
         # trigger_commit_redis_key: redis list of values like 'prod:V11:369' indicating a commit of repo-rev 369 for V11 on production happened
         trigger_commit_redis_key = config_vars['UPLOAD_REPO_REV_WAITING_LIST_REDIS_KEY'].str()
@@ -828,7 +840,9 @@ class InstlAdmin(InstlInstanceBase):
         trigger_keys_to_wait_on = (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key)
 
         while True:
-            log.info(f"wait on triggers: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
+            log.info(f"wait on redis lists: {redis_host}:{redis_port} {trigger_keys_to_wait_on}")
+            log.info(f"standard value: domain:version:repo-rev, e.g. beta:V11:17")
+            log.info(f"special values: stop, ping, reload-config-files")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
@@ -842,49 +856,52 @@ class InstlAdmin(InstlInstanceBase):
                     ping_redis_key = f"{key}:ping"
                     r.incr(ping_redis_key, 1)
                     log.info(f"ping incremented {ping_redis_key}")
-
+                elif value == "reload-config-files":
+                    log.info(f"reloading config files {config_vars['__CONFIG_FILE__'].list()}")
+                    self.read_config_files(reset_previous=True)
                 elif key in (trigger_commit_redis_key, activate_repo_rev_waiting_list_redis_key):
-                    try:
-                        instl_command_name = {trigger_commit_redis_key: "up2s3", activate_repo_rev_waiting_list_redis_key: "activate-repo-rev"}[key]
-                        domain, major_version, repo_rev = value.split(":")
-                        config_vars["TARGET_DOMAIN"] = domain
-                        config_vars["TARGET_MAJOR_VERSION"] = major_version
-                        config_vars["TARGET_REPO_REV"] = repo_rev
-                        log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
-                        config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
+                    with config_vars.push_scope_context(use_cache=True):
+                        try:
+                            instl_command_name = {trigger_commit_redis_key: "up2s3", activate_repo_rev_waiting_list_redis_key: "activate-repo-rev"}[key]
+                            domain, major_version, repo_rev = value.split(":")
+                            config_vars["TARGET_DOMAIN"] = domain
+                            config_vars["TARGET_MAJOR_VERSION"] = major_version
+                            config_vars["TARGET_REPO_REV"] = repo_rev
+                            log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                            config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
 
-                        domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
-                        domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
-                        up2s3_yaml_dict = {
-                            "__include__": [os.fspath(domain_major_version_config_file),
-                                            os.fspath(main_input_file)],
-                            'TARGET_DOMAIN': domain,
-                            'TARGET_MAJOR_VERSION': major_version,
-                            'TARGET_REPO_REV': repo_rev,
-                            'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
-                        }
-                        define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
-                                                            '!define', "definitions",
-                                                            explicit_start=True, sort_mappings=False)
+                            domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
+                            domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
+                            up2s3_yaml_dict = {
+                                "__include__": [os.fspath(domain_major_version_config_file),
+                                                os.fspath(main_input_file)],
+                                'TARGET_DOMAIN': domain,
+                                'TARGET_MAJOR_VERSION': major_version,
+                                'TARGET_REPO_REV': repo_rev,
+                                'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
+                            }
+                            define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
+                                                                '!define', "definitions",
+                                                                explicit_start=True, sort_mappings=False)
 
-                        work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
-                        with utils.utf8_open_for_write(work_config_file, "w") as wfd:
-                            aYaml.writeAsYaml(define_dict, wfd)
+                            work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
+                            with utils.utf8_open_for_write(work_config_file, "w") as wfd:
+                                aYaml.writeAsYaml(define_dict, wfd)
 
-                        work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
-                        up2s3_process = mp.Process (target=instl_own_main,
-                                                    name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
-                                                    args=(str(config_vars["__INSTL_EXE_PATH__"]),
-                                                          [instl_command_name,
-                                                           "--config-file", os.fspath(work_config_file),
-                                                           "--log", os.fspath(work_log_file),
-                                                           "--run"]))
+                            work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
+                            up2s3_process = mp.Process (target=instl_own_main,
+                                                        name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
+                                                        args=(str(config_vars["__INSTL_EXE_PATH__"]),
+                                                              [instl_command_name,
+                                                               "--config-file", os.fspath(work_config_file),
+                                                               "--log", os.fspath(work_log_file),
+                                                               "--run"]))
 
-                        up2s3_process.start()
-                        up2s3_process.join()
+                            up2s3_process.start()
+                            up2s3_process.join()
 
-                    except Exception as ex:
-                        log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
+                        except Exception as ex:
+                            log.info(f"Exception {ex} in {trigger_commit_redis_key} up2s3 of repo-rev {repo_rev}")
                 else:
                     log.info(f"popped unknown key: {key}")
 

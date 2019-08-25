@@ -350,6 +350,13 @@ class ConfigVarStack:
                 retVal.append(self.resolve_str(a_str))
         return retVal
 
+    def stack_size(self):
+        return len(self.var_list)
+
+    def resize_stack(self, new_size):
+        while new_size < len(self.var_list):
+            self.pop_scope()
+
     def push_scope(self):
         self.var_list.append(dict())
 
