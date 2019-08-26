@@ -4,6 +4,7 @@
 import os
 import io
 import json
+from collections import defaultdict
 
 import aYaml
 from configVar import config_vars
@@ -70,3 +71,23 @@ class InstlClientReport(InstlClient):
         index_yaml_obj = self.items_table.repr_for_yaml()
         index_yaml = aYaml.YamlDumpDocWrap(index_yaml_obj, '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
         self.output_data.append(index_yaml)
+
+    def do_short_index(self):
+        short_index_data = self.items_table.get_data_for_short_index()  # IID, GUID, NAME, VERSION, generation
+        short_index_dict = defaultdict(dict)
+        for data_line in short_index_data:
+            short_index_dict[data_line[0]]['guid'] = data_line[1]
+            if data_line[2]:
+                short_index_dict[data_line[0]]['name'] = data_line[2]
+            if data_line[3]:
+                short_index_dict[data_line[0]]['version'] = data_line[3]
+
+        as_yaml_doc = aYaml.YamlDumpDocWrap(value=short_index_dict, tag="!index",
+                                            explicit_start=True, explicit_end=False,
+                                            sort_mappings=True, include_comments=False)
+        def __command_output(self, _as_yaml_doc):
+            out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
+            with utils.write_to_file_or_stdout(out_file_path) as wfd:
+                aYaml.writeAsYaml(_as_yaml_doc, wfd)
+        from functools import partial
+        self.command_output = partial(__command_output, self, as_yaml_doc)

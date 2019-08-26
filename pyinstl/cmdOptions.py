@@ -105,7 +105,8 @@ def prepare_args_parser(in_command):
         'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
         'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
         'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'uninstall previously copied files, considering dependencies'},
-        })
+        'short-index':      {'mode': 'client', 'options': {'in', 'out'}, 'help': 'create short version of the index'},
+    })
 
     if in_command not in all_command_details:
         # do_something commands

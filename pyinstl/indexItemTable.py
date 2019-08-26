@@ -1372,8 +1372,33 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
+    def get_data_for_short_index(self):
+        """ get all iids that have guids with their name and version
+            returns IID, GUID, NAME, VERSION, generation
+        """
 
+        query_text = """
+            SELECT index_item_t.iid AS IID,
+                   item_guid_t.detail_value AS GUID,
+                   item_name_t.detail_value AS NAME,
+                   item_version_t.detail_value AS VERSION,
+                   min(item_guid_t.generation) AS generation
+            FROM index_item_t
+            
+            JOIN index_item_detail_t AS item_guid_t
+            ON item_guid_t.owner_iid == index_item_t.iid
+            AND item_guid_t.detail_name == 'guid'
+            
+            LEFT JOIN index_item_detail_t AS item_name_t
+            ON item_name_t.owner_iid == index_item_t.iid
+            AND item_name_t.detail_name == 'name'
+            
+            LEFT JOIN index_item_detail_t AS item_version_t
+            ON item_version_t.owner_iid == index_item_t.iid
+            AND item_version_t.detail_name == 'version'
+            
+            GROUP BY index_item_t.iid
+        """
 
-
-
-
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal

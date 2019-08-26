@@ -14,6 +14,7 @@ from configVar import config_vars
 from pybatch import *
 from .connectionBase import connection_factory
 
+
 class InstlClient(InstlInstanceBase):
     """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
     def __init__(self, initial_vars) -> None:
@@ -581,7 +582,7 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
-    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml'):
+    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml', 'short-index'):
         from .instlClientReport import InstlClientReport
         retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":
