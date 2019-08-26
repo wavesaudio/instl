@@ -84,7 +84,6 @@ __GUI_CONFIG_FILE_VARS__:
   - ADMIN_GUI_LIMIT
   - REDIS_HOST
   - REDIS_PORT
-  - REDIS_KEY_NAME_1
 
 # default values
 SELECTED_TAB: Client

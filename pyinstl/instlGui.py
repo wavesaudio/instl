@@ -10,15 +10,17 @@ from time import time
 import shlex
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
 import logging
 from pathlib import Path
+import functools
+from collections import defaultdict
 log = logging.getLogger()
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
-import functools
 
 tab_names = {
     'ADMIN':  'Admin',
@@ -131,9 +133,9 @@ class InstlGui(InstlInstanceBase):
         self.redis_vars = dict()
         self.redis_vars["REDIS_HOST"] = TkConfigVarStr("REDIS_HOST")
         self.redis_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
-        self.redis_vars["REDIS_KEY_NAME_1"] = TkConfigVarStr("REDIS_KEY_NAME_1")
+        self.redis_vars["DOMAIN_REPO_TO_ACTIVATE"] = TkConfigVarStr("DOMAIN_REPO_TO_ACTIVATE")
         self.redis_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUE_1")
-        self.redis_vars["REDIS_KEY_NAME_2"] = TkConfigVarStr("REDIS_KEY_NAME_2")
+        self.redis_vars["REPO_REV_TO_ACTIVATE"] = TkConfigVarInt("REPO_REV_TO_ACTIVATE")
         self.redis_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
 
         self.redis_conn: utils.RedisClient = None
@@ -584,7 +586,7 @@ class InstlGui(InstlInstanceBase):
 
         self.notebook.add(client_frame, text='Client')
         self.notebook.add(admin_frame, text='Admin')
-        self.notebook.add(redis_frame, text='Redis')
+        self.notebook.add(redis_frame, text='Activate')
 
         to_be_selected_tab_name = config_vars["SELECTED_TAB"].str()
         for tab_id in self.notebook.tabs():
@@ -632,40 +634,105 @@ class InstlGui(InstlInstanceBase):
         self.realign_from_config_vars(self.redis_vars)
 
         redis_frame = Frame(master)
-        redis_frame.grid(row=0, column=2)
+        #redis_frame.grid(row=0, column=2)
 
         curr_row = 0
         Label(redis_frame, text="Host:").grid(row=curr_row, column=0)
-        Entry(redis_frame, textvariable=self.redis_vars["REDIS_HOST"]).grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_HOST"]).grid(row=curr_row, column=1, sticky=W)
         self.redis_vars["REDIS_HOST"].trace('w', self.update_redis_state)
 
         Label(redis_frame, text="Port:").grid(row=curr_row, column=2)
-        Entry(redis_frame, textvariable=self.redis_vars["REDIS_PORT"]).grid(row=curr_row, column=3, columnspan=2, sticky=W)
+        Entry(redis_frame, textvariable=self.redis_vars["REDIS_PORT"]).grid(row=curr_row, column=3, sticky=W)
         self.redis_vars["REDIS_PORT"].trace('w', self.update_redis_state)
 
-        redis_frame.grid_rowconfigure(0)
+        #redis_frame.grid_rowconfigure(0)
 
         curr_row += 1
-        Label(redis_frame, text="Key:").grid(row=curr_row, column=0)
-        Entry(redis_frame, textvariable=self.redis_vars["REDIS_KEY_NAME_1"]).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        self.redis_vars["REDIS_KEY_NAME_1"].trace('w', self.update_redis_state)
-        Label(redis_frame, text="Value:").grid(row=curr_row, column=3, sticky=W)
-        Entry(redis_frame, text="baba ganush", textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]).grid(row=curr_row, column=4, sticky=W)  # , textvariable=self.redis_vars["REDIS_KEY_VALUE_1"]
-        Button(redis_frame, width=3, text="get",
-               command=functools.partial(self.get_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=5, sticky=W)
-        Button(redis_frame, width=3, text="set",
-               command=functools.partial(self.set_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=6, sticky=W)
-        Button(redis_frame, width=4, text="lpush",
-               command=functools.partial(self.lpush_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=7, sticky=W)
-        Button(redis_frame, width=4, text="del",
-               command=functools.partial(self.remove_redis_key, "REDIS_KEY_NAME_1", "REDIS_KEY_VALUE_1")).grid(row=curr_row, column=8, sticky=W)
+        Label(redis_frame, text="Repository:").grid(row=curr_row, column=0)
+        Entry(redis_frame, textvariable=self.redis_vars["DOMAIN_REPO_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W+E)
+        self.redis_vars["DOMAIN_REPO_TO_ACTIVATE"].trace('w', self.update_redis_state)
 
-        #redis_frame.grid_columnconfigure(0, minsize=80)
-        #redis_frame.grid_columnconfigure(1, minsize=300)
-        #redis_frame.grid_columnconfigure(2, minsize=80)
-        #redis_frame.grid_columnconfigure(3)
+        Label(redis_frame, text="rep-rev:").grid(row=curr_row, column=2, sticky=W)
+        Entry(redis_frame, textvariable=self.redis_vars["REPO_REV_TO_ACTIVATE"]).grid(row=curr_row, column=3, columnspan=1, sticky=W+E)
+        Button(redis_frame, width=7, text="Activate", command=self.activate_repo_rev).grid(row=curr_row, column=4, columnspan=1, sticky=W)
+
+        curr_row += 1
+        self.tree = Treeview(redis_frame, columns=('major version', 'uploaded', 'activated'))
+        self.tree.column('major version', width=100, anchor='center')
+        self.tree.heading('major version', text='Major Version')
+        self.tree.column('uploaded', width=100, anchor='center')
+        self.tree.heading('uploaded', text='Uploaded')
+        self.tree.column('activated', width=100, anchor='center')
+        self.tree.heading('activated', text='Activated')
+        self.tree.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        self.tree_focused_item = None
+
+        self.update_redis_table()
 
         return redis_frame
+
+    def update_redis_table(self):
+        self.update_redis_state()
+        unified_dict = defaultdict(dict)
+
+        active_repo_rev_keys = self.redis_conn.keys("wv:*:*:active_repo_rev")
+        for active_repo_rev_key in active_repo_rev_keys:
+            active_repo_rev_value = self.redis_conn.get(active_repo_rev_key)
+            splited = active_repo_rev_key.split(":")
+            domain = splited[1]
+            major_version = splited[2]
+            if major_version not in unified_dict[domain]:
+                unified_dict[domain][major_version] = dict()
+            unified_dict[domain][major_version]['activated'] = active_repo_rev_value
+
+        last_uploaded_repo_rev_keys = self.redis_conn.keys("wv:*:*:last_uploaded_repo_rev")
+        for last_uploaded_repo_rev_key in last_uploaded_repo_rev_keys:
+            last_uploaded_repo_rev_value = self.redis_conn.get(last_uploaded_repo_rev_key)
+            splited = last_uploaded_repo_rev_key.split(":")
+            domain = splited[1]
+            major_version = splited[2]
+            if major_version not in unified_dict[domain]:
+                unified_dict[domain][major_version] = dict()
+            unified_dict[domain][major_version]['uploaded'] = last_uploaded_repo_rev_value
+
+        current_items = self.tree.get_children()
+        for domain_key, domain_dict in unified_dict.items():
+            for major_version_key, major_version_dict in domain_dict.items():
+                activated = major_version_dict.get('activated', "N/A")
+                uploaded = major_version_dict.get('uploaded', "N/A")
+                item_id = f"{domain_key}:{major_version_key}"
+                if item_id in current_items:
+                    self.tree.item(item_id, text=domain_key, values=(major_version_key, uploaded, activated))
+                else:
+                    self.tree.insert('', 'end', item_id, text=domain_key, values=(major_version_key, uploaded, activated))
+
+        focused_item = self.tree.focus()
+        if focused_item != self.tree_focused_item:
+            self.tree_focused_item = focused_item
+            if self.tree_focused_item:
+                focused_item_values = self.tree.item(self.tree_focused_item)
+                new_value = ":".join((focused_item_values['text'], str(focused_item_values['values'][0])))
+                self.redis_vars["DOMAIN_REPO_TO_ACTIVATE"].set(new_value)
+                uploaded_rep_rev = focused_item_values['values'][1]
+                activated_rep_rev = int(focused_item_values['values'][2])
+                self.redis_vars["REPO_REV_TO_ACTIVATE"].set(uploaded_rep_rev)
+
+        self.notebook.after(1500, self.update_redis_table)
+
+    def activate_repo_rev(self):
+        try:
+            current_items = self.tree.get_children()
+            domain_repo = self.redis_vars["DOMAIN_REPO_TO_ACTIVATE"].get()
+            if domain_repo in current_items:
+                host = self.redis_vars["REDIS_HOST"].get()
+                repo_rev = self.redis_vars["REPO_REV_TO_ACTIVATE"].get()
+                redis_value = ":".join(('activate', domain_repo, str(repo_rev)))
+                redis_key = ":".join(("wv", host, "waiting_list"))
+                answer = messagebox.askyesno("Activate repo-rev", f"Activate repo-rev {repo_rev} on {domain_repo} ?")
+                if answer:
+                    self.redis_conn.lpush(redis_key, redis_value)
+        except Exception as ex:
+            print(f"activate_repo_rev exception {ex}")
 
     def remove_redis_key(self, key_config_var, value_config_var=None):
         self.redis_vars[key_config_var].realign_from_tk_var()
