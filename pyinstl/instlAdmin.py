@@ -833,7 +833,7 @@ class InstlAdmin(InstlInstanceBase):
             log.info(f"wait on redis list: {redis_host}:{redis_port} {waiting_list_redis_key}")
             log.info(f"to upload: lpush {waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
             log.info(f"to activate: lpush {waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
-            log.info(f"special values: push {waiting_list_redis_key} stop|ping|reload-config-files")
+            log.info(f"special values: lpush {waiting_list_redis_key} stop|ping|reload-config-files")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
