@@ -155,6 +155,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def init_default_vars(self, initial_vars):
         config_vars.update(initial_vars)
 
+        # settings these configVar requires setting global values in files.py as soon as possible
+        config_vars["ACTING_UID"].set_callback_when_value_is_set(utils.set_active_user_or_group_config_var_callback),
+        config_vars["ACTING_GID"].set_callback_when_value_is_set(utils.set_active_user_or_group_config_var_callback),
+
         # read defaults/main.yaml
         self.read_defaults_file("main", ignore_if_not_exist=False)
 

@@ -24,6 +24,19 @@ global_acting_uid = -1
 global_acting_gid = -1
 
 
+def set_active_user_or_group_config_var_callback(config_var_name, config_var_value):
+    try:
+        if config_var_name == "ACTING_UID":
+            global global_acting_uid
+            global_acting_uid = int(config_var_value)
+        elif config_var_name == "ACTING_GID":
+            global global_acting_gid
+            global_acting_gid = int(config_var_value)
+    except ValueError as ex:
+        # if value is not int it will not be assigned to global_acting_uid/global_acting_gid
+        pass
+
+
 def set_acting_ids(uid, gid):
     global global_acting_uid
     global_acting_uid = uid

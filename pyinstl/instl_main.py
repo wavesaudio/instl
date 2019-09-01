@@ -140,7 +140,9 @@ def instl_own_main(launch_file, argv):
                         # VENDOR_NAME, APPLICATION_NAME need to be set so logging can be redirected to the correct folder
                         "VENDOR_NAME": os.environ.get("VENDOR_NAME", "Waves Audio"),
                         "APPLICATION_NAME": os.environ.get("APPLICATION_NAME", "Waves Central"),
-                        "__ARGV__": argv
+                        "__ARGV__": argv,
+                        "ACTING_UID": -1,
+                        "ACTING_GID": -1,
                         }
 
         if os_namer.os_family_name != "Win":

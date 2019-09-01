@@ -40,13 +40,23 @@ class ConfigVar:
              name is useful for debugging, but in runtime ConfigVar has
              no (and should have no) use for it's own name
     """
-    __slots__ = ("owner", "name", "values")
+    __slots__ = ("owner", "name", "values", "callback_when_value_is_set")
 
-    def __init__(self, owner, name: str, *values) -> None:
+    def __init__(self, owner, name: str, *values, callback_when_value_is_set=None) -> None:
         self.owner = owner
         self.name = name
+        self.set_callback_when_value_is_set(callback_when_value_is_set)
         self.values: List[str] = list()
         self.extend(values)  # extend will flatten hierarchical lists
+
+    def _do_nothing_callback_when_value_is_set(self, *argv, **kwargs):
+        pass
+
+    def set_callback_when_value_is_set(self, new_callback_when_value_is_set):
+        if new_callback_when_value_is_set is None:
+            self.callback_when_value_is_set = self._do_nothing_callback_when_value_is_set
+        else:
+            self.callback_when_value_is_set = new_callback_when_value_is_set
 
     def __len__(self) -> int:
         """ :return: number of values """
@@ -104,7 +114,7 @@ class ConfigVar:
         retVal = os.fspath(PurePath(self.str()))
         return retVal
 
-    def Path(self, resolve: bool =False) -> Path:
+    def Path(self, resolve: bool=False) -> Path:
         if resolve:
             expanded_path = os.path.expandvars(self.str())
             path_path = Path(expanded_path)
@@ -180,6 +190,7 @@ class ConfigVar:
         """
         if value is not None:
             self.values.append(str(value))
+            self.callback_when_value_is_set(self.name, value)
 
     def extend(self, values):
         """

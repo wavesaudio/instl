@@ -824,8 +824,9 @@ class InstlAdmin(InstlInstanceBase):
         waiting_list_redis_key = config_vars['WAITING_LIST_REDIS_KEY'].str()
 
         # heartbeat_redis_key: regular time stamps will be send to this key
-        heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", "wv:instl:trigger:heartbeat").str()
-        start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
+        heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", None).str()
+        if heartbeat_redis_key:
+            start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
@@ -855,7 +856,7 @@ class InstlAdmin(InstlInstanceBase):
                     with config_vars.push_scope_context(use_cache=True):
                         try:
                             what_to_do, domain, major_version, repo_rev = value.split(":")
-                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do]
+                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do.lower()]
                             config_vars["TARGET_DOMAIN"] = domain
                             config_vars["TARGET_MAJOR_VERSION"] = major_version
                             config_vars["TARGET_REPO_REV"] = repo_rev

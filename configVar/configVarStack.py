@@ -180,7 +180,7 @@ class ConfigVarStack:
             retVal = ConfigVar(self, key, default)
         return retVal
 
-    def setdefault(self, key: str, default):
+    def setdefault(self, key: str, default, callback_when_value_is_set=None):
         """
         gets a ConfigVar object by name. if key
         exist on multiple stack levels the higher (later, inner) one is returned.
@@ -191,7 +191,7 @@ class ConfigVarStack:
         if not isinstance(key, str):
             raise TypeError(f"'key' param of setdefault() should be str not {type(key)},  '{key}'")
         if key not in self:
-            new_config_var = ConfigVar(self, key)
+            new_config_var = ConfigVar(self, key, callback_when_value_is_set)
             if default:
                 new_config_var.append(default)
             self.var_list[-1][key] = new_config_var
