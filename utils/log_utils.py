@@ -58,12 +58,12 @@ def setup_stream_hdlr():
         top_logger.addHandler(strm_hdlr)
 
 
-format_per_level = {logging.CRITICAL: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.ERROR: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.WARNING: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+format_per_level = {logging.CRITICAL: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.ERROR: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.WARNING: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
                    logging.INFO: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
-                   logging.DEBUG: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.NOTSET: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}'}
+                   logging.DEBUG: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.NOTSET: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s'}
 
 
 class PerLevelFormatter(logging.Formatter):
