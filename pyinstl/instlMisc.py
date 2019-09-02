@@ -185,5 +185,16 @@ class InstlMisc(InstlInstanceBase):
         abort_file_path = None
         if 'ABORT_FILE' in config_vars:
             abort_file_path = config_vars["ABORT_FILE"].Path()
-        print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {config_vars["RUN_PROCESS_ARGUMENTS"].list()}""")
-        utils.run_process(config_vars["RUN_PROCESS_ARGUMENTS"].list(), shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
+        run_process_args = config_vars["RUN_PROCESS_ARGUMENTS"].list()
+        run_process_1st_arg = run_process_args[0]
+        # if args begins with @ then read commands from file
+        if run_process_1st_arg.startswith("@"):
+            file_with_commands = run_process_1st_arg[1:]
+            with open(file_with_commands, "r") as rfd:
+                for line in rfd.readlines():
+                    run_one_process_args = shlex.split(line)
+                    print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {run_one_process_args}""")
+                    utils.run_process(run_one_process_args, shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
+        else:
+            print(f"""run-process: {config_vars.get("ABORT_FILE", '')} {run_process_args}""")
+            utils.run_process(run_process_args, shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
