@@ -143,7 +143,8 @@ class FrameController:
                 log.info("instl command was copied to clipboard!")
 
     def update_state(self, *args, **kwargs):
-        print(f"{kwargs.get('who', '?')} initiated update_state")
+        pass
+        #print(f"{kwargs.get('who', '?')} initiated update_state")
 
     def open_file_dialog(self, config_var_name):
         import tkinter.filedialog
@@ -791,7 +792,7 @@ class InstlGui(InstlInstanceBase):
     def tabChangedEvent(self, *args):
         tab_id = self.notebook.select()
         tab_name = self.notebook.tab(tab_id, option='text')
-        log.info(f"tabChangedEvent: {tab_name}")
+        #log.info(f"tabChangedEvent: {tab_name}")
         if tab_name in self.tab_name_to_controller.keys():
             self.tab_name_to_controller[tab_name].update_state(who="tabChangedEvent")
         else:
