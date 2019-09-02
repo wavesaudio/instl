@@ -748,7 +748,21 @@ class InstlGui(InstlInstanceBase):
         self.master.destroy()
 
     def set_default_variables(self):
-        pass
+        client_command_list = list(config_vars["__CLIENT_GUI_CMD_LIST__"])
+        config_vars["CLIENT_GUI_CMD"] = client_command_list[0]
+        admin_command_list = list(config_vars["__ADMIN_GUI_CMD_LIST__"])
+        config_vars["ADMIN_GUI_CMD"] = admin_command_list[0]
+        self.commands_with_run_option_list = list(config_vars["__COMMANDS_WITH_RUN_OPTION__"])
+
+        # create   - $(command_actual_name_$(...)) variables for commands that do not have them in InstlGui.yaml
+        for command in list(config_vars["__CLIENT_GUI_CMD_LIST__"]):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in config_vars:
+                config_vars[actual_command_var] = command
+        for command in list(config_vars["__ADMIN_GUI_CMD_LIST__"]):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in config_vars:
+                config_vars[actual_command_var] = command
 
     def do_command(self):
         self.set_default_variables()
