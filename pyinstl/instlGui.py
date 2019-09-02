@@ -223,7 +223,7 @@ class ClientFrameController(FrameController):
         self.tk_vars["CLIENT_GUI_OUT_FILE"] = TkConfigVarStr("CLIENT_GUI_OUT_FILE")
         self.tk_vars["CLIENT_GUI_RUN_BATCH"] = TkConfigVarInt("CLIENT_GUI_RUN_BATCH")
         self.tk_vars["CLIENT_GUI_CREDENTIALS"] = TkConfigVarStr("CLIENT_GUI_CREDENTIALS")
-        self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"] = IntVar_with_trace(name="CLIENT_GUI_CREDENTIALS_ON")
+        self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"] = TkConfigVarInt("CLIENT_GUI_CREDENTIALS_ON")
         self.client_input_combobox = None
         self.client_run_batch_file_checkbox = None
 
@@ -354,7 +354,7 @@ class AdminFrameController(FrameController):
         self.tk_vars["SYNC_BASE_URL"] = TkConfigVarStr("SYNC_BASE_URL")
         self.tk_vars["DISPLAY_SVN_URL_AND_REPO_REV"] = TkConfigVarStr("DISPLAY_SVN_URL_AND_REPO_REV")
         self.tk_vars["ADMIN_GUI_LIMIT"] = TkConfigVarStr("ADMIN_GUI_LIMIT")
-        self.tk_vars["ADMIN_GUI_RUN_BATCH"] = IntVar_with_trace(name="ADMIN_GUI_RUN_BATCH")
+        self.tk_vars["ADMIN_GUI_RUN_BATCH"] = TkConfigVarInt("ADMIN_GUI_RUN_BATCH")
         self.limit_path_entry_widget = None
         self.admin_run_batch_file_checkbox = None
 
