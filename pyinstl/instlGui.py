@@ -43,9 +43,9 @@ admin_command_template_variables = {
 
 def CreateTkConfigClass(TkBase, convert_type_func):
     """ creates a class that connects between Tk Variable class (StringVar, intVar,...)
-        and ConfigVar. The value is kept in the ConfigVar and this class overrides Variable.set/get
-        to actually get or set from the ConfigVar. Variable.set is still called so to support
-        Variable.trace("w") operations
+        and ConfigVar. The value is kept in the Tk Variable but the ConfigVar is updated whenever
+        the tk variable updated. Implementation is is "double callback" where callbacks to tk and to configVar
+        do the work of adjusting the values. This is done so because tk variables cannot be inherited.
     """
     class TkConfigVar(TkBase):
         """ bridge between tkinter StringVar to instl ConfigVar."""
@@ -55,32 +55,46 @@ def CreateTkConfigClass(TkBase, convert_type_func):
             self.debug_var = debug_var
             self.convert_type_func = convert_type_func
             self.config_var_name = config_var_name
+            self.__internal_update = False
             config_vars.setdefault(self.config_var_name, value)  # create a ConfigVar is one does not exists
             # call set_callback_when_value_is_set because config_vars.setdefault will not assign the callback is the confiVar already exists
             config_vars[self.config_var_name].set_callback_when_value_is_set(self._config_var_set_value_callback)
+            self._our_trace_write_callback = None
+            self.trace("w", self._internal_trace_write_callback)
             if self.debug_var:
                 print(f"TkConfigVar.__init__({self.config_var_name})")
 
+        def _internal_trace_write_callback(self, *args, **kwargs):
+            """
+                this function will be set as the tk var trace
+                if tk var was written, pass the value to the configVar
+            """
+            if not self.__internal_update:
+                value = self._tk.globalgetvar(self.config_var_name)
+                self.__internal_update = True
+                config_vars[self.config_var_name] = value
+                self.__internal_update = False
+                if self._our_trace_write_callback:
+                    self._our_trace_write_callback(*args, **kwargs)
+
         def _config_var_set_value_callback(self, var_name, new_var_value):
             """ ConfigVar will call this callback every time a value has been assigned """
-            if self.debug_var:
-                print(f"TkConfigVar._config_var_set_value_callback({self.config_var_name}) <- {new_var_value}")
-            TkBase.set(self, self.convert_type_func(new_var_value))
+            if not self.__internal_update:  # called from _trace_write_callback so need to avoid circular callback calls
+                if self.debug_var:
+                    print(f"TkConfigVar._config_var_set_value_callback({self.config_var_name}) <- {new_var_value}")
+                TkBase.set(self, self.convert_type_func(new_var_value))
+            else:  # configVar was changed, pass value to tk var
+                self.__internal_update = True
+                self._tk.globalsetvar(self.config_var_name, new_var_value)
+                self.__internal_update = False
 
         def _get_value_from_config_var(self):
             retVal = self.convert_type_func(config_vars.get(self.config_var_name, self.convert_type_func()))
             return retVal
 
-        def get(self):
-            retVal = self._get_value_from_config_var()
-            if self.debug_var:
-                print(f"TkConfigVar.get({self.config_var_name}) -> {retVal}")
-            return retVal
-
-        def set(self, value):
-            config_vars[self.config_var_name] = value
-            if self.debug_var:
-                print(f"TkConfigVar.set({self.config_var_name}) <- {value}")
+        def set_trace_write_callback(self, trace_write_callback):
+            """ this is our way to set the callback"""
+            self._our_trace_write_callback = trace_write_callback
 
     return TkConfigVar
 
@@ -88,40 +102,6 @@ def CreateTkConfigClass(TkBase, convert_type_func):
 TkConfigVarStr  = CreateTkConfigClass(StringVar, str)
 TkConfigVarInt  = CreateTkConfigClass(IntVar, int)
 TkConfigVarBool = CreateTkConfigClass(BooleanVar, bool)
-
-
-def tk_var_to_config_var_trace_helper(*args, **kwargs):
-    """ Glue functions for some special cases:
-        Some Tk widgets accepts only a true IntVar, and not one derived from InsVar
-        so usage of TkConfigVarInt is not possible. Such IntVar should be set with a
-        trace function that updates the associated configVar. Usage example:
-        self.tk_vars["CLIENT_GUI_RUN_BATCH"].trace('w', functools.partial(tk_var_to_config_var_trace_helper, tk_var=self.tk_vars["CLIENT_GUI_RUN_BATCH"]))
-
-    """
-    name = args[0]
-    tk_var = kwargs['tk_var']  # assuming the original IntVar is supplied in kwargs['tk_var']
-    new_value = tk_var.get()
-    config_vars[name] = new_value
-
-
-def config_var_tk_var_to_trace_helper(name, new_value, **kwargs):
-    """ Glue functions for some special cases:
-        Some Tk widgets accepts only a true IntVar, and not one derived from IntVar
-        so usage of TkConfigVarInt is not possible. The ConfigVar should be set with a
-        callback function that updates the associated IntVar. Usage example:
-        config_vars["CLIENT_GUI_RUN_BATCH"].set_callback_when_value_is_set(functools.partial(config_var_tk_var_to_trace_helper, tk_var=self.tk_vars["CLIENT_GUI_RUN_BATCH"]))
-    """
-    tk_var = kwargs['tk_var']  # assuming the original IntVar is supplied in kwargs['tk_var']
-    tk_var.set(new_value)
-
-
-def IntVar_with_trace(name):
-    """ create an IntVar with full configVar trace fixes: tk_var_to_config_var_trace_helper, config_var_tk_var_to_trace_helper """
-    retVal = IntVar(name=name)
-    retVal.trace('w', functools.partial(tk_var_to_config_var_trace_helper, tk_var=retVal))
-    config_vars[name].set_callback_when_value_is_set(functools.partial(config_var_tk_var_to_trace_helper, tk_var=retVal))
-    return retVal
-
 
 class FrameController:
     """ base class for objects controlling a Tk frame """
@@ -241,7 +221,7 @@ class ClientFrameController(FrameController):
         self.tk_vars["CLIENT_GUI_CMD"] = TkConfigVarStr("CLIENT_GUI_CMD")
         self.tk_vars["CLIENT_GUI_IN_FILE"] = TkConfigVarStr("CLIENT_GUI_IN_FILE")
         self.tk_vars["CLIENT_GUI_OUT_FILE"] = TkConfigVarStr("CLIENT_GUI_OUT_FILE")
-        self.tk_vars["CLIENT_GUI_RUN_BATCH"] = IntVar_with_trace(name="CLIENT_GUI_RUN_BATCH")
+        self.tk_vars["CLIENT_GUI_RUN_BATCH"] = TkConfigVarInt("CLIENT_GUI_RUN_BATCH")
         self.tk_vars["CLIENT_GUI_CREDENTIALS"] = TkConfigVarStr("CLIENT_GUI_CREDENTIALS")
         self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"] = IntVar_with_trace(name="CLIENT_GUI_CREDENTIALS_ON")
         self.client_input_combobox = None
@@ -254,7 +234,6 @@ class ClientFrameController(FrameController):
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
             self.client_input_combobox.configure(values=dir_items)
-
 
     def update_state(self, *args, **kwargs):  # ClientFrameController
         super().update_state(*args, **kwargs)
@@ -297,20 +276,20 @@ class ClientFrameController(FrameController):
 
         # path to input file
         curr_row += 1
-        self.tk_vars["CLIENT_GUI_IN_FILE"].trace('w', functools.partial(self.update_state, who="CLIENT_GUI_IN_FILE"))
+        self.tk_vars["CLIENT_GUI_IN_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_IN_FILE"))
         self.client_input_combobox = Combobox(self.frame, textvariable=self.tk_vars["CLIENT_GUI_IN_FILE"])
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Input file:", var_name="CLIENT_GUI_IN_FILE", locate=True, edit=True, check=True, combobox=self.client_input_combobox)
 
         # path to output file
         curr_row += 1
-        self.tk_vars["CLIENT_GUI_OUT_FILE"].trace('w', functools.partial(self.update_state, who="CLIENT_GUI_OUT_FILE"))
+        self.tk_vars["CLIENT_GUI_OUT_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_OUT_FILE"))
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Batch file:", var_name="CLIENT_GUI_OUT_FILE", locate=True, save_as=True, edit=True, check=False, combobox=None)
 
         # s3 user credentials
         curr_row += 1
         Label(self.frame, text="Credentials:").grid(row=curr_row, column=0, sticky=E)
         Entry(self.frame, textvariable=self.tk_vars["CLIENT_GUI_CREDENTIALS"]).grid(row=curr_row, column=1, columnspan=1, sticky="WE")
-        self.tk_vars["CLIENT_GUI_CREDENTIALS"].trace('w', functools.partial(self.update_state, who="CLIENT_GUI_CREDENTIALS"))
+        self.tk_vars["CLIENT_GUI_CREDENTIALS"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_CREDENTIALS"))
 
         Checkbutton(self.frame, text="", variable=self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"], command=functools.partial(self.update_state, who="CLIENT_GUI_CREDENTIALS_ON")).grid(row=curr_row, column=2, sticky=W)
 
@@ -434,10 +413,10 @@ class AdminFrameController(FrameController):
         # path to config files
 
         curr_row += 1
-        self.tk_vars["ADMIN_GUI_TARGET_CONFIG_FILE"].trace('w', functools.partial(self.update_state, who="ADMIN_GUI_TARGET_CONFIG_FILE"))
+        self.tk_vars["ADMIN_GUI_TARGET_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_TARGET_CONFIG_FILE"))
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"target config file:", var_name="ADMIN_GUI_TARGET_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
         curr_row += 1
-        self.tk_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].trace('w', functools.partial(self.update_state, who="ADMIN_GUI_LOCAL_CONFIG_FILE"))
+        self.tk_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_LOCAL_CONFIG_FILE"))
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"local config file:", var_name="ADMIN_GUI_LOCAL_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
 
         # path to stage index file
@@ -469,7 +448,7 @@ class AdminFrameController(FrameController):
 
         # path to output file
         curr_row += 1
-        self.tk_vars["ADMIN_GUI_OUT_BATCH_FILE"].trace('w', functools.partial(self.update_state, who="ADMIN_GUI_OUT_BATCH_FILE"))
+        self.tk_vars["ADMIN_GUI_OUT_BATCH_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_OUT_BATCH_FILE"))
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Batch file:", var_name="ADMIN_GUI_OUT_BATCH_FILE", locate=True, save_as=True, edit=True, check=False)
 
         # relative path to limit folder
@@ -479,7 +458,7 @@ class AdminFrameController(FrameController):
         ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
         self.limit_path_entry_widget = Entry(self.frame, textvariable=self.tk_vars["ADMIN_GUI_LIMIT"])
         self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=1, sticky=W)
-        self.tk_vars["ADMIN_GUI_LIMIT"].trace('w', functools.partial(self.update_state, who="ADMIN_GUI_LIMIT"))
+        self.tk_vars["ADMIN_GUI_LIMIT"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_LIMIT"))
 
         # the combined command line text
         curr_row += 1
@@ -687,7 +666,7 @@ class ActivateFrameController(FrameController):
         self.frame = Frame(master)
 
         curr_row = 0
-        self.tk_vars["ACTIVATE_CONFIG_FILE"].trace('w', functools.partial(self.update_state, who="ACTIVATE_CONFIG_FILE"))
+        self.tk_vars["ACTIVATE_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ACTIVATE_CONFIG_FILE"))
         self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Server config:", var_name="ACTIVATE_CONFIG_FILE", locate=True, edit=True, check=True)
 
         curr_row += 1
