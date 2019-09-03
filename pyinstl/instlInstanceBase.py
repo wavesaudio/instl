@@ -54,7 +54,7 @@ def check_version_compatibility():
     return retVal, message
 
 
-class IndexYamlReader(DBManager, ConfigVarYamlReader):
+class IndexYamlReaderBase(DBManager, ConfigVarYamlReader):
 
     def __init__(self, config_vars, **kwargs) -> None:
         ConfigVarYamlReader.__init__(self, config_vars)
@@ -93,7 +93,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        IndexYamlReader.__init__(self, config_vars)
+        IndexYamlReaderBase.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
@@ -123,7 +123,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
-        IndexYamlReader.init_specific_doc_readers(self)
+        IndexYamlReaderBase.init_specific_doc_readers(self)
         self.specific_doc_readers.pop("__no_tag__", None)
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
@@ -422,7 +422,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        IndexYamlReader.read_index(self, a_node, *args, **kwargs)
+        IndexYamlReaderBase.read_index(self, a_node, *args, **kwargs)
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 

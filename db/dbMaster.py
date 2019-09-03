@@ -1,16 +1,13 @@
 import os
-import sys
 import sqlite3
 from contextlib import contextmanager
-import time
 import datetime
 import inspect
 from _collections import defaultdict
-import operator
 
 import utils
 from configVar import config_vars
-from pyinstl.indexItemTable import IndexItemsTable
+from db.indexItemTable import IndexItemsTable
 from svnTree import SVNTable
 
 """

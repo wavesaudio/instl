@@ -242,8 +242,8 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
         return f'''read index.yaml from {self.index_yaml_path}'''
 
     def __call__(self, *args, **kwargs) -> None:
-        from pyinstl import IndexYamlReader
-        reader = IndexYamlReader(config_vars)
+        from pyinstl import IndexYamlReaderBase
+        reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
 
 
