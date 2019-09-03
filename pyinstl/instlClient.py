@@ -87,7 +87,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
 
         self.resolve_defined_paths()
-        self.batch_accum.set_current_section('begin')
+        self.batch_accum.set_current_section('pre')
+        self.save_previous_state()
         command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove', 'read_yaml': 'yaml', "report_versions": "report"}
         self.progress(f"""calculate {command_title.get(self.fixed_command, "install")} items""")
         self.calculate_install_items()
@@ -565,6 +566,17 @@ class InstlClient(InstlInstanceBase):
             for iid, defines_for_iid in self.items_table.defines_for_iids.items():
                 if iid in active_iids:
                     self.read_yaml_from_node(defines_for_iid)
+
+    def save_previous_state(self):
+        current_require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
+        new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].Path()
+        main_input_file = config_vars["__MAIN_INPUT_FILE__"].Path()
+
+        save_require_before_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_before.yaml")
+        save_require_after_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_after.yaml")
+
+        self.batch_accum += CopyFileToFile(current_require_file_path, save_require_before_file_path, ignore_if_not_exist=True, hard_links=False, copy_owner=True)
+        self.batch_accum += CopyFileToFile(new_require_file_path, save_require_after_file_path, ignore_if_not_exist=True, hard_links=False, copy_owner=True)
 
 
 def InstlClientFactory(initial_vars, command):
