@@ -120,7 +120,7 @@ def prepare_args_parser(in_command):
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
             'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
             'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
-            'run-process':          {'mode': 'do_something', 'options': (), 'help':  'Run a processes with optional abort file'},
+            'run-process':          {'mode': 'do_something', 'options': ('in_opt',), 'help':  'Run a processes with optional abort file'},
             'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
             'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
             'unwtar':               {'mode': 'do_something', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
@@ -179,7 +179,7 @@ def prepare_args_parser(in_command):
                     break
                 yield arg
 
-    parser = argparse.ArgumentParser(description='instl: cross platform svn based installer',
+    parser = argparse.ArgumentParser(description='instl: cross platform installer',
                     prefix_chars='-+',
                     fromfile_prefix_chars='@',
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
