@@ -260,10 +260,10 @@ class ResHackerCompileResource(RunProcessBase):
         return f"""Compile resource '{self.rc_file_path}'"""
 
     def get_run_args(self, run_args) -> None:
-        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        resolved_reshacker_path = os.fspath(utils.ExpandAndResolvePath(self.reshacker_path))
         if not os.path.isfile(resolved_reshacker_path):
             raise FileNotFoundError(resolved_reshacker_path)
-        resolved_rc_file_path = os.fspath(utils.ResolvedPath(self.rc_file_path))
+        resolved_rc_file_path = os.fspath(utils.ExpandAndResolvePath(self.rc_file_path))
         run_args.extend([resolved_reshacker_path,
                          "-open",
                          self.rc_file_path,
@@ -298,13 +298,13 @@ class ResHackerAddResource(RunProcessBase):
             return f"""Add resource {self.resource_source_file} to '{self.trg}'"""
 
     def get_run_args(self, run_args) -> None:
-        resolved_reshacker_path = os.fspath(utils.ResolvedPath(self.reshacker_path))
+        resolved_reshacker_path = os.fspath(utils.ExpandAndResolvePath(self.reshacker_path))
         if not os.path.isfile(resolved_reshacker_path):
             raise FileNotFoundError(resolved_reshacker_path)
-        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        resolved_trg_path = os.fspath(utils.ExpandAndResolvePath(self.trg))
         if not os.path.isfile(resolved_trg_path):
             raise FileNotFoundError(resolved_trg_path)
-        resolved_resource_source_file = os.fspath(utils.ResolvedPath(self.resource_source_file))
+        resolved_resource_source_file = os.fspath(utils.ExpandAndResolvePath(self.resource_source_file))
         if not os.path.isfile(resolved_resource_source_file):
             raise FileNotFoundError(resolved_resource_source_file)
         run_args.extend([resolved_reshacker_path,
@@ -333,6 +333,7 @@ class FullACLForEveryone(RunProcessBase):
         return f"FullACLForEveryone for {self.path}"
 
     def get_run_args(self, run_args) -> None:
+        self.path = utils.ExpandAndResolvePath(self.path)
         run_args.extend(["icacls",
                          os.fspath(self.path),
                          "/grant",

@@ -113,13 +113,13 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         for self.cur_path in self.paths_to_make:
-            resolved_path_to_make = utils.ResolvedPath(self.cur_path)
+            self.cur_path = utils.ExpandAndResolvePath(self.cur_path)
             if self.remove_obstacles:
-                if os.path.isfile(resolved_path_to_make):
-                    self.doing = f"""removing file that should be a folder '{resolved_path_to_make}'"""
-                    os.unlink(resolved_path_to_make)
-            self.doing = f"""creating a folder '{resolved_path_to_make}'"""
-            resolved_path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
+                if self.cur_path.is_file():
+                    self.doing = f"""removing file that should be a folder '{self.cur_path}'"""
+                    self.cur_path.unlink()
+            self.doing = f"""creating a folder '{self.cur_path}'"""
+            self.cur_path.mkdir(parents=True, mode=0o777, exist_ok=True)
             if self.remove_obstacles:
                 if sys.platform == 'win32':
                     with FullACLForEveryone(self.cur_path, own_progress_count=0) as grant_permissions:
@@ -151,7 +151,7 @@ class Touch(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ResolvedPath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.is_dir():
             os.utime(resolved_path)
         else:
@@ -177,7 +177,7 @@ class Cd(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.old_path = os.getcwd()
-        resolved_new_path = utils.ResolvedPath(self.new_path)
+        resolved_new_path = utils.ExpandAndResolvePath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
         os.chdir(resolved_new_path)
         assert os.getcwd() == os.fspath(resolved_new_path)
@@ -235,7 +235,7 @@ class ChFlags(RunProcessBase, essential=True):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
 
     def get_run_args(self, run_args) -> None:
-        path = os.fspath(utils.ResolvedPath(self.path))
+        path = os.fspath(utils.ExpandAndResolvePath(self.path))
         self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
 
         per_system_flags = list(filter(None, [self.flags_dict[sys.platform][flag] for flag in self.flags]))
@@ -293,8 +293,8 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_source = utils.ResolvedPath(self.source_file)
-        resolved_target = utils.ResolvedPath(self.target_file)
+        resolved_source = utils.ExpandAndResolvePath(self.source_file)
+        resolved_target = utils.ExpandAndResolvePath(self.target_file)
         self.doing = f"Append {resolved_source} to {resolved_target}"
         with open(self.target_file, "a") as wfd:
             with open(self.source_file, "r") as rfd:
@@ -328,7 +328,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
         if self.group_id != -1:
             user_and_group += f":{self.group_id}"
         run_args.append(user_and_group)
-        the_path = os.fspath(utils.ResolvedPath(self.path))
+        the_path = os.fspath(utils.ExpandAndResolvePath(self.path))
         run_args.append(the_path)
 
     def progress_msg_self(self):
@@ -342,7 +342,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
                 self.doing = f"""change owner (recursive) of '{self.path}' to '{self.user_id}:{self.group_id}'"""
                 return super().__call__(args, kwargs)
             else:
-                resolved_path = utils.ResolvedPath(self.path)
+                resolved_path = utils.ExpandAndResolvePath(self.path)
                 self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}'"""
                 os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
 
@@ -432,7 +432,7 @@ class Chmod(RunProcessBase, essential=True):
         return actual_who, flags, match.group('operation')
 
     def get_run_args(self, run_args) -> None:
-        the_path = os.fspath(utils.ResolvedPath(self.path))
+        the_path = os.fspath(utils.ExpandAndResolvePath(self.path))
         if sys.platform == 'darwin':
             run_args.append("chmod")
             if self.ignore_all_errors:
@@ -460,7 +460,7 @@ class Chmod(RunProcessBase, essential=True):
                 self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
                 return super().__call__(args, kwargs)
             else:
-                resolved_path = utils.ResolvedPath(self.path)
+                resolved_path = utils.ExpandAndResolvePath(self.path)
                 path_stats = resolved_path.stat()
                 flags, op = self.parse_symbolic_mode_mac(self.mode)
                 mode_to_set = flags
@@ -481,7 +481,7 @@ class Chmod(RunProcessBase, essential=True):
                 self.shell = True
                 return super().__call__(args, kwargs)
             else:
-                resolved_path = utils.ResolvedPath(self.path)
+                resolved_path = utils.ExpandAndResolvePath(self.path)
                 who, perms, operation = self.parse_symbolic_mode_win(self.mode)
                 self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}''"""
 
@@ -527,7 +527,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ResolvedPath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
         with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0) as owner_chaner:
             owner_chaner()

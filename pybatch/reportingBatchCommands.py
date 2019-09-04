@@ -369,7 +369,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase, essential=True):
 
     def __init__(self, path_to_py_batch, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__init__(self, **kwargs)
-        self.path_to_py_batch = utils.ResolvedPath(path_to_py_batch)
+        self.path_to_py_batch = utils.ExpandAndResolvePath(path_to_py_batch)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.path_to_py_batch))

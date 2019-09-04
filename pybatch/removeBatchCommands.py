@@ -30,7 +30,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ResolvedPath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.exists():
             self.doing = f"""removing file '{resolved_path}'"""
             resolved_path.unlink()
@@ -61,7 +61,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ResolvedPath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.exists():
             self.doing = f"""removing folder '{resolved_path}'"""
             shutil.rmtree(resolved_path, onerror=self.on_rm_error)
@@ -85,7 +85,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ResolvedPath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.is_file():
             self.doing = f"""removing file'{resolved_path}'"""
             resolved_path.unlink()
@@ -112,7 +112,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_remove = utils.ResolvedPath(self.folder_to_remove)
+        resolved_folder_to_remove = utils.ExpandAndResolvePath(self.folder_to_remove)
 
         # addition of "a^" to make sure empty self.files_to_ignore does not ignore any file
         files_to_ignore_regex = re.compile("|".join(self.files_to_ignore+["a^"]))
@@ -169,7 +169,7 @@ class RmGlob(PythonBatchCommandBase, essential=True):
         if self.pattern is None:
             log.wanging(f"skip RmGlob of '{self.path_to_folder}' because pattern is None")
         else:
-            folder = utils.ResolvedPath(self.path_to_folder)
+            folder = utils.ExpandAndResolvePath(self.path_to_folder)
             list_to_remove = folder.glob(self.pattern)
             for item in list_to_remove:
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
@@ -197,7 +197,7 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        folder = utils.ResolvedPath(self.path_to_folder)
+        folder = utils.ExpandAndResolvePath(self.path_to_folder)
         for pattern in self.patterns:
             list_to_remove = folder.glob(pattern)
             for item in list_to_remove:
@@ -232,7 +232,7 @@ class RmDirContents(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        folder_to_clean = utils.ResolvedPath(self.path_to_folder)
+        folder_to_clean = utils.ExpandAndResolvePath(self.path_to_folder)
         for item in os.scandir(folder_to_clean):
             if item.name not in self.exclude:
                 with RmFileOrDir(item.path, own_progress_count=0) as rfod:

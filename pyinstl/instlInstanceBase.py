@@ -286,7 +286,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = utils.ResolvedPath(config_vars.resolve_str(copy_destination.value))
+                        destination_file_resolved_path = utils.ExpandAndResolvePath(config_vars.resolve_str(copy_destination.value))
                         if destination_file_resolved_path.is_file() and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match

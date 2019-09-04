@@ -77,17 +77,26 @@ class InstlClientReport(InstlClient):
         short_index_dict = defaultdict(dict)
         for data_line in short_index_data:
             short_index_dict[data_line[0]]['guid'] = data_line[1]
+            if data_line[4] and data_line[1] != data_line[4]:  # uninstall gui
+                short_index_dict[data_line[0]]['guid'] = list((data_line[1], data_line[4]))
             if data_line[2]:
                 short_index_dict[data_line[0]]['name'] = data_line[2]
-            if data_line[3]:
+            if data_line[3] or data_line[4]:
                 short_index_dict[data_line[0]]['version'] = data_line[3]
 
-        as_yaml_doc = aYaml.YamlDumpDocWrap(value=short_index_dict, tag="!index",
+        defines_dict = config_vars.repr_for_yaml(which_vars=['AUXILIARY_IIDS'], resolve=True, ignore_unknown_vars=False)
+        defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",
+                                                explicit_start=True, sort_mappings=True)
+
+        index_yaml_doc = aYaml.YamlDumpDocWrap(value=short_index_dict, tag="!index",
                                             explicit_start=True, explicit_end=False,
                                             sort_mappings=True, include_comments=False)
+
         def __command_output(self, _as_yaml_doc):
             out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
             with utils.write_to_file_or_stdout(out_file_path) as wfd:
-                aYaml.writeAsYaml(_as_yaml_doc, wfd)
+                aYaml.writeAsYaml(defines_yaml_doc, wfd)
+                aYaml.writeAsYaml(index_yaml_doc, wfd)
+
         from functools import partial
-        self.command_output = partial(__command_output, self, as_yaml_doc)
+        self.command_output = partial(__command_output, self, index_yaml_doc)

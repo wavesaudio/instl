@@ -205,5 +205,5 @@ class SVNInfoReader(DBManager, PythonBatchCommandBase, kwargs_defaults={"disable
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_info_map_path = utils.ResolvedPath(self.file_to_read)
+        resolved_info_map_path = utils.ExpandAndResolvePath(self.file_to_read)
         self.info_map_table.read_from_file(resolved_info_map_path, a_format=self.format, disable_indexes_during_read=self.disable_indexes_during_read)

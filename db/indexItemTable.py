@@ -228,7 +228,7 @@ class IndexItemsTable(object):
         VALUES ("__ALL_ITEMS_IID__", 1, 0, 0, 0, 0);
 
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
-            SELECT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
+            SELECT DISTINCT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
             FROM index_item_t
             WHERE iid NOT IN {iids_to_ignore_str};
 
@@ -236,7 +236,7 @@ class IndexItemsTable(object):
         VALUES ("__ALL_GUIDS_IID__", 1, 0, 0);
 
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
-            SELECT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", index_item_detail_t.owner_iid, 0, 0
+            SELECT DISTINCT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", index_item_detail_t.owner_iid, 0, 0
             FROM index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND index_item_detail_t.owner_iid=index_item_detail_t.original_iid
@@ -1382,7 +1382,9 @@ class IndexItemsTable(object):
                    item_guid_t.detail_value AS GUID,
                    item_name_t.detail_value AS NAME,
                    item_version_t.detail_value AS VERSION,
-                   min(item_guid_t.generation) AS generation
+                   item_guid_2_t.detail_value AS VERSION,
+                   min(item_version_t.generation) AS generation,
+                   max(item_guid_2_t.generation) AS generation
             FROM index_item_t
             
             JOIN index_item_detail_t AS item_guid_t
@@ -1396,6 +1398,10 @@ class IndexItemsTable(object):
             LEFT JOIN index_item_detail_t AS item_version_t
             ON item_version_t.owner_iid == index_item_t.iid
             AND item_version_t.detail_name == 'version'
+            
+            JOIN index_item_detail_t AS item_guid_2_t
+            ON item_guid_2_t.owner_iid == index_item_t.iid
+            AND item_guid_2_t.detail_name == 'guid'
             
             GROUP BY index_item_t.iid
         """

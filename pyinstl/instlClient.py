@@ -506,7 +506,7 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
-        target_folder_path_resolved = utils.ResolvedPath(config_vars.resolve_str(target_folder_path))
+        target_folder_path_resolved = utils.ExpandAndResolvePath(config_vars.resolve_str(target_folder_path))
         if target_folder_path_resolved.is_dir():  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)

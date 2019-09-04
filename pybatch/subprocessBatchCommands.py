@@ -156,8 +156,8 @@ class CUrl(RunProcessBase):
         return f"""Download '{self.src}' to '{self.trg}'"""
 
     def get_run_args(self, run_args) -> None:
-        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
-        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        resolved_curl_path = os.fspath(utils.ExpandAndResolvePath(self.curl_path))
+        resolved_trg_path = os.fspath(utils.ExpandAndResolvePath(self.trg))
         run_args.extend([resolved_curl_path,
                          "--insecure",
                          "--fail",
@@ -276,7 +276,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
-        resolved_config_file = utils.ResolvedPath(self.config_file)
+        resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
         self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
         with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
             for line in rfd:
@@ -313,7 +313,9 @@ class Exec(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.config_files:
             for config_file in self.config_files:
+                config_file = utils.ExpandAndResolvePath(config_file)
                 self.read_yaml_file(config_file)
+        self.python_file = utils.ExpandAndResolvePath(self.python_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
             py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)

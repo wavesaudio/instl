@@ -123,8 +123,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_tree(resolved_src, resolved_dst)
 
@@ -430,8 +430,8 @@ class CopyDirToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         final_dst: Path = resolved_dst.joinpath(resolved_src.name)
         self.top_destination_does_not_exist = not final_dst.exists()
         self.copy_tree(resolved_src, final_dst)
@@ -495,8 +495,8 @@ class CopyFileToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_file_to_dir(resolved_src, resolved_dst)
 
@@ -528,8 +528,8 @@ class CopyFileToFile(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
         self.top_destination_does_not_exist = False
         self.copy_file_to_file(resolved_src, resolved_dst)

@@ -346,7 +346,7 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
     if not in_target_path:
         in_target_path = cache_folder
     if in_target_path:
-        in_target_path = utils.ResolvedPath(in_target_path)
+        in_target_path = utils.ExpandAndResolvePath(in_target_path)
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)
         need_decompress = url_extension == ".wzip"
@@ -589,7 +589,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
+def ExpandAndResolvePath(path_to_resolve: os.PathLike) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and

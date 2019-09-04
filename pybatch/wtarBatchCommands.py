@@ -156,10 +156,10 @@ class Wtar(PythonBatchCommandBase):
         """
 
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_what_to_wtar = utils.ResolvedPath(self.what_to_wtar)
+        resolved_what_to_wtar = utils.ExpandAndResolvePath(self.what_to_wtar)
 
         if self.where_to_put_wtar is not None:
-            resolved_where_to_put_wtar = utils.ResolvedPath(self.where_to_put_wtar)
+            resolved_where_to_put_wtar = utils.ExpandAndResolvePath(self.where_to_put_wtar)
         else:
             resolved_where_to_put_wtar = resolved_what_to_wtar.parent
             if not resolved_where_to_put_wtar:
@@ -245,12 +245,12 @@ class Unwtar(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        what_to_unwtar: Path = utils.ResolvedPath(self.what_to_unwtar)
+        what_to_unwtar: Path = utils.ExpandAndResolvePath(self.what_to_unwtar)
 
         if what_to_unwtar.is_file():
             if utils.is_first_wtar_file(what_to_unwtar):
                 if self.where_to_unwtar:
-                    destination_folder: Path = utils.ResolvedPath(self.where_to_unwtar)
+                    destination_folder: Path = utils.ExpandAndResolvePath(self.where_to_unwtar)
                 else:
                     destination_folder = what_to_unwtar.parent
                 self._doing = f"""unwtar file '{what_to_unwtar}' to '{destination_folder}''"""
@@ -258,7 +258,7 @@ class Unwtar(PythonBatchCommandBase):
 
         elif what_to_unwtar.is_dir():
             if self.where_to_unwtar:
-                destination_folder: Path = Path(utils.ResolvedPath(self.where_to_unwtar), what_to_unwtar.name)
+                destination_folder: Path = Path(utils.ExpandAndResolvePath(self.where_to_unwtar), what_to_unwtar.name)
             else:
                 destination_folder = what_to_unwtar
             self._doing = f"""unwtar folder '{what_to_unwtar}' to '{destination_folder}''"""
@@ -340,10 +340,10 @@ class Wzip(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_what_to_zip = utils.ResolvedPath(self.what_to_wzip)
+        resolved_what_to_zip = utils.ExpandAndResolvePath(self.what_to_wzip)
 
         if self.where_to_put_wzip:
-            target_wzip_file = utils.ResolvedPath(self.where_to_put_wzip)
+            target_wzip_file = utils.ExpandAndResolvePath(self.where_to_put_wzip)
         else:
             target_wzip_file = resolved_what_to_zip.parent
             if not target_wzip_file:  # os.path.split might return empty string
@@ -376,8 +376,8 @@ class Unwzip(PythonBatchCommandBase):
         return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        resolved_what_to_unwzip = utils.ResolvedPath(self.what_to_unwzip)
-        target_unwzip_file = utils.ResolvedPath(self.where_to_put_unwzip)
+        resolved_what_to_unwzip = utils.ExpandAndResolvePath(self.what_to_unwzip)
+        target_unwzip_file = utils.ExpandAndResolvePath(self.where_to_put_unwzip)
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(resolved_what_to_unwzip)
         if not target_unwzip_file:
             target_unwzip_file = resolved_what_to_unwzip.parent

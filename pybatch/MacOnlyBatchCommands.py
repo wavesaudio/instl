@@ -49,7 +49,7 @@ class MacDock(PythonBatchCommandBase):
                     log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
-                resolved_path_to_item = os.fspath(utils.ResolvedPath(self.path_to_item))
+                resolved_path_to_item = os.fspath(utils.ExpandAndResolvePath(self.path_to_item))
                 dock_util_command.append(resolved_path_to_item)
                 if self.label_for_item:
                     dock_util_command.append("--label")
@@ -78,7 +78,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        path_to_target = utils.ResolvedPath(self.path_to_target)
+        path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         try:
             path_to_symlink.unlink()
@@ -163,7 +163,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        symlink_file_to_convert = utils.ResolvedPath(self.symlink_file_to_convert)
+        symlink_file_to_convert = utils.ExpandAndResolvePath(self.symlink_file_to_convert)
         symlink_target = symlink_file_to_convert.read_text()
         self.doing = f"""convert symlink file '{symlink_file_to_convert}' to real symlink to target '{symlink_target}'"""
         symlink = Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
@@ -205,7 +205,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
+        resolved_folder_to_convert = utils.ExpandAndResolvePath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files + dirs:
                 item_path = Path(root, item)
@@ -239,7 +239,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
+        resolved_folder_to_convert = utils.ExpandAndResolvePath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files:
                 item_path = Path(root, item)

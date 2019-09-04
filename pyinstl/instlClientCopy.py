@@ -75,13 +75,13 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_copy')
-
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         self.create_create_folders_instructions(sorted_target_folder_list)
+
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_copy')
 
         if self.mac_current_and_target:
             self.pre_copy_mac_handling()
