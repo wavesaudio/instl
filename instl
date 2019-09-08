@@ -1,7 +1,16 @@
 #!/usr/bin/env python3.6
 
 
+""" main executable for instl """
+
+import sys
+# force stdout to be utf-8. Sometimes it opens in ascii encoding
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
+sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1)
+
+
+from pyinstl.instl_main import main, InvocationReporter
+
 if __name__ == "__main__":
-    import sys
-    from pyinstl import instl_own_main
-    instl_own_main(launch_file=__file__, argv=sys.argv[1:])
+    with InvocationReporter():
+        main()

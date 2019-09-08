@@ -414,11 +414,25 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
-        last_src_stat = os.lstat(self.last_src)
-        last_dst_stat = os.lstat(self.last_dst)
+        last_src_mode = "unknown"
+        try:
+            last_src_path = Path(self.last_src)
+            if last_src_path.exists():
+                last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
+        except:
+            pass
+
+        last_dst_mode = "unknown"
+        try:
+            last_dst_path = Path(self.last_dst)
+            if last_dst_path.exists():
+                last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
+        except:
+            pass
+
         self._error_dict.update(
-            {'last_src':  {"path": os.fspath(self.last_src), "mode": utils.unix_permissions_to_str(last_src_stat.st_mode)},
-             'last_dst':  {"path": os.fspath(self.last_dst), "mode": utils.unix_permissions_to_str(last_dst_stat.st_mode)}})
+            {'last_src':  {"path": os.fspath(self.last_src), "mode": last_src_mode},
+             'last_dst':  {"path": os.fspath(self.last_dst), "mode": last_dst_mode}})
 
 
 class CopyDirToDir(RsyncClone):
