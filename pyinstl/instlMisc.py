@@ -194,7 +194,8 @@ class InstlMisc(InstlInstanceBase):
                 _abort_file_path = Path(_abort_file_path)
                 while _abort_file_path.is_file():
                     time.sleep(_time_to_sleep)
-                sys.exit(_exit_code)
+                print(f"aborting because file not found {_abort_file_path}")
+                os._exit(_exit_code)  # to kill the main thread see: https://docs.python.org/3.6/library/os.html#os._exit
 
             thread_name = "abort file monitor"
             x = threading.Thread(target=abort_file_thread_func, args=(abort_file_path, time_to_sleep, exit_code), daemon=True, name=thread_name)
