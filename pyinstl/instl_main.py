@@ -31,9 +31,9 @@ def get_path_to_instl_app():
     """
     application_path = None
     if getattr(sys, 'frozen', False):
-        application_path = os.path.realpath(sys.executable)
+        application_path = Path(sys.executable).resolve()
     elif __file__:
-        application_path = os.path.realpath(__file__)
+        application_path = Path(__file__).resolve().parent.parent
     return application_path
 
 
