@@ -53,6 +53,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         pass
 
     def test_Curl_repr(self):
+        """ validate Curl object recreation with Curl.__repr__() """
         url_from = r"http://www.google.com"
         file_to = "/q/w/r"
         curl_path = 'curl'
@@ -84,6 +85,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertIn("A static web page", downloaded_data)
 
     def test_ShellCommand_repr(self):
+        """ validate ShellCommand object recreation with ShellCommand.__repr__() """
         list_of_objs = list()
         list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
@@ -108,6 +110,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
     def test_ScriptCommand_repr(self):
+        """ validate ScriptCommand object recreation with ScriptCommand.__repr__() """
         list_of_objs = list()
         list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
@@ -143,6 +146,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
     def test_ParallelRun_repr(self):
+        """ validate ParallelRun object recreation with ParallelRun.__repr__() """
         obj = ParallelRun("/rik/ya/vik", True)
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
@@ -234,6 +238,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
 
     def test_RunInThread_repr(self):
+        """ validate RunInThread object recreation with RunInThread.__repr__() """
         self.pbt.reprs_test_runner(RunInThread(Ls('rumba', out_file="empty.txt")),
                                    RunInThread(Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')),
                                    RunInThread(Ls(r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")))
@@ -256,6 +261,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")
 
     def test_Subprocess_repr(self):
+        """ validate Subprocess object recreation with Subprocess.__repr__() """
         self.pbt.reprs_test_runner(Subprocess("/rik/ya/vik", message="sababa"),
                                    Subprocess("/rik/ya/vik", "kiki di", message="sababa"),
                                    Subprocess("/rik/ya/vik", "kiki di", "Rubik Rosenthal"))

@@ -811,7 +811,7 @@ class InstlAdmin(InstlInstanceBase):
 
         sys.path.append(os.pardir)
         sys.path.append(f"{os.pardir}/{os.pardir}")
-        from . import instl_own_main
+        from .instl_main import instl_own_main
 
         # config yaml such as stout-config.yaml with definitions needed for this function to work
         main_input_file = Path(config_vars["__CONFIG_FILE__"][0]).resolve()

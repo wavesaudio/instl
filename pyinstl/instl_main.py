@@ -33,7 +33,7 @@ def get_path_to_instl_app():
     if getattr(sys, 'frozen', False):
         application_path = Path(sys.executable).resolve()
     elif __file__:
-        application_path = Path(__file__).resolve().parent.parent.joinpath("instl")
+        application_path = Path(__file__).resolve().parent.parent.joinpath('instl')
     return application_path
 
 
@@ -42,26 +42,24 @@ def get_instl_launch_command():
     @return: returns the path to this
     """
     launch_command = None
+    exec_path = get_path_to_instl_app()
     if getattr(sys, 'frozen', False):
-        launch_command = utils.quoteme_double(os.path.realpath(sys.executable))
+        launch_command = utils.quoteme_double(os.fspath(exec_path))
     elif __file__:
         if os_family_name == "Win":
-            launch_command = " ".join((utils.quoteme_double(sys.executable), utils.quoteme_double(os.path.realpath(__file__))))
+            launch_command = " ".join((utils.quoteme_double(sys.executable), utils.quoteme_double(os.fspath(exec_path))))
         else:
-            launch_command = utils.quoteme_double(os.path.realpath(__file__))
+            launch_command = utils.quoteme_double(os.fspath(exec_path))
     return launch_command
 
 
 def get_data_folder():
+    """ get the path to where we can find data folders such as defaults or help
+        data folder should be the instl folder where either instl (in case running directly form python)
+        or instl.exe (in case running frozen). In both cases this is the parent folder of instl.
+    """
     application_path = get_path_to_instl_app()
-    data_folder = None
-    if getattr(sys, 'frozen', False):
-        data_folder: Path = Path(application_path).parent
-        defaults_folder: Path = data_folder.joinpath('defaults')
-        if not defaults_folder.is_dir():
-            data_folder = getattr(sys, '_MEIPASS', None)
-    elif __file__:
-        data_folder = Path(__file__).parent.parent
+    data_folder = Path(application_path).parent
     return data_folder
 
 
@@ -91,10 +89,10 @@ class InvocationReporter(object):
             log.debug(f"End: {end_time}")
             log.debug(f"===== {self.random_invocation_name} =====")
         except Exception as e:
-            log.warning(f'instl log file report finalize failed - {e}')
+            log.warning(f'InvocationReporter.__exit__ internal exception - {e}')
 
 
-def main():
+def instl_own_main():
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
     options = CommandLineOptions()

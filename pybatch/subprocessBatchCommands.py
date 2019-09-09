@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True, "detach": False}):
+                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -66,47 +66,33 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
 
             out_stream = None
+            if self.capture_stdout:
+                # this will capture stdout in completed_process.stdout instead of writing directly to stdout
+                # so objects overriding handle_completed_process will have access to stdout
+                out_stream = subprocess.PIPE
             in_stream = None
             err_stream = None
-
-            if self.out_file:
-                out_stream = utils.utf8_open_for_write(self.out_file, "w")
-            else:
-                out_stream = subprocess.PIPE
-
-            if self.in_file:
-                in_stream = open(self.in_file, "r")
-
-            if self.err_file:
-                err_stream = utils.utf8_open_for_write(self.err_file, "w")
-            else:
+            if self.stderr_means_err:
                 err_stream = subprocess.PIPE
 
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
-            if in_stream:
-                in_stream.close()
+            if completed_process.returncode != 0 or completed_process.stderr:
+                if self.stderr_means_err:
+                    local_stderr = utils.unicodify(completed_process.stderr)
+                    with utils.utf8_open_for_write("/Users/shai/Desktop/Logs/uber.log", "a") as uber:
+                        uber.write(f"RunProcessBase.__call__, local_stderr: {local_stderr}, returncode: {completed_process.returncode}\n")
+                    if local_stderr:
 
-            if self.out_file is None:
-                local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
-                if local_stdout:
-                    print(local_stdout)
-            elif out_stream:
-                out_stream.close()
-
-            if self.err_file is None:
-                local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
-                if local_stderr:
-                    if self.ignore_all_errors:
-                        # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
-                        # but it will not be interpreted as an error by whoever is running instl
-                        print(local_stderr, file=sys.stdout)
-                    else:
-                        print(local_stderr, file=sys.stderr)
-                        if completed_process.returncode == 0 and self.stderr_means_err:
-                            completed_process.returncode = 123
-            else:
-                err_stream.close()
+                        if self.ignore_all_errors:
+                            # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                            # but it will not be interpreted as an error by whoever is running instl
+                            sys.stdout.write(local_stderr)
+                            completed_process.returncode = 0
+                        else:
+                            log.error(local_stderr)
+                            if completed_process.returncode == 0:
+                                completed_process.returncode = 123
 
             completed_process.check_returncode()
             self.handle_completed_process(completed_process)
@@ -403,7 +389,8 @@ class Subprocess(RunProcessBase, essential=True):
         subprocess_exe = os.path.expandvars(self.subprocess_exe)
         run_args.append(subprocess_exe)
         for arg in self.subprocess_args:
-            run_args.append(os.path.expandvars(arg))
+            expanded_var = os.path.expandvars(arg)
+            run_args.append(expanded_var)
 
 
 class ExternalPythonExec(Subprocess):
@@ -424,3 +411,40 @@ class ExternalPythonExec(Subprocess):
         run_args.pop(0)  # Removing empty string
         for arg in reversed(python_executables[sys.platform]):
             run_args.insert(0, arg)
+
+
+class SysExit(PythonBatchCommandBase, essential=True):
+    def __init__(self, exit_code=17, **kwargs):
+        super().__init__(**kwargs)
+        self.exit_code = exit_code
+
+    def progress_msg_self(self) -> str:
+        return f'''sys.exit({self.exit_code})'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_by_type(self.exit_code))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"calling sys.exit({self.exit_code})"
+        sys.exit(self.exit_code)
+
+
+class Raise(PythonBatchCommandBase, essential=True):
+    def __init__(self, message=None, **kwargs):
+        super().__init__(**kwargs)
+        self.message = message
+
+    def progress_msg_self(self) -> str:
+        return f'''raising BogusException({self.message})'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("message", self.message, None))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"raising bogus exception: {self.message}"
+
+        class BogusException(RuntimeError):
+            pass
+        raise BogusException(f'bogus exception: {self.message}')

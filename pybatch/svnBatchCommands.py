@@ -91,7 +91,7 @@ class SVNDelProp(SVNClient):
         run_args.append(os.fspath(self.file_path))
 
 
-class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty"}):
+class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty", "capture_stdout": True}):
     """ get the last repository revision from a url to SVN repository
         the result is placed in a configVar
         :url_param: url to svn repository

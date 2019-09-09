@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.6
 
 import shlex
+import threading
 
 from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
@@ -184,9 +185,25 @@ class InstlMisc(InstlInstanceBase):
         Wzip(what_to_work_on, where_to_put_wzip)()
 
     def do_run_process(self):
-        abort_file_path = None
+
+        def start_abort_file_thread(abort_file_path, time_to_sleep, exit_code):
+            """
+            """
+
+            def abort_file_thread_func(_abort_file_path, _time_to_sleep, _exit_code):
+                _abort_file_path = Path(_abort_file_path)
+                while _abort_file_path.is_file():
+                    time.sleep(_time_to_sleep)
+                sys.exit(_exit_code)
+
+            thread_name = "abort file monitor"
+            x = threading.Thread(target=abort_file_thread_func, args=(abort_file_path, time_to_sleep, exit_code), daemon=True, name=thread_name)
+            x.start()
+
         if 'ABORT_FILE' in config_vars:
             abort_file_path = config_vars["ABORT_FILE"].Path()
+            start_abort_file_thread(abort_file_path=abort_file_path, time_to_sleep=1, exit_code=0)
+
         list_of_process_to_run = list()
         if "__MAIN_INPUT_FILE__" in config_vars:  # read commands from a file
             file_with_commands = config_vars["__MAIN_INPUT_FILE__"]
@@ -198,4 +215,6 @@ class InstlMisc(InstlInstanceBase):
 
         for process_to_run in list_of_process_to_run:
             print(f"""run-process: {process_to_run}""")
-            utils.run_process(process_to_run, shell=bool(config_vars['SHELL']), abort_file=abort_file_path)
+            with Subprocess(process_to_run[0], *process_to_run[1:]) as sub_proc:
+                sub_proc()
+

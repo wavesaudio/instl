@@ -71,7 +71,8 @@ from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
 from .subprocessBatchCommands import Subprocess
 from .subprocessBatchCommands import ExternalPythonExec
-from .subprocessBatchCommands import RunProcessBase
+from .subprocessBatchCommands import SysExit
+from .subprocessBatchCommands import Raise
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
