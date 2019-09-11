@@ -80,8 +80,6 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             if completed_process.returncode != 0 or completed_process.stderr:
                 if self.stderr_means_err:
                     local_stderr = utils.unicodify(completed_process.stderr)
-                    # with utils.utf8_open_for_write("/Users/shai/Desktop/Logs/uber.log", "a") as uber:
-                    #     uber.write(f"RunProcessBase.__call__, local_stderr: {local_stderr}, returncode: {completed_process.returncode}\n")
                     if local_stderr:
 
                         if self.ignore_all_errors:

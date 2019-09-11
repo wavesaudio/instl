@@ -64,9 +64,10 @@ def get_data_folder():
 
 
 class InvocationReporter(object):
-    def __init__(self) -> None:
+    def __init__(self, argv) -> None:
         self.start_time = datetime.datetime.now()
         self.random_invocation_name = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
+        self.argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
 
     def __enter__(self):
         try:
@@ -75,16 +76,16 @@ class InvocationReporter(object):
             config_logger()
             log.debug(f"===== {self.random_invocation_name} =====")
             log.debug(f"Start: {self.start_time}")
-            log.debug(f"instl: {sys.argv[0]}")
-            log.debug(f'argv: {" ".join(sys.argv[1:])}')
+            log.debug(f"instl: {self.argv[0]}")
+            log.debug(f'argv: {" ".join(self.argv[1:])}')
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             end_time = datetime.datetime.now()
-            if exc_val:
-                log.exception(exc_val)
+            #if exc_val:
+            #    log.exception("InvocationReporter.__exit__:", exc_info=exc_val)
             log.debug(f"Run time: {end_time-self.start_time}")
             log.debug(f"End: {end_time}")
             log.debug(f"===== {self.random_invocation_name} =====")
@@ -92,11 +93,12 @@ class InvocationReporter(object):
             log.warning(f'InvocationReporter.__exit__ internal exception - {e}')
 
 
-def instl_own_main():
+def instl_own_main(argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
+    argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
     options = CommandLineOptions()
-    command_names = read_command_line_options(options, sys.argv[1:])
+    command_names = read_command_line_options(options, argv[1:])
     initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
                     "__CURR_WORKING_DIR__": os.getcwd(),  # the working directory when instl was launched
                     "__INSTL_LAUNCH_COMMAND__": get_instl_launch_command(),
@@ -123,7 +125,7 @@ def instl_own_main():
                     # VENDOR_NAME, APPLICATION_NAME need to be set so logging can be redirected to the correct folder
                     "VENDOR_NAME": os.environ.get("VENDOR_NAME", "Waves Audio"),
                     "APPLICATION_NAME": os.environ.get("APPLICATION_NAME", "Waves Central"),
-                    "__ARGV__": sys.argv,
+                    "__ARGV__": argv,
                     "ACTING_UID": -1,
                     "ACTING_GID": -1,
                     }

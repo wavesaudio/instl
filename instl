@@ -12,5 +12,5 @@ sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1)
 from pyinstl.instl_main import instl_own_main, InvocationReporter
 
 if __name__ == "__main__":
-    with InvocationReporter():
-        instl_own_main()
+    with InvocationReporter(argv=sys.argv):
+        instl_own_main(argv=sys.argv)
