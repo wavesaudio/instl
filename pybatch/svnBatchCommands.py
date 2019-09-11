@@ -54,6 +54,7 @@ class SVNCleanup(SVNClient):
         if self.working_copy_path is not None:
             run_args.append(self.working_copy_path)
 
+
 class SVNSetProp(SVNClient):
     """ calls svn propset """
     def __init__(self, prop_name, prop_value, file_path, **kwargs) -> None:

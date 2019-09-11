@@ -884,11 +884,11 @@ class InstlAdmin(InstlInstanceBase):
                             work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
                             up2s3_process = mp.Process (target=instl_own_main,
                                                         name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
-                                                        args=(str(config_vars["__INSTL_EXE_PATH__"]),
-                                                              [instl_command_name,
+                                                        args=([str(config_vars["__INSTL_EXE_PATH__"]),
+                                                              instl_command_name,
                                                                "--config-file", os.fspath(work_config_file),
                                                                "--log", os.fspath(work_log_file),
-                                                               "--run"]))
+                                                               "--run"],))
 
                             up2s3_process.start()
                             up2s3_process.join()
