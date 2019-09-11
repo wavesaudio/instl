@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "detach": False}):
+                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -33,8 +33,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             self.ignore_specific_exit_codes = ignore_specific_exit_codes
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
-        self.stdout = ''
-        self.stderr = ''
+        self.stderr = ''  # for log_results
 
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
@@ -66,7 +65,9 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
 
             out_stream = None
-            if self.capture_stdout:
+            if self.out_file:
+                out_stream = utils.utf8_open_for_write(self.out_file, "w")
+            elif self.capture_stdout:
                 # this will capture stdout in completed_process.stdout instead of writing directly to stdout
                 # so objects overriding handle_completed_process will have access to stdout
                 out_stream = subprocess.PIPE
@@ -77,18 +78,21 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
+            if self.out_file:
+                out_stream.close()
+
             if completed_process.returncode != 0 or completed_process.stderr:
                 if self.stderr_means_err:
-                    local_stderr = utils.unicodify(completed_process.stderr)
-                    if local_stderr:
+                    self.stderr = utils.unicodify(completed_process.stderr)
+                    if self.stderr:
 
                         if self.ignore_all_errors:
                             # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
                             # but it will not be interpreted as an error by whoever is running instl
-                            sys.stdout.write(local_stderr)
+                            sys.stdout.write(self.stderr)
                             completed_process.returncode = 0
                         else:
-                            log.error(local_stderr)
+                            log.error(self.stderr)
                             if completed_process.returncode == 0:
                                 completed_process.returncode = 123
 
