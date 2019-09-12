@@ -414,25 +414,26 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
+
+        last_src_path = "unknown"
         last_src_mode = "unknown"
         try:
             last_src_path = Path(self.last_src)
-            if last_src_path.exists():
-                last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
+            last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
         except:
             pass
 
+        last_dst_path = "unknown"
         last_dst_mode = "unknown"
         try:
             last_dst_path = Path(self.last_dst)
-            if last_dst_path.exists():
-                last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
+            last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
         except:
             pass
 
         self._error_dict.update(
-            {'last_src':  {"path": os.fspath(self.last_src), "mode": last_src_mode},
-             'last_dst':  {"path": os.fspath(self.last_dst), "mode": last_dst_mode}})
+            {'last_src':  {"path": os.fspath(last_src_path), "mode": last_src_mode},
+             'last_dst':  {"path": os.fspath(last_dst_path), "mode": last_dst_mode}})
 
 
 class CopyDirToDir(RsyncClone):
@@ -599,3 +600,25 @@ class CopyBundle(RsyncClone):
     def __call__(self, *args, **kwargs) -> None:
         with CopyDirToDir(self.source, self.destination, link_dest=self.link_dest, ignore_patterns=self.ignore_patterns) as cdtd:
             cdtd()
+
+
+class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
+    def __init__(self, glob_pattern, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+        self.glob_pattern = glob_pattern
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.glob_pattern))
+        super().repr_own_args(all_args)
+
+    def __call__(self, *args, **kwargs) -> None:
+        resolved_source_dir: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_destination_dir: Path = utils.ExpandAndResolvePath(self.dst)
+        kwargs = self.all_kwargs_dict()
+        for globed_file in resolved_source_dir.glob(self.glob_pattern):
+            if globed_file.is_file():
+                with CopyFileToDir(globed_file, resolved_destination_dir, own_project_count=0, **kwargs) as copier:
+                    copier()
+            elif not self.only_files:
+                with CopyDirToDir(globed_file, resolved_destination_dir, own_project_count=0, **kwargs) as copier:
+                    copier()

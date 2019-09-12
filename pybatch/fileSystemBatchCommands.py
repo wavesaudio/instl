@@ -155,6 +155,7 @@ class Touch(PythonBatchCommandBase, essential=True):
         if resolved_path.is_dir():
             os.utime(resolved_path)
         else:
+            resolved_path.parent.mkdir(parents=True, exist_ok=True)
             with open(resolved_path, 'a') as tfd:
                 os.utime(resolved_path, None)
 

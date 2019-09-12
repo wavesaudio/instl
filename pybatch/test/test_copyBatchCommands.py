@@ -358,3 +358,33 @@ class TestPythonBatchCopy(unittest.TestCase):
 
     def test_MoveFileToFile(self):
         pass
+
+    def test_CopyGlobToDir_repr(self):
+        self.pbt.reprs_test_runner(CopyGlobToDir("/a/b/c", "/x/y/z", "*.banana"),
+                                   CopyGlobToDir("/a/b/c", "/x/y/z", "*.banana", hard_links=False, copy_owner=True))
+
+    def test_CopyGlobToDir(self):
+
+        files_to_copy = (
+            self.pbt.path_inside_test_folder("chimi/chury/a.banana"),
+            self.pbt.path_inside_test_folder("chimi/chury/b.banana"),
+            self.pbt.path_inside_test_folder("chimi/chury/c.banana"),
+        )
+
+        files_not_to_copy = (
+            self.pbt.path_inside_test_folder("chimi/d.banana"),
+            self.pbt.path_inside_test_folder("chimi/chury/cofix/e.banana"),
+            self.pbt.path_inside_test_folder("chimi/chury/f.banana/g.ananas"),
+        )
+
+        target_dir = self.pbt.path_inside_test_folder("some bananas")
+        glob_pattern = "*/*/*.banana"
+
+        self.pbt.batch_accum.clear()
+        for file_to_create in files_to_copy + files_not_to_copy:
+            self.pbt.batch_accum += Touch(file_to_create)
+        self.pbt.batch_accum += CopyGlobToDir(glob_pattern, self.pbt.test_folder, target_dir)
+        self.pbt.exec_and_capture_output()
+
+        for copied_file in target_dir.glob('*'):
+            print(copied_file)

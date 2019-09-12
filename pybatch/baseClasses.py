@@ -106,17 +106,28 @@ class PythonBatchCommandBase(abc.ABC):
         self.runtime_progress_num = 0
         self.command_time_sec = 0
 
-    def repr_default_kwargs(self, all_args):
-        """ get a text representation of the __init__(kwargs) for a sub class.
-            returns a list of text values in the form "x=y". args that
-            are listed in self.non_representative__dict__keys will not be included
-            also e
+    def all_kwargs_dict(self, only_non_default_values=False):
+        """ return a dict containing all __init__(kwargs) and their values
+            if only_non_default_values==False dict will include those with default values
+            if only_non_default_values==True dict will include only those with non-default values
+            args listed in self.non_representative__dict__keys will not be included
         """
+        retVal = dict()
         for kwarg_name, kwarg_default_value in sorted(self.kwargs_defaults.items()):
             if kwarg_name not in self.non_representative__dict__keys:
                 current_value = getattr(self, kwarg_name, kwarg_default_value)
-                if current_value != kwarg_default_value:
-                    all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(current_value)}""")
+                if not only_non_default_values or current_value != kwarg_default_value:
+                    retVal[kwarg_name] = current_value
+        return retVal
+
+    def repr_default_kwargs(self, all_args):
+        """ get a text representation of the __init__(kwargs) for a sub class.
+            returns a list of text values in the form "x=y".
+            args listed in self.non_representative__dict__keys will not be included
+        """
+        kwdict = self.all_kwargs_dict(only_non_default_values=True)
+        for kwarg_name, kwarg_value in kwdict.items():
+            all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(kwarg_value)}""")
 
     #@abc.abstractmethod
     def repr_own_args(self, all_args: List[str]) -> None:

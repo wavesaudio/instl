@@ -22,6 +22,7 @@ from .copyBatchCommands import CopyFileToFile
 from .copyBatchCommands import MoveDirToDir
 from .copyBatchCommands import RenameFile
 from .copyBatchCommands import CopyBundle
+from .copyBatchCommands import CopyGlobToDir
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
