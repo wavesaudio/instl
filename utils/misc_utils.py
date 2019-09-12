@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
 import os
+import platform
 import re
 import hashlib
 import base64
@@ -10,12 +11,12 @@ import collections
 import subprocess
 import numbers
 import stat
-import pathlib
+from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
-import rsa
-from functools import reduce
-from itertools import repeat
+import logging
+from functools import reduce, wraps
+import itertools
 import tarfile
 import types
 import asyncio
@@ -24,11 +25,22 @@ import appdirs
 import time
 from contextlib import contextmanager
 
+from typing import Any, Dict, List, Set, Tuple
+
 import utils
+
+log = logging.getLogger()
 
 
 def Is64Windows():
+    """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
     return 'PROGRAMFILES(X86)' in os.environ
+
+
+def Is64Mac():
+    """Check if the installed version of osx is greater than 14 (Mojave).
+    such versions cannot run anymore 32 bit apps """
+    return int(platform.mac_ver()[0].split('.')[1]) > 14
 
 
 def Is32Windows():
@@ -49,12 +61,14 @@ def GetProgramFiles64():
         return None
 
 
-def get_current_os_names():
-    retVal = None
-    import platform
+def get_current_os_names() -> Tuple[str, ...]:
+    retVal: Tuple[str, ...] = ()
     current_os = platform.system()
     if current_os == 'Darwin':
-        retVal = ('Mac',)
+        if Is64Mac():
+            retVal = ('Mac', 'Mac64')
+        else:
+            retVal = ('Mac', 'Mac32')
     elif current_os == 'Windows':
         if Is64Windows():
             retVal = ('Win', 'Win64')
@@ -69,13 +83,13 @@ class write_to_list(object):
     """ list that behaves like a file. For each call to write
         another item is added to the list.
     """
-    def __init__(self):
-        self.the_list = list()
+    def __init__(self) -> None:
+        self.the_list: List = list()
 
-    def write(self, text):
+    def write(self, text: Any):
         self.the_list.append(text)
 
-    def list(self):
+    def list(self) -> List:
         return self.the_list
 
 
@@ -91,9 +105,9 @@ class unique_list(list):
     """
     __slots__ = ('__attendance',)
 
-    def __init__(self, initial_list=()):
+    def __init__(self, initial_list=()) -> None:
         super().__init__()
-        self.__attendance = set()
+        self.__attendance: Set = set()
         self.extend(initial_list)
 
     def __setitem__(self, index, item):
@@ -168,7 +182,7 @@ class unique_list(list):
 
 class set_with_order(unique_list):
     """ Just another name for unique_list """
-    def __init__(self, initial_list=()):
+    def __init__(self, initial_list=()) -> None:
         super().__init__(initial_list)
 
 
@@ -239,7 +253,7 @@ def ContinuationIter(the_iter, continuation_value=None):
     """ ContinuationIter yield all the values of the_iter and then continue yielding continuation_value
     """
     yield from the_iter
-    yield from repeat(continuation_value)
+    yield from itertools.repeat(continuation_value)
 
 
 def ParallelContinuationIter(*iterables):
@@ -257,20 +271,6 @@ def ParallelContinuationIter(*iterables):
         yield list(map(next, continue_iterables))
 
 
-def create_file_signatures(file_path, private_key_text=None):
-    """ create rsa signature and sha1 checksum for a file.
-        return a dict with "SHA-512_rsa_sig" and "sha1_checksum" entries.
-    """
-    retVal = dict()
-    with open(file_path, "rb") as rfd:
-        file_contents = rfd.read()
-        sha1ner = hashlib.sha1()
-        sha1ner.update(file_contents)
-        checksum = sha1ner.hexdigest()
-        retVal["sha1_checksum"] = checksum
-    return retVal
-
-
 def get_buffer_checksum(buff):
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
@@ -286,31 +286,6 @@ def compare_checksums(_1st_checksum, _2nd_checksum):
 def check_buffer_checksum(buff, expected_checksum):
     checksum = get_buffer_checksum(buff)
     retVal = compare_checksums(checksum, expected_checksum)
-    return retVal
-
-
-def check_buffer_signature(buff, textual_sig, public_key):
-    try:
-        pubkeyObj = rsa.PublicKey.load_pkcs1(public_key, format='PEM')
-        binary_sig = base64.b64decode(textual_sig)
-        rsa.verify(buff, binary_sig, pubkeyObj)
-        return True
-    except Exception:
-        return False
-
-
-def check_buffer_signature_or_checksum(buff, public_key=None, textual_sig=None, expected_checksum=None):
-    retVal = False
-    if public_key and textual_sig:
-        retVal = check_buffer_signature(buff, textual_sig, public_key)
-    elif expected_checksum:
-        retVal = check_buffer_checksum(buff, expected_checksum)
-    return retVal
-
-
-def check_file_signature_or_checksum(file_path, public_key=None, textual_sig=None, expected_checksum=None):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature_or_checksum(rfd.read(), public_key, textual_sig, expected_checksum)
     return retVal
 
 
@@ -340,15 +315,9 @@ def get_file_checksum(file_path, follow_symlinks=True):
     return retVal
 
 
-def check_file_signature(file_path, textual_sig, public_key):
-    with open(file_path, "rb") as rfd:
-        retVal = check_buffer_signature(rfd.read(), textual_sig, public_key)
-    return retVal
-
-
 def compare_files_by_checksum(_1st_file_path, _2nd_file_path, follow_symlinks=False):
     """ compare the checksum of two files
-        Return True if checksums matcj
+        Return True if checksums match
         Return False if any or both files do not exit
         follow_symlinks  parameter has the same meaning as for get_file_checksum
     """
@@ -368,57 +337,6 @@ def need_to_download_file(file_path, file_checksum):
     return retVal
 
 
-def quoteme(to_quote, quote_char):
-    return "".join((quote_char, to_quote, quote_char))
-
-
-def quoteme_list(to_quote_list, quote_char):
-    return [quoteme(to_q, quote_char) for to_q in to_quote_list]
-
-
-def quoteme_single(to_quote):
-    return quoteme(to_quote, "'")
-
-
-def quoteme_single_list(to_quote_list, ):
-    return quoteme_list(to_quote_list, "'")
-
-
-def quoteme_double(to_quote):
-    return quoteme(to_quote, '"')
-
-
-def quoteme_double_list(to_quote_list):
-    return quoteme_list(to_quote_list, '"')
-
-
-def quoteme_double_list_for_sql(to_quote_list):
-    return "".join(('("', '","'.join(to_quote_list), '")'))
-
-
-def quoteme_single_list_for_sql(to_quote_list):
-    return "".join(("('", "','".join(to_quote_list), "')"))
-
-
-def quote_path_properly(path_to_quote):
-    quote_char = "'"
-    if "'" in path_to_quote or "${" in path_to_quote:
-        quote_char = '"'
-        if '"' in path_to_quote:
-            raise Exception("""both single quote and double quote found in {}""".format(path_to_quote))
-    quoted_path = "".join((quote_char, path_to_quote, quote_char))
-    return quoted_path
-
-
-detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
-
-
-def unquoteme(to_unquote):
-    retVal = to_unquote
-    has_quotations = detect_quotations.match(to_unquote)
-    if has_quotations:
-        retVal = has_quotations.group('the_unquoted_text')
-    return retVal
 
 guid_re = re.compile("""
                 [a-f0-9]{8}
@@ -463,7 +381,7 @@ def P4GetPathFromDepotPath(depot_path):
         where_line_reg_str = "".join((re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)"))
         match = re.match(where_line_reg_str, lines[0])
         if match:
-            retVal = match.group('disk_path')
+            retVal = match['disk_path']
             if retVal.endswith("/..."):
                 retVal = retVal[0:-4]
     return retVal
@@ -515,9 +433,9 @@ def timing(f):
     import time
 
     def wrap(*args, **kwargs):
-        time1 = time.clock()
+        time1 = time.perf_counter()
         ret = f(*args, **kwargs)
-        time2 = time.clock()
+        time2 = time.perf_counter()
         if time1 != time2:
             print('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
         else:
@@ -561,61 +479,6 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-def unicodify(in_something, encoding='utf-8'):
-    if in_something is not None:
-        if isinstance(in_something, str):
-            retVal = in_something
-        elif isinstance(in_something, bytes):
-            retVal = in_something.decode(encoding)
-        else:
-            retVal = str(in_something)
-    else:
-        retVal = None
-    return retVal
-
-
-def bytetify(in_something):
-    if in_something is not None:
-        if not isinstance(in_something, bytes):
-            retVal = str(in_something).encode()
-        else:
-            retVal = in_something
-    else:
-        retVal = None
-    return retVal
-
-
-def bool_int_to_str(in_bool_int):
-    if in_bool_int == 0:
-        retVal = "no"
-    else:
-        retVal = "yes"
-    return retVal
-
-
-def str_to_bool_int(the_str):
-    if the_str.lower() in ("yes", "true", "y", 't'):
-        retVal = 1
-    elif the_str.lower() in ("no", "false", "n", "f"):
-        retVal = 0
-    else:
-        raise ValueError("Cannot translate", the_str, "to bool-int")
-    return retVal
-
-
-def str_to_bool(the_str, default=False):
-    retVal = default
-    if the_str.lower() in ("yes", "true", "y", 't'):
-        retVal = True
-    elif the_str.lower() in ("no", "false", "n", "f"):
-        retVal = False
-    return retVal
-
-
-def is_iterable_but_not_str(obj_to_check):
-    retVal = hasattr(obj_to_check, '__iter__') and not isinstance(obj_to_check, str)
-    return retVal
-
 
 class DictDiffer(object):
     """
@@ -625,7 +488,7 @@ class DictDiffer(object):
     (3) keys same in both but changed values
     (4) keys same in both and unchanged values
     """
-    def __init__(self, current_dict, past_dict):
+    def __init__(self, current_dict, past_dict) -> None:
         self.current_dict, self.past_dict = current_dict, past_dict
         self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
         self.intersect = self.set_current.intersection(self.set_past)
@@ -644,19 +507,19 @@ class DictDiffer(object):
 
 
 def find_mount_point(path):
-    mount_p = pathlib.PurePath(path)
+    mount_p = PurePath(path)
     while not os.path.ismount(str(mount_p)):
         mount_p = mount_p.parent
     return str(mount_p)
 
 
 class Timer_CM(object):
-    def __init__(self, name, print_results=True):
+    def __init__(self, name, print_results=True) -> None:
         self.elapsed = Decimal()
         self._name = name
         self._print_results = print_results
         self._start_time = None
-        self._children = {}
+        self._children: Dict = {}
 
     def __enter__(self):
         self.start()
@@ -706,17 +569,17 @@ wtar_file_re = re.compile("""
                           re.VERBOSE)
 
 
-def is_wtar_file(in_possible_wtar):
-    match = wtar_file_re.match(in_possible_wtar)
-    retVal = match is not None
+def is_wtar_file(in_possible_wtar) -> bool:
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
+    retVal: bool = match is not None
     return retVal
 
 
 def is_first_wtar_file(in_possible_wtar):
     retVal = False
-    match = wtar_file_re.match(in_possible_wtar)
+    match = wtar_file_re.match(os.fspath(in_possible_wtar))
     if match:
-        split_numerator = match.group('split_numerator')
+        split_numerator = match['split_numerator']
         retVal = split_numerator is None or split_numerator == ".aa"
         if retVal:  # hack to ignore phantom files that begin with ._
             _, file_name = os.path.split(in_possible_wtar)
@@ -732,7 +595,7 @@ def original_name_from_wtar_name(wtar_name):
     retVal = wtar_name
     match = wtar_file_re.match(wtar_name)
     if match:
-        retVal = match.group('base_name')
+        retVal = match['base_name']
     return retVal
 
 
@@ -779,57 +642,13 @@ def get_recursive_checksums(some_path, ignore=None):
                 item_path_dir, item_path_leaf = os.path.split(item.path)
                 if item_path_leaf not in ignore:
                     the_checksum = get_file_checksum(item.path, follow_symlinks=False)
-                    normalized_path = pathlib.PurePath(item.path).as_posix()
+                    normalized_path = PurePath(item.path).as_posix()
                     retVal[normalized_path] = the_checksum
 
         checksum_list = sorted(list(retVal.keys()) + list(retVal.values()))
         string_of_checksums = "".join(checksum_list)
         retVal['total_checksum'] = get_buffer_checksum(string_of_checksums.encode())
     return retVal
-
-
-def unwtar_a_file(wtar_file_path, destination_folder=None, no_artifacts=False, ignore=None):
-    try:
-        wtar_file_paths = utils.find_split_files(wtar_file_path)
-
-        if destination_folder is None:
-            destination_folder, _ = os.path.split(wtar_file_paths[0])
-        print("unwtar", wtar_file_path, " to ", destination_folder)
-        if ignore is None:
-            ignore = ()
-
-        first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
-        destination_leaf_name = original_name_from_wtar_name(first_wtar_file_name)
-        destination_path = os.path.join(destination_folder, destination_leaf_name)
-
-        do_the_unwtarring = True
-        with utils.MultiFileReader("br", wtar_file_paths) as fd:
-            with tarfile.open(fileobj=fd) as tar:
-                tar_total_checksum = tar.pax_headers.get("total_checksum")
-                if tar_total_checksum:
-                    if os.path.exists(destination_path):
-                        disk_total_checksum = "disk_total_checksum_was_not_found"
-                        with utils.ChangeDirIfExists(destination_folder):
-                            disk_total_checksum = get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-
-                        if disk_total_checksum == tar_total_checksum:
-                            do_the_unwtarring = False
-                            print(wtar_file_paths[0], "skipping unwtarring because item exists and is identical to archive")
-                if do_the_unwtarring:
-                    utils.safe_remove_file_system_object(destination_path)
-                    tar.extractall(destination_folder)
-
-        if no_artifacts:
-            for wtar_file in wtar_file_paths:
-                os.remove(wtar_file)
-
-    except OSError as e:
-        print("Invalid stream on split file with {}".format(wtar_file_paths[0]))
-        raise e
-
-    except tarfile.TarError:
-        print("tarfile error while opening file", os.path.abspath(wtar_file_paths[0]))
-        raise
 
 
 def obj_memory_size(obj, seen=None):
@@ -871,11 +690,22 @@ def get_wtar_total_checksum(wtar_file_path):
     return tar_total_checksum
 
 
+def extra_json_serializer(obj):
+    if isinstance(obj, (collections.deque,)):
+        return list(obj)
+    elif isinstance(obj, PurePath):
+        return os.fspath(obj)
+    else:
+        raise TypeError(f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
+
+
 class JsonExtraTypesEncoder(json.JSONEncoder):
     """ json module does not know to encode deque """
     def default(self, obj):
         if isinstance(obj, (collections.deque,)):
             return list(obj)
+        elif isinstance(obj, PurePath):
+            return os.fspath(obj)
         return json.JSONEncoder.default(self, obj)
 
 
@@ -887,16 +717,23 @@ class JsonExtraTypesDecoder(json.JSONDecoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_invocations_file_path():
-    # if Desktop/Logs exists put the file there, otherwise in the user's folder
-    folder_to_write_in = os.path.expanduser("~")
+def get_system_log_file_path():
+    '''if Desktop/Logs exists put the file there, otherwise in the user's folder'''
     logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
     if os.path.isdir(logs_dir):
         folder_to_write_in = logs_dir
     else:
-        folder_to_write_in = appdirs.user_log_dir("")
-    invocations_file_path = os.path.join(folder_to_write_in, "instl_invocations.txt")
-    return invocations_file_path
+        # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
+        vendor_name = os.environ["VENDOR_NAME"]
+        app_name = os.environ["APPLICATION_NAME"]
+
+        if sys.platform == 'win32':
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
+        else:
+            folder_to_write_in = os.path.join(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
+
+    system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
+    return system_log_file_path
 
 
 def iter_complete_to_longest(*list_of_lists):
@@ -908,3 +745,63 @@ def iter_complete_to_longest(*list_of_lists):
     for a_list in list_of_lists:
         yield from a_list[start_from:]
         start_from = max(len(a_list), start_from)
+
+
+def clock(func):
+    '''A decorator that measures the time it takes to run the original function that was decorated.
+       The decorator will print a debug log msg with 8 decimal points, and will work even if an exception was raised.'''
+    @wraps(func)
+    def clocked(*args, **kwargs):
+        name = func.__name__
+        arg_lst = []
+        if args:
+            arg_lst.extend(repr(arg) for arg in args)
+        if kwargs:
+            arg_lst.extend('%s=%r' % (k, w) for k, w in sorted(kwargs.items()))
+        args_str = ', '.join(arg_lst)
+
+        caught_exception = False
+        result = None
+        t0 = time.perf_counter()
+        try:
+            result = func(*args, **kwargs)
+        except:
+            caught_exception = True
+            raise
+        finally:
+            elapsed = time.perf_counter() - t0
+            msg = '[{elapsed:0.8f}s] {name}({args_str})'.format(**locals())
+            if not caught_exception:
+                msg += ' -> {}' .format(result)
+            log.debug(msg)
+        return result
+    return clocked
+
+
+def partition_list(in_list, partition_condition):
+    """ divide a list to sub lists according to partition_condition
+        e.g. partition_list([1,2,3,0,4,5,6], lambda x: x==0) will return:
+    """
+
+    list_of_lists = []
+
+    cur_list = []
+    for i in in_list:
+        if partition_condition(i):
+            if cur_list:
+                list_of_lists.append(cur_list)
+                cur_list = []
+        else:
+            cur_list.append(i)
+    if cur_list:
+        list_of_lists.append(cur_list)
+    return list_of_lists
+
+
+def iter_grouper(n, iterable):
+    """ take iterator and yield groups of size <= n """
+    i = iter(iterable)
+    piece = list(itertools.islice(i, n))
+    while piece:
+        yield piece
+        piece = list(itertools.islice(i, n))

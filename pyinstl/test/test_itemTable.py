@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -6,11 +6,11 @@ import os
 import unittest
 import time
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
-from pyinstl.indexItemTable import ItemTableYamlReader, IndexItemsTable
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
+from db.indexItemTable import IndexItemsTable
 import aYaml
-
+import utils
 
 def timing(f):
     def wrap(*args):
@@ -86,6 +86,7 @@ if False:
         as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')
         as_yaml_doc.ReduceOneItemLists()
         with open(self.out_file_path, "w") as wfd:
+            utils.chown_chmod_on_fd(wfd)
             aYaml.writeAsYaml(as_yaml_doc, wfd)
 
 

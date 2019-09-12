@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
@@ -6,8 +6,8 @@ import sys
 import unittest
 import filecmp
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 from svnTree import *
 
 
@@ -35,12 +35,11 @@ class TestSVNTree(unittest.TestCase):
         this_dir, this_script = os.path.split(__file__)
         SVNInfoTestFile1 = os.path.join(this_dir, "SVNInfoTest1.info")
         tree = SVNTree()
-        tree.read_info_map_from_file(SVNInfoTestFile1, a_format="info")
+        tree.info_map_table.read_from_file(SVNInfoTestFile1, a_format="info")
 
         SVNInfoTestFile1Out = os.path.join(this_dir, "SVNInfoTest1.out.txt")
         tree.write_to_file(SVNInfoTestFile1Out, in_format="text", comments=False)
 
         SVNInfoTestFileRef1 = os.path.join(this_dir, "SVNInfoTest1.ref.txt")
         self.assertTrue(filecmp.cmp(SVNInfoTestFileRef1, SVNInfoTestFile1Out, shallow=False),
-                        "{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}".format(
-                            **locals()))
+                        f"{SVNInfoTestFile1Out} file is different from expected {SVNInfoTestFileRef1}")

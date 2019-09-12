@@ -15,16 +15,12 @@ HAVE_INFO_MAP_FILE_NAME: have_info_map.txt
 HAVE_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/$(HAVE_INFO_MAP_FILE_NAME)
 # copy might read NEW_HAVE_INFO_MAP_PATH copy.sh is created before sync.sh was ran
 # this will be indicated in the copy.yaml file
-HAVE_INFO_MAP_FOR_COPY: $(NEW_HAVE_INFO_MAP_PATH)
+HAVE_INFO_MAP_COPY_PATH: $(NEW_HAVE_INFO_MAP_PATH)
 NEW_HAVE_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/new_$(HAVE_INFO_MAP_FILE_NAME)
 REQUIRED_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/required_info_map.txt
 TO_SYNC_INFO_MAP_PATH: $(LOCAL_REPO_BOOKKEEPING_DIR)/to_sync_info_map.txt
 LOCAL_REPO_REV_BOOKKEEPING_DIR: $(LOCAL_REPO_BOOKKEEPING_DIR)/$(REPO_REV)
 LOCAL_COPY_OF_REMOTE_INFO_MAP_PATH: $(LOCAL_REPO_REV_BOOKKEEPING_DIR)/remote_info_map.txt
-INSTL_HISTORY_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/instl_history.txt
-INSTL_HISTORY_TEMP_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/instl_history.temp.txt
-XCOPY_EXCLUDE_FILE_NAME: xcopy-exclude.txt
-XCOPY_EXCLUDE_FILE_PATH: $(LOCAL_REPO_SYNC_DIR)/$(XCOPY_EXCLUDE_FILE_NAME)
 
 # VENDOR_DIR_NAME should be overridden by the index.yaml file to reflect the specific vendor that created the install
 VENDOR_DIR_NAME: ACME
@@ -41,10 +37,29 @@ OLD_SITE_REQUIRE_FILE_PATH: $(SITE_REPO_BOOKKEEPING_DIR)/old_$(SITE_REQUIRE_FILE
 # By default source folder are specified in the index without the OS prefix (Mac/Win)
 SOURCE_PREFIX: $(TARGET_OS)
 
-
+# during copy stage, if pathlib.Path.match returns true for one of these - file/dir will not be copied
 COPY_IGNORE_PATTERNS:
     - "*.done"
     - "._*"
+    - "*.wtar"
+    - "*.wtar.??"
+
+# during copy stage, if pathlib.Path.match returns true for one of these - file will not be hard-linked
+NO_HARD_LINK_PATTERNS:
+    - "desktop.ini"
+    - "*.ico"
+    - "*Info.xml"
+    - "*Info.plist"
+
+# during copy stage, if pathlib.Path.match returns true for one of these - destination file (if exist) flags such as hidden, system, read-only will be removed
+NO_FLAGS_PATTERNS:
+    - "desktop.ini"
+    - "*.ico"
+
+# during copy stage, if one of these files exists in both source and destination and has same checksum, the whole dir will not be copied
+AVOID_COPY_MARKERS:
+    - Info.xml
+    - Info.plist
 
 RSYNC_PERM_OPTIONS: a+rw,+X
 
@@ -57,7 +72,7 @@ COPY_SOURCES_ROOT_DIR: $(LOCAL_REPO_SYNC_DIR)
 # if require.yaml exists REQUIRE_REPO_REV will be overridden
 REQUIRE_REPO_REV: 0
 
-# default version for iids that do not have explicity version
+# default version for iids that do not have explicitly version
 DEFAULT_IID_VERSION: 0.0.0
 
 OUTPUT_FORMAT: $(__OUTPUT_FORMAT__)
@@ -70,3 +85,19 @@ SPECIAL_BUILD_IN_IIDS:
 
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
+
+# in case of an error, value of these configVars will appear in the error report
+CONFIG_VARS_FOR_ERROR_REPORT:
+    - REPO_REV
+    - REQUIRE_REPO_REV
+    - BASE_LINKS_URL
+
+--- !define_Mac
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - .DS_Store
+    - "Icon.*"
+
+--- !define_Win
+REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
+    - desktop.ini
+    - Folder.ico

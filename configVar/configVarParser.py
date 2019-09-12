@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import re
 import string
 from collections import namedtuple
+from typing import Optional, Callable, Dict
 
 
-def params_to_dict(params_text):
+def params_to_dict(params_text) -> Dict:
     retVal = {}
     if params_text:
         var_assign_list = vars_split_level_1_re.split(params_text)
@@ -30,7 +31,7 @@ ParseRetVal = namedtuple('ParseRetVal',
 
 
 class VarParseImpContext(object):
-    reset_yield_value = ParseRetVal(literal_text="",
+    reset_yield_value: ParseRetVal = ParseRetVal(literal_text="",
                                     variable_str=None,
                                     variable_params_str=None,
                                     variable_name=None,
@@ -42,7 +43,7 @@ class VarParseImpContext(object):
     # However, '(', ')' in a variable name must be balanced
     variable_name_acceptable_characters = set((c for c in string.ascii_letters + string.digits + '_' + '-'))
 
-    def __init__(self):
+    def __init__(self) -> None:
         (self.literal_text,
             self.variable_str,
             self.variable_params_str,
@@ -51,7 +52,7 @@ class VarParseImpContext(object):
             self.key_word_params,
             self.array_index_str,
             self.array_index_int) = self.reset_yield_value
-        self.parenthesis_balance = 0
+        self.parenthesis_balance: int = 0
 
     def reset_return_tuple(self):
         (self.literal_text,
@@ -63,7 +64,7 @@ class VarParseImpContext(object):
          self.array_index_str,
          self.array_index_int) = self.reset_yield_value
 
-    def get_return_tuple(self):
+    def get_return_tuple(self) -> ParseRetVal:
         return ParseRetVal(self.literal_text,
                            self.variable_str,
                            self.variable_params_str,
@@ -87,7 +88,7 @@ def var_parse_imp(f_string):
             variable_str: the original text of the variable, to be used as default in case resolving fails
     """
 
-    def parse_var_params(cont):
+    def parse_var_params(cont: VarParseImpContext):
         if cont.variable_params_str:  # might be None (no params) or "" (empty params, i.e. $(A<>))
             cont.positional_params = []
             cont.key_word_params = {}
@@ -102,8 +103,8 @@ def var_parse_imp(f_string):
                 else:
                     if single_param[0]:
                         cont.positional_params.append(single_param[0])
-    
-    def discard_variable(c, cont):
+
+    def discard_variable(c, cont: VarParseImpContext):
         next_state = literal_state
         new_literal_text = cont.literal_text + cont.variable_str
         cont.reset_return_tuple()
@@ -115,7 +116,7 @@ def var_parse_imp(f_string):
             next_state = var_ref_started_state
         return next_state
 
-    def literal_state(c, cont):
+    def literal_state(c, cont: VarParseImpContext):
         if c == '$':
             cont.variable_str = "$"
             next_state = var_ref_started_state
@@ -124,9 +125,9 @@ def var_parse_imp(f_string):
             next_state = literal_state
         return next_state, None
 
-    def var_name_state(c, cont):
+    def var_name_state(c, cont: VarParseImpContext):
         next_state = var_name_state
-        yield_val = None
+        yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
         if c in cont.variable_name_acceptable_characters:
             cont.variable_name += c
@@ -153,7 +154,7 @@ def var_parse_imp(f_string):
             next_state = discard_variable(c, cont)
         return next_state, yield_val
 
-    def var_ref_started_state(c, cont):  # '$' was found
+    def var_ref_started_state(c, cont: VarParseImpContext):  # '$' was found
         cont.variable_str += c
         if c == '(':
             cont.variable_name = ""
@@ -163,9 +164,9 @@ def var_parse_imp(f_string):
             next_state = discard_variable(c, cont)
         return next_state, None
 
-    def var_name_ended_state(c, cont):
+    def var_name_ended_state(c, cont: VarParseImpContext):
         next_state = var_name_ended_state
-        yield_val = None
+        yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
         if c == ')':
             cont.parenthesis_balance -= 1
@@ -181,7 +182,7 @@ def var_parse_imp(f_string):
             next_state = discard_variable(c, cont)
         return next_state, yield_val
 
-    def params_state(c, cont):
+    def params_state(c, cont: VarParseImpContext):
         next_state = params_state
         cont.variable_str += c
         if c == '>':
@@ -190,7 +191,7 @@ def var_parse_imp(f_string):
             cont.variable_params_str += c
         return next_state, None
 
-    def array_state(c, cont):
+    def array_state(c, cont: VarParseImpContext):
         next_state = array_state
         cont.variable_str += c
         if c == ']':
@@ -200,9 +201,9 @@ def var_parse_imp(f_string):
         return next_state, None
 
     # params_ended_state & array_ended_state are used to track whitespace after > or ] and before the closing )
-    def params_ended_state(c, cont):
+    def params_ended_state(c, cont: VarParseImpContext):
         next_state = params_ended_state
-        yield_val = None
+        yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
         if c == ')':
             cont.parenthesis_balance -= 1
@@ -216,9 +217,9 @@ def var_parse_imp(f_string):
             next_state = discard_variable(c, cont)
         return next_state, yield_val
 
-    def array_ended_state(c, cont):
+    def array_ended_state(c, cont: VarParseImpContext):
         next_state = array_ended_state
-        yield_val = None
+        yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
         if c == ')':
             cont.parenthesis_balance -= 1
@@ -235,8 +236,8 @@ def var_parse_imp(f_string):
             next_state = discard_variable(c, cont)
         return next_state, yield_val
 
-    cont = VarParseImpContext()
-    next_state_func = literal_state
+    cont: VarParseImpContext = VarParseImpContext()
+    next_state_func: Callable[[str], VarParseImpContext] = literal_state
     for c in f_string:
         next_state_func, yield_val = next_state_func(c, cont)
         if yield_val is not None:
@@ -253,7 +254,7 @@ def var_parse_imp(f_string):
     if next_state_func == literal_state:
         yield cont.get_return_tuple()
     else:
-        raise ValueError("failed to parse "+f_string)
+        raise ValueError(f"failed to parse {f_string}")
 
 
 def resolve_variable_1(parse_retVal, default=""):

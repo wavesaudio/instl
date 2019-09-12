@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import os
 import sys
@@ -35,11 +35,11 @@ def plugin_bundle(in_os, in_path):
     retVal = None
     xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
     if os.path.exists(xml_path):
-        with utils.utf8_open(xml_path, "r") as rfd:
+        with utils.utf8_open_for_read(xml_path, "r") as rfd:
             info_xml = rfd.read()
             match = plugin_version_and_guid_re.match(info_xml)
             if match:
-                retVal = (in_path, match.group('version'), match.group('guid'))
+                retVal = (in_path, match['version'], match['guid'])
     else:
         if in_os == 'Mac':
             retVal = Mac_bundle(in_os, in_path)
@@ -281,7 +281,11 @@ extract_info_funcs_by_extension = {
 
 
 class check_binaries_versions_filter_with_ignore_regexes(object):
-    def __init__(self, ignore_file_regexes=[".^"], ignore_folder_regexes=[".^"]):
+    def __init__(self, ignore_file_regexes=None, ignore_folder_regexes=None):
+        if ignore_file_regexes is None:
+            ignore_file_regexes = [".^"]
+        if ignore_folder_regexes is None:
+            ignore_folder_regexes = [".^"]
         self.compiled_ignore_file_regex = None
         self.compiled_ignore_folder_regex = None
         self.set_file_ignore_regexes(ignore_file_regexes)

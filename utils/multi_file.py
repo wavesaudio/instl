@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import io
 import os
@@ -29,7 +29,7 @@ import tarfile
 
 class MultiFileReader(io.RawIOBase):
     class OpenFileData(object):
-        def __init__(self, path_to_file):
+        def __init__(self, path_to_file) -> None:
             self.path_to_file = path_to_file
             self.size = 0
             self.starting_pos = 0
@@ -47,7 +47,7 @@ class MultiFileReader(io.RawIOBase):
             self.size = 0
             self.starting_pos = 0
 
-    def __init__(self, mode, paths):
+    def __init__(self, mode, paths) -> None:
         super().__init__()
         self.mode = mode
         self.the_files = [MultiFileReader.OpenFileData(path) for path in paths]
@@ -122,8 +122,7 @@ class MultiFileReader(io.RawIOBase):
             abs_pos += self.total_size
 
         for i_file in range(len(self.the_files)):
-            if abs_pos >= self.the_files[i_file].starting_pos \
-                    and abs_pos <= self.the_files[i_file].starting_pos + self.the_files[i_file].size:
+            if self.the_files[i_file].starting_pos <= abs_pos <= self.the_files[i_file].starting_pos + self.the_files[i_file].size:
                 new_pos_in_file = abs_pos - self.the_files[i_file].starting_pos
                 self.the_files[i_file].fd.seek(new_pos_in_file)
                 self.current_fd_index = i_file

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
 import sys
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 
 import unittest
 #from test.test_configVar import TestConfigVar

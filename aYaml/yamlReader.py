@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 """ YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally
@@ -13,21 +13,57 @@
     delete these tags from self.specific_doc_readers when overriding init_specific_doc_readers.
 """
 
+import os
 import io
 import yaml
+from contextlib import contextmanager
 import urllib.error
+import json
+
+from typing import Callable, Dict, List, Tuple
+import logging
+log = logging.getLogger()
 
 import utils
 
 
-class YamlReader(object):
+class YamlNodeStack(object):
+    """ keep a stack of currently read yaml nodes
+        so in case of error exact location can be reported
+    """
     def __init__(self):
+        self.node_stack = list()
+
+    def __str__(self):
+        return str(self.node_stack)
+
+    @contextmanager
+    def __call__(self, *args, **kwargs):
+        self.node_stack.append(args[0])
+        yield
+        self.node_stack.pop()
+
+    @property
+    def start_mark(self):
+        if len(self.node_stack) > 0:
+            return str(self.node_stack[-1].start_mark)
+        else:
+            return "unknown"
+
+
+class YamlReader(object):
+    def __init__(self, config_vars) -> None:
+        self.config_vars = config_vars
         self.path_searcher = None
         self.url_translator = None
-        self.specific_doc_readers = dict()
-        self.file_read_stack = list()
+        self.specific_doc_readers: Dict[str, Callable] = dict()
+        self.file_read_stack: List[str] = list()
         self.exception_printed = False
-        self.post_nodes = list()
+        self.post_nodes: List[Tuple[yaml.Node, Callable]] = list()
+        self.config_vars.setdefault("READ_YAML_FILES", None)
+
+    def progress(self, message: str) -> None:
+        pass
 
     def init_specific_doc_readers(self): # this function must be overridden
         self.specific_doc_readers["__no_tag__"] = self.do_nothing_node_reader
@@ -53,39 +89,80 @@ class YamlReader(object):
 
     def read_yaml_file(self, file_path, *args, **kwargs):
         try:
-            self.file_read_stack.append(file_path)
-            buffer = utils.read_file_or_url(file_path, path_searcher=self.path_searcher)
-            buffer = io.StringIO(buffer)     # turn text to a stream
-            kwargs['path-to-file'] = file_path
-            self.read_yaml_from_stream(buffer, *args, **kwargs)
-            self.file_read_stack.pop()
-            # now read the __post tags if any
-            if len(self.file_read_stack) == 0:  # first file done reading
-                while self.post_nodes:
-                    a_post_node, a_post_read_func = self.post_nodes.pop()
-                    a_post_read_func(a_post_node, *args, **kwargs)
+            kwargs.setdefault('original-path-to-file', file_path)
+            allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
+            with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
+                self.file_read_stack.append(os.fspath(file_path))
+                buffer, actual_file_path = utils.read_file_or_url(file_path, config_vars=self.config_vars, path_searcher=self.path_searcher, connection_obj=kwargs.get('connection_obj', None))
+                self.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
+                prog_message = f"reading {os.fspath(file_path)}"
+                if os.fspath(file_path) != os.fspath(kwargs['original-path-to-file']):
+                    prog_message += f" [{kwargs['original-path-to-file']}]"
+                if os.fspath(actual_file_path) != os.fspath(file_path) and os.fspath(actual_file_path) != os.fspath(kwargs['original-path-to-file']):
+                    prog_message += f" [{actual_file_path}]"
+                self.progress(prog_message)
+                buffer = io.StringIO(buffer)     # turn text to a stream
+                buffer.name = actual_file_path   # so yaml parser knows the name of the file for error report
+                kwargs['path-to-file'] = os.fspath(actual_file_path)
+                kwargs['allow_reading_of_internal_vars'] = allow_reading_of_internal_vars
+                kwargs['node-stack'] = YamlNodeStack()
+                if os.fspath(file_path).lower().endswith(".json"):
+                    self.read_json_from_stream(buffer, *args, **kwargs)
+                else:
+                    self.read_yaml_from_stream(buffer, *args, **kwargs)
+                self.file_read_stack.pop()
+                # now read the __post tags if any
+                if len(self.file_read_stack) == 0:  # first file done reading
+                    while self.post_nodes:
+                        a_post_node, a_post_read_func = self.post_nodes.pop()
+                        a_post_read_func(a_post_node, *args, **kwargs)
 
-        except (FileNotFoundError, urllib.error.URLError) as ex:
+        except (FileNotFoundError, urllib.error.URLError, yaml.YAMLError) as ex:
+            if isinstance(ex, yaml.YAMLError):
+                kwargs['exception'] = ex
+                kwargs['buffer'] = buffer
+                self.handle_yaml_read_error(**kwargs)
             ignore = kwargs.get('ignore_if_not_exist', False)
             if ignore:
-                print("'ignore_if_not_exist' specified, ignoring FileNotFoundError for", self.file_read_stack[-1])
+                log.debug(f"'ignore_if_not_exist' specified, ignoring {ex.__class__.__name__} for {self.file_read_stack[-1]}")
                 self.file_read_stack.pop()
             else:
                 if not self.exception_printed:  # avoid recursive printing of error message
-                    read_file_history = "\n->\n".join(self.file_read_stack+[file_path])
-                    print("FileNotFoundError/URLError reading file:\n", read_file_history)
+                    read_file_history = " -> ".join(self.file_read_stack+[os.fspath(file_path)])
+                    log.error(f"{ex.__class__.__name__} reading file: {read_file_history}")
                     self.exception_printed = True
                 raise
         except Exception as ex:
             if not self.exception_printed:      # avoid recursive printing of error message
                 read_file_history = "\n->\n".join(self.file_read_stack)
-                print("Exception reading file:", read_file_history)
+                log.error(f"""Exception reading file: {read_file_history}""")
+                kwargs['exception'] = ex
+                self.handle_yaml_read_error(**kwargs)
                 self.exception_printed = True
             raise
 
+    def handle_yaml_read_error(self, **kwargs):
+        pass
+
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
-            self.read_yaml_from_node(a_node, *args, **kwargs)
+            with kwargs['node-stack'](a_node):
+                self.read_yaml_from_node(a_node, *args, **kwargs)
+
+    def read_json_from_stream(self, the_stream, *args, **kwargs):
+        json_obj = json.load(the_stream)
+        if isinstance(json_obj, dict):
+            for identifier, contents in json_obj.items():
+                if not isinstance(identifier, str):
+                    raise TypeError(f"configVar key {identifier} should be of type str not {type(identifier)}")
+                values = list()
+                if isinstance(contents, (str, int)):
+                    values.append(contents)
+                elif isinstance(contents, (list, tuple)):
+                    values.extend([item for item in contents if isinstance(item, (str, int))])
+                else:
+                    raise TypeError(f"configVar values for {identifier} should be of type str, int or list not {type(contents)}")
+                self.config_vars[identifier] = values
 
     def read_yaml_from_node(self, the_node, *args, **kwargs):
         YamlReader.convert_standard_tags(the_node)
@@ -107,3 +184,11 @@ class YamlReader(object):
         elif a_node.isMapping():
             for (_key, _val) in a_node.value:
                 YamlReader.convert_standard_tags(_val)
+
+    def handle_yaml_parse_error(self, **kwargs):
+        """
+            override if something needs to be done when parsing a yaml file fails
+            this function will be called for yaml.reader.ReaderError and like
+            minded errors, NOT for FileNotFoundError or URLError
+        """
+        pass

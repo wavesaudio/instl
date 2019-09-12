@@ -1,0 +1,29 @@
+--- !define
+
+A: a
+
+FIRST_NAME: Hila
+LAST_NAME:
+    - Lulu
+    - lin
+
+FULL_NAME: $(FIRST_NAME) $(LAST_NAME)
+
+WIERD_NAME_WITH(parentheses): $(FULL_NAME)
+FULL_NAME_WITH(parentheses): The name is $(WIERD_NAME_WITH(parentheses))
+
+--- !define
+FIRST_NAME: ["H", "i", "l", "a"]
+
+FUNC_0_NO_PARAM: I'm just saying
+FUNC_0__CALL: $(FUNC_0_NO_PARAM<>)
+
+FUNC_1_WITH_POSITIONALS: With positional params name is $(__FUNC_1_WITH_POSITIONALS_1__) $(__FUNC_1_WITH_POSITIONALS_2__)
+FUNC_1__CALL: $(FUNC_1_WITH_POSITIONALS<$(FIRST_NAME), $(LAST_NAME)>)
+
+FUNC_2_WITH_NAMED: With named params name is $(first_name) $(last_name)
+FUNC_2__CALL1: last, first - $(FUNC_2_WITH_NAMED<last_name=Lululin, first_name=Hila>)
+FUNC_2__CALL2: first, last - $(FUNC_2_WITH_NAMED<first_name=Hila, last_name=Lululin>)
+
+--- !define
+FULL_NAME_WITH_ARRAY:  With named array name is $(FIRST_NAME) $(LAST_NAME[0])$(LAST_NAME[1])

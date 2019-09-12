@@ -1,4 +1,5 @@
 # -*- mode: python -*-
+# -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -15,7 +16,7 @@ a = Analysis(['instl'],
              pathex=['instl'],
              binaries=None,
              datas=None,
-             hiddenimports=['six','packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements'],
+             hiddenimports=['six','packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements', 'xmltodict'],
              hookspath=None,
              runtime_hooks=None,
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
@@ -60,11 +61,17 @@ pyz = PYZ(a.pure, a.zipped_data,
 
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
+          exclude_binaries=True,
           name='instl',
           debug=False,
           strip=None,
           upx=False, # does not work even if True
+          runtime_tmpdir="runtime_tmpdir",
           console=True )
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+                strip=None,
+               upx=False,
+               name='instl')

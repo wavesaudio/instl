@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import os
 import sys
 import unittest
 
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..")))
-sys.path.append(os.path.realpath(os.path.join(__file__, "..", "..", "..")))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
+sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 from svnTree.svnItem import *
 from svnTree.svnTree import *
 

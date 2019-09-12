@@ -1,3 +1,7 @@
+???? 1.9.0.0
+    programmer visible changes:
+    * complete overhaul of ConfigVar and ConfigVarStack
+
 ???? 1.8.0.6
     programmer visible changes:
     * removed PlatformSpecificHelperBase.ls() and from deriving classes as it was not implemented correctly
@@ -828,7 +832,7 @@
 
     user visible changes:
     * when writing variable to batch file, correctly write those with empty values.
-    * fixed unwtar: the output location was not correctly read from commnadline variable.
+    * fixed unwtar: the output location was not correctly read from commandline variable.
     * fixed some crashes in gui mode
     * unwtarring is done directly from the cache folder to the target.
     programmer visible changes:
@@ -839,7 +843,7 @@
 
 
     user visible changes:
-    * default for HAVE_INFO_MAP_FOR_COPY is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating
+    * default for HAVE_INFO_MAP_COPY_PATH is now $(NEW_HAVE_INFO_MAP_PATH), to allow creating copy batch file after creating
         sync batch file but before running the sync batch file
 
     programmer visible changes:

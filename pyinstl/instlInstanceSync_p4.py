@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 from .instlInstanceSyncBase import InstlInstanceSync
-from configVar import var_stack
+from configVar import config_vars
 
 
 class InstlInstanceSync_p4(InstlInstanceSync):
     """  Class to create sync instruction using static links.
     """
 
-    def __init__(self, instlObj):
+    def __init__(self, instlObj) -> None:
         super().__init__(instlObj)
 
     def init_sync_vars(self):
@@ -24,13 +24,13 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def create_download_instructions(self):
         retVal = 0
         self.instlObj.batch_accum.set_current_section('sync')
-        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Starting sync from $(SYNC_BASE_URL)")
-        self.sync_base_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
+        self.instlObj.batch_accum += self.instlObj.platform_helper.progress("Start sync from $(SYNC_BASE_URL)")
+        self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
 
         self.instlObj.batch_accum += self.instlObj.platform_helper.new_line()
 
-        for iid in var_stack.ResolveVarToList("__FULL_LIST_OF_INSTALL_TARGETS__"):
-            sources_for_iid = var_stack.ResolveListToList(self.items_table.get_sources_for_iid(iid))
+        for iid in list(config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"]):
+            sources_for_iid = config_vars.resolve_list_to_list(self.items_table.get_sources_for_iid(iid))
             for source in sources_for_iid:
                 self.p4_sync_for_source(source)
                 retVal += 1

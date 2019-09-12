@@ -1,15 +1,14 @@
 import os
-import sys
 import sqlite3
 from contextlib import contextmanager
-import time
 import datetime
 import inspect
 from _collections import defaultdict
-import operator
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
+from db.indexItemTable import IndexItemsTable
+from svnTree import SVNTable
 
 """
     todo:
@@ -25,27 +24,24 @@ unique_name_to_disk_db = False
 
 
 def get_db_url(name_extra=None, db_file=None):
-    if getattr(sys, 'frozen', False) and not force_disk_db and not db_file:
-        db_url = ":memory:"
+    if db_file:
+        db_url = db_file
     else:
-        if db_file:
-            db_url = db_file
-        else:
-            logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-            os.makedirs(logs_dir, exist_ok=True)
-            db_file_name = "instl.sqlite"
-            if name_extra:
-                db_file_name = name_extra+"."+db_file_name
-            if unique_name_to_disk_db:
-                db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
-            db_file_in_logs = os.path.join(logs_dir, db_file_name)
-            #print("db_file:", db_file)
-            db_url = db_file_in_logs
+        logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        db_file_name = "instl.sqlite"
+        if name_extra:
+            db_file_name = name_extra+"."+db_file_name
+        if unique_name_to_disk_db:
+            db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
+        db_file_in_logs = os.path.join(logs_dir, db_file_name)
+        #print("db_file:", db_file)
+        db_url = db_file_in_logs
     return db_url
 
 
 class Statistic():
-    def __init__(self):
+    def __init__(self) -> None:
         self.count = 0
         self.time = 0.0
 
@@ -55,17 +51,17 @@ class Statistic():
 
     def __str__(self):
         average = self.time/self.count if self.count else 0.0
-        retVal = "count, {self.count}, time, {self.time:.2f}, ms, average, {average:.2f}, ms".format(**locals())
+        retVal = f"count, {self.count}, time, {self.time:.2f}, ms, average, {average:.2f}, ms"
         return retVal
 
     def __repr__(self):
         average = self.time/self.count if self.count else 0.0
-        retVal = "{self.count}, {self.time:.2f}, {average:.2f}".format(**locals())
+        retVal = f"{self.count}, {self.time:.2f}, {average:.2f}"
         return retVal
 
 
 class DBMaster(object):
-    def __init__(self, db_url, ddl_folder):
+    def __init__(self, db_url, ddl_folder) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
         self.db_file_path = db_url
         self.ddl_files_dir = ddl_folder
@@ -74,6 +70,7 @@ class DBMaster(object):
         self.locked_tables = set()
         self.statistics = defaultdict(Statistic)
         self.print_execute_times = False
+        self.transaction_depth = 0
 
     def get_file_path(self):
         return self.db_file_path
@@ -100,43 +97,56 @@ class DBMaster(object):
         if not self.__conn:
             create_new_db = not os.path.isfile(self.db_file_path)
             self.__conn = sqlite3.connect(self.db_file_path)
+            os.chmod(self.db_file_path, 0o666)
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:
+                #self.progress(f"created new db file {self.db_file_path}")
                 self.exec_script_file("create-tables.ddl")
                 self.exec_script_file("init-values.ddl")
                 self.exec_script_file("create-indexes.ddl")
+            else:
+                pass
+                #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
         self.set_db_pragma("user_version", self.top_user_version)
-        #self.__conn.set_authorizer(self.authorizer)
-        #self.__conn.set_progress_handler(self.progress, 8)
+        #self.__conn.set_authorizer(self.authorizer_handler_sqlite3)
+        #self.__conn.set_progress_handler(self.progress_handler_sqlite3, 8)
         self.__conn.row_factory = sqlite3.Row
-        self.__conn.set_trace_callback(self.tracer)
+        self.__conn.set_trace_callback(self.trace_handler_sqlite3)
 
-    def authorizer(self, *args, **kwargs):
+    def authorizer_handler_sqlite3(self, *args, **kwargs):
         """ callback for sqlite3.connection.set_authorizer"""
         return sqlite3.SQLITE_OK
 
-    def progress(self):
+    def progress_handler_sqlite3(self):
         """ callback for sqlite3.connection.set_progress_handler"""
         self.logger.debug('DB progress')
 
-    def tracer(self, statement):
+    def trace_handler_sqlite3(self, statement):
         """ callback for sqlite3.connection.set_trace_callback"""
         self.logger.debug('DB statement %s' % (statement))
 
     def create_function(self, func_name, num_params, func_ptr):
         self.__conn.create_function(func_name, num_params, func_ptr)
 
+    def close_and_delete(self):
+        self.close()
+        try:
+            os.unlink(self.db_file_path)
+        except FileNotFoundError:
+            pass
+
     def close(self):
         if self.__conn:
             self.__conn.close()
-        if var_stack.ResolveVarToBool("PRINT_STATISTICS") and self.statistics:
+            self.__conn = None
+        if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
                 average = stats.time/stats.count
-                print("{}, {}".format(name, repr(stats)))
+                print(f"{name}, {repr(stats)}")
 
                 max_count = max(self.statistics.items(), key=lambda S: S[1].count)
                 max_time = max(self.statistics.items(), key=lambda S: S[1].time)
@@ -150,13 +160,13 @@ class DBMaster(object):
         utils.safe_remove_file(self.db_file_path)
 
     def set_db_pragma(self, pragma_name, pragma_value):
-        set_pragma_q = """PRAGMA {pragma_name} = {pragma_value};""".format(**locals())
+        set_pragma_q = f"""PRAGMA {pragma_name} = {pragma_value};"""
         self.__curs.execute(set_pragma_q)
 
     def get_db_pragma(self, pragma_name, default_value=None):
         pragma_value = default_value
         try:
-            get_pragma_q = """PRAGMA {pragma_name};""".format(**locals())
+            get_pragma_q = f"""PRAGMA {pragma_name};"""
             self.__curs.execute(get_pragma_q)
             pragma_value = self.__curs.fetchone()[0]
         except Exception as ex:  # just return the default value
@@ -164,13 +174,20 @@ class DBMaster(object):
         return pragma_value
 
     def begin(self):
+        self.commit()
+        #assert self.transaction_depth == 0, f"begin: self.transaction_depth: {self.transaction_depth}"
         self.__conn.execute("begin")
+        self.transaction_depth += 1
 
     def commit(self):
+        #assert self.transaction_depth == 1, f"commit: self.transaction_depth: {self.transaction_depth}"
         self.__conn.commit()
+        self.transaction_depth -= 1
 
     def rollback(self):
+        #assert self.transaction_depth > 0, f"rollback: self.transaction_depth: {self.transaction_depth}"
         self.__conn.rollback()
+        self.transaction_depth = 0
 
     @property
     def curs(self):
@@ -179,16 +196,19 @@ class DBMaster(object):
     @contextmanager
     def transaction(self, description=None):
         try:
-            time1 = time.clock()
+            if not description:
+                try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
+                    description = inspect.stack()[2][3]
+                except IndexError as ex:
+                    description = "unknown"
+            #time1 = time.perf_counter()
             self.begin()
             yield self.__curs
             self.commit()
-            time2 = time.clock()
-            if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
-                print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
             self.rollback()
             raise
@@ -199,14 +219,16 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            #time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
-            if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
-                print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    if not description:
+            #        description = inspect.stack()[2][3]
+            #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -216,14 +238,16 @@ class DBMaster(object):
             no commit is done
         """
         try:
-            time1 = time.clock()
+            if not description:
+                description = inspect.stack()[2][3]
+            #time1 = time.perf_counter()
             yield self.__conn.cursor()
-            time2 = time.clock()
-            if self.print_execute_times:
-                if not description:
-                    description = inspect.stack()[2][3]
-                print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            self.statistics[description].add_instance((time2-time1)*1000.0)
+            #time2 = time.perf_counter()
+            #if self.print_execute_times:
+            #    if not description:
+            #        description = inspect.stack()[2][3]
+            #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+            #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -280,7 +304,7 @@ class DBMaster(object):
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:
-                    if len(all_results[0]) == 1:
+                    if len(all_results[0]) == 1:  # all_results is a list of one item lists, so flaten and return a list of items
                         retVal.extend([res[0] for res in all_results])
                     else:
                         retVal.extend(all_results)
@@ -289,7 +313,8 @@ class DBMaster(object):
         return retVal
 
     def lock_table(self, table_name):
-        query_text = """
+        query_text = f"""-- noinspection SqlResolveForFile
+
             CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
             BEFORE INSERT ON {table_name}
             BEGIN
@@ -305,17 +330,17 @@ class DBMaster(object):
             BEGIN
                 SELECT raise(abort, '{table_name} is locked no DELETEs');
             END;
-        """.format(table_name=table_name)
+        """
         with self.transaction("lock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.add(table_name)
 
     def unlock_table(self, table_name):
-        query_text = """
+        query_text = f"""
             DROP TRIGGER IF EXISTS lock_INSERT_{table_name};
             DROP TRIGGER IF EXISTS lock_UPDATE_{table_name};
             DROP TRIGGER IF EXISTS lock_DELETE_{table_name};
-        """.format(table_name=table_name)
+        """
         with self.transaction("unlock_table") as curs:
             curs.executescript(query_text)
         self.locked_tables.remove(table_name)
@@ -324,24 +349,101 @@ class DBMaster(object):
         for table_name in list(self.locked_tables):
             self.unlock_table(table_name)
 
-if __name__ == "__main__":
-    ddl_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults"
-    db_path = "/p4client/ProAudio/dev_central/ProAudio/XPlatform/CopyProtect/instl/defaults/instl.sqlite"
-    utils.safe_remove_file(db_path)
-    db = DBMaster()
-    db.init_from_ddl(ddl_path, db_path)
 
-    print("creation:", db.get_ids_oses_active())
+class DBAccess(object):
+    def __init__(self):
+        self._db = None
+        self._owner = None  # for reference and debugging
+        self._name = None   # for reference and debugging
 
-    db.activate_specific_oses("Mac64", "Win32")
-    print("Mac64:", db.get_ids_oses_active())
+    def __set_name__(self, owner, name):
+        self._owner = owner
+        self._name = name
 
-    db.reset_active_oses()
-    print("reset_active_oses:", db.get_ids_oses_active())
+    def __get__(self, instance, owner):
+        if self._db is None:
+            self.get_default_db_file()
+            db_url = os.fspath(config_vars["__MAIN_DB_FILE__"])
+            ddls_folder = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
+            self._db = DBMaster(db_url, ddls_folder)
+            config_vars["__DATABASE_URL__"] = db_url
+        return self._db
 
-    db.activate_all_oses()
-    print("activate_all_oses:", db.get_ids_oses_active())
+    def __delete__(self, instance):
+        if self._db is not None:
+            self._db.close()
+            del self._db
+            self._db = None
 
-    #db.exec_script_file("create-indexes.ddl")
-    #db.exec_script_file("create-triggers.ddl")
-    #db.exec_script_file("create-views.ddl")
+    def get_default_db_file(self):
+        if "__MAIN_DB_FILE__" not in config_vars:
+            db_base_path = None
+            if "__MAIN_OUT_FILE__" in config_vars:
+                # try to set the db file next to the output file
+                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+            elif "__MAIN_INPUT_FILE__" in config_vars:
+                # if no output file try next to the input file
+                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
+            else:
+                # as last resort try the Logs folder on desktop if one exists
+                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
+                if os.path.isdir(logs_dir):
+                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
+
+            if db_base_path:
+                # set the proper extension
+                db_base_path, ext = os.path.splitext(db_base_path)
+                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
+                config_vars["__MAIN_DB_FILE__"] = db_base_path
+
+        if self._owner.refresh_db_file:
+            db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
+            if db_base_path.is_file():
+                utils.safe_remove_file(db_base_path)
+
+
+class TableAccess(object):
+    def __init__(self, type):
+        self._table = None
+        self._owner = None  # for reference and debugging
+        self._name = None   # for reference and debugging
+        self._type = type
+
+    def __set_name__(self, owner, name):
+        self._owner = owner
+        self._name = name
+        assert self._type is {'items_table': IndexItemsTable, 'info_map_table': SVNTable}[self._name]
+
+    def __get__(self, instance, owner):
+        if self._table is None:
+            self._table = self._type(instance.db)
+        return self._table
+
+    def __delete__(self, instance):
+        if self._table is not None:
+            del self._table
+            self._table = None
+
+
+class DBManager(object):
+    """ all classes inheriting from DBManager will have access to singleton instances db, info_map and items table.
+        these instances will be created on the fly when accessed, so instances that do not need any of these will
+        not suffer the penalty of creating them.
+    """
+    db = DBAccess()
+    info_map_table = TableAccess(SVNTable)
+    items_table = TableAccess(IndexItemsTable)
+    refresh_db_file = False
+
+    @classmethod
+    def set_refresh_db_file(cls, to_refresh):
+        cls.refresh_db_file = to_refresh
+
+    @classmethod
+    def reset_db(cls):
+        if cls.db:
+            cls.db.close_and_delete()
+        cls.db = DBAccess()
+        cls.info_map_table = TableAccess(SVNTable)
+        cls.items_table = TableAccess(IndexItemsTable)
+        cls.refresh_db_file = False

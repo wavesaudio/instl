@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import os
 import time
@@ -6,12 +6,12 @@ import datetime
 import stat
 import json
 import tarfile
-import pathlib
+from pathlib import Path, PurePath
 
 import utils
 
 
-def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='text'):
+def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='text'):
     """ Create a manifest of one or more folders or files
         Format is a sequence of characters each specifying what details to include.
         Details are listed in the order they appear in, unless specified as non-positional.
@@ -19,10 +19,10 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     'C': sha1 checksum (files only)
     'D': Mac: if 'P' or 'p' is given "/" is appended to the path if item is a directory, non-positional
          Win: <DIR> if item is directory empty string otherwise
-    'd': list only directories not files, non-positional. 
+    'd': list only directories not files, non-positional.
     'E': Mac: if 'P' or 'p' is given extra character is appended to the path, '@' for link, '*' for executable, '=' for socket, '|' for FIFO
          Win: Not applicable
-    'f': list only files not directories, non-positional. 
+    'f': list only files not directories, non-positional.
     'g': Mac: gid
          Win: Not applicable
     'G': Mac: Group name or gid if name not found
@@ -44,14 +44,13 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     'U': Mac: User name or uid if name not found
          Win: domain+"\\"+user name
     'W': Not implemented yet. List contents of wtar files
-    '*' if ls_format contains only '*' it is and alias to the default and means: 
+    '*' if ls_format contains only '*' it is and alias to the default and means:
         Mac: MIRLUGSTCPE
         Win: MTDSUGCP
     Note: if both 'd' and 'f' are not in ls_format disk_item_listing will act as if both are in ls_format
             so 'SCp' actually means 'SCpfd'
     """
     os_names = utils.get_current_os_names()
-    files_or_folders_to_list = sorted(files_or_folders_to_list, key=lambda file: pathlib.PurePath(file).parts)
     folder_ls_func = None
     item_ls_func = None
     if "Mac" in os_names:
@@ -70,38 +69,37 @@ def disk_item_listing(*files_or_folders_to_list, ls_format='*', output_format='t
     add_remarks = 'M' in ls_format
 
     total_list = list()
-    for root_file_or_folder_path in files_or_folders_to_list:
-        listing_items = list()
-        opening_remarks = list()
-        if add_remarks:
-            opening_remarks.append(" ".join(('#', datetime.datetime.today().isoformat(), "listing of", root_file_or_folder_path)))
+    listing_items = list()
+    opening_remarks = list()
+    if add_remarks:
+        opening_remarks.append(f"""# {datetime.datetime.today().isoformat()} listing of {files_or_folder_to_list}""")
 
-        if utils.is_first_wtar_file(root_file_or_folder_path):
-            listing_items.extend(wtar_ls_func(root_file_or_folder_path, ls_format=ls_format))
-        elif os.path.isdir(root_file_or_folder_path):
-            listing_items.extend(folder_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_file_or_folder_path))
-        elif os.path.isfile(root_file_or_folder_path) and 'f' in ls_format:
-            root_folder, _ = os.path.split(root_file_or_folder_path)
-            listing_items.append(item_ls_func(root_file_or_folder_path, ls_format=ls_format, root_folder=root_folder))
-        else:
-            opening_remarks.append(" ".join(('#', "folder was not found", root_file_or_folder_path)))
+    if utils.is_first_wtar_file(files_or_folder_to_list):
+        listing_items.extend(wtar_ls_func(files_or_folder_to_list, ls_format=ls_format))
+    elif files_or_folder_to_list.is_dir():
+        listing_items.extend(folder_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=files_or_folder_to_list))
+    elif files_or_folder_to_list.is_file() and 'f' in ls_format:
+        root_folder, _ = os.path.split(files_or_folder_to_list)
+        listing_items.append(item_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=root_folder))
+    else:
+        opening_remarks.append(f"""# folder was not found {files_or_folder_to_list}""")
 
-        if output_format == 'text':
-            total_list.extend(opening_remarks)
-            total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
-            total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
-        elif output_format == 'dicts':
-            for item in listing_items:
-                total_list.append(translate_item_dict_to_be_keyed_by_path(item))
-        elif output_format == 'json':
-            total_list.append({root_file_or_folder_path: translate_json_key_names(listing_items)})
+    if output_format == 'text':
+        total_list.extend(opening_remarks)
+        total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
+        total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
+    elif output_format == 'dicts':
+        for item in listing_items:
+            total_list.append(translate_item_dict_to_be_keyed_by_path(item))
+    elif output_format == 'json':
+        total_list.append({os.fspath(files_or_folder_to_list): translate_json_key_names(listing_items)})
 
     if output_format == 'text':
         retVal = "\n".join(total_list)
     elif output_format == 'dicts':
         retVal = total_list
     elif output_format == 'json':
-        output_json = json.dumps(total_list, indent=1)
+        output_json = json.dumps(total_list, indent=1, default=utils.extra_json_serializer)
         retVal = output_json
     return retVal
 
@@ -282,25 +280,33 @@ def win_item_ls(the_path, ls_format, root_folder=None):
         elif format_char == 'S':
             the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
         elif format_char == 'U':
-            sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorOwner()
-            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-            the_parts[format_char] = domain+"\\"+name  # user
+            try:
+                sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
+                owner_sid = sd.GetSecurityDescriptorOwner()
+                name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                the_parts[format_char] = domain+"\\"+name  # user
+            except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                the_parts[format_char] = "Unknown user"
+
         elif format_char == 'G':
-            sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
-            owner_sid = sd.GetSecurityDescriptorGroup()
-            name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-            the_parts[format_char] = domain+"\\"+name  # group
+            try:
+                sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
+                owner_sid = sd.GetSecurityDescriptorGroup()
+                name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                the_parts[format_char] = domain+"\\"+name  # group
+            except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                the_parts[format_char] = "Unknown group"
+
         elif format_char == 'C':
             if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
                 the_parts[format_char] = utils.get_file_checksum(the_path)
             else:
                 the_parts[format_char] = ""
         elif format_char == 'P':
-            as_posix = pathlib.PurePath(the_path).as_posix()
+            as_posix = PurePath(the_path).as_posix()
             the_parts[format_char] = str(as_posix)
         elif format_char == 'p' and root_folder is not None:
-            relative_path = pathlib.PurePath(the_path).relative_to(pathlib.PurePath(root_folder))
+            relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
             the_parts[format_char] = str(relative_path.as_posix())
 
     return the_parts
@@ -356,11 +362,12 @@ def wtar_item_ls_func(item, ls_format):
 
 if __name__ == "__main__":
 
-    path_list = ['/Users/shai/Desktop/wlc.app',
-                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa']
+    path_list = ('/Users/shai/Desktop/wlc.app',
+                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa')
     ls_format = "WMIRLUGSTCpE"  # 'MIRLUGSTCPE'
     for out_format in ('text', 'dicts', 'json'):
-        listing = disk_item_listing(*path_list, ls_format=ls_format, output_format=out_format)
-        with utils.utf8_open("ls."+out_format, "w") as wfd:
-            print(listing, file=wfd)
-            print(os.path.realpath(wfd.name))
+        for a_path in path_list:
+            listing = disk_item_listing(a_path, ls_format=ls_format, output_format=out_format)
+            with utils.utf8_open_for_write("ls."+out_format, "w") as wfd:
+                print(listing, file=wfd)
+                print(os.path.realpath(wfd.name))

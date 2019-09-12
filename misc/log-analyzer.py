@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import sys
 import re
@@ -27,15 +27,15 @@ if __name__ == "__main__":
         now_time = datetime.datetime.now()
         match = progress_line_re.match(line)
         if match:
-            if match.group("total_prog_num"):
-                last_total_progress = int(match.group("total_prog_num"))
-            if match.group("curr_prog_num"):
-                now_progress_num = int(match.group("curr_prog_num"))
-            elif match.group("curr_prog_anon"):
+            if match["total_prog_num"]:
+                last_total_progress = int(match["total_prog_num"])
+            if match["curr_prog_num"]:
+                now_progress_num = int(match["curr_prog_num"])
+            elif match["curr_prog_anon"]:
                 now_progress_num = last_progress_num + 1
             progress_time = now_time-last_time
-            time_to_step[str(progress_time)].append((now_progress_num, match.group("prog_message")))
-            print("""{}/{}, {}, {}""".format(now_progress_num, last_total_progress, progress_time, match.group("prog_message")), flush=True)
+            time_to_step[str(progress_time)].append((now_progress_num, match["prog_message"]))
+            print(f"""{now_progress_num}/{last_total_progress}, {progress_time}, {match["prog_message"]}""", flush=True)
 
             last_time = now_time
             last_progress_num = now_progress_num

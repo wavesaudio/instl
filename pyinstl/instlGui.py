@@ -1,30 +1,33 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 
 import sys
 import os
 import subprocess
+import functools
 from time import time
 import shlex
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
+import logging
+from pathlib import Path
+import functools
+from collections import defaultdict
+log = logging.getLogger()
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
-from configVar import var_stack
+from configVar import config_vars
 
-
-tab_names = {
-    'ADMIN':   'Admin',
-    'CLIENT':  'Client'
-}
+tk_global_master = Tk()
 
 if getattr(os, "setsid", None):
-    default_font_size = 17 # for Mac
+    default_font_size = 17  # for Mac
 else:
-    default_font_size = 12 # for Windows
+    default_font_size = 12  # for Windows
 
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -35,270 +38,299 @@ admin_command_template_variables = {
     'fix-props': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'depend': '__ADMIN_CALL_INSTL_DEPEND_TEMPLATE__',
     'fix-perm': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
-    'create-infomap': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__'
 }
 
 
-# noinspection PyAttributeOutsideInit
-class InstlGui(InstlInstanceBase):
-    def __init__(self, initial_vars):
-        super().__init__(initial_vars)
-        # noinspection PyUnresolvedReferences
-        self.read_name_specific_defaults_file(super().__thisclass__.__name__)
+def CreateTkConfigClass(TkBase, convert_type_func):
+    """ creates a class that connects between Tk Variable class (StringVar, intVar,...)
+        and ConfigVar. The value is kept in the Tk Variable but the ConfigVar is updated whenever
+        the tk variable updated. Implementation is is "double callback" where callbacks to tk and to configVar
+        do the work of adjusting the values. This is done so because tk variables cannot be inherited.
+    """
+    class TkConfigVar(TkBase):
+        """ bridge between tkinter StringVar to instl ConfigVar."""
 
-        self.master = Tk()
-        self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
-        self.master.protocol('WM_DELETE_WINDOW', self.quit_app)  # exit from closing the window
-        self.commands_that_accept_limit_option = var_stack.ResolveVarToList("__COMMANDS_WITH_LIMIT_OPTION__")
+        def __init__(self, config_var_name, master=None, value=None, debug_var=False):
+            TkBase.__init__(self, master, value, config_var_name)
+            self.debug_var = debug_var
+            self.convert_type_func = convert_type_func
+            self.config_var_name = config_var_name
+            self.__internal_update = False
+            config_vars.setdefault(self.config_var_name, value)  # create a ConfigVar is one does not exists
+            # call set_callback_when_value_is_set because config_vars.setdefault will not assign the callback is the confiVar already exists
+            config_vars[self.config_var_name].set_callback_when_value_is_set(self._config_var_set_value_callback)
+            self._our_trace_write_callback = None
+            self.trace("w", self._internal_trace_write_callback)
+            if self.debug_var:
+                print(f"TkConfigVar.__init__({self.config_var_name})")
 
-        self.client_command_name_var = StringVar()
-        self.client_input_path_var = StringVar()
+        def _internal_trace_write_callback(self, *args, **kwargs):
+            """
+                this function will be set as the tk var trace
+                if tk var was written, pass the value to the configVar
+            """
+            if not self.__internal_update:
+                value = self._tk.globalgetvar(self.config_var_name)
+                self.__internal_update = True
+                config_vars[self.config_var_name] = value
+                self.__internal_update = False
+                if self._our_trace_write_callback:
+                    self._our_trace_write_callback(*args, **kwargs)
+
+        def _config_var_set_value_callback(self, var_name, new_var_value):
+            """ ConfigVar will call this callback every time a value has been assigned """
+            if not self.__internal_update:  # called from _trace_write_callback so need to avoid circular callback calls
+                if self.debug_var:
+                    print(f"TkConfigVar._config_var_set_value_callback({self.config_var_name}) <- {new_var_value}")
+                TkBase.set(self, self.convert_type_func(new_var_value))
+            else:  # configVar was changed, pass value to tk var
+                self.__internal_update = True
+                self._tk.globalsetvar(self.config_var_name, new_var_value)
+                self.__internal_update = False
+
+        def _get_value_from_config_var(self):
+            retVal = self.convert_type_func(config_vars.get(self.config_var_name, self.convert_type_func()))
+            return retVal
+
+        def set_trace_write_callback(self, trace_write_callback):
+            """ this is our way to set the callback"""
+            self._our_trace_write_callback = trace_write_callback
+
+    return TkConfigVar
+
+
+TkConfigVarStr  = CreateTkConfigClass(StringVar, str)
+TkConfigVarInt  = CreateTkConfigClass(IntVar, int)
+TkConfigVarBool = CreateTkConfigClass(BooleanVar, bool)
+
+class FrameController:
+    """ base class for objects controlling a Tk frame """
+    def __init__(self, name, instl_obj):
+        self.name = name
+        self.instl_obj = instl_obj
+        self.tk_vars = dict()
+        self.master = None
+        self.frame = None
+        self.text_widget = None  # if initialized will be target for clipboard copy
+
+    def copy_to_clipboard(self):
+        if self.text_widget:
+            value = self.text_widget.get("1.0",END)
+
+            if value and value not in ["\n"]:
+                self.master.clipboard_clear()
+                self.master.clipboard_append(value)
+                log.info("instl command was copied to clipboard!")
+
+    def update_state(self, *args, **kwargs):
+        pass
+        #print(f"{kwargs.get('who', '?')} initiated update_state")
+
+    def open_file_dialog(self, config_var_name):
+        import tkinter.filedialog
+
+        retVal = tkinter.filedialog.askopenfilename()
+        if retVal:
+            self.tk_vars[config_var_name].set(retVal)
+
+    def save_file_dialog(self, config_var_name):
+        import tkinter.filedialog
+
+        retVal = tkinter.filedialog.asksaveasfilename()
+        if retVal:
+            self.tk_vars[config_var_name].set(retVal)
+
+    def create_line_for_file(self, curr_row, curr_column, label, var_name, locate=True, save_as=False, edit=True, check=False, combobox=None):
+
+        Label(self.frame, text=label).grid(row=curr_row, column=curr_column, sticky=E)
+        curr_column += 1
+
+        if combobox:
+            combobox.grid(row=curr_row, column=curr_column, columnspan=1, sticky="WE")
+        else:
+            Entry(self.frame, textvariable=self.tk_vars[var_name]).grid(row=curr_row, column=curr_column, columnspan=1, sticky="WE")
+        curr_column += 1
+
+        if locate:
+            if save_as:
+                command = functools.partial(self.save_file_dialog, var_name)
+            else:
+                command = functools.partial(self.open_file_dialog, var_name)
+            Button(self.frame, width=3, text="...", command=command).grid(row=curr_row, column=curr_column, sticky=W)
+            curr_column += 1
+
+        if edit:
+            Button(self.frame, width=4, text="Edit",
+                command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file=var_name)).grid(row=curr_row, column=curr_column, sticky=W)
+            curr_column += 1
+
+        if check:
+            Button(self.frame, width=3, text="Chk",
+               command=functools.partial(self.check_yaml, config_var_containing_path_to_file=var_name)).grid(row=curr_row, column=curr_column, sticky=W)
+            curr_column += 1
+
+    def create_frame(self, master):
+        self.master = master
+        self.frame = Frame(master)
+
+    def open_file_for_edit(self, path_to_file=None, config_var_containing_path_to_file=None):
+        if not path_to_file:
+            path_to_file = config_vars.get(config_var_containing_path_to_file, "").str()
+        if path_to_file:
+            path_to_file = Path(path_to_file).resolve()
+            if not path_to_file.is_file():
+                log.info(f"""File not found:{path_to_file}""")
+                return
+
+            try:
+                # noinspection PyUnresolvedReferences
+                os.startfile(os.fspath(path_to_file), 'edit')  # windows
+            except AttributeError:
+                subprocess.call(['open', os.fspath(path_to_file)])
+
+    def check_yaml(self, path_to_yaml=None, config_var_containing_path_to_file=None):
+
+        if not path_to_yaml:
+            path_to_yaml = config_vars.get(config_var_containing_path_to_file, "").str()
+
+        if path_to_yaml:
+
+            command_line = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), "read-yaml",
+                            "--in", path_to_yaml, "--silent"]
+
+            try:
+                if getattr(os, "setsid", None):
+                    check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
+                else:
+                    check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
+            except OSError:
+                log.info(f"""Cannot run: {command_line}""")
+                return
+
+        unused_stdout, unused_stderr = check_yaml_process.communicate()
+        return_code = check_yaml_process.returncode
+        if return_code != 0:
+            log.info(f"""{" ".join(command_line)} returned exit code {return_code}""")
+        else:
+            log.info(f"""{path_to_yaml} read OK""")
+
+
+class ClientFrameController(FrameController):
+    def __init__(self, instl_obj):
+        super().__init__("Client", instl_obj)
+        self.tk_vars["CLIENT_GUI_CMD"] = TkConfigVarStr("CLIENT_GUI_CMD")
+        self.tk_vars["CLIENT_GUI_IN_FILE"] = TkConfigVarStr("CLIENT_GUI_IN_FILE")
+        self.tk_vars["CLIENT_GUI_OUT_FILE"] = TkConfigVarStr("CLIENT_GUI_OUT_FILE")
+        self.tk_vars["CLIENT_GUI_RUN_BATCH"] = TkConfigVarInt("CLIENT_GUI_RUN_BATCH")
+        self.tk_vars["CLIENT_GUI_CREDENTIALS"] = TkConfigVarStr("CLIENT_GUI_CREDENTIALS")
+        self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"] = TkConfigVarInt("CLIENT_GUI_CREDENTIALS_ON")
         self.client_input_combobox = None
-        self.client_output_path_var = StringVar()
-        self.run_client_batch_file_var = IntVar()
-
-        self.admin_command_name_var = StringVar()
-        self.admin_config_path_var = StringVar()
-        self.admin_output_path_var = StringVar()
-        self.admin_stage_index_var = StringVar()
-        self.admin_sync_url_var = StringVar()
-        self.admin_svn_repo_var = StringVar()
-        self.admin_config_file_dirty = True
-        self.run_admin_batch_file_var = IntVar()
-        self.admin_limit_var = StringVar()
-        self.limit_path_entry_widget = None
-        self.client_credentials_var = StringVar()
-        self.client_credentials_on_var = IntVar()
-
-    def quit_app(self):
-        self.write_history()
-        exit()
-
-    def set_default_variables(self):
-        client_command_list = var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__")
-        var_stack.set_var("CLIENT_GUI_CMD").append(client_command_list[0])
-        admin_command_list = var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__")
-        var_stack.set_var("ADMIN_GUI_CMD").append(admin_command_list[0])
-        self.commands_with_run_option_list = var_stack.ResolveVarToList("__COMMANDS_WITH_RUN_OPTION__")
-
-        # create   - $(command_actual_name_$(...)) variables for commands that do not have them in InstlGui.yaml
-        for command in var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__"):
-            actual_command_var = "command_actual_name_"+command
-            if actual_command_var not in var_stack:
-                var_stack.set_var(actual_command_var).append(command)
-        for command in var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__"):
-            actual_command_var = "command_actual_name_"+command
-            if actual_command_var not in var_stack:
-                var_stack.set_var(actual_command_var).append(command)
-
-    def do_command(self):
-        self.set_default_variables()
-        self.read_history()
-        self.create_gui()
-
-    def read_history(self):
-        try:
-            self.read_yaml_file(var_stack.ResolveVarToStr("INSTL_GUI_CONFIG_FILE_NAME"))
-        except Exception:
-            pass
-
-    def write_history(self):
-        selected_tab = self.notebook.tab(self.notebook.select(), option='text')
-        var_stack.set_var("SELECTED_TAB").append(selected_tab)
-
-        the_list_yaml_ready= var_stack.repr_for_yaml(which_vars=var_stack.ResolveVarToList("__GUI_CONFIG_FILE_VARS__", default=[]), include_comments=False, resolve=False, ignore_unknown_vars=True)
-        the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
-        with utils.utf8_open(var_stack.ResolveVarToStr("INSTL_GUI_CONFIG_FILE_NAME"), "w") as wfd:
-            utils.make_open_file_read_write_for_all(wfd)
-            aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
-
-    def get_client_input_file(self):
-        import tkinter.filedialog
-
-        retVal = tkinter.filedialog.askopenfilename()
-        if retVal:
-            self.client_input_path_var.set(retVal)
-            self.update_client_state()
-
-    def get_client_output_file(self):
-        import tkinter.filedialog
-
-        retVal = tkinter.filedialog.asksaveasfilename()
-        if retVal:
-            self.client_output_path_var.set(retVal)
-            self.update_client_state()
-
-    def get_admin_config_file(self):
-        import tkinter.filedialog
-
-        retVal = tkinter.filedialog.askopenfilename()
-        if retVal:
-            self.admin_config_path_var.set(retVal)
-            self.update_admin_state()
-
-    def get_admin_output_file(self):
-        import tkinter.filedialog
-
-        retVal = tkinter.filedialog.asksaveasfilename()
-        if retVal:
-            self.admin_output_path_var.set(retVal)
-            self.update_admin_state()
-
-    def open_file_for_edit(self, path_to_file):
-        if path_to_file == "": return
-        path_to_file = os.path.relpath(path_to_file)
-        if not os.path.isfile(path_to_file):
-            print("File not found:", path_to_file)
-            return
-
-        try:
-            # noinspection PyUnresolvedReferences
-            os.startfile(path_to_file, 'edit')
-        except AttributeError:
-            subprocess.call(['open', path_to_file])
-
-    def create_client_command_line(self):
-        retVal = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), var_stack.ResolveVarToStr("CLIENT_GUI_CMD"),
-                  "--in", var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"),
-                  "--out", var_stack.ResolveVarToStr("CLIENT_GUI_OUT_FILE")]
-
-        if self.client_credentials_on_var.get():
-            credentials = self.client_credentials_var.get()
-            if credentials != "":
-                retVal.append("--credentials")
-                retVal.append(credentials)
-
-        if self.run_client_batch_file_var.get() == 1:
-            retVal.append("--run")
-
-        if 'Win' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-            if not getattr(sys, 'frozen', False):
-                retVal.insert(0, sys.executable)
-
-        return retVal
-
-    def create_admin_command_line(self):
-        command_name = var_stack.ResolveVarToStr("ADMIN_GUI_CMD")
-        template_variable = admin_command_template_variables[command_name]
-        retVal = var_stack.ResolveVarToList(template_variable)
-
-        # some special handling of command line parameters cannot yet be expressed in the command template
-        if command_name != 'depend':
-            if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
-                limit_paths = self.admin_limit_var.get()
-                if limit_paths != "":
-                    retVal.append("--limit")
-                    try:
-                        retVal.extend(shlex.split(limit_paths))
-                    except ValueError:
-                        retVal.append(limit_paths)
-            if self.run_admin_batch_file_var.get() == 1 and command_name in self.commands_with_run_option_list:
-                retVal.append("--run")
-
-        if 'Win' in var_stack.ResolveVarToList("__CURRENT_OS_NAMES__"):
-            if not getattr(sys, 'frozen', False):
-                retVal.insert(0, sys.executable)
-
-        return retVal
+        self.client_run_batch_file_checkbox = None
 
     def update_client_input_file_combo(self, *args):
-        new_input_file = self.client_input_path_var.get()
+        new_input_file = self.tk_vars["CLIENT_GUI_IN_FILE"].get()
         if os.path.isfile(new_input_file):
             new_input_file_dir, new_input_file_name = os.path.split(new_input_file)
             items_in_dir = os.listdir(new_input_file_dir)
             dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
             self.client_input_combobox.configure(values=dir_items)
 
-        var_stack.set_var("CLIENT_GUI_IN_FILE").append(self.client_input_path_var.get())
-
-    def update_client_state(self, *args):
-        var_stack.set_var("CLIENT_GUI_CMD").append(self.client_command_name_var.get())
+    def update_state(self, *args, **kwargs):  # ClientFrameController
+        super().update_state(*args, **kwargs)
         self.update_client_input_file_combo()
 
-        _, input_file_base_name = os.path.split(var_stack.unresolved_var("CLIENT_GUI_IN_FILE"))
-        var_stack.set_var("CLIENT_GUI_IN_FILE_NAME").append(input_file_base_name)
+        _, input_file_base_name = os.path.split(config_vars["CLIENT_GUI_IN_FILE"])
+        config_vars["CLIENT_GUI_IN_FILE_NAME"] = input_file_base_name
 
-        var_stack.set_var("CLIENT_GUI_OUT_FILE").append(self.client_output_path_var.get())
-        var_stack.set_var("CLIENT_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_client_batch_file_var.get()))
-        var_stack.set_var("CLIENT_GUI_CREDENTIALS").append(self.client_credentials_var.get())
-        var_stack.set_var("CLIENT_GUI_CREDENTIALS_ON").append(self.client_credentials_on_var.get())
-
-        if self.client_command_name_var.get() in self.commands_with_run_option_list:
+        if self.tk_vars["CLIENT_GUI_CMD"].get() in list(config_vars["__COMMANDS_WITH_RUN_OPTION__"]):
             self.client_run_batch_file_checkbox.configure(state='normal')
         else:
             self.client_run_batch_file_checkbox.configure(state='disabled')
 
         command_line = " ".join(self.create_client_command_line())
-        self.T_client.configure(state='normal')
-        self.T_client.delete(1.0, END)
-        self.T_client.insert(END, var_stack.ResolveStrToStr(command_line))
-        self.T_client.configure(state='disabled')
+        self.text_widget.configure(state='normal')
+        self.text_widget.delete(1.0, END)
+        self.text_widget.insert(END, config_vars.resolve_str(command_line))
+        self.text_widget.configure(state='disabled')
 
-    def read_admin_config_file(self):
-        config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        if config_path != "":
-            if os.path.isfile(config_path):
-                var_stack.get_configVar_obj("__SEARCH_PATHS__").clear_values() # so __include__ file will not be found on old paths
-                self.read_yaml_file(config_path)
-                self.admin_config_file_dirty = False
-            else:
-                print("File not found:", config_path)
+    def create_frame(self, master):  # ClientFrameController
+        super().create_frame(master)
+        self.frame.grid(row=0, column=0)
 
-    def update_admin_state(self, *args):
-        var_stack.set_var("ADMIN_GUI_CMD").append(self.admin_command_name_var.get())
-        current_config_path = var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE", default="")
-        new_config_path = self.admin_config_path_var.get()
+        # self.frame.grid_columnconfigure(0, minsize=80)
+        # self.frame.grid_columnconfigure(1, minsize=200)
+        # self.frame.grid_columnconfigure(2, minsize=80)
 
-        if current_config_path != new_config_path:
-            self.admin_config_file_dirty = True
-        var_stack.set_var("ADMIN_GUI_CONFIG_FILE").append(new_config_path)
-        if self.admin_config_file_dirty:
-            self.read_admin_config_file()
+        curr_row = 0
+        command_label = Label(self.frame, text="Command:")
+        command_label.grid(row=curr_row, column=0, sticky=W)
 
-        _, input_file_base_name = os.path.split(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
-        var_stack.set_var("ADMIN_GUI_CONFIG_FILE_NAME").append(input_file_base_name)
+        # instl command selection
+        client_command_list = list(config_vars["__CLIENT_GUI_CMD_LIST__"])
+        OptionMenu(self.frame, self.tk_vars["CLIENT_GUI_CMD"],
+                   self.tk_vars["CLIENT_GUI_CMD"].get(), *client_command_list, command=functools.partial(self.update_state, who="CLIENT_GUI_CMD")).grid(row=curr_row, column=1, sticky=W)
 
-        var_stack.set_var("ADMIN_GUI_OUT_BATCH_FILE").append(self.admin_output_path_var.get())
+        self.client_run_batch_file_checkbox = Checkbutton(self.frame, text="Run batch file",
+                    variable=self.tk_vars["CLIENT_GUI_RUN_BATCH"], command=functools.partial(self.update_state, who="CLIENT_GUI_RUN_BATCH"))
+        self.client_run_batch_file_checkbox.grid(row=curr_row, column=1, sticky=E)
 
-        var_stack.set_var("ADMIN_GUI_RUN_BATCH").append(utils.bool_int_to_str(self.run_admin_batch_file_var.get()))
+        # path to input file
+        curr_row += 1
+        self.tk_vars["CLIENT_GUI_IN_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_IN_FILE"))
+        self.client_input_combobox = Combobox(self.frame, textvariable=self.tk_vars["CLIENT_GUI_IN_FILE"])
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Input file:", var_name="CLIENT_GUI_IN_FILE", locate=True, edit=True, check=True, combobox=self.client_input_combobox)
 
-        limit_line = self.admin_limit_var.get()
-        try:
-            limit_lines = shlex.split(limit_line)
-        except ValueError:
-            limit_lines = [limit_line]
-        if limit_lines:
-            var_stack.set_var("ADMIN_GUI_LIMIT").extend(limit_lines)
-        else:
-            var_stack.set_var("ADMIN_GUI_LIMIT")
+        # path to output file
+        curr_row += 1
+        self.tk_vars["CLIENT_GUI_OUT_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_OUT_FILE"))
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Batch file:", var_name="CLIENT_GUI_OUT_FILE", locate=True, save_as=True, edit=True, check=False, combobox=None)
 
-        self.admin_stage_index_var.set(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__"))
-        self.admin_svn_repo_var.set(var_stack.ResolveStrToStr("$(SVN_REPO_URL), REPO_REV: $(REPO_REV)"))
+        # s3 user credentials
+        curr_row += 1
+        Label(self.frame, text="Credentials:").grid(row=curr_row, column=0, sticky=E)
+        Entry(self.frame, textvariable=self.tk_vars["CLIENT_GUI_CREDENTIALS"]).grid(row=curr_row, column=1, columnspan=1, sticky="WE")
+        self.tk_vars["CLIENT_GUI_CREDENTIALS"].set_trace_write_callback(functools.partial(self.update_state, who="CLIENT_GUI_CREDENTIALS"))
 
-        sync_url = var_stack.ResolveVarToStr("SYNC_BASE_URL")
-        self.admin_sync_url_var.set(sync_url)
+        Checkbutton(self.frame, text="", variable=self.tk_vars["CLIENT_GUI_CREDENTIALS_ON"], command=functools.partial(self.update_state, who="CLIENT_GUI_CREDENTIALS_ON")).grid(row=curr_row, column=2, sticky=W)
 
-        if self.admin_command_name_var.get() in self.commands_that_accept_limit_option:
-            self.limit_path_entry_widget.configure(state='normal')
-        else:
-            self.limit_path_entry_widget.configure(state='disabled')
+        # the combined client command line text
+        curr_row += 1
+        Button(self.frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=W+N)
 
-        if self.admin_command_name_var.get() in self.commands_with_run_option_list:
-            self.admin_run_batch_file_checkbox.configure(state='normal')
-        else:
-            self.admin_run_batch_file_checkbox.configure(state='disabled')
+        self.text_widget = Text(self.frame, height=7, font=("Courier", default_font_size), width=40)
+        self.text_widget.grid(row=curr_row, column=1, columnspan=1, sticky="W")
+        self.text_widget.configure(state='disabled')
 
-        command_line = " ".join([shlex.quote(p) for p in self.create_admin_command_line()])
+        curr_row += 1
+        Button(self.frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
 
-        self.T_admin.configure(state='normal')
-        self.T_admin.delete(1.0, END)
-        self.T_admin.insert(END, var_stack.ResolveStrToStr(command_line))
-        self.T_admin.configure(state='disabled')
+        return self.frame
+
+    def create_client_command_line(self):
+        retVal = [os.fspath(config_vars["__INSTL_EXE_PATH__"]), config_vars["CLIENT_GUI_CMD"].str(),
+                  "--in", config_vars["CLIENT_GUI_IN_FILE"].str(),
+                  "--out", config_vars["CLIENT_GUI_OUT_FILE"].str()]
+
+        if bool(config_vars["CLIENT_GUI_CREDENTIALS_ON"]):
+            credentials = self.tk_vars["CLIENT_GUI_CREDENTIALS"].get()
+            if credentials != "":
+                retVal.append("--credentials")
+                retVal.append(credentials)
+
+        run_batch_state = self.tk_vars["CLIENT_GUI_RUN_BATCH"].get()
+        if run_batch_state == 1:
+            retVal.append("--run")
+
+        if 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]):
+            if not getattr(sys, 'frozen', False):
+                retVal.insert(0, sys.executable)
+
+        return retVal
 
     def run_client(self):
-        self.update_client_state()
+        self.update_state(who="ClientFrameController.run_client")
         command_line_parts = self.create_client_command_line()
-        resolved_command_line_parts = var_stack.ResolveListToList(command_line_parts)
+        resolved_command_line_parts = config_vars.resolve_list_to_list(command_line_parts)
 
         if getattr(os, "setsid", None):
             client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
@@ -307,12 +339,168 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = client_process.communicate()
         return_code = client_process.returncode
         if return_code != 0:
-            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+        print("...")
+
+
+class AdminFrameController(FrameController):
+    def __init__(self, instl_obj):
+        super().__init__("Admin", instl_obj)
+        self.tk_vars["ADMIN_GUI_CMD"] = TkConfigVarStr("ADMIN_GUI_CMD")
+        self.tk_vars["ADMIN_GUI_TARGET_CONFIG_FILE"] = TkConfigVarStr("ADMIN_GUI_TARGET_CONFIG_FILE")
+        self.tk_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"] = TkConfigVarStr("ADMIN_GUI_LOCAL_CONFIG_FILE")
+        self.tk_vars["ADMIN_GUI_OUT_BATCH_FILE"] = TkConfigVarStr("ADMIN_GUI_OUT_BATCH_FILE")
+        self.tk_vars["__STAGING_INDEX_FILE__"] = TkConfigVarStr("__STAGING_INDEX_FILE__")
+        self.tk_vars["SYNC_BASE_URL"] = TkConfigVarStr("SYNC_BASE_URL")
+        self.tk_vars["DISPLAY_SVN_URL_AND_REPO_REV"] = TkConfigVarStr("DISPLAY_SVN_URL_AND_REPO_REV")
+        self.tk_vars["ADMIN_GUI_LIMIT"] = TkConfigVarStr("ADMIN_GUI_LIMIT")
+        self.tk_vars["ADMIN_GUI_RUN_BATCH"] = TkConfigVarInt("ADMIN_GUI_RUN_BATCH")
+        self.limit_path_entry_widget = None
+        self.admin_run_batch_file_checkbox = None
+
+    def read_admin_config_files(self, *args, **kwargs):
+        for config_file_var in ("ADMIN_GUI_TARGET_CONFIG_FILE", "ADMIN_GUI_LOCAL_CONFIG_FILE"):
+            config_path = str(config_vars.get(config_file_var, ""))
+            if config_path:
+                if os.path.isfile(config_path):
+                    config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
+                    self.instl_obj.read_yaml_file(config_path)
+                else:
+                    log.info(f"""File not found: {config_path}""")
+
+    def update_state(self, *args, **kwargs):  # AdminFrameController
+        super().update_state(*args, **kwargs)
+        self.read_admin_config_files()
+
+        _, input_file_base_name = os.path.split(config_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].raw())
+        config_vars["ADMIN_GUI_CONFIG_FILE_NAME"] = input_file_base_name
+
+        if self.tk_vars["ADMIN_GUI_CMD"].get() in list(config_vars["__COMMANDS_WITH_LIMIT_OPTION__"]):
+            self.limit_path_entry_widget.configure(state='normal')
+        else:
+            self.limit_path_entry_widget.configure(state='disabled')
+
+        if self.tk_vars["ADMIN_GUI_CMD"].get() in list(config_vars["__COMMANDS_WITH_RUN_OPTION__"]):
+            self.admin_run_batch_file_checkbox.configure(state='normal')
+        else:
+            self.admin_run_batch_file_checkbox.configure(state='disabled')
+
+        command_line = " ".join([shlex.quote(p) for p in self.create_admin_command_line()])
+
+        self.text_widget.configure(state='normal')
+        self.text_widget.delete(1.0, END)
+        self.text_widget.insert(END, config_vars.resolve_str(command_line))
+        self.text_widget.configure(state='disabled')
+
+    def create_frame(self, master):  # AdminFrameController
+        super().create_frame(master)
+        self.frame.grid(row=0, column=0)
+
+        curr_row = 0
+        Label(self.frame, text="Command:").grid(row=curr_row, column=0, sticky=E)
+
+        # instl command selection
+        admin_command_list = list(config_vars["__ADMIN_GUI_CMD_LIST__"])
+        commandNameMenu = OptionMenu(self.frame, self.tk_vars["ADMIN_GUI_CMD"],
+                                     self.tk_vars["ADMIN_GUI_CMD"].get(), *admin_command_list,
+                                     command=functools.partial(self.update_state, who="ADMIN_GUI_CMD"))
+        commandNameMenu.grid(row=curr_row, column=1, sticky=W)
+        ToolTip(commandNameMenu, msg="instl admin command")
+
+        self.admin_run_batch_file_checkbox = Checkbutton(self.frame, text="Run batch file", variable=self.tk_vars["ADMIN_GUI_RUN_BATCH"], command=functools.partial(self.update_state, who="ADMIN_GUI_RUN_BATCH"))
+        self.admin_run_batch_file_checkbox.grid(row=curr_row, column=1, columnspan=1, sticky=E)
+
+        # path to config files
+
+        curr_row += 1
+        self.tk_vars["ADMIN_GUI_TARGET_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_TARGET_CONFIG_FILE"))
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"target config file:", var_name="ADMIN_GUI_TARGET_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
+        curr_row += 1
+        self.tk_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_LOCAL_CONFIG_FILE"))
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"local config file:", var_name="ADMIN_GUI_LOCAL_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
+
+        # path to stage index file
+        curr_row += 1
+        Label(self.frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
+        Label(self.frame, text="---", textvariable=self.tk_vars["__STAGING_INDEX_FILE__"]).grid(row=curr_row, column=1, columnspan=2, sticky=W)
+
+        editIndexButt = Button(self.frame, width=4, text="Edit", command=functools.partial(self.open_file_for_edit, config_var_containing_path_to_file="__STAGING_INDEX_FILE__"))
+        editIndexButt.grid(row=curr_row, column=3, sticky=W)
+        ToolTip(editIndexButt, msg="edit repository index")
+
+        checkIndexButt = Button(self.frame, width=3, text="Chk", command=functools.partial(self.check_yaml, config_var_containing_path_to_file="__STAGING_INDEX_FILE__"))
+        checkIndexButt.grid(row=curr_row, column=4, sticky=W)
+        ToolTip(checkIndexButt, msg="read repository index to check it's structure")
+
+        # path to svn repository
+        curr_row += 1
+        Label(self.frame, text="Svn repo:").grid(row=curr_row, column=0, sticky=E)
+        svnRepoLabel = Label(self.frame, text="---", textvariable=self.tk_vars["DISPLAY_SVN_URL_AND_REPO_REV"])
+        svnRepoLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        ToolTip(svnRepoLabel, msg="URL of the SVN repository with current repo-rev")
+
+        # sync URL
+        curr_row += 1
+        Label(self.frame, text="Sync URL:").grid(row=curr_row, column=0, sticky=E)
+        syncURLLabel = Label(self.frame, text="---", textvariable=self.tk_vars["SYNC_BASE_URL"])
+        syncURLLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
+        ToolTip(syncURLLabel, msg="Top URL for uploading to the repository")
+
+        # path to output file
+        curr_row += 1
+        self.tk_vars["ADMIN_GUI_OUT_BATCH_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_OUT_BATCH_FILE"))
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Batch file:", var_name="ADMIN_GUI_OUT_BATCH_FILE", locate=True, save_as=True, edit=True, check=False)
+
+        # relative path to limit folder
+        curr_row += 1
+        Label(self.frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
+        ADMIN_GUI_LIMIT_values = config_vars.get("ADMIN_GUI_LIMIT", []).list()
+        ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
+        self.limit_path_entry_widget = Entry(self.frame, textvariable=self.tk_vars["ADMIN_GUI_LIMIT"])
+        self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        self.tk_vars["ADMIN_GUI_LIMIT"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_LIMIT"))
+
+        # the combined command line text
+        curr_row += 1
+        Button(self.frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
+        self.text_widget = Text(self.frame, height=9, font=("Courier", default_font_size), width=40)
+        self.text_widget.grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        self.text_widget.configure(state='disabled')
+
+        curr_row += 1
+        Button(self.frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
+        Button(self.frame, width=9, text="Save state", command=self.instl_obj.write_history).grid(row=curr_row, column=1, sticky=E)
+
+        return self.frame
+
+    def create_admin_command_line(self):
+        command_name = config_vars["ADMIN_GUI_CMD"].str()
+        template_variable = admin_command_template_variables[command_name]
+        retVal = list(config_vars[template_variable])
+
+        # some special handling of command line parameters cannot yet be expressed in the command template
+        if command_name != 'depend':
+            if command_name in list(config_vars["__COMMANDS_WITH_LIMIT_OPTION__"]):
+                limit_paths = self.tk_vars["ADMIN_GUI_LIMIT"].get()
+                if limit_paths != "":
+                    retVal.append("--limit")
+                    try:
+                        retVal.extend(shlex.split(limit_paths))
+                    except ValueError:
+                        retVal.append(limit_paths)
+            if self.tk_vars["ADMIN_GUI_RUN_BATCH"].get() and command_name in list(config_vars["__COMMANDS_WITH_RUN_OPTION__"]):
+                retVal.append("--run")
+
+        if 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]):
+            if not getattr(sys, 'frozen', False):
+                retVal.insert(0, sys.executable)
+
+        return retVal
 
     def run_admin(self):
-        self.update_admin_state()
+        self.update_state(who="AdminFrameController.run_admin")
         command_line_parts = self.create_admin_command_line()
-        resolved_command_line_parts = [shlex.quote(p) for p in var_stack.ResolveListToList(command_line_parts)]
+        resolved_command_line_parts = [shlex.quote(p) for p in config_vars.resolve_list_to_list(command_line_parts)]
 
         if getattr(os, "setsid", None):
             admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
@@ -321,208 +509,274 @@ class InstlGui(InstlInstanceBase):
         unused_stdout, unused_stderr = admin_process.communicate()
         return_code = admin_process.returncode
         if return_code != 0:
-            print(" ".join(resolved_command_line_parts) + " returned exit code " + str(return_code))
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+        print("...")
 
-    def create_admin_frame(self, master):
 
-        admin_frame = Frame(master)
-        admin_frame.grid(row=0, column=1)
+class ActivateFrameController(FrameController):
+    def __init__(self, instl_obj):
+        super().__init__("Activate", instl_obj)
+        self.tk_vars["REDIS_HOST"] = TkConfigVarStr("REDIS_HOST")
+        self.tk_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
+        self.tk_vars["ACTIVATE_CONFIG_FILE"] = TkConfigVarStr("ACTIVATE_CONFIG_FILE")
+        self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"] = TkConfigVarStr("DOMAIN_REPO_TO_ACTIVATE")
+        self.tk_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUE_1")
+        self.tk_vars["REPO_REV_TO_ACTIVATE"] = TkConfigVarStr("REPO_REV_TO_ACTIVATE")
+        self.tk_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
+        self.redis_conn: utils.RedisClient = None
+        self.update_redis_table_working_id = None
 
-        curr_row = 0
-        Label(admin_frame, text="Command:").grid(row=curr_row, column=0, sticky=E)
+    def read_activate_config_files(self):
+        for config_file_var in ("ACTIVATE_CONFIG_FILE", ):
+            config_path = str(config_vars.get(config_file_var, ""))
+            if config_path:
+                if os.path.isfile(config_path):
+                    config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
+                    self.instl_obj.read_yaml_file(config_path)
+                else:
+                    log.info(f"""File not found: {config_path}""")
 
-        # instl command selection
-        self.admin_command_name_var.set(var_stack.unresolved_var("ADMIN_GUI_CMD"))
-        admin_command_list = var_stack.ResolveVarToList("__ADMIN_GUI_CMD_LIST__")
-        commandNameMenu = OptionMenu(admin_frame, self.admin_command_name_var,
-                                     self.admin_command_name_var.get(), *admin_command_list,
-                                     command=self.update_admin_state)
-        commandNameMenu.grid(row=curr_row, column=1, sticky=W)
-        ToolTip(commandNameMenu, msg="instl admin command")
+    def update_state(self, *args, **kwargs):
+        super().update_state(*args, **kwargs)
+        self.read_activate_config_files()
 
-        self.run_admin_batch_file_var.set(utils.str_to_bool_int(var_stack.unresolved_var("ADMIN_GUI_RUN_BATCH")))
-        self.admin_run_batch_file_checkbox = Checkbutton(admin_frame, text="Run batch file", variable=self.run_admin_batch_file_var,
-                    command=self.update_admin_state)
-        self.admin_run_batch_file_checkbox.grid(row=curr_row, column=2, columnspan=2, sticky=E)
+        host = config_vars.get("REDIS_HOST", "").str()
+        port = config_vars.get("REDIS_PORT", 0).int()
 
-        # path to config file
-        curr_row += 1
-        Label(admin_frame, text="Config file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_config_path_var.set(var_stack.unresolved_var("ADMIN_GUI_CONFIG_FILE"))
-        configFilePathEntry = Entry(admin_frame, textvariable=self.admin_config_path_var)
-        configFilePathEntry.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
-        ToolTip(configFilePathEntry, msg="path instl repository config file")
-        self.admin_config_path_var.trace('w', self.update_admin_state)
+        if self.redis_conn is not None:
+            if self.redis_conn.host != host or self.redis_conn.port != port:
+                self.stop_update_redis_table()
+                log.info(f"disconnected from redis host: {self.redis_conn.host}, port: {self.redis_conn.port}")
+                self.redis_conn.close()
+                self.redis_conn = None
+        if self.redis_conn is None and host and port:
+            self.redis_conn = utils.RedisClient(host, port)
+            log.info(f"connected to redis host: {self.redis_conn.host}, port: {self.redis_conn.port}")
+            self.start_update_redis_table()
 
-        openConfigButt = Button(admin_frame, width=2, text="...", command=self.get_admin_config_file)
-        openConfigButt.grid(row=curr_row, column=3, sticky=W)
-        ToolTip(openConfigButt, msg="open admin config file")
+    def update_redis_table(self):
+        if self.redis_conn is not None:
+            unified_dict = defaultdict(dict)
 
-        editConfigButt = Button(admin_frame, width=4, text="Edit",
-                                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE")))
-        editConfigButt.grid(row=curr_row, column=4, sticky=W)
-        ToolTip(editConfigButt, msg="edit admin config file")
+            active_repo_rev_keys = self.redis_conn.keys(str(config_vars["ACTIVATE_REPO_REV_WILDCARD"]))
+            for active_repo_rev_key in active_repo_rev_keys:
+                active_repo_rev_value = self.redis_conn.get(active_repo_rev_key)
+                splited = active_repo_rev_key.split(":")
+                domain = splited[1]
+                major_version = splited[2]
+                if major_version not in unified_dict[domain]:
+                    unified_dict[domain][major_version] = dict()
+                unified_dict[domain][major_version]['activated'] = active_repo_rev_value
 
-        checkConfigButt = Button(admin_frame, width=3, text="Chk",
-                                 command=lambda: self.check_yaml(var_stack.ResolveVarToStr("ADMIN_GUI_CONFIG_FILE")))
-        checkConfigButt.grid(row=curr_row, column=5, sticky=W)
-        ToolTip(checkConfigButt, msg="read admin config file to check it's structure")
+            last_uploaded_repo_rev_keys = self.redis_conn.keys(str(config_vars["UPLOAD_REPO_REV_WILDCARD"]))
+            for last_uploaded_repo_rev_key in last_uploaded_repo_rev_keys:
+                last_uploaded_repo_rev_value = self.redis_conn.get(last_uploaded_repo_rev_key)
+                splited = last_uploaded_repo_rev_key.split(":")
+                domain = splited[1]
+                major_version = splited[2]
+                if major_version not in unified_dict[domain]:
+                    unified_dict[domain][major_version] = dict()
+                unified_dict[domain][major_version]['uploaded'] = last_uploaded_repo_rev_value
 
-        # path to stage index file
-        curr_row += 1
-        Label(admin_frame, text="Stage index:").grid(row=curr_row, column=0, sticky=E)
-        Label(admin_frame, text="---", textvariable=self.admin_stage_index_var).grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        editIndexButt = Button(admin_frame, width=4, text="Edit", command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__")))
-        editIndexButt.grid(row=curr_row, column=4, sticky=W)
-        ToolTip(editIndexButt, msg="edit repository index")
+            current_items = list(self.tree.get_children())
+            for domain_key, domain_dict in unified_dict.items():
+                for major_version_key, major_version_dict in domain_dict.items():
+                    activated = major_version_dict.get('activated', "N/A")
+                    uploaded = major_version_dict.get('uploaded', "N/A")
+                    item_id = f"{domain_key}:{major_version_key}"
+                    if item_id in current_items:
+                        self.tree.item(item_id, text=domain_key, values=(major_version_key, uploaded, activated))
+                        current_items.remove(item_id)
+                    else:
+                        self.tree.insert('', 'end', item_id, text=domain_key, values=(major_version_key, uploaded, activated))
 
-        checkIndexButt = Button(admin_frame, width=3, text="Chk",  command=lambda: self.check_yaml(var_stack.ResolveVarToStr("__STAGING_INDEX_FILE__")))
-        checkIndexButt.grid(row=curr_row, column=5, sticky=W)
-        ToolTip(checkIndexButt, msg="read repository index to check it's structure")
+            # clean leftovers
+            for left_over_id in current_items:
+                self.tree.delete(left_over_id)
 
-        # path to svn repository
-        curr_row += 1
-        Label(admin_frame, text="Svn repo:").grid(row=curr_row, column=0, sticky=E)
-        svnRepoLabel = Label(admin_frame, text="---", textvariable=self.admin_svn_repo_var)
-        svnRepoLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        ToolTip(svnRepoLabel, msg="URL of the SVN repository with current repo-rev")
+            focused_item = self.tree.focus()
+            if focused_item != self.prev_focused_item:
+                if focused_item:
+                    focused_item_values = self.tree.item(focused_item)
+                    new_value = ":".join((focused_item_values['text'], str(focused_item_values['values'][0])))
+                    self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"].set(new_value)
+                    uploaded_rep_rev = focused_item_values['values'][1]
+                    activated_rep_rev = int(focused_item_values['values'][2])
+                    self.tk_vars["REPO_REV_TO_ACTIVATE"].set(uploaded_rep_rev)
+                self.prev_focused_item = focused_item
 
-        # sync URL
-        curr_row += 1
-        Label(admin_frame, text="Sync URL:").grid(row=curr_row, column=0, sticky=E)
-        syncURLLabel = Label(admin_frame, text="---", textvariable=self.admin_sync_url_var)
-        syncURLLabel.grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        ToolTip(syncURLLabel, msg="Top URL for uploading to the repository")
-
-        # path to output file
-        curr_row += 1
-        Label(admin_frame, text="Batch file:").grid(row=curr_row, column=0, sticky=E)
-        self.admin_output_path_var.set(var_stack.unresolved_var("ADMIN_GUI_OUT_BATCH_FILE"))
-        Entry(admin_frame, textvariable=self.admin_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        self.admin_output_path_var.trace('w', self.update_admin_state)
-        Button(admin_frame, width=2, text="...", command=self.get_admin_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(admin_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("ADMIN_GUI_OUT_BATCH_FILE"))).grid(row=curr_row, column=4, sticky=W)
-
-        # relative path to limit folder
-        curr_row += 1
-        Label(admin_frame, text="Limit to:").grid(row=curr_row, column=0, sticky=E)
-        ADMIN_GUI_LIMIT_values = var_stack.unresolved_var_to_list("ADMIN_GUI_LIMIT", default=list())
-        ADMIN_GUI_LIMIT_values = list(filter(None, ADMIN_GUI_LIMIT_values))
-        if ADMIN_GUI_LIMIT_values:
-            print("ADMIN_GUI_LIMIT_values:", ADMIN_GUI_LIMIT_values)
-            self.admin_limit_var.set(" ".join([shlex.quote(p) for p in ADMIN_GUI_LIMIT_values]))
+            self.update_redis_table_working_id = None
+            self.start_update_redis_table()
         else:
-            print("ADMIN_GUI_LIMIT_values:", "no values")
-            self.admin_limit_var.set("")
-        self.limit_path_entry_widget = Entry(admin_frame, textvariable=self.admin_limit_var)
-        self.limit_path_entry_widget.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
-        self.admin_limit_var.trace('w', self.update_admin_state)
+            log.info(f"update_redis_table: no redis connection")
 
-        # the combined command line text
-        curr_row += 1
-        Button(admin_frame, width=6, text="run:", command=self.run_admin).grid(row=curr_row, column=0, sticky=N)
-        self.T_admin = Text(admin_frame, height=7, font=("Courier", default_font_size))
-        self.T_admin.grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        self.T_admin.configure(state='disabled')
+    def start_update_redis_table(self):
+        if not self.update_redis_table_working_id:
+            self.update_redis_table_working_id = self.instl_obj.notebook.after(1500, self.update_redis_table)
+            #log.info("update_redis_table STARTEd")
 
-        curr_row += 1
-        Button(admin_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
-        Button(admin_frame, width=9, text="Save state", command=self.write_history).grid(row=curr_row, column=2, sticky=E)
+    def stop_update_redis_table(self):
+        if self.update_redis_table_working_id:
+            self.instl_obj.notebook.after_cancel(self.update_redis_table_working_id)
+            self.update_redis_table_working_id = None
+            #log.info("update_redis_table STOPPEd")
 
-        return admin_frame
+    def activate_repo_rev(self):
+        try:
+            if self.redis_conn:
+                current_items = self.tree.get_children()
+                domain_repo = self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"].get()
+                if domain_repo in current_items:
+                    host = self.redis_conn.host
+                    repo_rev = self.tk_vars["REPO_REV_TO_ACTIVATE"].get()
+                    redis_value = config_vars.resolve_str(":".join(('activate', domain_repo, str(repo_rev))))
+                    redis_key   = config_vars.resolve_str(":".join(("$(REDIS_KEYS_PREFIX)", host, "waiting_list")))
+                    answer = messagebox.askyesno("Activate repo-rev", f"Activate repo-rev {repo_rev} on {domain_repo} ?")
+                    if answer:
+                        self.redis_conn.lpush(redis_key, redis_value)
+        except Exception as ex:
+            print(f"activate_repo_rev exception {ex}")
 
-    def copy_to_clipboard(self):
-        value = ""
-        if self.tab_name == tab_names['ADMIN']:
-            value = self.T_admin.get("1.0",END)
-        elif self.tab_name == tab_names['CLIENT']:
-            value = self.T_client.get("1.0",END)
+    def remove_redis_key(self, key_config_var, value_config_var=None):
+        key_to_remove = config_vars[key_config_var].str()
+        self.redis_conn.delete(key_to_remove)
+        if value_config_var is not None:
+            self.tk_vars[value_config_var].set("")
 
-        if value not in ["", "\n"]:
-            self.master.clipboard_clear()
-            self.master.clipboard_append(value)
-            print("data was copied to clipboard!")
+    def lpush_redis_key(self, key_config_var, value_config_var):
+        key_to_set = config_vars[key_config_var].str()
+        value_to_push = config_vars[value_config_var].str()
+        self.redis_conn.lpush(key_to_set, value_to_push)
 
-    def create_client_frame(self, master):
+    def get_redis_key(self, key_config_var, result_config_var):
+        key_to_get = config_vars[key_config_var].str()
+        value = self.redis_conn.get(key_to_get)
+        if value is None:
+            value = "UNKNOWN KEY"
+        config_vars[result_config_var] = value
 
-        client_frame = Frame(master)
-        client_frame.grid(row=0, column=0)
+    def set_redis_key(self, key_config_var, value_config_var):
+        key_to_set = config_vars[key_config_var].str()
+        value_to_set = config_vars[value_config_var].str()
+        self.redis_conn.set(key_to_set, value_to_set)
+
+    def create_frame(self, master):  # ActivateFrameController
+        super().create_frame(master)
+
+        self.frame = Frame(master)
 
         curr_row = 0
-        command_label = Label(client_frame, text="Command:")
-        command_label.grid(row=curr_row, column=0, sticky=W)
-
-        # instl command selection
-        client_command_list = var_stack.ResolveVarToList("__CLIENT_GUI_CMD_LIST__")
-        self.client_command_name_var.set(var_stack.unresolved_var("CLIENT_GUI_CMD"))
-        OptionMenu(client_frame, self.client_command_name_var,
-                   self.client_command_name_var.get(), *client_command_list, command=self.update_client_state).grid(row=curr_row, column=1, sticky=W)
-
-        self.run_client_batch_file_var.set(utils.str_to_bool_int(var_stack.unresolved_var("CLIENT_GUI_RUN_BATCH")))
-        self.client_run_batch_file_checkbox = Checkbutton(client_frame, text="Run batch file",
-                    variable=self.run_client_batch_file_var, command=self.update_client_state)
-        self.client_run_batch_file_checkbox.grid(row=curr_row, column=2, sticky=E)
-
-        # path to input file
-        curr_row += 1
-        Label(client_frame, text="Input file:").grid(row=curr_row, column=0)
-        self.client_input_path_var.set(var_stack.unresolved_var("CLIENT_GUI_IN_FILE"))
-        self.client_input_combobox = Combobox(client_frame, textvariable=self.client_input_path_var)
-        self.client_input_combobox.grid(row=curr_row, column=1, columnspan=2, sticky=W + E)
-        self.client_input_path_var.trace('w', self.update_client_state)
-        Button(client_frame, width=2, text="...", command=self.get_client_input_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit",
-               command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=4, sticky=W)
-        Button(client_frame, width=3, text="Chk",
-               command=lambda: self.check_yaml(var_stack.ResolveVarToStr("CLIENT_GUI_IN_FILE"))).grid(row=curr_row, column=5, sticky=W)
-
-        # path to output file
-        curr_row += 1
-        Label(client_frame, text="Batch file:").grid(row=curr_row, column=0)
-        self.client_output_path_var.set(var_stack.unresolved_var("CLIENT_GUI_OUT_FILE"))
-        Entry(client_frame, textvariable=self.client_output_path_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        self.client_output_path_var.trace('w', self.update_client_state)
-        Button(client_frame, width=2, text="...", command=self.get_client_output_file).grid(row=curr_row, column=3, sticky=W)
-        Button(client_frame, width=4, text="Edit",
-                command=lambda: self.open_file_for_edit(var_stack.ResolveVarToStr("CLIENT_GUI_OUT_FILE"))).grid(row=curr_row, column=4, sticky=W)
-
-        # s3 user credentials
-        curr_row += 1
-        Label(client_frame, text="Credentials:").grid(row=curr_row, column=0, sticky=E)
-        self.client_credentials_var.set(var_stack.unresolved_var("CLIENT_GUI_CREDENTIALS"))
-        Entry(client_frame, textvariable=self.client_credentials_var).grid(row=curr_row, column=1, columnspan=2, sticky=W+E)
-        self.client_credentials_var.trace('w', self.update_client_state)
-
-        self.client_credentials_on_var.set(var_stack.unresolved_var("CLIENT_GUI_CREDENTIALS_ON"))
-        Checkbutton(client_frame, text="", variable=self.client_credentials_on_var).grid(row=curr_row, column=3, sticky=W)
-        self.client_credentials_on_var.trace('w', self.update_client_state)
-
-        # the combined command line text
-        curr_row += 1
-        Button(client_frame, width=6, text="run:", command=self.run_client).grid(row=curr_row, column=0, sticky=N)
-        self.T_client = Text(client_frame, height=7, font=("Courier", default_font_size))
-        self.T_client.grid(row=curr_row, column=1, columnspan=2, sticky=W)
-        self.T_client.configure(state='disabled')
+        self.tk_vars["ACTIVATE_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ACTIVATE_CONFIG_FILE"))
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Server config:", var_name="ACTIVATE_CONFIG_FILE", locate=True, edit=True, check=True)
 
         curr_row += 1
-        Button(client_frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
+        Label(self.frame, text="Host:").grid(row=curr_row, column=0)
+        Label(self.frame, textvariable=self.tk_vars["REDIS_HOST"]).grid(row=curr_row, column=1, sticky=W)
 
-        client_frame.grid_columnconfigure(0, minsize=80)
-        client_frame.grid_columnconfigure(1, minsize=300)
-        client_frame.grid_columnconfigure(2, minsize=80)
+        curr_row += 1
+        Label(self.frame, text="Port:").grid(row=curr_row, column=0)
+        Label(self.frame, textvariable=self.tk_vars["REDIS_PORT"]).grid(row=curr_row, column=1, sticky=W)
 
-        return client_frame
+        #self.frame.grid_rowconfigure(0)
+
+        curr_row += 1
+        Label(self.frame, text="Repository:").grid(row=curr_row, column=0)
+        Label(self.frame, textvariable=self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W + E)
+
+        curr_row += 1
+        Label(self.frame, text="rep-rev:").grid(row=curr_row, column=0, sticky=W)
+        Entry(self.frame, textvariable=self.tk_vars["REPO_REV_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W + E)
+        Button(self.frame, width=7, text="Activate", command=self.activate_repo_rev).grid(row=curr_row, column=1, columnspan=1, sticky="E")
+
+        curr_row += 1
+        self.tree = Treeview(self.frame, columns=('major version', 'uploaded', 'activated'))
+        self.tree.column('major version', width=100, anchor='center')
+        self.tree.heading('major version', text='Major Version')
+        self.tree.column('uploaded', width=100, anchor='center')
+        self.tree.heading('uploaded', text='Uploaded')
+        self.tree.column('activated', width=100, anchor='center')
+        self.tree.heading('activated', text='Activated')
+        self.tree.grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        self.prev_focused_item = None
+
+        return self.frame
+
+
+# noinspection PyAttributeOutsideInit
+class InstlGui(InstlInstanceBase):
+    def __init__(self, initial_vars) -> None:
+        super().__init__(initial_vars)
+        # noinspection PyUnresolvedReferences
+        self.read_defaults_file(super().__thisclass__.__name__)
+
+        self.master = tk_global_master
+        self.master.createcommand('exit', self.quit_app)  # exit from quit menu or Command-Q
+        self.master.protocol('WM_DELETE_WINDOW', self.quit_app)  # exit from closing the window
+
+        self.client_controller = ClientFrameController(self)
+        self.admin_controller = AdminFrameController(self)
+        self.activate_controller = ActivateFrameController(self)
+
+        self.tab_name_to_controller = {
+            'Client': self.client_controller,
+            'Admin': self.admin_controller,
+            'Activate': self.activate_controller,
+            }
+
+    def quit_app(self):
+        self.write_history()
+        self.master.destroy()
+
+    def set_default_variables(self):
+        client_command_list = list(config_vars["__CLIENT_GUI_CMD_LIST__"])
+        config_vars["CLIENT_GUI_CMD"] = client_command_list[0]
+        admin_command_list = list(config_vars["__ADMIN_GUI_CMD_LIST__"])
+        config_vars["ADMIN_GUI_CMD"] = admin_command_list[0]
+        self.commands_with_run_option_list = list(config_vars["__COMMANDS_WITH_RUN_OPTION__"])
+
+        # create   - $(command_actual_name_$(...)) variables for commands that do not have them in InstlGui.yaml
+        for command in list(config_vars["__CLIENT_GUI_CMD_LIST__"]):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in config_vars:
+                config_vars[actual_command_var] = command
+        for command in list(config_vars["__ADMIN_GUI_CMD_LIST__"]):
+            actual_command_var = "command_actual_name_"+command
+            if actual_command_var not in config_vars:
+                config_vars[actual_command_var] = command
+
+    def do_command(self):
+        self.set_default_variables()
+        self.read_history()
+        self.create_gui()
+        self.config_vars_stack_size_before_mainloop = config_vars.stack_size()
+        self.master.mainloop()
+
+    def read_history(self):
+        try:
+            instl_gui_config_file_name = config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str()
+            self.read_yaml_file(instl_gui_config_file_name)
+        except Exception:
+            pass
+
+    def write_history(self):
+        selected_tab = self.notebook.tab(self.notebook.select(), option='text')
+        config_vars["SELECTED_TAB"] = selected_tab
+
+        which_vars_for_yaml = config_vars.get("__GUI_CONFIG_FILE_VARS__", []).list()
+        the_list_yaml_ready= config_vars.repr_for_yaml(which_vars=which_vars_for_yaml, resolve=False, ignore_unknown_vars=True)
+        the_doc_yaml_ready = aYaml.YamlDumpDocWrap(the_list_yaml_ready, '!define', "Definitions", explicit_start=True, sort_mappings=True)
+        with utils.utf8_open_for_write(config_vars["INSTL_GUI_CONFIG_FILE_NAME"].str(), "w") as wfd:
+            aYaml.writeAsYaml(the_doc_yaml_ready, wfd)
 
     def tabChangedEvent(self, *args):
         tab_id = self.notebook.select()
-        self.tab_name = self.notebook.tab(tab_id, option='text')
-        if self.tab_name == tab_names['ADMIN']:
-            self.update_admin_state()
-        elif self.tab_name == tab_names['CLIENT']:
-            self.update_client_state()
+        tab_name = self.notebook.tab(tab_id, option='text')
+        #log.info(f"tabChangedEvent: {tab_name}")
+        if tab_name in self.tab_name_to_controller.keys():
+            self.tab_name_to_controller[tab_name].update_state(who="tabChangedEvent")
         else:
-            print("Unknown tab", self.tab_name)
+            log.info(f"""Unknown tab {tab_name}""")
+        self.write_history()
 
     def create_gui(self):
 
@@ -532,13 +786,11 @@ class InstlGui(InstlInstanceBase):
         self.notebook.grid(row=0, column=0)
         self.notebook.bind_all("<<NotebookTabChanged>>", self.tabChangedEvent)
 
-        client_frame = self.create_client_frame(self.notebook)
-        admin_frame = self.create_admin_frame(self.notebook)
+        self.notebook.add(self.client_controller.create_frame(self.notebook), text='Client')
+        self.notebook.add(self.admin_controller.create_frame(self.notebook), text='Admin')
+        self.notebook.add(self.activate_controller.create_frame(self.notebook), text='Activate')
 
-        self.notebook.add(client_frame, text='Client')
-        self.notebook.add(admin_frame, text='Admin')
-
-        to_be_selected_tab_name = var_stack.ResolveVarToStr("SELECTED_TAB")
+        to_be_selected_tab_name = config_vars["SELECTED_TAB"].str()
         for tab_id in self.notebook.tabs():
             tab_name = self.notebook.tab(tab_id, option='text')
             if tab_name == to_be_selected_tab_name:
@@ -548,32 +800,8 @@ class InstlGui(InstlInstanceBase):
         self.master.resizable(0, 0)
 
         # bring window to front, be default it stays behind the Terminal window
-        if var_stack.ResolveVarToStr("__CURRENT_OS__") == "Mac":
+        if config_vars["__CURRENT_OS__"].str() == "Mac":
             os.system('''/usr/bin/osascript -e 'tell app "Finder" to set frontmost of process "Python" to true' ''')
-
-        self.master.mainloop()
-        self.quit_app()
-        # self.master.destroy() # optional; see description below
-
-    def check_yaml(self, path_to_yaml):
-        command_line = [var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"), "read-yaml",
-                        "--in", path_to_yaml]
-
-        try:
-            if getattr(os, "setsid", None):
-                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False, preexec_fn=os.setsid)  # Unix
-            else:
-                check_yaml_process = subprocess.Popen(command_line, executable=command_line[0], shell=False)  # Windows
-        except OSError:
-            print("Cannot run:", command_line)
-            return
-
-        unused_stdout, unused_stderr = check_yaml_process.communicate()
-        return_code = check_yaml_process.returncode
-        if return_code != 0:
-            print(" ".join(command_line) + " returned exit code " + str(return_code))
-        else:
-            print(path_to_yaml, "read OK")
 
 
 class ToolTip(Toplevel):
@@ -583,7 +811,7 @@ class ToolTip(Toplevel):
     ToolTip constructor
     """
 
-    def __init__(self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True):
+    def __init__(self, wdgt, msg=None, msgFunc=None, delay=0.2, follow=True) -> None:
         """
         Initialize the ToolTip
 

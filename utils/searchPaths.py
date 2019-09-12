@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 """
@@ -9,7 +9,7 @@
 """
 
 import os
-import pathlib
+from pathlib import Path
 
 
 # noinspection PyPep8Naming
@@ -17,23 +17,26 @@ class SearchPaths(object):
     """
         Manage list of include search paths, and help find files
         using the search paths.
+        SearchPaths is getting access to config_vars via parameter to __init__
+        instead of using the global singleton. This is to avoid cyclic import issues.
     """
-    def __init__(self, search_paths_var):
-        # list of paths where to search for #include-ed files
-        self.search_paths_var = search_paths_var
+    def __init__(self, config_vars, search_paths_var: str) -> None:
+        self.config_vars = config_vars
+        self.search_paths_var: str = search_paths_var
+        self.config_vars.setdefault(self.search_paths_var, [])  # make sure ConfigVar obj exists for self.search_paths_var
 
     def __len__(self):
-        return len(self.search_paths_var)
+        return len(self.config_vars[self.search_paths_var])
 
     def __iter__(self):
-        return iter(self.search_paths_var)
+        return iter(self.config_vars[self.search_paths_var])
 
     def add_search_path(self, a_path):
         """ Add a folder to the list of search paths
         """
-        if a_path not in self.search_paths_var:
+        if a_path not in iter(self.config_vars[self.search_paths_var]):
             if os.path.isdir(a_path):
-                self.search_paths_var.append(a_path)
+                self.config_vars[self.search_paths_var].append(a_path)
 
     def add_search_paths(self, some_paths):
         """ Add a folder to the list of search paths
@@ -64,16 +67,16 @@ class SearchPaths(object):
         input path if file was not found, instead of None.
         """
         retVal = None
-        if os.path.isfile(in_file):
-            real_file = pathlib.Path(in_file).resolve()
+        real_file = Path(in_file).resolve()
+        if real_file.is_file():
             real_folder = real_file.parent
             self.add_search_path(str(real_folder))
             retVal = str(real_file)
         else:
-            for try_path in self.search_paths_var:
+            for try_path in iter(self.config_vars[self.search_paths_var]):
                 try:
-                    real_file = pathlib.Path(try_path, in_file).resolve()
-                    if os.path.isfile(str(real_file)):
+                    real_file = Path(try_path, in_file).resolve()
+                    if real_file.is_file():
                         # in_file might be a relative path so must add the file's
                         # real folder so it's in the list.
                         real_folder = real_file.parent

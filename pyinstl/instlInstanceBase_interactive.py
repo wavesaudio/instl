@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 
 import sys
@@ -12,7 +12,8 @@ import traceback
 import appdirs
 
 import utils
-from configVar import var_stack
+from configVar import config_vars
+from .instlException import InstlException
 
 
 current_os = platform.system()
@@ -47,25 +48,12 @@ except ImportError:
     else:
         print("failed to import readline, readline functionality not supported")
 
-colorama_loaded = False
-try:
-    import colorama
-
-    colorama_loaded = True
-except ImportError:
-    print("failed to import colorama, color text functionality not supported")
-
 from . import instlInstanceBase
 import aYaml
-
-if colorama_loaded:
-    colors = {'reset': colorama.Fore.RESET, 'green': colorama.Fore.GREEN, 'blue': colorama.Fore.BLUE, 'yellow': colorama.Fore.YELLOW, 'red': colorama.Fore.RED}
 
 
 def text_with_color(text, color):
     retVal = text
-    if colorama_loaded and color in colors:
-        retVal = colors[color] + text + colors['reset']
     return retVal
 
 
@@ -98,7 +86,7 @@ def restart_program():
 
 
 class CMDObj(cmd.Cmd, object):
-    def __init__(self, client, admin):
+    def __init__(self, client, admin) -> None:
         cmd.Cmd.__init__(self)
         self.client_prog_inst = client
         self.admin_prog_inst = admin
@@ -106,7 +94,7 @@ class CMDObj(cmd.Cmd, object):
         self.history_file_path = None
         self.prompt = None
         self.save_dir = None
-        self.this_program_name = var_stack.ResolveVarToStr("INSTL_EXEC_DISPLAY_NAME")
+        self.this_program_name = config_vars["INSTL_EXEC_DISPLAY_NAME"].str()
 
     def __enter__(self):
         if readline_loaded:
@@ -129,8 +117,6 @@ class CMDObj(cmd.Cmd, object):
                     os.remove(self.history_file_path)
                 except Exception:
                     pass  # if removing the file also fail - just ignore it
-        if colorama_loaded:
-            colorama.init()
         self.prompt = self.this_program_name + ": "
         self.save_dir = os.getcwd()
         return self
@@ -159,7 +145,7 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super().onecmd(line)
-        except utils.InstlException as ie:
+        except InstlException as ie:
             print("instl exception", ie.message)
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception:
@@ -205,36 +191,6 @@ class CMDObj(cmd.Cmd, object):
 
     def help_cd(self):
         print("cd path, change current directory")
-
-    def prepare_coloring_dict(self):
-        """ Prepare a dictionary with identifiers mapped to their "colored" representation.
-            Left hand index entries: 'SAMPLE_IID:' translates to colorama.Fore.GREEN+'SAMPLE_IID'+colorama.Fore.RESET+":".
-            Right hand index entries: '- SAMPLE_IID:' translates to "- "+colorama.Fore.YELLOW+'SAMPLE_IID'+colorama.Fore.RESET.
-            Variable references: $(SAMPLE_VARIABLE) translates to colorama.Fore.BLUE+$(SAMPLE_VARIABLE).
-            The returned dictionary can be used in replace_all_from_dict() for "coloring" the text before output to stdout.
-        """
-        retVal = dict()
-        definitions = self.client_prog_inst.create_completion_list("define")
-        index = self.client_prog_inst.create_completion_list("index")
-        guids = self.client_prog_inst.create_completion_list("guid")
-
-        retVal.update({"$(" + identi + ")": text_with_color("$(" + identi + ")", "blue") for identi in definitions})
-        retVal.update({identi + ":": text_with_color(identi, "green") + ":" for identi in definitions})
-        retVal.update({"- " + identi: "- " + text_with_color(identi, "yellow") for identi in definitions})
-
-        retVal.update({dex + ":": text_with_color(dex, "green") + ":" for dex in index})
-        retVal.update({"- " + dex: "- " + text_with_color(dex, "yellow") for dex in index})
-
-        retVal.update({lic + ":": text_with_color(lic, "green") + ":" for lic in guids})
-        retVal.update({"- " + lic: "- " + text_with_color(lic, "yellow") for lic in guids})
-        return retVal
-
-    def color_vars(self, text):
-        """ Add color codes to index identifiers and variables in text.
-        """
-        coloring_dict = self.prepare_coloring_dict()
-        retVal = utils.replace_all_from_dict(text, *[], **coloring_dict)
-        return retVal
 
     def do_apropos(self, params):
         definitions = self.client_prog_inst.create_completion_list("define")
@@ -286,8 +242,7 @@ class CMDObj(cmd.Cmd, object):
         else:
             self.client_prog_inst.do_list(None, out_list)
         joined_list = "".join(out_list.list())
-        colored_string = self.color_vars(joined_list)
-        sys.stdout.write(colored_string)
+        sys.stdout.write(joined_list)
         return False
 
     def identifier_completion_list(self, text, unused_line, unused_begidx, unused_endidx):
@@ -335,7 +290,7 @@ class CMDObj(cmd.Cmd, object):
         if params:
             params = shlex.split(params)
             identi, values = params[0], params[1:]
-            var_stack.set_var(identi, "set interactively").extend(values)
+            config_vars[identi, "set interactively"] = values
             self.do_list(identi)
         return False
 
@@ -348,7 +303,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_del(self, params):
         for identi in params.split():
-            del var_stack[identi]
+            del config_vars[identi]
         return False
 
     def complete_del(self, text, line, begidx, endidx):
@@ -364,7 +319,7 @@ class CMDObj(cmd.Cmd, object):
             for a_file in shlex.split(params):
                 try:
                     self.client_prog_inst.read_yaml_file(a_file)
-                    self.client_prog_inst.items_table.create_default_index_items()
+                    self.client_prog_inst.items_table.create_default_index_items(iids_to_ignore=[])
                 except Exception as ex:
                     print("read", a_file, ex)
             self.client_prog_inst.items_table.resolve_inheritance()
@@ -383,9 +338,9 @@ class CMDObj(cmd.Cmd, object):
     def do_readinfo(self, params):
         if params:
             for a_file in shlex.split(params):
-                time_start = time.clock()
+                time_start = time.perf_counter()
                 self.admin_prog_inst.info_map_table.read_from_file(a_file)
-                time_end = time.clock()
+                time_end = time.perf_counter()
                 print("opened file:", "'" + a_file + "'")
                 print("    %d items read in %0.3f ms" % (self.admin_prog_inst.info_map_table.num_items("all-items"), (time_end-time_start)*1000.0))
         else:
@@ -406,7 +361,7 @@ class CMDObj(cmd.Cmd, object):
                 item = self.admin_prog_inst.info_map_table.get_any_item(param.rstrip("/"))
                 if item:
                     items_to_list.append(item)
-                    if isDir(item):
+                    if item.isDir():
                         items_to_list.extend(self.admin_prog_inst.info_map_table.get_items_in_dir(dir_path=item.path))
                 else:
                     print("No item named:", param)
@@ -420,7 +375,7 @@ class CMDObj(cmd.Cmd, object):
 #        complete_listinfo_line_re = re.compile("""listinfo\s+(?P<the_text>.*)""")
 #        match = complete_listinfo_line_re.match(line)
 #        if match:
-#            text = match.group("the_text")
+#            text = match["the_text"]
 #        retVal = list()
 #        if text.endswith("/"):
 #            items = self.admin_prog_inst.info_map_table.get_items_in_dir(text.rstrip("/"), levels_deep=1)
@@ -499,8 +454,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_stack.set_var("__MAIN_COMMAND__").append("sync")
+        config_vars["__MAIN_OUT_FILE__"] = out_file
+        config_vars["__MAIN_COMMAND__"] = "sync"
         self.client_prog_inst.do_command()
         return False
 
@@ -512,8 +467,8 @@ class CMDObj(cmd.Cmd, object):
         out_file = "stdout"
         if params:
             out_file = params
-        var_stack.set_var("__MAIN_OUT_FILE__").append(out_file)
-        var_stack.set_var("__MAIN_COMMAND__").append("copy")
+        config_vars["__MAIN_OUT_FILE__"] = out_file
+        config_vars["__MAIN_COMMAND__"] = "copy"
         self.client_prog_inst.do_command()
         return False
 
@@ -570,7 +525,7 @@ class CMDObj(cmd.Cmd, object):
 
     def do_hh(self, params):
         params = [param for param in shlex.split(params)]
-        from pyinstl.helpHelper import do_help
+        from help.helpHelper import do_help
 
         if not params:
             do_help(None)
@@ -590,14 +545,14 @@ class CMDObj(cmd.Cmd, object):
     # resolve a string containing variables.
     def do_resolve(self, param):
         if param:
-            print(var_stack.ResolveStrToStr(param))
+            print(config_vars.resolve_str(param))
         return False
 
     def help_resolve(self):
         print("")
 
     def do_which(self, param):
-        print(var_stack.ResolveVarToStr("__INSTL_EXE_PATH__"))
+        print(os.fspath(config_vars["__INSTL_EXE_PATH__"]))
 
     def help_which(self):
         print("print full path to currently running instl")
@@ -635,7 +590,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
             translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
             whole_sections_to_write.append({item_to_do: translated_iids})
         elif item_to_do == "define":
-            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(var_stack, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True))
         elif item_to_do == "index":
             whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
         elif item_to_do == "guid":
@@ -657,7 +612,7 @@ def create_completion_list_imp(self, for_what="all"):
         if for_what in ("all", "index"):
             retVal.extend(list(self.items_table.get_all_iids()))
         if for_what in ("all", "define"):
-            retVal.extend(list(var_stack.keys()))
+            retVal.extend(list(config_vars.keys()))
         if for_what in ("all", "guid"):
             retVal.extend(self.items_table.get_detail_values_by_name_for_all_iids("guid"))
     except Exception as ex:
