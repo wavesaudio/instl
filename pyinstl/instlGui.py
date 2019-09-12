@@ -140,16 +140,16 @@ class FrameController:
         if retVal:
             self.tk_vars[config_var_name].set(retVal)
 
-    def create_line_for_file(self, curr_row, curr_column, label, var_name, locate=True, save_as=False, edit=True, check=False, combobox=None):
+    def create_line_for_file(self, curr_row, curr_column, label, var_name, locate=True, save_as=False, edit=True, check=False, combobox=None, columnspan=1, label_stick=E):
 
-        Label(self.frame, text=label).grid(row=curr_row, column=curr_column, sticky=E)
+        Label(self.frame, text=label).grid(row=curr_row, column=curr_column, sticky=label_stick)
         curr_column += 1
 
         if combobox:
-            combobox.grid(row=curr_row, column=curr_column, columnspan=1, sticky="WE")
+            combobox.grid(row=curr_row, column=curr_column, columnspan=columnspan, sticky="WE")
         else:
-            Entry(self.frame, textvariable=self.tk_vars[var_name]).grid(row=curr_row, column=curr_column, columnspan=1, sticky="WE")
-        curr_column += 1
+            Entry(self.frame, textvariable=self.tk_vars[var_name]).grid(row=curr_row, column=curr_column, columnspan=columnspan, sticky="WE")
+        curr_column += columnspan
 
         if locate:
             if save_as:
@@ -520,11 +520,16 @@ class ActivateFrameController(FrameController):
         self.tk_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
         self.tk_vars["ACTIVATE_CONFIG_FILE"] = TkConfigVarStr("ACTIVATE_CONFIG_FILE")
         self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"] = TkConfigVarStr("DOMAIN_REPO_TO_ACTIVATE")
+        self.tk_vars["IN_PROGRESS_VALUE"] = TkConfigVarStr("IN_PROGRESS_VALUE")
+        self.tk_vars["HEARTBEAT_VALUE"] = TkConfigVarStr("HEARTBEAT_VALUE")
+
         self.tk_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUE_1")
         self.tk_vars["REPO_REV_TO_ACTIVATE"] = TkConfigVarStr("REPO_REV_TO_ACTIVATE")
         self.tk_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
         self.redis_conn: utils.RedisClient = None
         self.update_redis_table_working_id = None
+        self.last_heartbeat_value = ""
+        self.heartbeat_no_diff_counter = 0
 
     def read_activate_config_files(self):
         for config_file_var in ("ACTIVATE_CONFIG_FILE", ):
@@ -605,6 +610,22 @@ class ActivateFrameController(FrameController):
                     self.tk_vars["REPO_REV_TO_ACTIVATE"].set(uploaded_rep_rev)
                 self.prev_focused_item = focused_item
 
+
+            heartbeat_redis_key = config_vars['HEARTBEAT_COUNTER_REDIS_KEY'].str()
+            heartbeat_value = config_vars['HEARTBEAT_VALUE'] = self.redis_conn.get(heartbeat_redis_key)
+            if heartbeat_value == self.last_heartbeat_value:
+                self.heartbeat_no_diff_counter += 1
+            else:
+                self.last_heartbeat_value = heartbeat_value
+                self.heartbeat_no_diff_counter = 0
+
+            if self.heartbeat_no_diff_counter > 10:
+                config_vars['IN_PROGRESS_VALUE'] = f"Looks dead"
+            else:
+                in_progress_redis_key = config_vars['IN_PROGRESS_REDIS_KEY'].str()
+                in_progress_value = self.redis_conn.get(in_progress_redis_key)
+                config_vars['IN_PROGRESS_VALUE'] = in_progress_value
+
             self.update_redis_table_working_id = None
             self.start_update_redis_table()
         else:
@@ -667,26 +688,21 @@ class ActivateFrameController(FrameController):
 
         curr_row = 0
         self.tk_vars["ACTIVATE_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ACTIVATE_CONFIG_FILE"))
-        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Server config:", var_name="ACTIVATE_CONFIG_FILE", locate=True, edit=True, check=True)
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="Server config:", var_name="ACTIVATE_CONFIG_FILE", locate=True, edit=True, check=True, columnspan=3, label_stick=W)
 
         curr_row += 1
-        Label(self.frame, text="Host:").grid(row=curr_row, column=0)
+        Label(self.frame, text="Host:").grid(row=curr_row, column=0, sticky=W)
         Label(self.frame, textvariable=self.tk_vars["REDIS_HOST"]).grid(row=curr_row, column=1, sticky=W)
 
         curr_row += 1
-        Label(self.frame, text="Port:").grid(row=curr_row, column=0)
+        Label(self.frame, text="Port:").grid(row=curr_row, column=0, sticky=W)
         Label(self.frame, textvariable=self.tk_vars["REDIS_PORT"]).grid(row=curr_row, column=1, sticky=W)
 
-        #self.frame.grid_rowconfigure(0)
-
         curr_row += 1
-        Label(self.frame, text="Repository:").grid(row=curr_row, column=0)
-        Label(self.frame, textvariable=self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W + E)
-
-        curr_row += 1
-        Label(self.frame, text="rep-rev:").grid(row=curr_row, column=0, sticky=W)
-        Entry(self.frame, textvariable=self.tk_vars["REPO_REV_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W + E)
-        Button(self.frame, width=7, text="Activate", command=self.activate_repo_rev).grid(row=curr_row, column=1, columnspan=1, sticky="E")
+        Label(self.frame, text="Doing:").grid(row=curr_row, column=0, sticky=W)
+        Label(self.frame, textvariable=self.tk_vars["IN_PROGRESS_VALUE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        Label(self.frame, text="Heartbeat:").grid(row=curr_row, column=2)
+        Label(self.frame, textvariable=self.tk_vars["HEARTBEAT_VALUE"]).grid(row=curr_row, column=3, columnspan=1, sticky=E)
 
         curr_row += 1
         self.tree = Treeview(self.frame, columns=('major version', 'uploaded', 'activated'))
@@ -696,7 +712,16 @@ class ActivateFrameController(FrameController):
         self.tree.heading('uploaded', text='Uploaded')
         self.tree.column('activated', width=100, anchor='center')
         self.tree.heading('activated', text='Activated')
-        self.tree.grid(row=curr_row, column=1, columnspan=1, sticky=W)
+        self.tree.grid(row=curr_row, column=0, columnspan=4, sticky=W)
+
+        curr_row += 1
+        Label(self.frame, text="Repository:").grid(row=curr_row, column=0, sticky=W)
+        Label(self.frame, textvariable=self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"]).grid(row=curr_row, column=1, columnspan=1, sticky=W)
+
+        Label(self.frame, text="rep-rev:").grid(row=curr_row, column=2, sticky=E)
+        Entry(self.frame, textvariable=self.tk_vars["REPO_REV_TO_ACTIVATE"]).grid(row=curr_row, column=3, columnspan=1, sticky=W + E)
+        Button(self.frame, width=7, text="Activate", command=self.activate_repo_rev).grid(row=curr_row, column=4, columnspan=1, sticky="E")
+
         self.prev_focused_item = None
 
         return self.frame
