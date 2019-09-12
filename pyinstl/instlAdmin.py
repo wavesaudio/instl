@@ -835,6 +835,7 @@ class InstlAdmin(InstlInstanceBase):
             log.info(f"to upload: lpush {waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
             log.info(f"to activate: lpush {waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
             log.info(f"special values: lpush {waiting_list_redis_key} stop|ping|reload-config-files")
+            r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
@@ -894,11 +895,12 @@ class InstlAdmin(InstlInstanceBase):
                             up2s3_process.join()
 
                         except Exception as ex:
-                            log.info(f"Exception {ex} while hadling {key} {value}")
+                            log.info(f"Exception {ex} while handling {key} {value}")
 
             r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             time.sleep(2)
         log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
+        r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "stopped")
 
     def do_activate_repo_rev(self):
 
