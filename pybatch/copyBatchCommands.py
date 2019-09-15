@@ -620,8 +620,8 @@ class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
             kwargs = self.all_kwargs_dict()
             for globed_file in globed_files:
                 if globed_file.is_file():
-                    with CopyFileToDir(globed_file, resolved_destination_dir, own_project_count=0, **kwargs) as copier:
+                    with CopyFileToDir(globed_file, resolved_destination_dir, own_progress_count=0, **kwargs) as copier:
                         copier()
                 elif not self.only_files:
-                    with CopyDirToDir(globed_file, resolved_destination_dir, own_project_count=0, **kwargs) as copier:
+                    with CopyDirToDir(globed_file, resolved_destination_dir, own_progress_count=0, **kwargs) as copier:
                         copier()
