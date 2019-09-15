@@ -115,16 +115,20 @@ class ConfigVar:
         return retVal
 
     def Path(self, resolve: bool=False) -> Path:
-        if resolve:
-            expanded_path = os.path.expandvars(self.str())
-            path_path = Path(expanded_path)
-            retVal = path_path.resolve()
-        else:
-            retVal = Path(self.str())
+        retVal = None
+        if self.values and self.values[0]:
+            if resolve:
+                expanded_path = os.path.expandvars(self.str())
+                path_path = Path(expanded_path)
+                retVal = path_path.resolve()
+            else:
+                retVal = Path(self.str())
         return retVal
 
     def PurePath(self) -> PurePath:
-        retVal: PurePath = PurePath(self.str())
+        retVal = None
+        if self.values and self.values[0]:
+            retVal = PurePath(self.str())
         return retVal
 
     def __int__(self) -> int:

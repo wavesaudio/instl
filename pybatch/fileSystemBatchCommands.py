@@ -538,16 +538,16 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
 
 class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
-    def __init__(self, folder_to_list, out_file, ls_format='*', out_file_append=False, **kwargs) -> None:
+    def __init__(self, folder_to_list, out_file=None, ls_format='*', out_file_append=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_list = Path(folder_to_list)
-        self.out_file = Path(out_file)
+        self.out_file = out_file
         self.ls_format = ls_format
         self.out_file_append = out_file_append
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_list))
-        all_args.append(self.unnamed__init__param(self.out_file))
+        all_args.append(self.optional_named__init__param("out_file", self.out_file, None))
         all_args.append(self.optional_named__init__param("ls_format", self.ls_format, '*'))
         all_args.append(self.optional_named__init__param("out_file_append", self.out_file_append, False))
 

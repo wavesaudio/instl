@@ -476,7 +476,7 @@ class InstlAdmin(InstlInstanceBase):
             if not depend_result[IID]['needed_by']:
                 depend_result[IID]['needed_by'] = None # so '~' is displayed instead of []
 
-        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             aYaml.writeAsYaml(aYaml.YamlDumpWrap(depend_result, sort_mappings=True), out_file)
         self.progress("dependencies written to", out_file_path)
@@ -626,7 +626,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
             if what_to_scan.is_file():

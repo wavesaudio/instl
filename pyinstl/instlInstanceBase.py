@@ -377,25 +377,18 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         final_repr = repr(in_batch_accum)
 
-        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-        out_file += file_name_post_fix
-        out_file = os.path.abspath(out_file)
-        d_path, f_name = os.path.split(out_file)
-        os.makedirs(d_path, exist_ok=True)
+        out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
+        if out_file:
+            out_file = out_file.parent.joinpath(out_file.name+file_name_post_fix)
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            self.out_file_realpath = os.fspath(out_file)
+        else:
+            self.out_file_realpath = "stdout"
+
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(final_repr)
             fd.write('\n')
 
-        if out_file != "stdout":
-            self.out_file_realpath = os.path.realpath(out_file)
-            # chmod to 0777 so that file created under sudo, can be re-written under regular user.
-            # However regular user cannot chmod for file created under sudo, hence the try/except
-            try:
-                os.chmod(self.out_file_realpath, 0o777)
-            except Exception:
-                pass
-        else:
-            self.out_file_realpath = "stdout"
         msg = " ".join(
             (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)

@@ -451,7 +451,7 @@ class CMDObj(cmd.Cmd, object):
         print("Example: depend ABC__IID")
 
     def do_sync(self, params):
-        out_file = "stdout"
+        out_file = None
         if params:
             out_file = params
         config_vars["__MAIN_OUT_FILE__"] = out_file
@@ -464,7 +464,7 @@ class CMDObj(cmd.Cmd, object):
         print("    write sync commands to stdout or to file_name if given")
 
     def do_copy(self, params):
-        out_file = "stdout"
+        out_file = None
         if params:
             out_file = params
         config_vars["__MAIN_OUT_FILE__"] = out_file

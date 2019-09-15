@@ -22,12 +22,11 @@ class InstlClientReport(InstlClient):
         self.output_data = []
 
     def get_default_out_file(self) -> None:
-        if "__MAIN_OUT_FILE__" not in config_vars:
-            config_vars["__MAIN_OUT_FILE__"] = "stdout"
+        pass
 
     def command_output(self):
         if not bool(config_vars.get('__SILENT__', "false")):
-            out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+            out_file = config_vars.get("__MAIN_OUT_FILE__", None).Path()
 
             output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 
@@ -93,7 +92,7 @@ class InstlClientReport(InstlClient):
                                             sort_mappings=True, include_comments=False)
 
         def __command_output(self, _as_yaml_doc):
-            out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
+            out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
             with utils.write_to_file_or_stdout(out_file_path) as wfd:
                 aYaml.writeAsYaml(defines_yaml_doc, wfd)
                 aYaml.writeAsYaml(index_yaml_doc, wfd)

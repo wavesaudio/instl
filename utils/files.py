@@ -104,7 +104,6 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
                 os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
-    log.info(f"""chown_chmod_on_path: {in_path} u:{user}, g:{group}""")
 
 
 def get_file_owner(in_path):
@@ -150,13 +149,13 @@ class write_to_file_or_stdout(object):
         self.fd = sys.stdout
 
     def __enter__(self) -> TextIO:
-        if self.file_path != "stdout":
+        if self.file_path:  # if file_path is None self.fd defaults to stdout
             open_mode = 'a' if self.append_to_file else 'w'
             self.fd = utf8_open_for_write(self.file_path, open_mode)
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
-        if self.file_path != "stdout":
+        if self.file_path:
             self.fd.close()
 
 

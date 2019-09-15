@@ -22,9 +22,7 @@ class InstlMisc(InstlInstanceBase):
         self.progress_staccato_count = 0
 
     def get_default_out_file(self):
-        if self.fixed_command in ("ls", "resolve"):
-            if "__MAIN_OUT_FILE__" not in config_vars:
-                config_vars["__MAIN_OUT_FILE__"] = "stdout"
+        pass
 
     def do_command(self):
         self.no_numbers_progress =  bool(config_vars.get("__NO_NUMBERS_PROGRESS__", "False"))
@@ -71,9 +69,7 @@ class InstlMisc(InstlInstanceBase):
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
-        where_to_put_wtar = None
-        if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
+        where_to_put_wtar = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
 
         Wtar(what_to_wtar=what_to_work_on, where_to_put_wtar=where_to_put_wtar)()
 
@@ -81,9 +77,7 @@ class InstlMisc(InstlInstanceBase):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
         what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", os.curdir))
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
-        where_to_unwtar = None
-        if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_unwtar = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        where_to_unwtar = config_vars.get("__MAIN_OUT_FILE__", None).Path()
 
         Unwtar(what_to_work_on, where_to_unwtar, self.no_artifacts)()
 
@@ -124,7 +118,7 @@ class InstlMisc(InstlInstanceBase):
             folders_to_list.append(main_folder_to_list)
 
         ls_format = str(config_vars.get("LS_FORMAT", '*'))
-        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        out_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
 
         for fold in folders_to_list:
             Ls(fold, out_file=out_file, ls_format=ls_format, out_file_append=True)()
@@ -154,7 +148,7 @@ class InstlMisc(InstlInstanceBase):
     def do_resolve(self):
         config_files = config_vars.get("__CONFIG_FILE__", []).list()
         input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
-        output_file = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
+        output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         ResolveConfigVarsInFile(input_file, output_file, config_files=config_files)()
 
@@ -178,9 +172,7 @@ class InstlMisc(InstlInstanceBase):
             log.error(f"""{what_to_work_on} does not exists""")
             return
 
-        where_to_put_wzip = None
-        if "__MAIN_OUT_FILE__" in config_vars:
-            where_to_put_wzip = config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)
+        where_to_put_wzip = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
 
         Wzip(what_to_work_on, where_to_put_wzip)()
 
@@ -215,8 +207,16 @@ class InstlMisc(InstlInstanceBase):
             list_of_process_to_run.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
 
         for process_to_run in list_of_process_to_run:
-            if process_to_run[0] == "echo":
-                log.info(" ".join(process_to_run[1:]))
+            if process_to_run[0].strip().lower() == "echo":
+                # if >> is in the line and it's not the last item on the line, output to that file
+                redirection_index = process_to_run.index(">>")
+                if ">>" in process_to_run and redirection_index < len(process_to_run)-1:
+                    str_to_output = " ".join(process_to_run[1:redirection_index])
+                    file_path = process_to_run[redirection_index+1]
+                    with open(file_path, "a") as wfd:
+                        wfd.write(f"{str_to_output}\n")
+                else:
+                    log.info(" ".join(process_to_run[1:]))
             else:
                 print(f"""run-process: {process_to_run}""")
                 with Subprocess(process_to_run[0], *process_to_run[1:]) as sub_proc:

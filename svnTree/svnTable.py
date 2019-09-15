@@ -484,7 +484,7 @@ class SVNTable(object):
         return list(self.write_func_by_format.keys())
 
     def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None) -> None:
-        """ pass in_file="stdout" to output to stdout.
+        """ pass in_file=None to output to stdout.
             in_format is either text, yaml, pickle
         """
 

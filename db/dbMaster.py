@@ -378,20 +378,19 @@ class DBAccess(object):
             db_base_path = None
             if "__MAIN_OUT_FILE__" in config_vars:
                 # try to set the db file next to the output file
-                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+                db_base_path = config_vars["__MAIN_OUT_FILE__"].Path()
             elif "__MAIN_INPUT_FILE__" in config_vars:
                 # if no output file try next to the input file
-                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
+                db_base_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)"))
             else:
                 # as last resort try the Logs folder on desktop if one exists
-                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-                if os.path.isdir(logs_dir):
-                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
+                logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
+                if logs_dir.is_dir():
+                    db_base_path = logs_dir.joinpath(config_vars.resolve_str("instl-$(__MAIN_COMMAND__)"))
 
             if db_base_path:
                 # set the proper extension
-                db_base_path, ext = os.path.splitext(db_base_path)
-                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
+                db_base_path = db_base_path.parent.joinpath(db_base_path.name+config_vars.resolve_str(".$(DB_FILE_EXT)"))
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
 
         if self._owner.refresh_db_file:
