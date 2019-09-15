@@ -81,10 +81,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """
         dl_commands = AnonymousAccum()
 
-        main_out_file_dir, main_out_file_leaf = os.path.split(os.fspath(config_vars["__MAIN_OUT_FILE__"]))
-        curl_config_folder = os.path.join(main_out_file_dir, main_out_file_leaf+"_curl")
-        os.makedirs(curl_config_folder, exist_ok=True)
-        curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
+        curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
+        MakeDirs(curl_config_folder)()
+        curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
+
         num_config_files = int(config_vars["PARALLEL_SYNC"])
         # TODO: Move class someplace else
         config_file_list = self.instlObj.dl_tool.create_config_files(curl_config_file_path, num_config_files)

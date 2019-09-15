@@ -92,8 +92,11 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
         group = global_acting_gid
     if user != -1 or group != -1:
         try:
-            if hasattr(os, 'chown'):
-                os.fchown(in_path, user, group)
+            if isinstance(in_path, int):
+                if hasattr(os, 'fchown'):
+                    os.fchown(in_path, user, group)
+            elif hasattr(os, 'chown'):
+                os.chown(in_path, user, group)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chown failed for {in_path}; {ex}""")
         try:
@@ -101,7 +104,7 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
                 os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
-    return f"""chown_chmod_on_path: {in_path} u:{user}, g:{group}"""
+    log.info(f"""chown_chmod_on_path: {in_path} u:{user}, g:{group}""")
 
 
 def get_file_owner(in_path):

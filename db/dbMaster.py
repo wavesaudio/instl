@@ -3,6 +3,7 @@ import sqlite3
 from contextlib import contextmanager
 import datetime
 import inspect
+from pathlib import Path
 from _collections import defaultdict
 
 import utils
@@ -61,7 +62,7 @@ class Statistic():
 
 
 class DBMaster(object):
-    def __init__(self, db_url, ddl_folder) -> None:
+    def __init__(self, db_url: Path, ddl_folder: Path) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
         self.db_file_path = db_url
         self.ddl_files_dir = ddl_folder
@@ -72,18 +73,12 @@ class DBMaster(object):
         self.print_execute_times = False
         self.transaction_depth = 0
 
-    def get_file_path(self):
+    def get_file_path(self) -> Path:
         return self.db_file_path
 
-    def read_ddl_file(self, ddl_file_name):
-        ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
-        with open(ddl_path, "r") as rfd:
-            ddl_text = rfd.read()
-        return ddl_text
-
-    def init_from_ddl(self, ddl_files_dir, db_file_path):
+    def init_from_ddl(self, ddl_files_dir: Path, db_file_path: Path):
         self.ddl_files_dir = ddl_files_dir
-        self.db_file_path = db_file_path
+        self.db_file_path: Path = Path(db_file_path)
         self.open()
 
     def init_from_existing_connection(self, conn, curs):
@@ -95,9 +90,9 @@ class DBMaster(object):
 
     def open(self):
         if not self.__conn:
-            create_new_db = not os.path.isfile(self.db_file_path)
-            self.__conn = sqlite3.connect(self.db_file_path)
-            os.chmod(self.db_file_path, 0o666)
+            create_new_db = not self.db_file_path.is_file()
+            self.__conn = sqlite3.connect(os.fspath(self.db_file_path))
+
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:
@@ -108,6 +103,9 @@ class DBMaster(object):
             else:
                 pass
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
+
+    def set_db_file_owner(self):
+        utils.chown_chmod_on_path(self.db_file_path)
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
@@ -135,7 +133,7 @@ class DBMaster(object):
     def close_and_delete(self):
         self.close()
         try:
-            os.unlink(self.db_file_path)
+            self.db_file_path.unlink()
         except FileNotFoundError:
             pass
 
@@ -256,7 +254,7 @@ class DBMaster(object):
             if os.path.isfile(file_name):
                 script_file_path = file_name
             else:
-                script_file_path = os.path.join(self.ddl_files_dir, file_name)
+                script_file_path = self.ddl_files_dir.joinpath(file_name)
             ddl_text = open(script_file_path, "r").read()
             curs.executescript(ddl_text)
 
@@ -363,8 +361,8 @@ class DBAccess(object):
     def __get__(self, instance, owner):
         if self._db is None:
             self.get_default_db_file()
-            db_url = os.fspath(config_vars["__MAIN_DB_FILE__"])
-            ddls_folder = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
+            db_url = config_vars["__MAIN_DB_FILE__"].Path()
+            ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
             self._db = DBMaster(db_url, ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
         return self._db

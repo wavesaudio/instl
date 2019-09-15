@@ -68,6 +68,9 @@ class InstlClient(InstlInstanceBase):
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars))
+
+        self.db.set_db_file_owner()
+
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
             raise Exception(errorMessage)
@@ -107,7 +110,6 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
-        log.info(f"""acting_uid: {utils.global_acting_uid}, acting_gid: {utils.global_acting_gid}""")
 
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
