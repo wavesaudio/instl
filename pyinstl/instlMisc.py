@@ -215,7 +215,10 @@ class InstlMisc(InstlInstanceBase):
             list_of_process_to_run.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
 
         for process_to_run in list_of_process_to_run:
-            print(f"""run-process: {process_to_run}""")
-            with Subprocess(process_to_run[0], *process_to_run[1:]) as sub_proc:
-                sub_proc()
+            if process_to_run[0] == "echo":
+                log.info(" ".join(process_to_run[1:]))
+            else:
+                print(f"""run-process: {process_to_run}""")
+                with Subprocess(process_to_run[0], *process_to_run[1:]) as sub_proc:
+                    sub_proc()
 
