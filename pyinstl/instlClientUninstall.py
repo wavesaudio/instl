@@ -8,6 +8,7 @@ log = logging.getLogger()
 from .instlClientRemove import InstlClientRemove
 from pybatch import PythonDoSomething
 
+
 class InstlClientUninstall(InstlClientRemove):
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)

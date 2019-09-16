@@ -26,7 +26,6 @@ class InstlClientReport(InstlClient):
 
     def command_output(self):
         if not bool(config_vars.get('__SILENT__', "false")):
-            out_file = config_vars.get("__MAIN_OUT_FILE__", None).Path()
 
             output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
 
@@ -41,6 +40,7 @@ class InstlClientReport(InstlClient):
                 lines = [", ".join(line_data) for line_data in self.output_data]
                 output_text = "\n".join(lines)
 
+            out_file = config_vars.get("__MAIN_OUT_FILE__", None).Path()
             with utils.write_to_file_or_stdout(out_file) as wfd:
                 wfd.write(output_text)
                 wfd.write("\n")

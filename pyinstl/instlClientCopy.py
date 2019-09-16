@@ -157,7 +157,6 @@ class InstlClientCopy(InstlClient):
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
             retVal += Unwtar(first_wtar_full_path, os.curdir)
-            #self.unwtar_instructions.append((first_wtar_full_path, os.curdir))
         return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
