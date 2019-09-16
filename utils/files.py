@@ -375,8 +375,8 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
 
 class ChangeDirIfExists(object):
     """Context manager for changing the current working directory"""
-    def __init__(self, newPath) -> None:
-        if os.path.isdir(newPath):
+    def __init__(self, newPath: Path) -> None:
+        if newPath.is_dir():
             self.newPath = newPath
         else:
             self.newPath = None
