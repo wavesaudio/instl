@@ -92,8 +92,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:
-            if actual_num_config_files > 1:
-                dl_start_message = f"Downloading with {actual_num_config_files} processes in parallel"
+            if num_config_files > 1:
+                dl_start_message = f"Downloading with {num_config_files} processes in parallel"
             else:
                 dl_start_message = "Downloading with 1 process"
             dl_commands += Progress(dl_start_message)
