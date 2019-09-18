@@ -228,18 +228,21 @@ class ClientFrameController(FrameController):
         self.client_run_batch_file_checkbox = None
 
     def update_client_input_file_combo(self, *args):
-        new_input_file = self.tk_vars["CLIENT_GUI_IN_FILE"].get()
-        if os.path.isfile(new_input_file):
-            new_input_file_dir, new_input_file_name = os.path.split(new_input_file)
-            items_in_dir = os.listdir(new_input_file_dir)
-            dir_items = [os.path.join(new_input_file_dir, item) for item in items_in_dir if os.path.isfile(os.path.join(new_input_file_dir, item))]
+        new_input_file = Path(self.tk_vars["CLIENT_GUI_IN_FILE"].get())
+        if new_input_file.is_file():
+            new_input_file_dir = new_input_file.parent
+            dir_items = list()
+            for item in os.listdir(new_input_file_dir):
+                item_Path = new_input_file_dir.joinpath(item)
+                if item_Path.is_file:
+                    dir_items.append(item_Path)
             self.client_input_combobox.configure(values=dir_items)
 
     def update_state(self, *args, **kwargs):  # ClientFrameController
         super().update_state(*args, **kwargs)
         self.update_client_input_file_combo()
 
-        _, input_file_base_name = os.path.split(config_vars["CLIENT_GUI_IN_FILE"])
+        input_file_base_name = config_vars["CLIENT_GUI_IN_FILE"].Path().name
         config_vars["CLIENT_GUI_IN_FILE_NAME"] = input_file_base_name
 
         if self.tk_vars["CLIENT_GUI_CMD"].get() in list(config_vars["__COMMANDS_WITH_RUN_OPTION__"]):
@@ -360,9 +363,9 @@ class AdminFrameController(FrameController):
 
     def read_admin_config_files(self, *args, **kwargs):
         for config_file_var in ("ADMIN_GUI_TARGET_CONFIG_FILE", "ADMIN_GUI_LOCAL_CONFIG_FILE"):
-            config_path = str(config_vars.get(config_file_var, ""))
+            config_path = config_vars.get(config_file_var, None).Path()
             if config_path:
-                if os.path.isfile(config_path):
+                if config_path.is_file():
                     config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
                     self.instl_obj.read_yaml_file(config_path)
                 else:
@@ -372,7 +375,7 @@ class AdminFrameController(FrameController):
         super().update_state(*args, **kwargs)
         self.read_admin_config_files()
 
-        _, input_file_base_name = os.path.split(config_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].raw())
+        input_file_base_name = Path(config_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].raw()).name
         config_vars["ADMIN_GUI_CONFIG_FILE_NAME"] = input_file_base_name
 
         if self.tk_vars["ADMIN_GUI_CMD"].get() in list(config_vars["__COMMANDS_WITH_LIMIT_OPTION__"]):
@@ -533,9 +536,9 @@ class ActivateFrameController(FrameController):
 
     def read_activate_config_files(self):
         for config_file_var in ("ACTIVATE_CONFIG_FILE", ):
-            config_path = str(config_vars.get(config_file_var, ""))
+            config_path = config_vars.get(config_file_var, None).Path()
             if config_path:
-                if os.path.isfile(config_path):
+                if config_path.is_file():
                     config_vars[ "__SEARCH_PATHS__"].clear() # so __include__ file will not be found on old paths
                     self.instl_obj.read_yaml_file(config_path)
                 else:

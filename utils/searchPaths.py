@@ -69,9 +69,8 @@ class SearchPaths(object):
         retVal = None
         real_file = Path(in_file).resolve()
         if real_file.is_file():
-            real_folder = real_file.parent
-            self.add_search_path(str(real_folder))
-            retVal = str(real_file)
+            self.add_search_path(real_file.parent)
+            retVal = real_file
         else:
             for try_path in iter(self.config_vars[self.search_paths_var]):
                 try:
@@ -79,9 +78,8 @@ class SearchPaths(object):
                     if real_file.is_file():
                         # in_file might be a relative path so must add the file's
                         # real folder so it's in the list.
-                        real_folder = real_file.parent
-                        self.add_search_path(str(real_folder))
-                        retVal = str(real_file)
+                        self.add_search_path(real_file.parent)
+                        retVal = real_file
                         break
                 except FileNotFoundError:
                     pass  # file was not found at try_path

@@ -19,8 +19,8 @@ class CommandListRunner(object):
 
     def run(self, parallel=False):
         command_list = self.prepare_command_list_from_file()
-        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
-        command_list_dir, command_list_leaf = os.path.split(config_file)
+        config_file = config_vars["__CONFIG_FILE__"].Path()
+        command_list_leaf = config_file.name
         if parallel:
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel from {command_list_leaf}")
             for argv in command_list:

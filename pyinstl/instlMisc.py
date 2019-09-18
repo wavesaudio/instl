@@ -75,13 +75,12 @@ class InstlMisc(InstlInstanceBase):
 
     def do_unwtar(self):
         self.no_artifacts =  bool(config_vars["__NO_WTAR_ARTIFACTS__"])
-        what_to_work_on = str(config_vars.get("__MAIN_INPUT_FILE__", os.curdir))
-        what_to_work_on_dir, what_to_work_on_leaf = os.path.split(what_to_work_on)
+        what_to_work_on = config_vars.get("__MAIN_INPUT_FILE__", os.curdir).Path()
         where_to_unwtar = config_vars.get("__MAIN_OUT_FILE__", None).Path()
 
         Unwtar(what_to_work_on, where_to_unwtar, self.no_artifacts)()
 
-        self.dynamic_progress(f"unwtar {utils.original_name_from_wtar_name(what_to_work_on_leaf)}")
+        self.dynamic_progress(f"unwtar {utils.original_name_from_wtar_name(what_to_work_on.name)}")
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
@@ -107,13 +106,13 @@ class InstlMisc(InstlInstanceBase):
         print(translated_url)
 
     def do_ls(self):
-        main_folder_to_list = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].Path()
         folders_to_list = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
             for limit in limit_list:
                 limit = utils.unquoteme(limit)
-                folders_to_list.append(os.path.join(main_folder_to_list, limit))
+                folders_to_list.append(main_folder_to_list.joinpath(limit))
         else:
             folders_to_list.append(main_folder_to_list)
 

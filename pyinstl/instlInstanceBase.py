@@ -101,9 +101,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # noinspection PyUnresolvedReferences
         self.read_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
-        self.path_searcher.add_search_path(os.getcwd())
-        self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(str(config_vars["__ARGV__"][0]))))
-        self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
+        self.path_searcher.add_search_path(Path.cwd())
+        self.path_searcher.add_search_path(Path(config_vars["__ARGV__"][0]).resolve())
+        self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].Path())
 
         self.batch_accum = PythonBatchCommandAccum()
         self.dl_tool = CUrlHelper()

@@ -395,7 +395,6 @@ class InstlClient(InstlInstanceBase):
     def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
-            path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
 
             ignore_regexes_filter = utils.check_binaries_versions_filter_with_ignore_regexes()
 
@@ -407,9 +406,10 @@ class InstlClient(InstlInstanceBase):
                 ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX"])
                 ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
+            current_os = config_vars["__CURRENT_OS__"].str()
+            path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
             for a_path in path_to_search:
-                current_os = config_vars["__CURRENT_OS__"].str()
-                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, ignore_regexes_filter)
+                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, Path(a_path), ignore_regexes_filter)
                 binaries_version_list.extend(binaries_version_from_folder)
 
             self.items_table.insert_binary_versions(binaries_version_list)
