@@ -65,8 +65,14 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
 
             out_stream = None
+            need_to_close_out_file = False
             if self.out_file:
-                out_stream = utils.utf8_open_for_write(self.out_file, "w")
+                if isinstance(self.out_file, (str, os.PathLike, bytes)):
+                    out_stream = utils.utf8_open_for_write(self.out_file, "w")
+                    need_to_close_out_file = True
+                elif hasattr(self.out_file, "write"):  # out_file is already an open file
+                    out_stream = self.out_file
+
             elif self.capture_stdout:
                 # this will capture stdout in completed_process.stdout instead of writing directly to stdout
                 # so objects overriding handle_completed_process will have access to stdout
@@ -78,7 +84,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
 
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
-            if self.out_file:
+            if need_to_close_out_file:
                 out_stream.close()
 
             if completed_process.returncode != 0 or completed_process.stderr:

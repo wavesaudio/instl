@@ -177,9 +177,17 @@ class InstlMisc(InstlInstanceBase):
         Wzip(what_to_work_on, where_to_put_wzip)()
 
     def do_run_process(self):
-
+        """ run list of processes as specified in the input file
+            input file can have two kinds of processes:
+            1. command line, e.g. ls /etc
+            2. echo statement, e.g. echo "a message"
+            each line can also be followed by ">" or ">>" and path to a file, in which case
+            output from the process or echo will go to that file. ">" will open the file in "w" mode, ">>" in "a" mode.
+            if --abort-file argument is passed to run-process, the fiel specified will be watch and if and when it does not exist
+            current running subprocess will be aborted and next processes will not be launched.
+        """
         def start_abort_file_thread(abort_file_path, time_to_sleep, exit_code):
-            """
+            """ Open a thread to wtach the abort file
             """
 
             def abort_file_thread_func(_abort_file_path, _time_to_sleep, _exit_code):
@@ -194,7 +202,7 @@ class InstlMisc(InstlInstanceBase):
             x.start()
 
         if 'ABORT_FILE' in config_vars:
-            abort_file_path = config_vars["ABORT_FILE"].Path()
+            abort_file_path = config_vars["ABORT_FILE"].Path(resolve=True)
             start_abort_file_thread(abort_file_path=abort_file_path, time_to_sleep=1, exit_code=0)
 
         list_of_process_to_run = list()
@@ -206,19 +214,29 @@ class InstlMisc(InstlInstanceBase):
         else:    # read a command from argv
             list_of_process_to_run.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
 
+        list_of_process_to_run_with_redirects = list()
+        # find redirects
         for process_to_run in list_of_process_to_run:
-            if process_to_run[0].strip().lower() == "echo":
-                # if >> is in the line and it's not the last item on the line, output to that file
-                redirection_index = process_to_run.index(">>")
-                if ">>" in process_to_run and redirection_index < len(process_to_run)-1:
-                    str_to_output = " ".join(process_to_run[1:redirection_index])
-                    file_path = process_to_run[redirection_index+1]
-                    with open(file_path, "a") as wfd:
-                        wfd.write(f"{str_to_output}\n")
-                else:
-                    log.info(" ".join(process_to_run[1:]))
+            if len(process_to_run) >= 3 and process_to_run[-2] in (">", ">>"):
+                list_of_process_to_run_with_redirects.append((process_to_run[:-2], process_to_run[-2], process_to_run[-1]))
             else:
-                print(f"""run-process: {process_to_run}""")
-                with Subprocess(process_to_run[0], *process_to_run[1:]) as sub_proc:
+                list_of_process_to_run_with_redirects.append((process_to_run, None, None))
+
+        for process_to_run in list_of_process_to_run_with_redirects:
+            redirect_file = None
+            if process_to_run[1]:
+                redirect_file = open(process_to_run[2], {">": "w", ">>": "a"}[process_to_run[1]])
+
+            print(process_to_run[0], process_to_run[1], process_to_run[2])
+            if process_to_run[0][0].strip().lower() == "echo":
+                str_to_echo = " ".join(process_to_run[0][1:])
+                if redirect_file:
+                    redirect_file.write(f"{str_to_echo}\n")
+                else:
+                    sys.stdout.write(f"{str_to_echo}\n")
+            else:
+                with Subprocess(process_to_run[0][0], *(process_to_run[0][1:]), out_file=redirect_file, own_progress_count=0) as sub_proc:
                     sub_proc()
 
+            if redirect_file:
+                redirect_file.close()
