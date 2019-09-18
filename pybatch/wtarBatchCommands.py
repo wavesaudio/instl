@@ -141,7 +141,7 @@ class Wtar(PythonBatchCommandBase):
                     # file in no particular order and taring the same file twice
                     # might produce different results. By supplying the mtime
                     # ourselves AND passing an OrderedDict as the pax_headers
-                    # hopefully the tar files will be the same each time.
+                    # hopefully the final tar will be the same for different runs.
                     file_pax_headers = OrderedDict()
                     file_pax_headers["checksum"] = utils.get_file_checksum(tarinfo.path)
                     mode_time = str(float(os.lstat(tarinfo.path)[stat.ST_MTIME]))

@@ -235,7 +235,7 @@ class DBMaster(object):
     def exec_script_file(self, file_name):
         with self.transaction("exec_script_file_"+file_name) as curs:
             if os.path.isfile(file_name):
-                script_file_path = file_name
+                script_file_path = Path(file_name)
             else:
                 script_file_path = self.ddl_files_dir.joinpath(file_name)
             with open(script_file_path, "r") as rfd:
