@@ -462,23 +462,6 @@ def get_disk_free_space(in_path):
     return retVal
 
 
-# cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
-# utils.clean_old_files(cache_dir_to_clean, 30)
-def clean_old_files(dir_to_clean, older_than_days):
-    """ clean a directory from file older than the given param
-        block all exceptions since this operation is "nice to have" """
-    try:
-        threshold_time = time.time() - (older_than_days * 24 * 60 * 60)
-        for root, dirs, files in os.walk(dir_to_clean, followlinks=False):
-            for a_file in files:
-                a_file_path = os.path.join(root, a_file)
-                file_time = os.path.getmtime(a_file_path)
-                if file_time < threshold_time:
-                    os.remove(a_file_path)
-    except Exception:
-        pass
-
-
 def smart_copy_file(source_path, destination_path):
     s = source_path
     s_dir, s_name = os.path.split(source_path)
