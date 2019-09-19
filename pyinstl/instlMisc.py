@@ -2,6 +2,7 @@
 
 import shlex
 import threading
+from collections import namedtuple
 
 from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
@@ -175,16 +176,7 @@ class InstlMisc(InstlInstanceBase):
 
         Wzip(what_to_work_on, where_to_put_wzip)()
 
-    def do_run_process(self):
-        """ run list of processes as specified in the input file
-            input file can have two kinds of processes:
-            1. command line, e.g. ls /etc
-            2. echo statement, e.g. echo "a message"
-            each line can also be followed by ">" or ">>" and path to a file, in which case
-            output from the process or echo will go to that file. ">" will open the file in "w" mode, ">>" in "a" mode.
-            if --abort-file argument is passed to run-process, the fiel specified will be watch and if and when it does not exist
-            current running subprocess will be aborted and next processes will not be launched.
-        """
+    def setup_abort_file_monotoring(self):
         def start_abort_file_thread(abort_file_path, time_to_sleep, exit_code):
             """ Open a thread to wtach the abort file
             """
@@ -204,37 +196,68 @@ class InstlMisc(InstlInstanceBase):
             abort_file_path = config_vars["ABORT_FILE"].Path(resolve=True)
             start_abort_file_thread(abort_file_path=abort_file_path, time_to_sleep=1, exit_code=0)
 
-        list_of_process_to_run = list()
+    def do_run_process(self):
+        """ run list of processes as specified in the input file
+            input file can have two kinds of processes:
+            1. command line, e.g. ls /etc
+            2. echo statement, e.g. echo "a message"
+            each line can also be followed by ">" or ">>" and path to a file, in which case
+            output from the process or echo will go to that file. ">" will open the file in "w" mode, ">>" in "a" mode.
+            if --abort-file argument is passed to run-process, the fiel specified will be watch and if and when it does not exist
+            current running subprocess will be aborted and next processes will not be launched.
+        """
+        self.setup_abort_file_monotoring()
+
+        list_of_argv = list()
         if "__MAIN_INPUT_FILE__" in config_vars:  # read commands from a file
             file_with_commands = config_vars["__MAIN_INPUT_FILE__"]
             with open(file_with_commands, "r") as rfd:
                 for line in rfd.readlines():
-                    list_of_process_to_run.append(shlex.split(line))
+                    list_of_argv.append(shlex.split(line))
         else:    # read a command from argv
-            list_of_process_to_run.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
+            list_of_argv.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
+
+        RunProcessInfo = namedtuple('RunProcessInfo', ['process_name', 'argv', 'redirect_open_mode', 'redirect_path', 'stderr_means_err'])
 
         list_of_process_to_run_with_redirects = list()
         # find redirects
-        for process_to_run in list_of_process_to_run:
-            if len(process_to_run) >= 3 and process_to_run[-2] in (">", ">>"):
-                list_of_process_to_run_with_redirects.append((process_to_run[:-2], process_to_run[-2], process_to_run[-1]))
+        for run_process_info in list_of_argv:
+            stderr_means_err = True
+            if "2>&1" in run_process_info:
+                stderr_means_err = False
+                run_process_info.remove("2>&1")
+
+            if len(run_process_info) >= 3 and run_process_info[-2] in (">", ">>"):
+                list_of_process_to_run_with_redirects.append(RunProcessInfo(process_name=run_process_info[0],
+                                                                            argv=run_process_info[1:-2],
+                                                                            redirect_open_mode={">": "w", ">>": "a"}[run_process_info[-2]],
+                                                                            redirect_path=run_process_info[-1],
+                                                                            stderr_means_err=stderr_means_err))
             else:
-                list_of_process_to_run_with_redirects.append((process_to_run, None, None))
+                list_of_process_to_run_with_redirects.append(RunProcessInfo(process_name=run_process_info[0].strip(),
+                                                                            argv=run_process_info[1:],
+                                                                            redirect_open_mode=None,
+                                                                            redirect_path=None,
+                                                                            stderr_means_err=stderr_means_err))
 
-        for process_to_run in list_of_process_to_run_with_redirects:
+        for run_process_info in list_of_process_to_run_with_redirects:
             redirect_file = None
-            if process_to_run[1]:
-                redirect_file = open(process_to_run[2], {">": "w", ">>": "a"}[process_to_run[1]])
+            if run_process_info.redirect_path:
+                redirect_file = open(run_process_info.redirect_path, run_process_info.redirect_open_mode)
 
-            print(process_to_run[0], process_to_run[1], process_to_run[2])
-            if process_to_run[0][0].strip().lower() == "echo":
-                str_to_echo = " ".join(process_to_run[0][1:])
+            print(run_process_info)
+            if run_process_info.process_name.lower() == "echo":
+                str_to_echo = " ".join(run_process_info.argv)
                 if redirect_file:
                     redirect_file.write(f"{str_to_echo}\n")
                 else:
                     sys.stdout.write(f"{str_to_echo}\n")
             else:
-                with Subprocess(process_to_run[0][0], *(process_to_run[0][1:]), out_file=redirect_file, own_progress_count=0) as sub_proc:
+                with Subprocess(run_process_info.process_name,
+                                *run_process_info.argv,
+                                out_file=redirect_file,
+                                stderr_means_err=run_process_info.stderr_means_err,
+                                own_progress_count=0) as sub_proc:
                     sub_proc()
 
             if redirect_file:

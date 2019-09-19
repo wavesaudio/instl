@@ -78,29 +78,31 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                 # so objects overriding handle_completed_process will have access to stdout
                 out_stream = subprocess.PIPE
             in_stream = None
-            err_stream = None
-            if self.stderr_means_err:
-                err_stream = subprocess.PIPE
+            err_stream = subprocess.PIPE
 
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
             if need_to_close_out_file:
                 out_stream.close()
 
-            if completed_process.returncode != 0 or completed_process.stderr:
-                if self.stderr_means_err:
-                    self.stderr = utils.unicodify(completed_process.stderr)
-                    if self.stderr:
+            if completed_process.stderr:
+                self.stderr = utils.unicodify(completed_process.stderr)
+                if self.ignore_all_errors:
+                    # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                    # but it will not be interpreted as an error by whoever is running instl
+                    log.info(self.stderr)
+                else:
+                    if self.stderr_means_err:
+                        log.error(self.stderr)
+                        if completed_process.returncode == 0:
+                            completed_process.returncode = 123
+                    else:
+                        log.info(self.stderr)
+            else:
+                pass
 
-                        if self.ignore_all_errors:
-                            # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
-                            # but it will not be interpreted as an error by whoever is running instl
-                            sys.stdout.write(self.stderr)
-                            completed_process.returncode = 0
-                        else:
-                            log.error(self.stderr)
-                            if completed_process.returncode == 0:
-                                completed_process.returncode = 123
+            if self.ignore_all_errors:
+                completed_process.returncode = 0
 
             completed_process.check_returncode()
             self.handle_completed_process(completed_process)
