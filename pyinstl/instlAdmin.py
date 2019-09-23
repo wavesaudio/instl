@@ -807,6 +807,17 @@ class InstlAdmin(InstlInstanceBase):
         finally:
             self.send_email_from_template_file(config_vars["UP2S3_EMAIL_TEMPLATE_PATH"].Path())
 
+    def report_instl_info_to_redis(self, redis_instance):
+        instl_info_redis_key = config_vars.get("INSTL_INFO_REDIS_KEY", None).str()
+        if instl_info_redis_key:
+            instl_info_dict = dict()
+            instl_info_dict["version"] = ".".join(list(config_vars["__INSTL_VERSION__"]))
+            instl_info_dict["version string"] = config_vars["__INSTL_VERSION_STR_LONG__"].str()
+            instl_info_dict["path"] = config_vars["__INSTL_EXE_PATH__"].str()
+            instl_info_dict["python version"] = config_vars["__PYTHON_VERSION__"].str()
+            instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
+            redis_instance.hmset(instl_info_redis_key, instl_info_dict)
+
     def do_wait_on_action_trigger(self):
 
         sys.path.append(os.pardir)
@@ -827,6 +838,8 @@ class InstlAdmin(InstlInstanceBase):
         heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", None).str()
         if heartbeat_redis_key:
             start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
+
+        self.report_instl_info_to_redis()
 
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
