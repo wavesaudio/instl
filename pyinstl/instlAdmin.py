@@ -811,8 +811,8 @@ class InstlAdmin(InstlInstanceBase):
         instl_info_redis_key = config_vars.get("INSTL_INFO_REDIS_KEY", None).str()
         if instl_info_redis_key:
             instl_info_dict = dict()
-            instl_info_dict["version"] = ".".join(list(config_vars["__INSTL_VERSION__"]))
-            instl_info_dict["version string"] = config_vars["__INSTL_VERSION_STR_LONG__"].str()
+            instl_info_dict["version"] = self.get_version_str(short=True)
+            instl_info_dict["version string"] = self.get_version_str(short=False)
             instl_info_dict["path"] = config_vars["__INSTL_EXE_PATH__"].str()
             instl_info_dict["python version"] = config_vars["__PYTHON_VERSION__"].str()
             instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
@@ -839,9 +839,8 @@ class InstlAdmin(InstlInstanceBase):
         if heartbeat_redis_key:
             start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
 
-        self.report_instl_info_to_redis()
-
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        self.report_instl_info_to_redis(r)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
             log.info(f"wait on redis list: {redis_host}:{redis_port} {waiting_list_redis_key}")
