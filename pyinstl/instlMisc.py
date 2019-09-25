@@ -186,7 +186,7 @@ class InstlMisc(InstlInstanceBase):
                 _abort_file_path = Path(_abort_file_path)
                 while _abort_file_path.is_file():
                     time.sleep(_time_to_sleep)
-                print(f"aborting because file not found {_abort_file_path}")
+                log.info(f"aborting because abort file not found {_abort_file_path}")
 
                 current_process = psutil.Process()
                 childern = current_process.children(recursive=True)
@@ -200,6 +200,7 @@ class InstlMisc(InstlInstanceBase):
 
         if 'ABORT_FILE' in config_vars:
             abort_file_path = config_vars["ABORT_FILE"].Path(resolve=True)
+            log.info(f"watching abort file {abort_file_path}")
             start_abort_file_thread(abort_file_path=abort_file_path, time_to_sleep=1, exit_code=0)
 
     def do_run_process(self):
@@ -212,7 +213,7 @@ class InstlMisc(InstlInstanceBase):
             if --abort-file argument is passed to run-process, the fiel specified will be watch and if and when it does not exist
             current running subprocess will be aborted and next processes will not be launched.
         """
-        self.setup_abort_file_monotoring()
+        self.setup_abort_file_monitoring()
 
         list_of_argv = list()
         if "__MAIN_INPUT_FILE__" in config_vars:  # read commands from a file
@@ -234,7 +235,7 @@ class InstlMisc(InstlInstanceBase):
                 run_process_info.remove("2>&1")
 
             if len(run_process_info) >= 3 and run_process_info[-2] in (">", ">>"):
-                list_of_process_to_run_with_redirects.append(RunProcessInfo(process_name=run_process_info[0],
+                list_of_process_to_run_with_redirects.append(RunProcessInfo(process_name=run_process_info[0].strip(),
                                                                             argv=run_process_info[1:-2],
                                                                             redirect_open_mode={">": "w", ">>": "a"}[run_process_info[-2]],
                                                                             redirect_path=run_process_info[-1],
@@ -259,12 +260,14 @@ class InstlMisc(InstlInstanceBase):
                 else:
                     sys.stdout.write(f"{str_to_echo}\n")
             else:
+                log.info(f"Start running {run_process_info.process_name} with argv {run_process_info.argv}")
                 with Subprocess(run_process_info.process_name,
                                 *run_process_info.argv,
                                 out_file=redirect_file,
                                 stderr_means_err=run_process_info.stderr_means_err,
                                 own_progress_count=0) as sub_proc:
                     sub_proc()
+                log.info(f"Done running {run_process_info.process_name} with argv {run_process_info.argv}")
 
             if redirect_file:
                 redirect_file.close()
