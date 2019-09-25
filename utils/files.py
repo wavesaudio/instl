@@ -101,7 +101,10 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
             log.warning(f"""chown_chmod_on_path: chown failed for {in_path}; {ex}""")
         try:
             if hasattr(os, 'chmod'):
-                os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                flags = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
+                if os.path.isdir(in_path):
+                    flags = flags | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+                os.chmod(in_path, flags)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
 
