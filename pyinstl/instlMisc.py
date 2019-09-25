@@ -8,6 +8,7 @@ from .instlInstanceBase import InstlInstanceBase
 from . import connectionBase
 from pybatch import *
 import utils
+import psutil
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -186,6 +187,11 @@ class InstlMisc(InstlInstanceBase):
                 while _abort_file_path.is_file():
                     time.sleep(_time_to_sleep)
                 print(f"aborting because file not found {_abort_file_path}")
+
+                current_process = psutil.Process()
+                childern = current_process.children(recursive=True)
+                for child in childern:
+                    child.kill()
                 os._exit(_exit_code)  # to kill the main thread see: https://docs.python.org/3.6/library/os.html#os._exit
 
             thread_name = "abort file monitor"
