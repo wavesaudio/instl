@@ -177,7 +177,7 @@ class InstlMisc(InstlInstanceBase):
 
         Wzip(what_to_work_on, where_to_put_wzip)()
 
-    def setup_abort_file_monotoring(self):
+    def setup_abort_file_monitoring(self):
         def start_abort_file_thread(abort_file_path, time_to_sleep, exit_code):
             """ Open a thread to wtach the abort file
             """
