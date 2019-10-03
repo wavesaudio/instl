@@ -291,6 +291,8 @@ class PythonBatchCommandBase(abc.ABC):
         if not self.doing:
             self.doing = self.progress_msg_self()
         self._error_dict.update({
+            'instl_version': config_vars["__INSTL_VERSION_STR_LONG__"].str(),
+            'python_version': ".".join((str(v) for v in sys.version_info)),
             'doing': self.doing,
             'major_stage': self.major_stage_str(),
             'stage': ".".join(filter(None, (stage.stage_str() for stage in PythonBatchCommandBase.stage_stack))),

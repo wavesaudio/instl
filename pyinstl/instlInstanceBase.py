@@ -6,7 +6,6 @@ import sys
 import re
 import abc
 from pathlib import Path
-import platform
 import appdirs
 import urllib.error
 import io
@@ -144,12 +143,11 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines
 
     def get_version_str(self, short=False):
-        instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
-        if not short:
-            if "__PLATFORM_NODE__" not in config_vars:
-                config_vars.update({"__PLATFORM_NODE__": platform.node()})
-            instl_ver_str = config_vars.resolve_str(
-                "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
+        if short:
+            to_resolve_var = "__INSTL_VERSION_STR_SHORT__"
+        else:
+            to_resolve_var = "__INSTL_VERSION_STR_LONG__"
+        instl_ver_str = config_vars[to_resolve_var].str()
         return instl_ver_str
 
     def init_default_vars(self, initial_vars):

@@ -7,6 +7,7 @@ import random
 import sqlite3
 import datetime
 import logging
+import platform
 from pathlib import Path
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
@@ -106,6 +107,7 @@ def instl_own_main(argv):
                     "__INSTL_DEFAULTS_FOLDER__": "$(__INSTL_DATA_FOLDER__)/defaults",
                     "__INSTL_COMPILED__": str(getattr(sys, 'frozen', False)),
                     "__PYTHON_VERSION__": sys.version_info,
+                    "__PLATFORM_NODE__": platform.node(),
                     "__PYSQLITE3_VERSION__": sqlite3.version,
                     "__SQLITE_VERSION__": sqlite3.sqlite_version,
                     "__COMMAND_NAMES__": command_names,
