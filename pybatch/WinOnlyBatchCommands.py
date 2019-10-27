@@ -336,7 +336,7 @@ class FullACLForEveryone(RunProcessBase):
         self.path = utils.ExpandAndResolvePath(self.path)
         run_args.extend(["icacls",
                          os.fspath(self.path),
-                         "remove:d",  # remove all denied rights
+                         "/remove:d",  # remove all denied rights
                          "*S-1-1-0",  # for group everyone
                          "/grant",
                          "*S-1-1-0:(OI)(CI)F",  # grant all possible rights to group everyone, these right will be inherited
