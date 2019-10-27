@@ -122,11 +122,15 @@ class MakeDirs(PythonBatchCommandBase, essential=True):
             self.cur_path.mkdir(parents=True, mode=0o777, exist_ok=True)
             if self.remove_obstacles:
                 if sys.platform == 'win32':
-                    with FullACLForEveryone(self.cur_path, own_progress_count=0) as grant_permissions:
+                    with FullACLForEveryone(self.cur_path, recursive=True, own_progress_count=0) as grant_permissions:
                         grant_permissions()
                 elif sys.platform == 'darwin':
-                    with Chown(path=self.cur_path, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=False, own_progress_count=0) as grant_permissions:
-                        grant_permissions()
+                    with Chown(path=self.cur_path, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, own_progress_count=0) as change_user:
+                        change_user()
+
+                # this is for both Mac and Windows, on Mac it will call chmod, on windows attrib
+                with Chmod(self.cur_path, "a+rw", recursive=True, own_progress_count=0) as grant_permissions:
+                    grant_permissions()
 
 
 class MakeDirsWithOwner(MakeDirs, essential=True):
