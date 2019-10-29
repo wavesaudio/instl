@@ -181,11 +181,12 @@ class Cd(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        self.old_path = os.getcwd()
+        self.old_path = Path.cwd()
         resolved_new_path = utils.ExpandAndResolvePath(self.new_path)
         self.doing = f"""changing current directory to '{resolved_new_path}'"""
+        assert resolved_new_path.is_dir(), f"directory does not exist '{resolved_new_path}'"
         os.chdir(resolved_new_path)
-        assert os.getcwd() == os.fspath(resolved_new_path)
+        assert resolved_new_path.samefile(Path.cwd()), f"failed to cd into '{resolved_new_path}'"
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
