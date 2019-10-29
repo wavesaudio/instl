@@ -104,9 +104,9 @@ class TestPythonBatchSVN(unittest.TestCase):
         some_file_that_should_be_there_after_checkout_2 = checkout_folder_2.joinpath("apache-header.txt").resolve()
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(checkout_folder_1)
+        self.pbt.batch_accum += MakeDir(checkout_folder_1)
         self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_1), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates", out_file=os.fspath(out_file_1))
-        self.pbt.batch_accum += MakeDirs(checkout_folder_2)
+        self.pbt.batch_accum += MakeDir(checkout_folder_2)
         self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_2), url="http://svn.apache.org/repos/asf/camel/trunk/etc", depth="files")
         self.pbt.exec_and_capture_output()
 

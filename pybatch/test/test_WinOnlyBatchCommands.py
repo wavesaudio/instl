@@ -228,7 +228,7 @@ class TestPythonBatchWin(unittest.TestCase):
         folder_to_ = self.pbt.path_inside_test_folder("folder-to-test")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_test)
+        self.pbt.batch_accum += MakeDir(folder_to_test)
         self.pbt.batch_accum += FullACLForEveryone(folder_to_test)
 
         self.pbt.exec_and_capture_output()

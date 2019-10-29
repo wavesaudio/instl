@@ -62,7 +62,7 @@ class MacDock(PythonBatchCommandBase):
         utils.dock_util(dock_util_command)
 
 
-class CreateSymlink(PythonBatchCommandBase, essential=True):
+class CreateSymlink(PythonBatchCommandBase):
     """ create a symbolic link (MacOS only)"""
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -88,7 +88,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         path_to_symlink.symlink_to(path_to_target)
 
 
-class RmSymlink(PythonBatchCommandBase, essential=True):
+class RmSymlink(PythonBatchCommandBase):
     """remove a symlink not it's target
     - It's OK is the symlink or the target does not exist
     - but exception will be raised if path is a folder
@@ -118,7 +118,7 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
             log.warning(f"RmSymlink, not found: {unresolved_path}")
 
 
-class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
+class SymlinkToSymlinkFile(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -145,7 +145,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
             symlink_to_convert.unlink()
 
 
-class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
+class SymlinkFileToSymlink(PythonBatchCommandBase):
     """ replace a file with extension '.symlink' to a real symlink.
         the '.symlink' should contain the text of the target of the symlink. And was created with SymlinkToSymlinkFile.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -185,7 +185,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink_file_to_convert.unlink()
 
 
-class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class CreateSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -219,7 +219,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                         log.warning(f"failed to convert {item_path}")
 
 
-class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks

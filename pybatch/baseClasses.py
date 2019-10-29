@@ -48,6 +48,8 @@ class PythonBatchCommandBase(abc.ABC):
     runtime_duration_by_progress = dict()
     ignore_progress = False           # set to True when using batch commands out side python batch file
 
+    # defaults for __init__ of derived classes. Members how's value has not changed from these values
+    # can be skipped when __repr__ recreates the object
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
                        'ignore_all_errors': False,
@@ -56,22 +58,33 @@ class PythonBatchCommandBase(abc.ABC):
                        "reply_environ_var": None,
                        'prog_num': 0,
                        'skip_action': False}
-    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
+        """ __init_subclass__ will be called once during compilation of each class derived from PythonBatchCommandBase.
+            __init_subclass__ will not be called during compilation of  PythonBatchCommandBase itself.
+            Params passed to the class declaration will be passed to __init_subclass__. e.g. the code:
+            A(PythonBatchCommandBase, name="bobi")
+                will result in calling:
+            PythonBatchCommandBase.__init_subclass__(A, name="bobi")
+
+            __init_subclass__ is the place to initialize derived class members to their defaults.
+            Note: calling cls.essential = essential will set essential as a object member not class member, so later calling
+            self.essential = False in a member function will change self.essential for self only not for other object of the class.
+            That being said, our convension is that members set here are treated class member and should not be changed during runtime.
+        """
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
 
+        # create a new, unique kwargs_defaults for the class, that will override the parent class' kwargs_defaults. To keep the values from parent class create a copy named parent_kwargs_defaults.
+        # Beware, simply doing cls.kwargs_defaults.update(parent_kwargs_defaults) will update the parent class kwargs_defaults, and this will effect other classes inheriting from that base
+
         parent_kwargs_defaults = {}
         if hasattr(cls, "kwargs_defaults"):
             parent_kwargs_defaults.update(cls.kwargs_defaults)
-
-        # create a new, unique kwargs_defaults for the class, that will override the parent class' kwargs_defaults. To keep the values from parent class create a copy named parent_kwargs_defaults.
-        # Beware, simply doing cls.kwargs_defaults.update(parent_kwargs_defaults) will update the parent class kwargs_defaults, and this will effect other classes inheriting from that base
         cls.kwargs_defaults = parent_kwargs_defaults
         if kwargs_defaults:
             cls.kwargs_defaults.update(kwargs_defaults)
@@ -234,7 +247,8 @@ class PythonBatchCommandBase(abc.ABC):
         self.in_sub_accum = True
         yield context
         self.in_sub_accum = False
-        if context.is_essential():
+        is_ess = context.is_essential()
+        if is_ess:
             self.add(context)
 
     def representative_dict(self):
@@ -291,7 +305,7 @@ class PythonBatchCommandBase(abc.ABC):
         if not self.doing:
             self.doing = self.progress_msg_self()
         self._error_dict.update({
-            'instl_version': config_vars["__INSTL_VERSION_STR_LONG__"].str(),
+            'instl_version': config_vars.get("__INSTL_VERSION_STR_LONG__", "Unknown version").str(),
             'python_version': ".".join((str(v) for v in sys.version_info)),
             'doing': self.doing,
             'major_stage': self.major_stage_str(),

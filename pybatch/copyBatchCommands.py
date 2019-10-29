@@ -22,7 +22,7 @@ def _fast_copy_file(src, dst):
                 wfd.write(buf)
 
 
-class RsyncClone(PythonBatchCommandBase, essential=True):
+class RsyncClone(PythonBatchCommandBase):
     """ base class for copying file system objects
         tries to mimic rsync behaviour
     """

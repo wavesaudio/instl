@@ -289,7 +289,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            self.batch_accum += MakeDirs(destination_file_resolved_path.parent)
+                            self.batch_accum += MakeDir(destination_file_resolved_path.parent, chowner=True)
                             self.batch_accum += CopyFileToFile(file_path, destination_file_resolved_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):

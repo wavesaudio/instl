@@ -53,7 +53,7 @@ from .fileSystemBatchCommands import Cd
 from .fileSystemBatchCommands import ChFlags
 from .fileSystemBatchCommands import Chmod
 from .fileSystemBatchCommands import Chown
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import MakeRandomDirs
 from .fileSystemBatchCommands import MakeRandomDataFile
 from .fileSystemBatchCommands import touch

@@ -83,7 +83,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
         curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
-        MakeDirs(curl_config_folder)()
+        MakeDir(curl_config_folder, chowner=True)()
         curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
@@ -202,7 +202,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         with self.instlObj.batch_accum.sub_accum(Stage("download", "$(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
-            sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
+            sync_accum += MakeDir("$(LOCAL_REPO_SYNC_DIR)", chowner=True)
 
             with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
                 with local_repo_sync_dir_accum.sub_accum(Stage("remove_redundant_files_in_sync_folder")) as rrfisf:

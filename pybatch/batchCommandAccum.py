@@ -27,7 +27,7 @@ def camel_to_snake_case(identifier):
     return identifier2
 
 
-class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
+class PythonBatchCommandAccum(PythonBatchCommandBase):
 
     section_order = ("prepare", "assign", "begin", "links", "upload", "pre", "pre-sync", "sync", "post-sync",
                      "copy", "post-copy", "remove", "admin", "pre_doit", "doit", "post_doit", "end",

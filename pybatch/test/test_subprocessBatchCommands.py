@@ -140,7 +140,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear()
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
-        self.pbt.batch_accum += MakeDirs(batches_dir)
+        self.pbt.batch_accum += MakeDir(batches_dir)
         self.pbt.batch_accum += ShellCommands(shell_command_list=geronimo, message="testing ShellCommands")
 
         self.pbt.exec_and_capture_output()
@@ -250,7 +250,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         # create the folder, with sub folder and one known file
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as cd1_accum:
-             cd1_accum += MakeDirs(folder_to_list)
+             cd1_accum += MakeDir(folder_to_list)
              with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
                 cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
              cd1_accum += RunInThread(Ls(folder_to_list, out_file=list_out_file))
@@ -270,7 +270,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         folder_ = self.pbt.path_inside_test_folder("folder_")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_)
+        self.pbt.batch_accum += MakeDir(folder_)
         self.pbt.batch_accum += Subprocess("python3.6", "--version")
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()

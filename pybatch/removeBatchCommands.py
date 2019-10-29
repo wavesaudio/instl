@@ -11,7 +11,7 @@ from pybatch import PythonBatchCommandBase
 log = logging.getLogger(__name__)
 
 
-class RmFile(PythonBatchCommandBase, essential=True):
+class RmFile(PythonBatchCommandBase):
     """remove a file
     - if path is symlink - the symlink's target will be removed
     - It's OK is the file does not exist
@@ -36,7 +36,7 @@ class RmFile(PythonBatchCommandBase, essential=True):
             resolved_path.unlink()
 
 
-class RmDir(PythonBatchCommandBase, essential=True):
+class RmDir(PythonBatchCommandBase):
     """ remove a directory.
         - it's OK if the directory does not exist.
         - all files and directory under path will be removed recursively
@@ -67,7 +67,7 @@ class RmDir(PythonBatchCommandBase, essential=True):
             shutil.rmtree(resolved_path, onerror=self.on_rm_error)
 
 
-class RmFileOrDir(PythonBatchCommandBase, essential=True):
+class RmFileOrDir(PythonBatchCommandBase):
     """ remove a file or directory.
     - it's OK if the path does not exist.
     - all files and directory under path will be removed recursively
@@ -94,7 +94,7 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
             shutil.rmtree(resolved_path)
 
 
-class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults={"files_to_ignore": []}):
+class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_ignore": []}):
     """ remove all empty directories under and including 'folder_to_remove'
     - it's OK if the path does not exist.
     - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
@@ -145,7 +145,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults
                         log.warning(f"""failed to remove {root_path}, {ex}""")
 
 
-class RmGlob(PythonBatchCommandBase, essential=True):
+class RmGlob(PythonBatchCommandBase):
     """ remove files matching a pattern
         - all files and folders matching the pattern will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
@@ -175,7 +175,7 @@ class RmGlob(PythonBatchCommandBase, essential=True):
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
-class RmGlobs(PythonBatchCommandBase, essential=True):
+class RmGlobs(PythonBatchCommandBase):
     """ remove files matching any pattern in the given list
         - all files and folders matching the patterns will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
@@ -209,7 +209,7 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
 #def named__init__param(self, name, value):
 #def optional_named__init__param(self, name, value, default=None):
 
-class RmDirContents(PythonBatchCommandBase, essential=True):
+class RmDirContents(PythonBatchCommandBase):
     """ remove all items in a folder (unless item is excluded)
         but leave the folder itself
     """

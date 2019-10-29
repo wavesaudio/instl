@@ -38,7 +38,7 @@ class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call
         raise NotImplementedError("AnonymousAccum.__call__ should not be called")
 
 
-class RaiseException(pybatch.PythonBatchCommandBase, essential=True):
+class RaiseException(pybatch.PythonBatchCommandBase):
     """ raise a specific exception - for debugging """
     def __init__(self, exception_type, exception_message, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -148,7 +148,7 @@ class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_mana
         pass
 
 
-class PythonDoSomething(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class PythonDoSomething(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
 
     def __init__(self, some_python_code, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -166,7 +166,7 @@ class PythonDoSomething(pybatch.PythonBatchCommandBase, essential=True, call__ca
             pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
-class PythonVarAssign(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class PythonVarAssign(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ creates a python variable assignment, e.g.
         x = y
     """
@@ -261,7 +261,7 @@ class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_conte
             log.info(resolved)
 
 
-class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
+class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
         self.name = name
@@ -296,7 +296,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__c
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
-class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
+class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
     def __init__(self, unresolved_file, resolved_file=None, config_files=None, **kwargs):
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
@@ -328,7 +328,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
             wfd.write(resolved_text)
 
 
-class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase, essential=True):
+class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase):
     def __init__(self, file_to_read, **kwargs):
         super().__init__(**kwargs)
         self.file_to_read = file_to_read
@@ -345,7 +345,7 @@ class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase, essential=True):
         reader.read_yaml_file(self.file_to_read)
 
 
-class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class EnvironVarAssign(PythonDoSomething, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ assigns an environment variable
     """
     def __init__(self, var_name, var_value, **kwargs) -> None:
@@ -365,7 +365,7 @@ def convertSeconds(seconds):
     return converted_str
 
 
-class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase, essential=True):
+class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
 
     def __init__(self, path_to_py_batch, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__init__(self, **kwargs)

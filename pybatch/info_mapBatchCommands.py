@@ -13,7 +13,7 @@ import utils
 
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
@@ -119,9 +119,9 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
         for dl_dir in dl_dir_items:
             self.doing = f"""creating sync folder '{dl_dir}'"""
             if dl_dir.download_path:  # direct_sync items have absolute path in member .download_path
-                MakeDirs(dl_dir.download_path)()
+                MakeDir(dl_dir.download_path)()
             else:  # cache items have relative path in member .path
-                MakeDirs(dl_dir.path)()
+                MakeDir(dl_dir.path)()
 
 
 class SetBaseRevision(DBManager, PythonBatchCommandBase):

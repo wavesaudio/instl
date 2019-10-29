@@ -90,7 +90,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertFalse(dir_to_remove.exists())
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_remove)
+        self.pbt.batch_accum += MakeDir(dir_to_remove)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_remove)) as sub_bc:
             sub_bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
         self.pbt.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
@@ -118,7 +118,7 @@ class TestPythonBatchRemove(unittest.TestCase):
 
         # create the folder, with sub folder and one known file
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_remove)
+        self.pbt.batch_accum += MakeDir(folder_to_remove)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_remove)) as cd_accum:
             cd_accum += Touch(file_to_stay.name)
             cd_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
@@ -153,7 +153,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef"]
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        self.pbt.batch_accum += MakeDir(folder_to_glob)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)
@@ -184,7 +184,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        self.pbt.batch_accum += MakeDir(folder_to_glob)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)
@@ -214,7 +214,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_clear)
+        self.pbt.batch_accum += MakeDir(folder_to_clear)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_clear)) as cd_accum:
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)

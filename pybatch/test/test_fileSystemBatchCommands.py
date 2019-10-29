@@ -44,29 +44,36 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def tearDown(self):
         self.pbt.tearDown()
 
-    def test_MakeDirs_0_repr(self):
-        """ test that MakeDirs.__repr__ is implemented correctly to fully
-            reconstruct the object
-        """
-        self.pbt.reprs_test_runner(MakeDirs("a/b/c", "jane/and/jane", remove_obstacles=True))
+    def test_NewMakeDir_repr(self):
+        self.pbt.reprs_test_runner(MakeDir('rumba'),
+                                   MakeDir('pumba', remove_obstacles=False),
+                                   MakeDir('pumba', remove_obstacles=True),
+                                   MakeDir('pumba', chowner=False),
+                                   MakeDir('pumba', chowner=True),
+                                   MakeDir('pumba', remove_obstacles=False, chowner=False),
+                                   MakeDir('pumba', remove_obstacles=True, chowner=False),
+                                   MakeDir('pumba', remove_obstacles=False, chowner=True),
+                                   MakeDir('pumba', remove_obstacles=True, chowner=True),
+                                   )
 
-    def test_MakeDirs_1_simple(self):
-        """ test MakeDirs. 2 dirs should be created side by side """
+    def test_MakeDir_1_simple(self):
+        """ test MakeDir. 2 dirs should be created side by side """
         dir_to_make_1 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_1")
         dir_to_make_2 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_2")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_make_1, dir_to_make_2, remove_obstacles=True)
-        self.pbt.batch_accum += MakeDirs(dir_to_make_1, remove_obstacles=False)  # MakeDirs twice should be OK
+        self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=True)
+        self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=True)
+        self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=False)  # MakeDir twice should be OK
 
         self.pbt.exec_and_capture_output()
 
         self.assertTrue(dir_to_make_1.exists(), f"{self.pbt.which_test}: {dir_to_make_1} should exist")
         self.assertTrue(dir_to_make_2.exists(), f"{self.pbt.which_test}: {dir_to_make_2} should exist")
 
-    def test_MakeDirs_2_remove_obstacles(self):
-        """ test MakeDirs remove_obstacles parameter.
-            A file is created and MakeDirs is called to create a directory on the same path.
+    def test_MakeDir_2_remove_obstacles(self):
+        """ test MakeDir remove_obstacles parameter.
+            A file is created and MakeDir is called to create a directory on the same path.
             Since remove_obstacles=True the file should be removed and directory created in it's place.
         """
         dir_to_make = self.pbt.path_inside_test_folder("file-that-should-be-dir")
@@ -74,15 +81,15 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file before test")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_make, remove_obstacles=True)
+        self.pbt.batch_accum += MakeDir(dir_to_make, remove_obstacles=True)
 
         self.pbt.exec_and_capture_output()
 
         self.assertTrue(dir_to_make.is_dir(), f"{self.pbt.which_test}: {dir_to_make} should be a dir")
 
-    def test_MakeDirs_3_no_remove_obstacles(self):
-        """ test MakeDirs remove_obstacles parameter.
-            A file is created and MakeDirs is called to create a directory on the same path.
+    def test_MakeDir_3_no_remove_obstacles(self):
+        """ test MakeDir remove_obstacles parameter.
+            A file is created and MakeDir is called to create a directory on the same path.
             Since remove_obstacles=False the file should not be removed and FileExistsError raised.
         """
         dir_to_make = self.pbt.path_inside_test_folder("file-that-should-not-be-dir")
@@ -90,17 +97,11 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
+        self.pbt.batch_accum += MakeDir(dir_to_make, remove_obstacles=False)
 
         self.pbt.exec_and_capture_output(expected_exception=FileExistsError)
 
         self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should still be a file")
-
-    def test_MakeDirsWithOwner_repr(self):
-        pass
-
-    def test_MakeDirsWithOwner(self):
-        pass
 
     def test_Touch_repr(self):
         self.pbt.reprs_test_runner(Touch("/f/g/h"))
@@ -120,7 +121,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertNotEqual(dir_to_make, cwd_before, f"{self.pbt.which_test}: before test {dir_to_make} should not be current working directory")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_make, remove_obstacles=False)
+        self.pbt.batch_accum += MakeDir(dir_to_make, remove_obstacles=False)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_make)) as sub_bc:
             sub_bc += Touch(file_to_touch.name)  # file's path is relative!
 
@@ -345,7 +346,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         initial_mode_str = "a+rw"
         # create the folder
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_chmod)
+        self.pbt.batch_accum += MakeDir(folder_to_chmod)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_chmod)) as cd_accum:
             cd_accum += Touch("hootenanny")  # add one file with fixed (none random) name
             cd_accum += MakeRandomDirs(num_levels=1, num_dirs_per_level=2, num_files_per_dir=3, file_size=41)
@@ -404,7 +405,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         # create the folder, with sub folder and one known file
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as cd1_accum:
-             cd1_accum += MakeDirs(folder_to_list)
+             cd1_accum += MakeDir(folder_to_list)
              with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
                 cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
              cd1_accum += Ls(folder_to_list, out_file="list-output")
@@ -486,3 +487,4 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += Chmod(the_file, "ugo+rw")
         self.pbt.exec_and_capture_output()
+

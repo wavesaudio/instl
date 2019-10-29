@@ -72,7 +72,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -122,7 +122,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -204,7 +204,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         moved_dir_with_ignore = dir_to_move_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -244,7 +244,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -288,8 +288,8 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_to_no_hard_links)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_to_no_hard_links)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch(file_name)  # add one file
         self.pbt.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, hard_links=False)
@@ -332,9 +332,9 @@ class TestPythonBatchCopy(unittest.TestCase):
 
         self.pbt.batch_accum.clear()
 
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
-        self.pbt.batch_accum += MakeDirs(target_dir_no_hard_links)
-        self.pbt.batch_accum += MakeDirs(target_dir_with_hard_links)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(target_dir_no_hard_links)
+        self.pbt.batch_accum += MakeDir(target_dir_with_hard_links)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch(file_name)  # add one file
         self.pbt.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, hard_links=False)

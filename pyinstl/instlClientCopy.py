@@ -56,8 +56,12 @@ class InstlClientCopy(InstlClient):
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
         with self.batch_accum.sub_accum(Stage("create folders")) as create_folders_section:
+            kwargs_defaults = {'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}
+            third_party_folders = [Path(p) for p in config_vars.get("THIRD_PARTY_FOLDERS", []).list()]
             for target_folder_path in folder_list:
-                create_folders_section += MakeDirs(target_folder_path)
+                target_folder_path = utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(target_folder_path)))
+                our_folder = next((False for p in third_party_folders if p.samefile(target_folder_path)), True)
+                create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=our_folder)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
@@ -107,7 +111,7 @@ class InstlClientCopy(InstlClient):
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
         if os.fspath(config_vars["HAVE_INFO_MAP_PATH"]) != os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"]):
-            self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
+            self.batch_accum += MakeDir("$(SITE_REPO_BOOKKEEPING_DIR)", chowner=True)
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
         self.create_require_file_instructions()

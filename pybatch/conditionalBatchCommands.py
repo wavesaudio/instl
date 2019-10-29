@@ -3,7 +3,7 @@ from .fileSystemBatchCommands import *
 from configVar import config_vars
 
 
-class If(PythonBatchCommandBase, essential=True):
+class If(PythonBatchCommandBase):
     """ preform an action based on a condition
         if 'condition' is True 'if_true' will be preformed
         if 'condition' is False 'if_false' will be preformed

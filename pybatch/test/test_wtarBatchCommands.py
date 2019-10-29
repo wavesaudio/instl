@@ -65,13 +65,13 @@ class TestPythonBatchWtar(unittest.TestCase):
         wtarred_in_another_folder = another_folder.joinpath("folder-to-wtar.wtar").resolve()
 
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_wtar)
+        self.pbt.batch_accum += MakeDir(folder_to_wtar)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_wtar)) as cd_accum:
             cd_accum += Touch("dohickey")  # add one file with fixed (none random) name
             cd_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=4, num_files_per_dir=7, file_size=41)
             cd_accum += Wtar(folder_to_wtar)  # wtar next to the folder
             cd_accum += Wtar(folder_to_wtar, dummy_wtar_file_to_replace)  # wtar on replacing existing file
-            cd_accum += MakeDirs(another_folder)
+            cd_accum += MakeDir(another_folder)
             cd_accum += Wtar(folder_to_wtar, another_folder)  # wtar to a different folder
         self.pbt.exec_and_capture_output("wtar the folder")
         self.assertTrue(os.path.isfile(folder_wtarred), f"wtarred file was not found {folder_wtarred}")

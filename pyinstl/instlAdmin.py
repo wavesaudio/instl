@@ -762,8 +762,8 @@ class InstlAdmin(InstlInstanceBase):
 
             batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
 
-            batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-            batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
+            batch_accum += MakeDir(revision_folder_path)  # create specific repo-rev folder
+            batch_accum += MakeDir(revision_instl_folder_path)  # create specific repo-rev instl folder
             with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
                 sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
                 sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)

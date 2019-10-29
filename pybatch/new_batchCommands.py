@@ -11,7 +11,7 @@ from .fileSystemBatchCommands import *
 from .copyBatchCommands import *
 
 """
-class Dummy(PythonBatchCommandBase, essential=True):
+class Dummy(PythonBatchCommandBase):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -30,7 +30,7 @@ class Dummy(PythonBatchCommandBase, essential=True):
 """
 
 
-class CopyDirToDirEx(PythonBatchCommandBase, essential=True):
+class CopyDirToDirEx(PythonBatchCommandBase):
     def __init__(self,
                  src,
                  dst,

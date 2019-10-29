@@ -74,7 +74,7 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.batch_accum.clear()
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as iSubSub:
             iSubSub += Touch(a_file_to_symlink_to)
-            iSubSub += MakeDirs(a_folder_to_symlink_to)
+            iSubSub += MakeDir(a_folder_to_symlink_to)
             iSubSub += CreateSymlink(symlink_to_a_file, a_file_to_symlink_to)
             iSubSub += CreateSymlink(symlink_to_a_folder, a_folder_to_symlink_to)
             iSubSub += CreateSymlink(relative_symlink_to_a_file, a_file_to_symlink_to.name)
@@ -129,7 +129,7 @@ class TestPythonBatchMac(unittest.TestCase):
 
         self.pbt.batch_accum.clear()
         self.pbt.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
-        self.pbt.batch_accum += MakeDirs(folder_symlink_test_data.original_to_symlink)
+        self.pbt.batch_accum += MakeDir(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             with self.pbt.batch_accum.sub_accum(CdStage(test_data.original_to_symlink.name, self.pbt.test_folder)) as symlink_test_accum:
                 symlink_test_accum += CreateSymlink(test_data.symlink_to_a_original, test_data.original_to_symlink)                # symlink with full path
@@ -203,7 +203,7 @@ class TestPythonBatchMac(unittest.TestCase):
 
         # create a file, a folder and symlinks to them
         self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(a_dir)
+        self.pbt.batch_accum += MakeDir(a_dir)
         self.pbt.batch_accum += Touch(a_file)
         self.pbt.batch_accum += CreateSymlink(a_dir_symlink, a_dir)
         self.pbt.batch_accum += CreateSymlink(a_file_symlink, a_file)

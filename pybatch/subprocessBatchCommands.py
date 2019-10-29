@@ -15,7 +15,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
+class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
@@ -170,7 +170,7 @@ class CUrl(RunProcessBase):
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
 
 
-class ShellCommand(RunProcessBase, essential=True):
+class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
 
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -207,7 +207,7 @@ class ScriptCommand(ShellCommand):
         super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
 
 
-class ShellCommands(PythonBatchCommandBase, essential=True):
+class ShellCommands(PythonBatchCommandBase):
     """ run some shells commands in a shell """
 
     def __init__(self, shell_command_list, message, **kwargs):
@@ -255,7 +255,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
                 shelli()
 
 
-class ParallelRun(PythonBatchCommandBase, essential=True):
+class ParallelRun(PythonBatchCommandBase):
     """ run some shell commands in parallel """
     def __init__(self, config_file,  shell, **kwargs):
         super().__init__(**kwargs)
@@ -288,7 +288,7 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
                 raise
 
 
-class Exec(PythonBatchCommandBase, essential=True):
+class Exec(PythonBatchCommandBase):
     def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
@@ -318,7 +318,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False}):
+class RunInThread(PythonBatchCommandBase, kwargs_defaults={'report_own_progress': False}):
     """
         run another python-batch command in a thread
     """
@@ -364,7 +364,7 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
             thread_thingy.start()
 
 
-class Subprocess(RunProcessBase, essential=True):
+class Subprocess(RunProcessBase):
     """ run a single command NOT in a shell """
 
     def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -423,7 +423,7 @@ class ExternalPythonExec(Subprocess):
             run_args.insert(0, arg)
 
 
-class SysExit(PythonBatchCommandBase, essential=True):
+class SysExit(PythonBatchCommandBase):
     def __init__(self, exit_code=17, **kwargs):
         super().__init__(**kwargs)
         self.exit_code = exit_code
@@ -440,7 +440,7 @@ class SysExit(PythonBatchCommandBase, essential=True):
         sys.exit(self.exit_code)
 
 
-class Raise(PythonBatchCommandBase, essential=True):
+class Raise(PythonBatchCommandBase):
     def __init__(self, message=None, **kwargs):
         super().__init__(**kwargs)
         self.message = message

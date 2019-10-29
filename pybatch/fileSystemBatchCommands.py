@@ -44,7 +44,7 @@ def dos_escape(some_string):
     return retVal
 
 
-class MakeRandomDirs(PythonBatchCommandBase, essential=True):
+class MakeRandomDirs(PythonBatchCommandBase):
     """ MakeRandomDirs is intended for use during tests - not for production
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
@@ -84,64 +84,50 @@ class MakeRandomDirs(PythonBatchCommandBase, essential=True):
         self.make_random_dirs_recursive(self.num_levels)
 
 
-class MakeDirs(PythonBatchCommandBase, essential=True):
-    """ Create one or more dirs
+class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}):
+    """ Create one dir
         when remove_obstacles==True if one of the paths is a file it will be removed, and permissions/owner adjusted
         when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
         it it always OK for a dir to already exists
-        Tests: TestPythonBatch.test_MakeDirs_*
     """
-    def __init__(self, *paths_to_make, remove_obstacles: bool=True, **kwargs) -> None:
-        """ MakeDirs(*paths_to_make, remove_obstacles) """
+    def __init__(self, path_to_make, **kwargs) -> None:
+        """ MakeDir(*path_to_make, remove_obstacles) """
         super().__init__(**kwargs)
-        self.paths_to_make = paths_to_make
-        self.remove_obstacles = remove_obstacles
-        self.cur_path = None
-        self.own_progress_count = len(self.paths_to_make)
+        self.path_to_make = path_to_make
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.extend(utils.quoteme_raw_by_type(path) for path in self.paths_to_make)
-        if not self.remove_obstacles:
-            all_args.append(f"remove_obstacles={self.remove_obstacles}")
+        all_args.append(utils.quoteme_raw_by_type(self.path_to_make))
 
     def progress_msg_self(self):
-        paths = ", ".join(os.path.expandvars(utils.quoteme_raw_by_type(path)) for path in self.paths_to_make)
-        titula = "directory" if len(self.paths_to_make) == 1 else "directories"
-        the_progress_msg = f"Create {titula} {paths}"
+        the_progress_msg = f"Create directory {self.path_to_make}"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        for self.cur_path in self.paths_to_make:
-            self.cur_path = utils.ExpandAndResolvePath(self.cur_path)
-            if self.remove_obstacles:
-                if self.cur_path.is_file():
-                    self.doing = f"""removing file that should be a folder '{self.cur_path}'"""
-                    self.cur_path.unlink()
-            self.doing = f"""creating a folder '{self.cur_path}'"""
-            self.cur_path.mkdir(parents=True, mode=0o777, exist_ok=True)
-            if self.remove_obstacles:
-                if sys.platform == 'win32':
-                    with FullACLForEveryone(self.cur_path, recursive=True, own_progress_count=0) as grant_permissions:
-                        grant_permissions()
-                elif sys.platform == 'darwin':
-                    with Chown(path=self.cur_path, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, own_progress_count=0) as change_user:
-                        change_user()
+        self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
+        if self.remove_obstacles:
+            if self.path_to_make.is_file():
+                self.doing = f"""removing file that should be a folder '{self.path_to_make}'"""
+                self.path_to_make.unlink()
+        self.doing = f"""creating a folder '{self.path_to_make}'"""
+        self.path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
 
-                # this is for both Mac and Windows, on Mac it will call chmod, on windows attrib
-                with Chmod(self.cur_path, "a+rw", recursive=True, own_progress_count=0) as grant_permissions:
-                    grant_permissions()
+        with ChFlags(self.path_to_make, 'nohidden', 'unlocked') as ch_da_flags:
+            ch_da_flags()
 
+        if sys.platform == 'darwin':
+            with Chmod(self.path_to_make, "a+rwX", recursive=self.recursive_chmod, own_progress_count=0) as chmod_on_dir:
+                chmod_on_dir()
+        elif sys.platform == 'win32':
+            with FullACLForEveryone(self.path_to_make, recursive=self.recursive_chmod, own_progress_count=0) as acl_on_dir:
+                acl_on_dir()
 
-class MakeDirsWithOwner(MakeDirs, essential=True):
-    """ a stand in to replace platform_helper.mkdir_with_owner
-        ToDo: with owner functionality should be implemented in MakeDirs
-    """
-    def __init__(self, *paths_to_make, remove_obstacles: bool=True, **kwargs) -> None:
-        super().__init__(*paths_to_make, remove_obstacles=remove_obstacles, **kwargs)
+        if self.chowner:
+             with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, own_progress_count=0) as change_user:
+                change_user()
 
 
-class Touch(PythonBatchCommandBase, essential=True):
+class Touch(PythonBatchCommandBase):
     """ Create an empty file if it does not already exist or update modification time to now if file exist"""
     def __init__(self, path: os.PathLike,**kwargs) -> None:
         super().__init__(**kwargs)
@@ -164,7 +150,7 @@ class Touch(PythonBatchCommandBase, essential=True):
                 os.utime(resolved_path, None)
 
 
-class Cd(PythonBatchCommandBase, essential=True):
+class Cd(PythonBatchCommandBase):
     """ change current working directory to 'path'
         when called as a context manager (with statement), previous working directory will be restored on __exit__
     """
@@ -217,7 +203,7 @@ class CdStage(Cd, essential=False):
         return f"""Cd to '{self.new_path}'"""
 
 
-class ChFlags(RunProcessBase, essential=True):
+class ChFlags(RunProcessBase):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
     """
@@ -268,7 +254,7 @@ class ChFlags(RunProcessBase, essential=True):
         run_args.append(os.fspath(path))
 
 
-class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True}):
+class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
     """ Remove the system's read-only flag (not permissions).
         For changing permissions use chmod.
     """
@@ -282,7 +268,7 @@ class Unlock(ChFlags, essential=True, kwargs_defaults={"ignore_all_errors": True
         return f"""{self.__class__.__name__} '{self.path}'"""
 
 
-class AppendFileToFile(PythonBatchCommandBase, essential=True):
+class AppendFileToFile(PythonBatchCommandBase):
     """ append the content of 'source_file' to 'target_file'"""
     def __init__(self, source_file, target_file, **kwargs):
         super().__init__(**kwargs)
@@ -307,7 +293,7 @@ class AppendFileToFile(PythonBatchCommandBase, essential=True):
                 wfd.write(rfd.read())
 
 
-class Chown(RunProcessBase, call__call__=True, essential=True):
+class Chown(RunProcessBase, call__call__=True):
     """ change owner (either user, group or both) of file or folder
         if 'path' is a folder and recursive==True, ownership will be changed recursively
     """
@@ -353,7 +339,7 @@ class Chown(RunProcessBase, call__call__=True, essential=True):
                 os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
 
 
-class Chmod(RunProcessBase, essential=True):
+class Chmod(RunProcessBase):
     """ change mode read.write/execute permissions for a file or folder"""
 
     if sys.platform == 'darwin':
@@ -367,9 +353,9 @@ class Chmod(RunProcessBase, essential=True):
     all_read_write_exec = all_read_write | all_exec
     user_read_write_exec = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
     all_read_exec = all_read | all_exec
-    who_2_perm = {'u': {'r': stat.S_IRUSR, 'w': stat.S_IWUSR, 'x': stat.S_IXUSR},
-                  'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP},
-                  'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH}}
+    who_2_perm = {'u': {'r': stat.S_IRUSR, 'w': stat.S_IWUSR, 'x': stat.S_IXUSR, 'X': stat.S_IXUSR},
+                  'g': {'r': stat.S_IRGRP, 'w': stat.S_IWGRP, 'x': stat.S_IXGRP, 'X': stat.S_IXGRP},
+                  'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH, 'X': stat.S_IXOTH}}
     if sys.platform == 'win32':
         win_perms = {'r': con.FILE_GENERIC_READ,
                  'w': con.FILE_GENERIC_WRITE|con.FILE_GENERIC_READ,
@@ -507,7 +493,7 @@ class Chmod(RunProcessBase, essential=True):
                 win32security.SetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION, sd)
 
 
-class ChmodAndChown(PythonBatchCommandBase, essential=True):
+class ChmodAndChown(PythonBatchCommandBase):
     """ change mode and owner for file or folder"""
 
     def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
@@ -541,7 +527,7 @@ class ChmodAndChown(PythonBatchCommandBase, essential=True):
             mode_changer()
 
 
-class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder": None}):
+class Ls(PythonBatchCommandBase, kwargs_defaults={"work_folder": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
     def __init__(self, folder_to_list, out_file=None, ls_format='*', out_file_append=False, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -566,7 +552,7 @@ class Ls(PythonBatchCommandBase, essential=True, kwargs_defaults={"work_folder":
             wfd.write(the_listing)
 
 
-class FileSizes(PythonBatchCommandBase, essential=True):
+class FileSizes(PythonBatchCommandBase):
     """ create a list of files in a folder and their sizes
         file paths are listed relative to the top folder
         format is csv: partial-path-to-file, size-of-file
@@ -611,7 +597,7 @@ class FileSizes(PythonBatchCommandBase, essential=True):
                             wfd.write(f"{partial_path}, {file_size}\n")
 
 
-class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
+class MakeRandomDataFile(PythonBatchCommandBase):
     """ MakeRandomDataFile is intended for use during tests - not for production
         Will create a file with random data of the requested size
     """
@@ -638,7 +624,7 @@ class MakeRandomDataFile(PythonBatchCommandBase, essential=True):
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
 
 
-class SplitFile(PythonBatchCommandBase, essential=True):
+class SplitFile(PythonBatchCommandBase):
     """ Split a file to one or more parts, each part at most max_size bytes.
         The sizes of parts are attempted to be equal
         The parts are named with the same name the original with extensions, .aa. .ab, ...
@@ -707,7 +693,7 @@ class SplitFile(PythonBatchCommandBase, essential=True):
             self.file_to_split.unlink()
 
 
-class JoinFile(PythonBatchCommandBase, essential=True):
+class JoinFile(PythonBatchCommandBase):
     def __init__(self, file_to_join, remove_parts=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.file_to_join = Path(file_to_join)
