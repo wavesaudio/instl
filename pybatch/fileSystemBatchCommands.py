@@ -91,7 +91,7 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         it it always OK for a dir to already exists
     """
     def __init__(self, path_to_make, **kwargs) -> None:
-        """ MakeDir(*path_to_make, remove_obstacles) """
+        """ MakeDir(path_to_make, remove_obstacles) """
         super().__init__(**kwargs)
         self.path_to_make = path_to_make
 
@@ -112,7 +112,7 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         self.doing = f"""creating a folder '{self.path_to_make}'"""
         self.path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
 
-        with ChFlags(self.path_to_make, 'nohidden', 'unlocked') as ch_da_flags:
+        with ChFlags(self.path_to_make, 'nohidden', 'unlocked', own_progress_count=0) as ch_da_flags:
             ch_da_flags()
 
         if sys.platform == 'darwin':
@@ -158,6 +158,7 @@ class Cd(PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.new_path: os.PathLike = path
         self.old_path: os.PathLike = None
+        self.resolved_new_path = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.new_path))
@@ -168,14 +169,19 @@ class Cd(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.old_path = Path.cwd()
-        resolved_new_path = utils.ExpandAndResolvePath(self.new_path)
-        self.doing = f"""changing current directory to '{resolved_new_path}'"""
-        assert resolved_new_path.is_dir(), f"directory does not exist '{resolved_new_path}'"
-        os.chdir(resolved_new_path)
-        assert resolved_new_path.samefile(Path.cwd()), f"failed to cd into '{resolved_new_path}'"
+        self.resolved_new_path = utils.ExpandAndResolvePath(self.new_path)
+        self.doing = f"""changing current directory to '{self.resolved_new_path}'"""
+        os.chdir(self.resolved_new_path)
+        assert self.resolved_new_path.samefile(Path.cwd()), f"failed to cd into '{self.resolved_new_path}'"
 
     def exit_self(self, exit_return):
         os.chdir(self.old_path)
+
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
+        if self.resolved_new_path.is_dir():
+            dir_listing = utils.disk_item_listing(self.resolved_new_path, "uUgGRT")
+            self._error_dict['permissions'] = dir_listing
 
 
 class CdStage(Cd, essential=False):

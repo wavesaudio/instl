@@ -109,7 +109,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
     def test_Cd_repr(self):
         self.pbt.reprs_test_runner(Cd("a/b/c"))
 
-    def test_Cd_and_Touch_1(self):
+    def test_Cd_and_Touch(self):
         """ test Cd and Touch
             A directory is created and Cd is called to make it the current working directory.
             Inside a file is created ('touched'). After that current working directory should return
@@ -132,6 +132,45 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         cwd_after = os.getcwd()
         # cwd should be back to where it was
         self.assertEqual(cwd_before, cwd_after, "{self.pbt.which_test}: cd has not restored the current working directory was: {cwd_before}, now: {cwd_after}")
+
+    def test_Cd_fail(self):
+        just_a_folder = self.pbt.path_inside_test_folder("just-a-folder")
+        self.assertFalse(just_a_folder.exists())
+        non_existing_dir = self.pbt.path_inside_test_folder("directory-should-not-exists")
+        self.assertFalse(non_existing_dir.exists())
+        dir_but_actualy_file = self.pbt.path_inside_test_folder("actualy-a-file")
+        self.assertFalse(dir_but_actualy_file.exists())
+        no_permissions_folder = self.pbt.path_inside_test_folder("no-permissions-folder")
+        self.assertFalse(no_permissions_folder.exists())
+
+        # normal cd no fail expected
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDir(just_a_folder)
+        self.pbt.batch_accum += Cd(just_a_folder)
+        self.pbt.exec_and_capture_output("cd")
+
+        # cd to non existing dir FileNotFoundError expected
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Cd(non_existing_dir)
+        self.pbt.exec_and_capture_output("cd to non-existing folder", expected_exception=FileNotFoundError)
+
+        # cd to a file NotADirectoryError expected
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Touch(dir_but_actualy_file)
+        self.pbt.batch_accum += Cd(dir_but_actualy_file)
+        self.pbt.exec_and_capture_output("cd to file", expected_exception=NotADirectoryError)
+
+        # cd with no permissions PermissionError expected
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += MakeDir(no_permissions_folder)
+        self.pbt.batch_accum += Chmod(no_permissions_folder, mode="a-x")
+        self.pbt.batch_accum += Cd(no_permissions_folder)
+        self.pbt.exec_and_capture_output("cd with no permissions", expected_exception=PermissionError)  #
+
+        # restore permissions so test folder can be deleted
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += Chmod(no_permissions_folder, mode="a+x")
+        self.pbt.exec_and_capture_output("restore permissions")
 
     def test_CdStage_repr(self):
         list_of_title_lists = ((), ("t1",), ("t2", "t3"))

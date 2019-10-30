@@ -614,3 +614,22 @@ def append_suffix(in_path: Path, new_suffix: str):
     new_name = in_path.stem + "".join(suffixes)
     new_path = in_path.parent.joinpath(new_name)
     return new_path
+
+
+def set_max_open_files(new_max_open_files):
+    # doe nto work yet...
+    if sys.platform == 'darwin':
+        # on Mac resource.setrlimit returns hard limit of 9223372036854775807 which means unlimited
+        # however there is some secret (no API) maximum on the soft limit, so increasing must be done gradually
+        try:
+            import resource
+            max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            print(f"max open files was {max_files_soft}")
+            while new_max_open_files > max_files_soft:
+                max_files_soft += min(1, new_max_open_files - max_files_soft)
+                print(f"increasing to {max_files_soft}")
+                resource.setrlimit(resource.RLIMIT_NOFILE, max_files_soft, max_files_hard)
+        except:
+            print(f"failed to increas to {max_files_soft}")
+        max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        print(f"max open files is now {max_files_soft}")

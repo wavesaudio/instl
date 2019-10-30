@@ -13,3 +13,16 @@ if current_os == 'Darwin':
     from .dockutil import dock_util
 from .redisClient import RedisClient
 from .email import send_email, send_email_from_template_file
+
+if sys.platform in ('darwin', 'linux'):
+    def disk_item_listing(the_path, ls_format, root_folder=None):
+        from .ls import unix_item_ls, list_of_dicts_describing_disk_items_to_text_lines
+        item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]
+elif sys.platform == 'win32':
+    def disk_item_listing(the_path, ls_format, root_folder=None):
+        from .ls import win_item_ls, list_of_dicts_describing_disk_items_to_text_lines
+        item_ls_dict = win_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]

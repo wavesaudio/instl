@@ -13,6 +13,9 @@ from pathlib import Path
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from pyinstl.instlException import InstlException
 import utils
+
+#utils.set_max_open_files(2048)
+
 from utils.log_utils import config_logger
 
 log = logging.getLogger()
