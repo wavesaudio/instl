@@ -34,7 +34,7 @@ class TestPythonBatchWin(unittest.TestCase):
     def test_WinShortcut(self):
         src = "C:\Program Files (x86)\Waves\Applications V10\Electric Grand 80.exe"
         dst = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Waves\Electric Grand 80.lnk"
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += WinShortcut(dst, src)
         self.pbt.exec_and_capture_output()
 
@@ -55,7 +55,7 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_ReadRegistryValue(self):
         for reg_num_bits in (32, 64):
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             value = None
             expected_value = r'Consolas'
             self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Notepad\DefaultFonts', 'lfFaceName', reg_num_bits=reg_num_bits, ignore_if_not_exist=True, reply_environ_var="ReadRegistryValue_expected_value")
@@ -82,7 +82,7 @@ class TestPythonBatchWin(unittest.TestCase):
                 # make sure the key does not exist
                 test_key_leaf = f"test_CreateRegistryKey_no_default_value_{reg_num_bits}"
                 test_key_path = "SOFTWARE\\Waves Audio\\" + test_key_leaf
-                self.pbt.batch_accum.clear()
+                self.pbt.batch_accum.clear(section_name="doit")
                 self.pbt.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
                 self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
                 self.pbt.exec_and_capture_output(expected_exception=FileNotFoundError)  # ReadRegistryValue should raise FileNotFoundError becuase key should not exist
@@ -90,7 +90,7 @@ class TestPythonBatchWin(unittest.TestCase):
             for reg_num_bits in (64, 32):
                 test_key_leaf = f"test_CreateRegistryKey_no_default_value_{reg_num_bits}"
                 test_key_path = "SOFTWARE\\Waves Audio\\" + test_key_leaf
-                self.pbt.batch_accum.clear()
+                self.pbt.batch_accum.clear(section_name="doit")
                 # CreateRegistryKey without default value, run the same key twice just to make sure it does not fail when key already exists
                 self.pbt.batch_accum += CreateRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
                 self.pbt.batch_accum += CreateRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
@@ -103,7 +103,7 @@ class TestPythonBatchWin(unittest.TestCase):
                 # make sure the key does not exist
                 test_key_leaf = f"test_CreateRegistryKey_with_default_value_{reg_num_bits}"
                 test_key_path = "SOFTWARE\\Waves Audio\\"+test_key_leaf
-                self.pbt.batch_accum.clear()
+                self.pbt.batch_accum.clear(section_name="doit")
                 self.pbt.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
                 self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
                 self.pbt.exec_and_capture_output(test_name=test_key_leaf, expected_exception=FileNotFoundError)  # ReadRegistryValue should raise FileNotFoundError becuase key should not exist
@@ -111,7 +111,7 @@ class TestPythonBatchWin(unittest.TestCase):
             for reg_num_bits in (64, 32):
                 test_key_leaf = f"test_CreateRegistryKey_with_default_value_{reg_num_bits}"
                 test_key_path = "SOFTWARE\\Waves Audio\\"+test_key_leaf
-                self.pbt.batch_accum.clear()
+                self.pbt.batch_accum.clear(section_name="doit")
                 # CreateRegistryKey without default value, run the same key twice just to make sure it does not fail when key already exists
                 self.pbt.batch_accum += CreateRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, "lollapalooza_"+str(reg_num_bits), reg_num_bits=reg_num_bits)
                 self.pbt.batch_accum += CreateRegistryKey('HKEY_LOCAL_MACHINE', test_key_path, reg_num_bits=reg_num_bits)
@@ -127,7 +127,7 @@ class TestPythonBatchWin(unittest.TestCase):
     def test_CreateRegistryValues(self):
         for reg_num_bits in (64, 32):
             test_data = {'key1_'+str(reg_num_bits): 'val1', 'key2': 'val2_'+str(reg_num_bits), 'key9999': 'val9999'}
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             self.pbt.batch_accum += CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_CreateRegistryValues', test_data, reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output()
 
@@ -143,7 +143,7 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_DeleteRegistryKey(self):
         for reg_num_bits in (64, 32):
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             self.pbt.batch_accum += CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryKey', {"lalalal": "lilili"}, reg_num_bits=reg_num_bits)
             self.pbt.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryKey', reg_num_bits=reg_num_bits)
             self.pbt.batch_accum += ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves Audio\test_DeleteRegistryKey', "lalalal", reg_num_bits=reg_num_bits)
@@ -151,7 +151,7 @@ class TestPythonBatchWin(unittest.TestCase):
 
     def test_DeleteRegistryKey_non_existing(self):
         for reg_num_bits in (64, 32):
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             self.pbt.batch_accum += DeleteRegistryKey('HKEY_LOCAL_MACHINE', 'SOFTWARE\Waves Audio\testךשלדגחכךדגלכ_non_existing', reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output()
 
@@ -167,7 +167,7 @@ class TestPythonBatchWin(unittest.TestCase):
             test_key_path = "SOFTWARE\\Waves Audio\\" + test_key_leaf
             test_values = {'delete_key1': 'value1_'+str(reg_num_bits), 'delete_key2': 'value2_'+str(reg_num_bits),
                            'stay_key1': 'value1_' + str(reg_num_bits), 'stay_key2': 'value2_' + str(reg_num_bits)}
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             self.pbt.batch_accum += CreateRegistryValues('HKEY_LOCAL_MACHINE', test_key_path, test_values, reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output()
             for key in test_values.keys():
@@ -180,7 +180,7 @@ class TestPythonBatchWin(unittest.TestCase):
             test_values = {'delete_key1': 'value1_'+str(reg_num_bits), 'delete_key2': 'value2_'+str(reg_num_bits),
                            'stay_key1': 'value1_' + str(reg_num_bits), 'stay_key2': 'value2_' + str(reg_num_bits)}
             delete_values = [k for k in test_values.keys() if k.startswith('delete')]
-            self.pbt.batch_accum.clear()
+            self.pbt.batch_accum.clear(section_name="doit")
             self.pbt.batch_accum += DeleteRegistryValues('HKEY_LOCAL_MACHINE', test_key_path, *delete_values, reg_num_bits=reg_num_bits)
             self.pbt.exec_and_capture_output()
 
@@ -204,7 +204,7 @@ class TestPythonBatchWin(unittest.TestCase):
         copied_exe = self.pbt.path_inside_test_folder("CODEX.exe")
         icon_file = r"C:\p4client\ProAudio\dev_main\ProAudio\XPlatform\Apps\plugin-host\Resources\Win\CODEX.ico"
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CopyFileToFile(original_exe, copied_exe)
         self.pbt.batch_accum += ResHackerAddResource(reshacker_path=reshacker_path,
                                                      trg=copied_exe,
@@ -227,7 +227,7 @@ class TestPythonBatchWin(unittest.TestCase):
         folder_to_test = self.pbt.path_inside_test_folder("folder-to-test")
         folder_to_ = self.pbt.path_inside_test_folder("folder-to-test")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(folder_to_test)
         self.pbt.batch_accum += FullACLForEveryone(folder_to_test)
 

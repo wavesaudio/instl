@@ -40,14 +40,18 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         self.sections = dict()
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
 
-    def clear(self):
+    def clear(self, section_name=None):
         self.sections = dict()
-        if self.current_section:
+        if section_name is None:
             self.set_current_section(self.current_section)
+        else:
+            self.set_current_section(section_name)
         PythonBatchCommandBase.running_progress = 0
 
     def set_current_section(self, section_name):
-        if section_name in PythonBatchCommandAccum.section_order:
+        if section_name is None:
+            self.current_section: str = None
+        elif section_name in PythonBatchCommandAccum.section_order:
             self.current_section = section_name
             if self.current_section not in self.sections:
                 self.sections[self.current_section] = Stage(self.current_section)

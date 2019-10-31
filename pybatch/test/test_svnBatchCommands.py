@@ -69,7 +69,7 @@ class TestPythonBatchSVN(unittest.TestCase):
     def test_SVNClient(self):
         svn_url = "https://svn.apache.org/repos/asf/subversion/trunk"
         svn_info_out_file = self.pbt.path_inside_test_folder("svn_info.txt")
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Stage(svn_url)) as sub_bc:
             sub_bc += SVNClient("info", url=svn_url, depth='immediates', out_file=svn_info_out_file)
 
@@ -83,7 +83,7 @@ class TestPythonBatchSVN(unittest.TestCase):
         self.pbt.reprs_test_runner(SVNLastRepoRev(url="http://svn.apache.org/repos/asf/spamassassin/trunk", reply_config_var="__LAST_REPO_REV__"))
 
     def test_SVNLastRepoRev(self):
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
         config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
         config_vars["__LAST_REPO_REV__"] = -12345
@@ -103,7 +103,7 @@ class TestPythonBatchSVN(unittest.TestCase):
         checkout_folder_2 = self.pbt.path_inside_test_folder("checkout-folder-2")
         some_file_that_should_be_there_after_checkout_2 = checkout_folder_2.joinpath("apache-header.txt").resolve()
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(checkout_folder_1)
         self.pbt.batch_accum += SVNCheckout(where=os.fspath(checkout_folder_1), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates", out_file=os.fspath(out_file_1))
         self.pbt.batch_accum += MakeDir(checkout_folder_2)
@@ -119,7 +119,7 @@ class TestPythonBatchSVN(unittest.TestCase):
     def test_SVNInfo(self):
         info_file = self.pbt.path_inside_test_folder("info-file")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += SVNInfo(out_file=os.fspath(info_file), url="http://svn.apache.org/repos/asf/spamassassin/trunk", depth="immediates")
         self.pbt.exec_and_capture_output()
         self.assertTrue(info_file.is_file(), f"{self.pbt.which_test}: {info_file} should exist after test")
@@ -127,7 +127,7 @@ class TestPythonBatchSVN(unittest.TestCase):
     def test_SVNPropList(self):
         proplist_file = self.pbt.path_inside_test_folder("proplist-file")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += SVNClient(command="proplist", out_file=os.fspath(proplist_file), url="https://svn.apache.org/repos/asf/subversion/trunk", depth='immediates')
         self.pbt.exec_and_capture_output()
         self.assertTrue(proplist_file.is_file(), f"{self.pbt.which_test}: {proplist_file} should exist after test")

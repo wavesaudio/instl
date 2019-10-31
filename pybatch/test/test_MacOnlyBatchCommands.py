@@ -42,11 +42,11 @@ class TestPythonBatchMac(unittest.TestCase):
 
         folder_of_symlinks = Path("/Users/shai/Desktop/Tk.framework")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CreateSymlinkFilesInFolder(folder_of_symlinks)
         self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_to_symlink_files")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += ResolveSymlinkFilesInFolder(folder_of_symlinks)
         self.pbt.exec_and_capture_output("test_ConvertFolderOfSymlinks_from_symlink_files")
 
@@ -71,7 +71,7 @@ class TestPythonBatchMac(unittest.TestCase):
         symlink_to_a_folder = self.pbt.path_inside_test_folder("symlink_to_a_folder")
         relative_symlink_to_a_folder = self.pbt.path_inside_test_folder("relative_symlink_to_a_folder")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as iSubSub:
             iSubSub += Touch(a_file_to_symlink_to)
             iSubSub += MakeDir(a_folder_to_symlink_to)
@@ -127,7 +127,7 @@ class TestPythonBatchMac(unittest.TestCase):
         file_symlink_test_data = create_symlink_test_data("a_file")
         folder_symlink_test_data = create_symlink_test_data("a_folder")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Touch(file_symlink_test_data.original_to_symlink)
         self.pbt.batch_accum += MakeDir(folder_symlink_test_data.original_to_symlink)
         for test_data in file_symlink_test_data, folder_symlink_test_data:
@@ -148,13 +148,13 @@ class TestPythonBatchMac(unittest.TestCase):
 
         return
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             self.pbt.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_original)
             self.pbt.batch_accum += SymlinkFileToSymlink(test_data.symlink_file_of_relative)
         self.pbt.exec_and_capture_output("SymlinkToSymlinkFile resolving symlink files")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         for test_data in file_symlink_test_data, folder_symlink_test_data:
             # check that the absolute and relative symlinks have been created
             self.assertTrue(test_data.symlink_to_a_original.is_symlink(), f"SymlinkToSymlinkFile {test_data.symlink_to_a_original} should have been created")
@@ -202,7 +202,7 @@ class TestPythonBatchMac(unittest.TestCase):
         a_file_symlink = self.pbt.path_inside_test_folder("some-file-symlink")
 
         # create a file, a folder and symlinks to them
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(a_dir)
         self.pbt.batch_accum += Touch(a_file)
         self.pbt.batch_accum += CreateSymlink(a_dir_symlink, a_dir)
@@ -215,7 +215,7 @@ class TestPythonBatchMac(unittest.TestCase):
         self.assertTrue(a_file_symlink.is_symlink())
 
         # remove everything with RmSymlink, but only the symlink should be actually removed
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RmSymlink(non_existing_path)
         self.pbt.batch_accum += RmSymlink(a_dir)
         self.pbt.batch_accum += RmSymlink(a_file)

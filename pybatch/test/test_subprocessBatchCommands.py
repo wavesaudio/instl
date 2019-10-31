@@ -76,7 +76,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         else:
             curl_path = shutil.which("curl")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
         self.pbt.exec_and_capture_output()
 
@@ -104,7 +104,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
         # test that exception from exit code is not suppressed when not in ignore_specific_exit_codes
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum as batchi:
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
@@ -138,7 +138,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             #             r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
             #             r"cmd /C dir %userprofile%\desktop",]
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
         self.pbt.batch_accum += MakeDir(batches_dir)
         self.pbt.batch_accum += ShellCommands(shell_command_list=geronimo, message="testing ShellCommands")
@@ -164,7 +164,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f"""# meanwhile, do the ps\n""")
                 wfd.write(f"""ps -x > ps.out.txt\n""")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, True)
 
@@ -182,7 +182,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f"""# while also doing some bad\n""")
                 wfd.write(f"""false\n""")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, True)
 
@@ -206,7 +206,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             # save a copy of the input file
             sub_bc += CopyFileToFile(zip_input, zip_input_copy, hard_links=False)
@@ -226,7 +226,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, False)
 
@@ -248,7 +248,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         list_out_file = self.pbt.path_inside_test_folder("list-output")
 
         # create the folder, with sub folder and one known file
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as cd1_accum:
              cd1_accum += MakeDir(folder_to_list)
              with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
@@ -269,7 +269,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_Subprocess(self):
         folder_ = self.pbt.path_inside_test_folder("folder_")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(folder_)
         self.pbt.batch_accum += Subprocess("python3.6", "--version")
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
@@ -281,7 +281,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         elif running_on_Win:
             path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)
         self.pbt.exec_and_capture_output()
 
