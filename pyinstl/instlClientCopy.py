@@ -57,10 +57,10 @@ class InstlClientCopy(InstlClient):
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
         with self.batch_accum.sub_accum(Stage("create folders")) as create_folders_section:
             kwargs_defaults = {'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}
-            third_party_folders = [Path(p) for p in config_vars.get("THIRD_PARTY_FOLDERS", []).list()]
+            third_party_folders = [utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(p))) for p in config_vars.get("THIRD_PARTY_FOLDERS", []).list()]
             for target_folder_path in folder_list:
                 target_folder_path = utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(target_folder_path)))
-                our_folder = next((False for p in third_party_folders if p.samefile(target_folder_path)), True)
+                our_folder = next((False for p in third_party_folders if p == target_folder_path), True)
                 create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=our_folder)
 
     def create_copy_instructions(self) -> None:

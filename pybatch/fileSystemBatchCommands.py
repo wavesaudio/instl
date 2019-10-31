@@ -127,6 +127,13 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
                 change_user()
 
 
+class MakeDirs(MakeDir):
+    """ for compatibility with older index.yaml's that might have MakeDirs in them"""
+    def __init__(self, *args, **kwargs) -> None:
+        """ MakeDirs(path_to_make) """
+        super().__init__(path_to_make=args[0], **kwargs)
+
+
 class Touch(PythonBatchCommandBase):
     """ Create an empty file if it does not already exist or update modification time to now if file exist"""
     def __init__(self, path: os.PathLike,**kwargs) -> None:
