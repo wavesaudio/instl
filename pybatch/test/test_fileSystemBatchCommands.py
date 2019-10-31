@@ -165,7 +165,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.batch_accum += MakeDir(no_permissions_folder)
         self.pbt.batch_accum += Chmod(no_permissions_folder, mode="a-x")
         self.pbt.batch_accum += Cd(no_permissions_folder)
-        self.pbt.exec_and_capture_output("cd with no permissions", expected_exception=PermissionError)  #
+        self.pbt.exec_and_capture_output("cd with no permissions", expected_exception=PermissionError)
 
         # restore permissions so test folder can be deleted
         self.pbt.batch_accum.clear()

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.6
 
+import sys
 import os
 import time
 import datetime
@@ -400,3 +401,15 @@ if __name__ == "__main__":
             with utils.utf8_open_for_write("ls."+out_format, "w") as wfd:
                 print(listing, file=wfd)
                 print(os.path.realpath(wfd.name))
+
+
+if sys.platform in ('darwin', 'linux'):
+    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+        item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]
+elif sys.platform == 'win32':
+    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+        item_ls_dict = win_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]

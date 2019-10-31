@@ -180,7 +180,7 @@ class Cd(PythonBatchCommandBase):
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
         if self.resolved_new_path.is_dir():
-            dir_listing = utils.disk_item_listing(self.resolved_new_path, "uUgGRT")
+            dir_listing = utils.single_disk_item_listing(self.resolved_new_path, "uUgGRT")
             self._error_dict['permissions'] = dir_listing
 
 
