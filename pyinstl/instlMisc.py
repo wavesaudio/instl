@@ -218,7 +218,7 @@ class InstlMisc(InstlInstanceBase):
         list_of_argv = list()
         if "__MAIN_INPUT_FILE__" in config_vars:  # read commands from a file
             file_with_commands = config_vars["__MAIN_INPUT_FILE__"]
-            with open(file_with_commands, "r") as rfd:
+            with utils.utf8_open_for_read(file_with_commands, "r") as rfd:
                 for line in rfd.readlines():
                     list_of_argv.append(shlex.split(line))
         else:    # read a command from argv
