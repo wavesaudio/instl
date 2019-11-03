@@ -42,6 +42,7 @@ class InstlClientCopy(InstlClient):
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
+        self.win_current_and_target = 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Win' in list(config_vars["TARGET_OS"])
 
     def write_copy_debug_info(self) -> None:
         try:
@@ -239,12 +240,14 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if self.mac_current_and_target:
-                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
+                retVal += ChmodAndChown(path=source_path_name, mode="a+rwX", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
+            elif self.win_current_and_target:
+                retVal += FullACLForEveryone(path=source_path_name, ignore_all_errors=True)
 
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, os.curdir)
