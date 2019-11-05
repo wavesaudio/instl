@@ -266,7 +266,7 @@ class Unwtar(PythonBatchCommandBase):
 
         elif self.what_to_unwtar.is_dir():
             if self.where_to_unwtar:
-                destination_folder: Path = self.where_to_unwtar.joinpath(self.what_to_unwtar.name)
+                destination_folder: Path = Path(self.where_to_unwtar, self.what_to_unwtar.name)
             else:
                 destination_folder = self.what_to_unwtar
             self.doing = f"""unwtar folder '{self.what_to_unwtar}' to '{destination_folder}''"""
