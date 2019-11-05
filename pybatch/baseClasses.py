@@ -112,7 +112,7 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_time = None
         self.in_sub_accum = False
         self.essential_action_counter = 0
-        self._error_dict = None
+        self._error_dict = dict()
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
         self.current_working_dir = None
         self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
@@ -299,8 +299,6 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
     def error_dict(self, exc_type, exc_val, exc_tb) -> Dict:
-        if self._error_dict is None:
-            self._error_dict = dict()
         self.error_dict_self(exc_type, exc_val, exc_tb)
         if not self.doing:
             self.doing = self.progress_msg_self()

@@ -188,7 +188,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
 
     the_parts = dict()
     if 'p' in ls_format or 'P' in ls_format:
-        the_parts['p'] = the_path
+        the_parts['p'] = os.fspath(the_path)
 
     try:
         the_stats = os.lstat(the_path)
@@ -234,7 +234,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                 else:
                     the_parts[format_char] = ""
             elif format_char == 'P' or format_char == 'p':
-                path_to_return = the_path
+                path_to_return = os.fspath(the_path)
                 if format_char == 'p' and root_folder is not None:
                     path_to_return = os.path.relpath(the_path, start=root_folder)
 
@@ -285,7 +285,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
     import win32security
     the_parts = dict()
     if 'p' in ls_format or 'P' in ls_format:
-        the_parts['p'] = the_path
+        the_parts['p'] = os.fspath(the_path)
 
     try:
         the_stats = os.lstat(the_path)
@@ -303,7 +303,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
             elif format_char == 'U':
                 try:
-                    sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(os.fspath(the_path), win32security.OWNER_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorOwner()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # user
@@ -312,7 +312,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
 
             elif format_char == 'G':
                 try:
-                    sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(os.fspath(the_path), win32security.GROUP_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorGroup()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # group
@@ -390,6 +390,18 @@ def wtar_item_ls_func(item, ls_format):
     return the_parts
 
 
+if sys.platform in ('darwin', 'linux'):
+    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+        item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]
+elif sys.platform == 'win32':
+    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+        item_ls_dict = win_item_ls(the_path, ls_format, root_folder)
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        return item_ls_lines[0]
+
+
 if __name__ == "__main__":
 
     path_list = ('/Users/shai/Desktop/wlc.app',
@@ -401,15 +413,3 @@ if __name__ == "__main__":
             with utils.utf8_open_for_write("ls."+out_format, "w") as wfd:
                 print(listing, file=wfd)
                 print(os.path.realpath(wfd.name))
-
-
-if sys.platform in ('darwin', 'linux'):
-    def single_disk_item_listing(the_path, ls_format, root_folder=None):
-        item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)
-        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
-        return item_ls_lines[0]
-elif sys.platform == 'win32':
-    def single_disk_item_listing(the_path, ls_format, root_folder=None):
-        item_ls_dict = win_item_ls(the_path, ls_format, root_folder)
-        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
-        return item_ls_lines[0]

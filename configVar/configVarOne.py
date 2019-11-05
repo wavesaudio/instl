@@ -114,7 +114,7 @@ class ConfigVar:
         retVal = os.fspath(PurePath(self.str()))
         return retVal
 
-    def Path(self, resolve: bool=False) -> Path:
+    def Path(self, resolve: bool=False) -> Optional[Path]:
         retVal = None
         if self.values and self.values[0]:
             if resolve:
@@ -125,7 +125,7 @@ class ConfigVar:
                 retVal = Path(self.str())
         return retVal
 
-    def PurePath(self) -> PurePath:
+    def PurePath(self) -> Optional[PurePath]:
         retVal = None
         if self.values and self.values[0]:
             retVal = PurePath(self.str())
@@ -217,7 +217,7 @@ class ConfigVar:
         """ erase all values """
         self.values.clear()
 
-    def raw(self, join_sep: Optional[str]="") -> Union[str, List[str]]:
+    def raw(self, join_sep: Optional[str] = "") -> Union[str, List[str]]:
         """ return the list of values unresolved"""
         if join_sep is None:
             return self.values
