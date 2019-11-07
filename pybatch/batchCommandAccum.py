@@ -39,6 +39,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         self.current_section: str = None
         self.sections = dict()
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
+        self.initial_progress = 0
 
     def clear(self, section_name=None):
         self.sections = dict()
@@ -96,8 +97,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         opening_code_lines.append(f"""from configVar import config_vars""")
         opening_code_lines.append(f"""utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())""")
         opening_code_lines.append(f"""from pybatch import *""")
-        opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
-        opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
+        opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress+self.initial_progress}""")
+        opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress+self.initial_progress}""")
         opening_code_lines.append(f"""if __name__ is '__main__':""")
         opening_code_lines.append(f"""    from utils import log_utils""")
         opening_code_lines.append(f"""    log_utils.config_logger()""")
@@ -113,7 +114,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
 
     def __repr__(self):
         single_indent = "    "
-        running_progress_count = 0
+        running_progress_count = self.initial_progress
 
         def _create_unique_obj_name(obj, prog_count):
             try:

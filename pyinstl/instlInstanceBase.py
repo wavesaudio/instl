@@ -368,6 +368,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
 
+        in_batch_accum.initial_progress = self.internal_progress
         self.create_variables_assignment(in_batch_accum)
         self.init_python_batch(in_batch_accum)
 
