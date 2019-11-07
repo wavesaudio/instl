@@ -71,7 +71,7 @@ class PythonBatchCommandBase(abc.ABC):
             __init_subclass__ is the place to initialize derived class members to their defaults.
             Note: calling cls.essential = essential will set essential as a object member not class member, so later calling
             self.essential = False in a member function will change self.essential for self only not for other object of the class.
-            That being said, our convension is that members set here are treated class member and should not be changed during runtime.
+            That being said, our convention is that members set here are treated class member and should not be changed during runtime.
         """
         super().__init_subclass__(**kwargs)
         cls.essential = essential
