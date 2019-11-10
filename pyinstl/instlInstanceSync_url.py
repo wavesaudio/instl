@@ -28,7 +28,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_commands = AnonymousAccum()
 
-        create_sync_folders_commands += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
         create_sync_folders_commands += CreateSyncFolders()
 
@@ -129,8 +128,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
-        check_checksum_instructions_accum += Progress("Check checksum ...", own_progress_count=num_files)
-        check_checksum_instructions_accum += CheckDownloadFolderChecksum()
+        check_checksum_instructions_accum += Progress("Check checksum ...")
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files)
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 

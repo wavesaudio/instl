@@ -109,7 +109,7 @@ class Progress(pybatch.PythonBatchCommandBase, essential=False, call__call__=Tru
 
     def __call__(self, *args, **kwargs) -> None:
         with self.timing_contextmanager():
-            log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+            self.increment_and_output_progress()
 
 
 class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):

@@ -179,6 +179,13 @@ class PythonBatchCommandBase(abc.ABC):
             retVal = self.__class__.__name__
         return retVal
 
+    def progress_msg(self) -> str:
+        if PythonBatchCommandBase.ignore_progress:
+            the_progress_msg = ""
+        else:
+            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
+        return the_progress_msg
+
     @abc.abstractmethod
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message
@@ -280,23 +287,10 @@ class PythonBatchCommandBase(abc.ABC):
         the_hash = hash(tuple(sorted(self.__dict__.items())))
         return the_hash
 
-    def progress_msg(self) -> str:
-        if PythonBatchCommandBase.ignore_progress:
-            the_progress_msg = ""
-        else:
-            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
-        return the_progress_msg
-
     def warning_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own warning message
         """
         return f"{self.__class__.__name__}"
-
-    def enter_self(self) -> None:
-        """ classes overriding PythonBatchCommandBase can add code here without
-            repeating __enter__, bit not do any actual work!
-        """
-        pass
 
     def error_dict(self, exc_type, exc_val, exc_tb) -> Dict:
         self.error_dict_self(exc_type, exc_val, exc_tb)
@@ -330,12 +324,17 @@ class PythonBatchCommandBase(abc.ABC):
                 })
         return self._error_dict
 
+    def enter_self(self) -> None:
+        """ classes overriding PythonBatchCommandBase can add code here without
+            repeating __enter__, but not do any actual work!
+        """
+        pass
+
     def __enter__(self):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_timing_measure()
         try:
-            if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
-                log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+            self.increment_and_output_progress()
             self.current_working_dir = os.getcwd()
             self.enter_self()
         except Exception as ex:
@@ -370,7 +369,10 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_self(exit_return=suppress_exception)
 
         self.exit_timing_measure()
-        #log.debug(f"{self.progress_msg()} time: {self.command_time_sec:.2f}ms")
+
+        if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
+            if 0 < self.prog_num != self.runtime_progress_num:
+                log.warning(f"{self.__class__.__name__} self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
 
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
@@ -380,19 +382,31 @@ class PythonBatchCommandBase(abc.ABC):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     def enter_timing_measure(self):
-        if not PythonBatchCommandBase.ignore_progress:
-            self.enter_time = time.perf_counter()
-            PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
-            if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
-                log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+        self.enter_time = time.perf_counter()
+
+    def increment_progress(self, increment_by=None):
+        if increment_by is None:
+            increment_by = self.own_progress_count
+        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+            log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        """ increment runtime_progress_num and report progress and assert progress value against expected total progress.
+            classes that want to report progress differently can override this function or pass non default parameters
+        """
+        if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
+            self.increment_progress(increment_by)
+            if prog_counter_msg is None:
+                prog_counter_msg = self.progress_msg()
+            if prog_msg is None:
+                prog_msg = self.progress_msg_self()
+            log.info(f"{prog_counter_msg} {prog_msg}")
 
     def exit_timing_measure(self):
-        if not PythonBatchCommandBase.ignore_progress:
-            self.exit_time = time.perf_counter()
-            self.command_time_sec = (self.exit_time - self.enter_time)
-            PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
-            if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
-                log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
+        self.exit_time = time.perf_counter()
+        self.command_time_sec = (self.exit_time - self.enter_time)
+        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
 
     @contextmanager
     def timing_contextmanager(self):

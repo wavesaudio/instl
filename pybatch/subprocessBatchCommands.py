@@ -269,6 +269,9 @@ class ParallelRun(PythonBatchCommandBase):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.config_file}'"""
 
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        pass
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
@@ -286,6 +289,8 @@ class ParallelRun(PythonBatchCommandBase):
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+        finally:
+            self.increment_progress()
 
 
 class Exec(PythonBatchCommandBase):
@@ -318,7 +323,7 @@ class Exec(PythonBatchCommandBase):
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, kwargs_defaults={'report_own_progress': False}):
+class RunInThread(PythonBatchCommandBase):
     """
         run another python-batch command in a thread
     """
@@ -326,15 +331,13 @@ class RunInThread(PythonBatchCommandBase, kwargs_defaults={'report_own_progress'
         PythonBatchCommandBase.__init__(self, **kwargs)
         self.what_to_run = what_to_run
         self.thread_name = thread_name
-        self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
-                              #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
-        self.own_progress_count += self.what_to_run.total_progress_count()
+        self.daemon = daemon  # remember: 1 the thread is not daemonize only if self.daemon is None, if self.daemon has any value, including False the thread will be daemonize
+                              #           2 daemon means the thread will be terminated when the process is terminated, it has nothing to do with daemon process
+        self.own_progress_count = self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
         # what_to_run should not increment or report progress because there is no way to know when it will happen
         # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
-        self.what_to_run.own_progress_count = 0
-        self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
         all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
         all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
@@ -343,10 +346,14 @@ class RunInThread(PythonBatchCommandBase, kwargs_defaults={'report_own_progress'
         return f''''''
 
     def run_with(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         with self.what_to_run as rit:
             rit()
 
     def run_without(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         self.what_to_run()
 
     def __call__(self, *args, **kwargs) -> None:

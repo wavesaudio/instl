@@ -46,11 +46,18 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
 
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
         for file_item in dl_file_items:
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
+            self.doing = f"""check checksum for '{file_item.download_path}'"""
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
@@ -106,6 +113,7 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     """
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
@@ -113,10 +121,16 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
+    def increment_and_output_progress(self):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"create sync folder {dl_dir}")
             self.doing = f"""creating sync folder '{dl_dir}'"""
             if dl_dir.download_path:  # direct_sync items have absolute path in member .download_path
                 MakeDir(dl_dir.download_path)()

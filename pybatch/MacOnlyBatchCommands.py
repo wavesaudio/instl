@@ -229,7 +229,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.folder_to_convert = folder_to_convert
         self.last_symlink_file = None
-        self.report_own_progress = False
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_convert))
