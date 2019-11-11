@@ -60,7 +60,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.reprs_test_runner(RaiseException(the_exception, the_message))
 
     def test_RaiseException(self):
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RaiseException(ValueError, "la la la")
         self.pbt.exec_and_capture_output(expected_exception=ValueError)
 
@@ -137,7 +137,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.reprs_test_runner(ConfigVarPrint("Avi Balali $(NIKMAT_HATRACTOR)"))
 
     def test_ConfigVarPrint(self):
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
         config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
         config_vars["SOME_VAR_TO_PRINT"] = -12345
@@ -177,7 +177,7 @@ STEVE: Jobs
         resolved_text = "li li li, hamizvada lu sheli Rama!, Jobs!"
         with unresolved_file.open("w") as wfd:
             wfd.write(unresolved_text)
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
         self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file, config_file=config_file)
         self.pbt.exec_and_capture_output()
@@ -197,7 +197,7 @@ STEVE: Jobs
         if var_name in os.environ:  # del value from previous test run
             del os.environ[var_name]
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += EnvironVarAssign(var_name, var_value)
         self.pbt.exec_and_capture_output()
 

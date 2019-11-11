@@ -1,5 +1,6 @@
 import sys
 
+
 from .baseClasses import PythonBatchCommandBase
 from .batchCommandAccum import PythonBatchCommandAccum
 
@@ -21,6 +22,7 @@ from .copyBatchCommands import CopyFileToFile
 from .copyBatchCommands import MoveDirToDir
 from .copyBatchCommands import RenameFile
 from .copyBatchCommands import CopyBundle
+from .copyBatchCommands import CopyGlobToDir
 
 from .reportingBatchCommands import AnonymousAccum
 from .reportingBatchCommands import Echo
@@ -45,13 +47,14 @@ from .removeBatchCommands import RmFileOrDir
 from .removeBatchCommands import RemoveEmptyFolders
 from .removeBatchCommands import RmGlob
 from .removeBatchCommands import RmGlobs
+from .removeBatchCommands import RmDirContents
 
 from .fileSystemBatchCommands import AppendFileToFile
 from .fileSystemBatchCommands import Cd
 from .fileSystemBatchCommands import ChFlags
 from .fileSystemBatchCommands import Chmod
 from .fileSystemBatchCommands import Chown
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import MakeRandomDirs
 from .fileSystemBatchCommands import MakeRandomDataFile
 from .fileSystemBatchCommands import touch
@@ -70,7 +73,8 @@ from .subprocessBatchCommands import Exec
 from .subprocessBatchCommands import RunInThread
 from .subprocessBatchCommands import Subprocess
 from .subprocessBatchCommands import ExternalPythonExec
-from .subprocessBatchCommands import RunProcessBase
+from .subprocessBatchCommands import SysExit
+from .subprocessBatchCommands import Raise
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 

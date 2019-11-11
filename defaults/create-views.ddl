@@ -1,3 +1,5 @@
+-- noinspection SqlResolveForFile
+
 -- iid, index_version, generation
 CREATE VIEW IF NOT EXISTS "require_items_without_require_version_view" AS
 SELECT main_details_t.owner_iid AS iid,

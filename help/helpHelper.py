@@ -6,6 +6,7 @@ import fnmatch
 import inspect
 from typing import List
 from collections import defaultdict
+from pathlib import Path
 
 import yaml
 
@@ -76,14 +77,15 @@ class HelpItemObj(HelpItemBase):
 
 
 class HelpHelper(object):
-    def __init__(self, instlObj, help_folder_path) -> None:
+    def __init__(self, instlObj, help_folder_path: Path) -> None:
         self.help_items = dict()
         self.topic_items = defaultdict(list)
         self.instlObj = instlObj
 
         for help_file in os.listdir(help_folder_path):
             if fnmatch.fnmatch(help_file, '*help.yaml'):
-                self.read_help_file(os.path.join(help_folder_path, help_file))
+                help_file_path = help_folder_path.joinpath(help_file)
+                self.read_help_file(help_file_path)
 
         self.read_pybatch_help()
         self.additional_commands_help()
@@ -94,8 +96,8 @@ class HelpHelper(object):
             self.topic_items[a_topic].append(new_item.name)
 
     def read_help_file(self, help_file_path):
-        with utils.open_for_read_file_or_url(help_file_path, config_vars=config_vars) as open_file:
-            for a_node in yaml.compose_all(open_file.fd):
+        with utils.utf8_open_for_read(help_file_path) as open_file:
+            for a_node in yaml.compose_all(open_file):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():
                         for item_name, item_value_node in topic_items_node.items():
@@ -154,10 +156,10 @@ class HelpHelper(object):
         return retVal
 
     def defaults_help(self, var_name=None):
-        defaults_folder_path = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
+        defaults_folder_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
         for yaml_file in os.listdir(defaults_folder_path):
             if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
-                self.instlObj.read_yaml_file(os.path.join(defaults_folder_path, yaml_file))
+                self.instlObj.read_yaml_file(defaults_folder_path.joinpath(yaml_file))
         defaults_list = [("Variable name", "Raw value", "Resolved value"),
                          ("_____________", "_________", "______________")]
         for var in sorted(config_vars.keys()):

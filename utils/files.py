@@ -14,7 +14,6 @@ from pathlib import Path
 import logging
 log = logging.getLogger()
 
-from pyinstl import connectionBase
 import zlib
 import urllib.request, urllib.error, urllib.parse
 
@@ -23,6 +22,19 @@ from typing import Optional, TextIO
 
 global_acting_uid = -1
 global_acting_gid = -1
+
+
+def set_active_user_or_group_config_var_callback(config_var_name, config_var_value):
+    try:
+        if config_var_name == "ACTING_UID":
+            global global_acting_uid
+            global_acting_uid = int(config_var_value)
+        elif config_var_name == "ACTING_GID":
+            global global_acting_gid
+            global_acting_gid = int(config_var_value)
+    except ValueError as ex:
+        # if value is not int it will not be assigned to global_acting_uid/global_acting_gid
+        pass
 
 
 def set_acting_ids(uid, gid):
@@ -80,8 +92,11 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
         group = global_acting_gid
     if user != -1 or group != -1:
         try:
-            if hasattr(os, 'chown'):
-                os.fchown(in_path, user, group)
+            if isinstance(in_path, int):
+                if hasattr(os, 'fchown'):
+                    os.fchown(in_path, user, group)
+            elif hasattr(os, 'chown'):
+                os.chown(in_path, user, group)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chown failed for {in_path}; {ex}""")
         try:
@@ -89,7 +104,6 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
                 os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
-    return f"""chown_chmod_on_path: {in_path} u:{user}, g:{group}"""
 
 
 def get_file_owner(in_path):
@@ -135,13 +149,13 @@ class write_to_file_or_stdout(object):
         self.fd = sys.stdout
 
     def __enter__(self) -> TextIO:
-        if self.file_path != "stdout":
+        if self.file_path:  # if file_path is None self.fd defaults to stdout
             open_mode = 'a' if self.append_to_file else 'w'
             self.fd = utf8_open_for_write(self.file_path, open_mode)
         return self.fd
 
     def __exit__(self, unused_type, unused_value, unused_traceback):
-        if self.file_path != "stdout":
+        if self.file_path:
             self.fd.close()
 
 
@@ -164,7 +178,7 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None):
+def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None, connection_obj=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
@@ -189,7 +203,8 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
         with open(actual_file_path, "r", encoding=encoding) as rdf:
             buffer = rdf.read()
     else:
-        session = connectionBase.connection_factory(config_vars).get_session(in_file_or_url)
+        assert connection_obj, "no connection_obj given"
+        session = connection_obj.get_session(in_file_or_url)
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
@@ -333,7 +348,7 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
     if not in_target_path:
         in_target_path = cache_folder
     if in_target_path:
-        in_target_path = utils.ResolvedPath(in_target_path)
+        in_target_path = utils.ExpandAndResolvePath(in_target_path)
         url_file_name = last_url_item(in_url)
         url_base_file_name, url_extension = os.path.splitext(url_file_name)
         need_decompress = url_extension == ".wzip"
@@ -360,8 +375,8 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
 
 class ChangeDirIfExists(object):
     """Context manager for changing the current working directory"""
-    def __init__(self, newPath) -> None:
-        if os.path.isdir(newPath):
+    def __init__(self, newPath: Path) -> None:
+        if newPath.is_dir():
             self.newPath = newPath
         else:
             self.newPath = None
@@ -445,23 +460,6 @@ def get_disk_free_space(in_path):
         st = os.statvfs(in_path)
         retVal = st.f_bavail * st.f_frsize
     return retVal
-
-
-# cache_dir_to_clean = var_stack.resolve(self.get_default_sync_dir(continue_dir="cache", make_dir=False))
-# utils.clean_old_files(cache_dir_to_clean, 30)
-def clean_old_files(dir_to_clean, older_than_days):
-    """ clean a directory from file older than the given param
-        block all exceptions since this operation is "nice to have" """
-    try:
-        threshold_time = time.time() - (older_than_days * 24 * 60 * 60)
-        for root, dirs, files in os.walk(dir_to_clean, followlinks=False):
-            for a_file in files:
-                a_file_path = os.path.join(root, a_file)
-                file_time = os.path.getmtime(a_file_path)
-                if file_time < threshold_time:
-                    os.remove(a_file_path)
-    except Exception:
-        pass
 
 
 def smart_copy_file(source_path, destination_path):
@@ -576,7 +574,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-def ResolvedPath(path_to_resolve: os.PathLike) -> Path:
+def ExpandAndResolvePath(path_to_resolve: os.PathLike) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
@@ -616,3 +614,22 @@ def append_suffix(in_path: Path, new_suffix: str):
     new_name = in_path.stem + "".join(suffixes)
     new_path = in_path.parent.joinpath(new_name)
     return new_path
+
+
+def set_max_open_files(new_max_open_files):
+    # doe nto work yet...
+    if sys.platform == 'darwin':
+        # on Mac resource.setrlimit returns hard limit of 9223372036854775807 which means unlimited
+        # however there is some secret (no API) maximum on the soft limit, so increasing must be done gradually
+        try:
+            import resource
+            max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            print(f"max open files was {max_files_soft}")
+            while new_max_open_files > max_files_soft:
+                max_files_soft += min(1, new_max_open_files - max_files_soft)
+                print(f"increasing to {max_files_soft}")
+                resource.setrlimit(resource.RLIMIT_NOFILE, max_files_soft, max_files_hard)
+        except:
+            print(f"failed to increas to {max_files_soft}")
+        max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        print(f"max open files is now {max_files_soft}")

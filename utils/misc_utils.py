@@ -719,8 +719,8 @@ class JsonExtraTypesDecoder(json.JSONDecoder):
 
 def get_system_log_file_path():
     '''if Desktop/Logs exists put the file there, otherwise in the user's folder'''
-    logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-    if os.path.isdir(logs_dir):
+    logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
+    if logs_dir.is_dir():
         folder_to_write_in = logs_dir
     else:
         # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
@@ -728,11 +728,11 @@ def get_system_log_file_path():
         app_name = os.environ["APPLICATION_NAME"]
 
         if sys.platform == 'win32':
-            folder_to_write_in = os.path.join(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
+            folder_to_write_in = Path(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
         else:
-            folder_to_write_in = os.path.join(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
+            folder_to_write_in = Path(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
 
-    system_log_file_path = os.path.join(folder_to_write_in, 'instl', "instl.log")
+    system_log_file_path = folder_to_write_in.joinpath('instl', "instl.log")
     return system_log_file_path
 
 

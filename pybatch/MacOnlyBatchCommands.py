@@ -49,7 +49,7 @@ class MacDock(PythonBatchCommandBase):
                     log.warning("mac-dock confusing options, both --path and --restart were not supplied")
             else:
                 dock_util_command.append("--add")
-                resolved_path_to_item = os.fspath(utils.ResolvedPath(self.path_to_item))
+                resolved_path_to_item = os.fspath(utils.ExpandAndResolvePath(self.path_to_item))
                 dock_util_command.append(resolved_path_to_item)
                 if self.label_for_item:
                     dock_util_command.append("--label")
@@ -62,7 +62,7 @@ class MacDock(PythonBatchCommandBase):
         utils.dock_util(dock_util_command)
 
 
-class CreateSymlink(PythonBatchCommandBase, essential=True):
+class CreateSymlink(PythonBatchCommandBase):
     """ create a symbolic link (MacOS only)"""
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -78,7 +78,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        path_to_target = utils.ResolvedPath(self.path_to_target)
+        path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         try:
             path_to_symlink.unlink()
@@ -88,7 +88,7 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         path_to_symlink.symlink_to(path_to_target)
 
 
-class RmSymlink(PythonBatchCommandBase, essential=True):
+class RmSymlink(PythonBatchCommandBase):
     """remove a symlink not it's target
     - It's OK is the symlink or the target does not exist
     - but exception will be raised if path is a folder
@@ -118,7 +118,7 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
             log.warning(f"RmSymlink, not found: {unresolved_path}")
 
 
-class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
+class SymlinkToSymlinkFile(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -145,7 +145,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
             symlink_to_convert.unlink()
 
 
-class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
+class SymlinkFileToSymlink(PythonBatchCommandBase):
     """ replace a file with extension '.symlink' to a real symlink.
         the '.symlink' should contain the text of the target of the symlink. And was created with SymlinkToSymlinkFile.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -163,7 +163,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        symlink_file_to_convert = utils.ResolvedPath(self.symlink_file_to_convert)
+        symlink_file_to_convert = utils.ExpandAndResolvePath(self.symlink_file_to_convert)
         symlink_target = symlink_file_to_convert.read_text()
         self.doing = f"""convert symlink file '{symlink_file_to_convert}' to real symlink to target '{symlink_target}'"""
         symlink = Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
@@ -185,7 +185,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink_file_to_convert.unlink()
 
 
-class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class CreateSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -205,7 +205,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
     def __call__(self, *args, **kwargs) -> None:
         self.doing = f"""convert real symlinks in '{self.folder_to_convert}' to .symlink files"""
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
+        resolved_folder_to_convert = utils.ExpandAndResolvePath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files + dirs:
                 item_path = Path(root, item)
@@ -219,7 +219,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                         log.warning(f"failed to convert {item_path}")
 
 
-class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -229,7 +229,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.folder_to_convert = folder_to_convert
         self.last_symlink_file = None
-        self.report_own_progress = False
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_convert))
@@ -239,7 +238,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_convert = utils.ResolvedPath(self.folder_to_convert)
+        resolved_folder_to_convert = utils.ExpandAndResolvePath(self.folder_to_convert)
         for root, dirs, files in os.walk(resolved_folder_to_convert, followlinks=False):
             for item in files:
                 item_path = Path(root, item)

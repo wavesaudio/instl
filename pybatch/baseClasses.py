@@ -48,6 +48,8 @@ class PythonBatchCommandBase(abc.ABC):
     runtime_duration_by_progress = dict()
     ignore_progress = False           # set to True when using batch commands out side python batch file
 
+    # defaults for __init__ of derived classes. Members how's value has not changed from these values
+    # can be skipped when __repr__ recreates the object
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
                        'ignore_all_errors': False,
@@ -56,22 +58,33 @@ class PythonBatchCommandBase(abc.ABC):
                        "reply_environ_var": None,
                        'prog_num': 0,
                        'skip_action': False}
-    kwargs_defaults_for_subclass = dict()  # __init_subclass__ can override to set different defaults for specific classes
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
+        """ __init_subclass__ will be called once during compilation of each class derived from PythonBatchCommandBase.
+            __init_subclass__ will not be called during compilation of  PythonBatchCommandBase itself.
+            Params passed to the class declaration will be passed to __init_subclass__. e.g. the code:
+            A(PythonBatchCommandBase, name="bobi")
+                will result in calling:
+            PythonBatchCommandBase.__init_subclass__(A, name="bobi")
+
+            __init_subclass__ is the place to initialize derived class members to their defaults.
+            Note: calling cls.essential = essential will set essential as a object member not class member, so later calling
+            self.essential = False in a member function will change self.essential for self only not for other object of the class.
+            That being said, our convention is that members set here are treated class member and should not be changed during runtime.
+        """
         super().__init_subclass__(**kwargs)
         cls.essential = essential
         cls.call__call__ = call__call__
         cls.is_context_manager = is_context_manager
         cls.is_anonymous = is_anonymous
 
+        # create a new, unique kwargs_defaults for the class, that will override the parent class' kwargs_defaults. To keep the values from parent class create a copy named parent_kwargs_defaults.
+        # Beware, simply doing cls.kwargs_defaults.update(parent_kwargs_defaults) will update the parent class kwargs_defaults, and this will effect other classes inheriting from that base
+
         parent_kwargs_defaults = {}
         if hasattr(cls, "kwargs_defaults"):
             parent_kwargs_defaults.update(cls.kwargs_defaults)
-
-        # create a new, unique kwargs_defaults for the class, that will override the parent class' kwargs_defaults. To keep the values from parent class create a copy named parent_kwargs_defaults.
-        # Beware, simply doing cls.kwargs_defaults.update(parent_kwargs_defaults) will update the parent class kwargs_defaults, and this will effect other classes inheriting from that base
         cls.kwargs_defaults = parent_kwargs_defaults
         if kwargs_defaults:
             cls.kwargs_defaults.update(kwargs_defaults)
@@ -99,24 +112,35 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_time = None
         self.in_sub_accum = False
         self.essential_action_counter = 0
-        self._error_dict = None
+        self._error_dict = dict()
         self.doing = None  # description of what the object is doing, derived classes should update this member during operations
         self.current_working_dir = None
         self.non_representative__dict__keys = ['enter_time', 'exit_time', 'non_representative__dict__keys', 'progress', '_error_dict', "doing", 'exceptions_to_ignore', '_get_ignored_files_func', 'last_src', 'last_dst', 'last_step', 'current_working_dir']
         self.runtime_progress_num = 0
         self.command_time_sec = 0
 
-    def repr_default_kwargs(self, all_args):
-        """ get a text representation of the __init__(kwargs) for a sub class.
-            returns a list of text values in the form "x=y". args that
-            are listed in self.non_representative__dict__keys will not be included
-            also e
+    def all_kwargs_dict(self, only_non_default_values=False):
+        """ return a dict containing all __init__(kwargs) and their values
+            if only_non_default_values==False dict will include those with default values
+            if only_non_default_values==True dict will include only those with non-default values
+            args listed in self.non_representative__dict__keys will not be included
         """
+        retVal = dict()
         for kwarg_name, kwarg_default_value in sorted(self.kwargs_defaults.items()):
             if kwarg_name not in self.non_representative__dict__keys:
                 current_value = getattr(self, kwarg_name, kwarg_default_value)
-                if current_value != kwarg_default_value:
-                    all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(current_value)}""")
+                if not only_non_default_values or current_value != kwarg_default_value:
+                    retVal[kwarg_name] = current_value
+        return retVal
+
+    def repr_default_kwargs(self, all_args):
+        """ get a text representation of the __init__(kwargs) for a sub class.
+            returns a list of text values in the form "x=y".
+            args listed in self.non_representative__dict__keys will not be included
+        """
+        kwdict = self.all_kwargs_dict(only_non_default_values=True)
+        for kwarg_name, kwarg_value in kwdict.items():
+            all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(kwarg_value)}""")
 
     #@abc.abstractmethod
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -154,6 +178,13 @@ class PythonBatchCommandBase(abc.ABC):
         else:
             retVal = self.__class__.__name__
         return retVal
+
+    def progress_msg(self) -> str:
+        if PythonBatchCommandBase.ignore_progress:
+            the_progress_msg = ""
+        else:
+            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
+        return the_progress_msg
 
     @abc.abstractmethod
     def progress_msg_self(self) -> str:
@@ -223,7 +254,8 @@ class PythonBatchCommandBase(abc.ABC):
         self.in_sub_accum = True
         yield context
         self.in_sub_accum = False
-        if context.is_essential():
+        is_ess = context.is_essential()
+        if is_ess:
             self.add(context)
 
     def representative_dict(self):
@@ -255,31 +287,18 @@ class PythonBatchCommandBase(abc.ABC):
         the_hash = hash(tuple(sorted(self.__dict__.items())))
         return the_hash
 
-    def progress_msg(self) -> str:
-        if PythonBatchCommandBase.ignore_progress:
-            the_progress_msg = ""
-        else:
-            the_progress_msg = f"Progress {PythonBatchCommandBase.running_progress} of {PythonBatchCommandBase.total_progress};"
-        return the_progress_msg
-
     def warning_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase can add their own warning message
         """
         return f"{self.__class__.__name__}"
 
-    def enter_self(self) -> None:
-        """ classes overriding PythonBatchCommandBase can add code here without
-            repeating __enter__, bit not do any actual work!
-        """
-        pass
-
     def error_dict(self, exc_type, exc_val, exc_tb) -> Dict:
-        if self._error_dict is None:
-            self._error_dict = dict()
         self.error_dict_self(exc_type, exc_val, exc_tb)
         if not self.doing:
             self.doing = self.progress_msg_self()
         self._error_dict.update({
+            'instl_version': config_vars.get("__INSTL_VERSION_STR_LONG__", "Unknown version").str(),
+            'python_version': ".".join((str(v) for v in sys.version_info)),
             'doing': self.doing,
             'major_stage': self.major_stage_str(),
             'stage': ".".join(filter(None, (stage.stage_str() for stage in PythonBatchCommandBase.stage_stack))),
@@ -305,12 +324,17 @@ class PythonBatchCommandBase(abc.ABC):
                 })
         return self._error_dict
 
+    def enter_self(self) -> None:
+        """ classes overriding PythonBatchCommandBase can add code here without
+            repeating __enter__, but not do any actual work!
+        """
+        pass
+
     def __enter__(self):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_timing_measure()
         try:
-            if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
-                log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+            self.increment_and_output_progress()
             self.current_working_dir = os.getcwd()
             self.enter_self()
         except Exception as ex:
@@ -345,7 +369,10 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_self(exit_return=suppress_exception)
 
         self.exit_timing_measure()
-        #log.debug(f"{self.progress_msg()} time: {self.command_time_sec:.2f}ms")
+
+        if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
+            if 0 < self.prog_num != self.runtime_progress_num:
+                log.warning(f"{self.__class__.__name__} self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
 
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
@@ -355,19 +382,31 @@ class PythonBatchCommandBase(abc.ABC):
         log.log(log_lvl, f"{self.progress_msg()} {message}; {exc_val.__class__.__name__}: {exc_val}")
 
     def enter_timing_measure(self):
-        if not PythonBatchCommandBase.ignore_progress:
-            self.enter_time = time.perf_counter()
-            PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + self.own_progress_count
-            if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
-                log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+        self.enter_time = time.perf_counter()
+
+    def increment_progress(self, increment_by=None):
+        if increment_by is None:
+            increment_by = self.own_progress_count
+        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
+            log.warning(f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")
+
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        """ increment runtime_progress_num and report progress and assert progress value against expected total progress.
+            classes that want to report progress differently can override this function or pass non default parameters
+        """
+        if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
+            self.increment_progress(increment_by)
+            if prog_counter_msg is None:
+                prog_counter_msg = self.progress_msg()
+            if prog_msg is None:
+                prog_msg = self.progress_msg_self()
+            log.info(f"{prog_counter_msg} {prog_msg}")
 
     def exit_timing_measure(self):
-        if not PythonBatchCommandBase.ignore_progress:
-            self.exit_time = time.perf_counter()
-            self.command_time_sec = (self.exit_time - self.enter_time)
-            PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
-            if self.prog_num > 0 and  self.runtime_progress_num != self.prog_num:
-                log.warning(f"self.runtime_progress_num ({self.runtime_progress_num}) != expected_progress_num ({self.prog_num})")
+        self.exit_time = time.perf_counter()
+        self.command_time_sec = (self.exit_time - self.enter_time)
+        PythonBatchCommandBase.runtime_duration_by_progress[self.runtime_progress_num] = self.command_time_sec
 
     @contextmanager
     def timing_contextmanager(self):

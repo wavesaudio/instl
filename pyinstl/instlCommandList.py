@@ -19,8 +19,8 @@ class CommandListRunner(object):
 
     def run(self, parallel=False):
         command_list = self.prepare_command_list_from_file()
-        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
-        command_list_dir, command_list_leaf = os.path.split(config_file)
+        config_file = config_vars["__CONFIG_FILE__"].Path()
+        command_list_leaf = config_file.name
         if parallel:
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel from {command_list_leaf}")
             for argv in command_list:
@@ -36,11 +36,12 @@ class CommandListRunner(object):
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands one by one done")
 
     def prepare_command_list_from_file(self):
-        command_list = list()
-        config_file = os.fspath(config_vars["__CONFIG_FILE__"])
-        with utils.utf8_open_for_read(config_file, "r") as rfd:
-            command_lines = rfd.readlines()
+        command_lines = list()
+        for config_file in config_vars["__CONFIG_FILE__"].list():
+            with utils.utf8_open_for_read(os.fspath(config_file), "r") as rfd:
+                command_lines.extend(rfd.readlines())
 
+        command_list = list()
         for command_line in command_lines:
             resolved_command_line = config_vars.resolve_str(command_line.strip())
             argv = shlex.split(resolved_command_line)

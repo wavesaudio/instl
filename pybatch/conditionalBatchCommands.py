@@ -3,7 +3,7 @@ from .fileSystemBatchCommands import *
 from configVar import config_vars
 
 
-class If(PythonBatchCommandBase, essential=True):
+class If(PythonBatchCommandBase):
     """ preform an action based on a condition
         if 'condition' is True 'if_true' will be preformed
         if 'condition' is False 'if_false' will be preformed
@@ -67,11 +67,11 @@ class IsFile(object):
         return the_repr
 
     def __call__(self) -> bool:
-        retVal = Path(self.file_path).is_file()
+        retVal = utils.ExpandAndResolvePath(self.file_path).is_file()
         return retVal
 
     def __eq__(self, other) -> bool:
-        retVal = self.file_path == other.file_path
+        retVal = utils.ExpandAndResolvePath(self.file_path).samefile(utils.ExpandAndResolvePath(other.file_path))
         return retVal
 
 
@@ -91,7 +91,7 @@ class IsDir(object):
         return retVal
 
     def __eq__(self, other) -> bool:
-        retVal = self.file_path == other.file_path
+        retVal = utils.ExpandAndResolvePath(self.file_path).samefile(utils.ExpandAndResolvePath(other.file_path))
         return retVal
 
 
@@ -106,11 +106,11 @@ class IsSymlink(object):
         all_args.append(utils.quoteme_raw_by_type(self.file_path))
 
     def __call__(self) -> bool:
-        retVal = Path(self.file_path).is_symlink()
+        retVal = Path(os.path.expandvars(self.file_path)).is_symlink()
         return retVal
 
     def __eq__(self, other) -> bool:
-        retVal = self.file_path == other.file_path
+        retVal = utils.ExpandAndResolvePath(self.file_path).samefile(utils.ExpandAndResolvePath(other.file_path))
         return retVal
 
 

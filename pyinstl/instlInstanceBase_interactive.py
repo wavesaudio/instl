@@ -13,6 +13,7 @@ import appdirs
 
 import utils
 from configVar import config_vars
+from .instlException import InstlException
 
 
 current_os = platform.system()
@@ -144,7 +145,7 @@ class CMDObj(cmd.Cmd, object):
         retVal = False
         try:
             retVal = super().onecmd(line)
-        except utils.InstlException as ie:
+        except InstlException as ie:
             print("instl exception", ie.message)
             traceback.print_exception(type(ie.original_exception), ie.original_exception, sys.exc_info()[2])
         except Exception:
@@ -450,7 +451,7 @@ class CMDObj(cmd.Cmd, object):
         print("Example: depend ABC__IID")
 
     def do_sync(self, params):
-        out_file = "stdout"
+        out_file = None
         if params:
             out_file = params
         config_vars["__MAIN_OUT_FILE__"] = out_file
@@ -463,7 +464,7 @@ class CMDObj(cmd.Cmd, object):
         print("    write sync commands to stdout or to file_name if given")
 
     def do_copy(self, params):
-        out_file = "stdout"
+        out_file = None
         if params:
             out_file = params
         config_vars["__MAIN_OUT_FILE__"] = out_file

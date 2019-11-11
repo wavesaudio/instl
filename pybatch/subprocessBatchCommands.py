@@ -15,8 +15,8 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"in_file": None, "out_file": None, "err_file": None, "stderr_means_err": True, "detach": False}):
+class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
+                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -33,8 +33,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             self.ignore_specific_exit_codes = ignore_specific_exit_codes
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
-        self.stdout = ''
-        self.stderr = ''
+        self.stderr = ''  # for log_results
 
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
@@ -64,43 +63,46 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
                     run_args = run_args[0]
                 elif sys.platform == 'win32':
                     run_args = run_args[0]
+
+            out_stream = None
+            need_to_close_out_file = False
             if self.out_file:
-                err_stream = utils.utf8_open_for_write(self.out_file, "w")
-            else:
+                if isinstance(self.out_file, (str, os.PathLike, bytes)):
+                    out_stream = utils.utf8_open_for_write(self.out_file, "w")
+                    need_to_close_out_file = True
+                elif hasattr(self.out_file, "write"):  # out_file is already an open file
+                    out_stream = self.out_file
+
+            elif self.capture_stdout:
+                # this will capture stdout in completed_process.stdout instead of writing directly to stdout
+                # so objects overriding handle_completed_process will have access to stdout
                 out_stream = subprocess.PIPE
-            if self.in_file:
-                in_stream = open(self.in_file, "r")
-            else:
-                in_stream = None
-            if self.err_file:
-                err_stream = utils.utf8_open_for_write(self.err_file, "w")
-            else:
-                err_stream = subprocess.PIPE
+            in_stream = None
+            err_stream = subprocess.PIPE
+
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
 
-            if self.in_file:
-                in_stream.close()
-
-            if self.out_file is None:
-                local_stdout = self.stdout = utils.unicodify(completed_process.stdout)
-                if local_stdout:
-                    print(local_stdout)
-            else:
+            if need_to_close_out_file:
                 out_stream.close()
 
-            if self.err_file is None:
-                local_stderr = self.stderr = utils.unicodify(completed_process.stderr)
-                if local_stderr:
-                    if self.ignore_all_errors:
-                        # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
-                        # but it will not be interpreted as an error by whoever is running instl
-                        print(local_stderr, file=sys.stdout)
-                    else:
-                        print(local_stderr, file=sys.stderr)
-                        if completed_process.returncode == 0 and self.stderr_means_err:
+            if completed_process.stderr:
+                self.stderr = utils.unicodify(completed_process.stderr)
+                if self.ignore_all_errors:
+                    # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
+                    # but it will not be interpreted as an error by whoever is running instl
+                    log.info(self.stderr)
+                else:
+                    if self.stderr_means_err:
+                        log.error(self.stderr)
+                        if completed_process.returncode == 0:
                             completed_process.returncode = 123
+                    else:
+                        log.info(self.stderr)
             else:
-                err_stream.close()
+                pass
+
+            if self.ignore_all_errors:
+                completed_process.returncode = 0
 
             completed_process.check_returncode()
             self.handle_completed_process(completed_process)
@@ -150,8 +152,8 @@ class CUrl(RunProcessBase):
         return f"""Download '{self.src}' to '{self.trg}'"""
 
     def get_run_args(self, run_args) -> None:
-        resolved_curl_path = os.fspath(utils.ResolvedPath(self.curl_path))
-        resolved_trg_path = os.fspath(utils.ResolvedPath(self.trg))
+        resolved_curl_path = os.fspath(utils.ExpandAndResolvePath(self.curl_path))
+        resolved_trg_path = os.fspath(utils.ExpandAndResolvePath(self.trg))
         run_args.extend([resolved_curl_path,
                          "--insecure",
                          "--fail",
@@ -168,7 +170,7 @@ class CUrl(RunProcessBase):
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
 
 
-class ShellCommand(RunProcessBase, essential=True):
+class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
 
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -205,7 +207,7 @@ class ScriptCommand(ShellCommand):
         super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
 
 
-class ShellCommands(PythonBatchCommandBase, essential=True):
+class ShellCommands(PythonBatchCommandBase):
     """ run some shells commands in a shell """
 
     def __init__(self, shell_command_list, message, **kwargs):
@@ -253,7 +255,7 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
                 shelli()
 
 
-class ParallelRun(PythonBatchCommandBase, essential=True):
+class ParallelRun(PythonBatchCommandBase):
     """ run some shell commands in parallel """
     def __init__(self, config_file,  shell, **kwargs):
         super().__init__(**kwargs)
@@ -267,10 +269,13 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.config_file}'"""
 
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        pass
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
-        resolved_config_file = utils.ResolvedPath(self.config_file)
+        resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
         self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
         with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
             for line in rfd:
@@ -284,19 +289,21 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+        finally:
+            self.increment_progress()
 
 
-class Exec(PythonBatchCommandBase, essential=True):
-    def __init__(self, python_file, config_file=None, reuse_db=True, **kwargs):
+class Exec(PythonBatchCommandBase):
+    def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
-        self.config_file = config_file
+        self.config_files = config_files
         self.reuse_db = reuse_db
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.python_file))
-        if self.config_file is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.config_file))
+        if self.config_files:
+            all_args.append(utils.quoteme_raw_by_type(self.config_files))
         if not self.reuse_db:
             all_args.append(f"reuse_db={self.reuse_db}")
 
@@ -305,15 +312,18 @@ class Exec(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_file is not None:
-            self.read_yaml_file(self.config_file)
+        if self.config_files:
+            for config_file in self.config_files:
+                config_file = utils.ExpandAndResolvePath(config_file)
+                self.read_yaml_file(config_file)
+        self.python_file = utils.ExpandAndResolvePath(self.python_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
             py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False}):
+class RunInThread(PythonBatchCommandBase):
     """
         run another python-batch command in a thread
     """
@@ -321,15 +331,13 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         PythonBatchCommandBase.__init__(self, **kwargs)
         self.what_to_run = what_to_run
         self.thread_name = thread_name
-        self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
-                              #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
-        self.own_progress_count += self.what_to_run.total_progress_count()
+        self.daemon = daemon  # remember: 1 the thread is not daemonize only if self.daemon is None, if self.daemon has any value, including False the thread will be daemonize
+                              #           2 daemon means the thread will be terminated when the process is terminated, it has nothing to do with daemon process
+        self.own_progress_count = self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
         # what_to_run should not increment or report progress because there is no way to know when it will happen
         # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
-        self.what_to_run.own_progress_count = 0
-        self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
         all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
         all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
@@ -338,10 +346,14 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         return f''''''
 
     def run_with(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         with self.what_to_run as rit:
             rit()
 
     def run_without(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         self.what_to_run()
 
     def __call__(self, *args, **kwargs) -> None:
@@ -359,7 +371,7 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
             thread_thingy.start()
 
 
-class Subprocess(RunProcessBase, essential=True):
+class Subprocess(RunProcessBase):
     """ run a single command NOT in a shell """
 
     def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -394,7 +406,8 @@ class Subprocess(RunProcessBase, essential=True):
         subprocess_exe = os.path.expandvars(self.subprocess_exe)
         run_args.append(subprocess_exe)
         for arg in self.subprocess_args:
-            run_args.append(os.path.expandvars(arg))
+            expanded_var = os.path.expandvars(arg)
+            run_args.append(expanded_var)
 
 
 class ExternalPythonExec(Subprocess):
@@ -415,3 +428,40 @@ class ExternalPythonExec(Subprocess):
         run_args.pop(0)  # Removing empty string
         for arg in reversed(python_executables[sys.platform]):
             run_args.insert(0, arg)
+
+
+class SysExit(PythonBatchCommandBase):
+    def __init__(self, exit_code=17, **kwargs):
+        super().__init__(**kwargs)
+        self.exit_code = exit_code
+
+    def progress_msg_self(self) -> str:
+        return f'''sys.exit({self.exit_code})'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(utils.quoteme_raw_by_type(self.exit_code))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"calling sys.exit({self.exit_code})"
+        sys.exit(self.exit_code)
+
+
+class Raise(PythonBatchCommandBase):
+    def __init__(self, message=None, **kwargs):
+        super().__init__(**kwargs)
+        self.message = message
+
+    def progress_msg_self(self) -> str:
+        return f'''raising BogusException({self.message})'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("message", self.message, None))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"raising bogus exception: {self.message}"
+
+        class BogusException(RuntimeError):
+            pass
+        raise BogusException(f'bogus exception: {self.message}')

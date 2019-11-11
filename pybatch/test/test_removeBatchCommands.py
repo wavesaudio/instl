@@ -53,7 +53,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         file_hard_to_remove = self.pbt.path_inside_test_folder("file_hard_to_remove")
         self.assertFalse(file_hard_to_remove.exists(), f"file exists '{file_hard_to_remove}'")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Touch(file_easy_to_remove)
         self.pbt.batch_accum += Touch(file_hard_to_remove)
         self.pbt.batch_accum += Chmod(file_hard_to_remove, "a-wr")
@@ -62,7 +62,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertTrue(file_easy_to_remove.exists(), f"file was not created '{file_easy_to_remove}'")
         self.assertTrue(file_hard_to_remove.exists(), f"file was not created '{file_hard_to_remove}'")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RmFile(file_easy_to_remove)
         self.pbt.batch_accum += RmFile(file_hard_to_remove)
         self.pbt.exec_and_capture_output("remove file to remove")
@@ -89,15 +89,15 @@ class TestPythonBatchRemove(unittest.TestCase):
         dir_to_remove = self.pbt.path_inside_test_folder("remove-me")
         self.assertFalse(dir_to_remove.exists())
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_remove)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_remove)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_remove)) as sub_bc:
             sub_bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
         self.pbt.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
         self.pbt.exec_and_capture_output(expected_exception=PermissionError)
         self.assertTrue(dir_to_remove.exists())
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RmDir(dir_to_remove)
         self.pbt.exec_and_capture_output()
         self.assertFalse(dir_to_remove.exists())
@@ -117,8 +117,8 @@ class TestPythonBatchRemove(unittest.TestCase):
         file_to_stay = folder_to_remove.joinpath("paramedic")
 
         # create the folder, with sub folder and one known file
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_remove)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_to_remove)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_remove)) as cd_accum:
             cd_accum += Touch(file_to_stay.name)
             cd_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=0, file_size=41)
@@ -127,7 +127,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertTrue(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was not created {file_to_stay}")
 
         # remove empty folders, top folder and known file should remain
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store'])
         # removing non existing folder should not be a problem
         self.pbt.batch_accum += RemoveEmptyFolders("kajagogo", files_to_ignore=['.DS_Store'])
@@ -136,7 +136,7 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertTrue(os.path.isfile(file_to_stay), f"{self.pbt.which_test} : file_to_stay was removed {file_to_stay}")
 
         # remove empty folders, with known file ignored - so to folder should be removed
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RemoveEmptyFolders(folder_to_remove, files_to_ignore=['.DS_Store', "parame.+"])
         self.pbt.exec_and_capture_output("remove empty folders")
         self.assertFalse(os.path.isdir(folder_to_remove), f"{self.pbt.which_test} : folder was not removed {folder_to_remove}")
@@ -152,8 +152,8 @@ class TestPythonBatchRemove(unittest.TestCase):
         files_that_should_be_removed = ["abc.kif", "cba.kmf"]
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef"]
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_to_glob)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)
@@ -183,8 +183,8 @@ class TestPythonBatchRemove(unittest.TestCase):
         files_that_should_be_removed = ["abc.kif", "cba.kmf", "hi-mama", "mama-hi", "mama"]
         files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_to_glob)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_to_glob)
         with self.pbt.batch_accum.sub_accum(Cd(folder_to_glob)) as cd_accum:
             for f in files_that_should_be_removed + files_that_should_not_be_removed:
                 cd_accum += Touch(f)
@@ -199,3 +199,35 @@ class TestPythonBatchRemove(unittest.TestCase):
         for f in files_that_should_not_be_removed:
             fp = Path(folder_to_glob, f)
             self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+    def test_RmDirContents_repr(self):
+        list_of_objs = list()
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za"))
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za", ["pendicular"]))
+        list_of_objs.append(RmDirContents("/lo/lla/pa/loo/za", ["*.pendicular", "i*regular.??"]))
+        self.pbt.reprs_test_runner(*list_of_objs)
+
+    def test_RmDirContents(self):
+        folder_to_clear = self.pbt.path_inside_test_folder("folder-to-clear")
+
+        files_that_should_be_removed = ["abc.kif", "cba.kmf", "hi-mama", "mama-hi", "mama"]
+        files_that_should_not_be_removed = ["acb.kof", "bac.kaf", "bca.kuf", "cab.kef", "big-mami"]
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_to_clear)
+        with self.pbt.batch_accum.sub_accum(Cd(folder_to_clear)) as cd_accum:
+            for f in files_that_should_be_removed + files_that_should_not_be_removed:
+                cd_accum += Touch(f)
+
+        self.pbt.batch_accum += RmDirContents(os.fspath(folder_to_clear), exclude=files_that_should_not_be_removed)
+        self.pbt.exec_and_capture_output()
+
+        for f in files_that_should_be_removed:
+            fp = Path(folder_to_clear, f)
+            self.assertFalse(fp.is_file(), f"{self.pbt.which_test} : file was not removed {fp}")
+
+        for f in files_that_should_not_be_removed:
+            fp = Path(folder_to_clear, f)
+            self.assertTrue(fp.is_file(), f"{self.pbt.which_test} : file was removed {fp}")
+
+

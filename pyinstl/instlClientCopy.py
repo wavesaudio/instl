@@ -42,6 +42,7 @@ class InstlClientCopy(InstlClient):
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
+        self.win_current_and_target = 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Win' in list(config_vars["TARGET_OS"])
 
     def write_copy_debug_info(self) -> None:
         try:
@@ -55,9 +56,13 @@ class InstlClientCopy(InstlClient):
             pass  # if it did not work - forget it
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
-        with self.batch_accum.sub_accum(Stage("create_folders")) as create_folders_section:
+        with self.batch_accum.sub_accum(Stage("create folders")) as create_folders_section:
+            kwargs_defaults = {'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}
+            third_party_folders = [utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(p))) for p in config_vars.get("THIRD_PARTY_FOLDERS", []).list()]
             for target_folder_path in folder_list:
-                create_folders_section += MakeDirs(target_folder_path)
+                target_folder_path = utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(target_folder_path)))
+                our_folder = next((False for p in third_party_folders if p == target_folder_path), True)
+                create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=False)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
@@ -75,13 +80,13 @@ class InstlClientCopy(InstlClient):
         self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
 
-        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_copy')
-
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
 
         # first create all target folders so to avoid dependency order problems such as creating links between folders
         self.create_create_folders_instructions(sorted_target_folder_list)
+
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_copy')
 
         if self.mac_current_and_target:
             self.pre_copy_mac_handling()
@@ -107,7 +112,7 @@ class InstlClientCopy(InstlClient):
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
         if os.fspath(config_vars["HAVE_INFO_MAP_PATH"]) != os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"]):
-            self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
+            self.batch_accum += MakeDir("$(SITE_REPO_BOOKKEEPING_DIR)", chowner=True)
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
         self.create_require_file_instructions()
@@ -157,7 +162,6 @@ class InstlClientCopy(InstlClient):
             assert first_wtar_item is not None
             first_wtar_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + first_wtar_item.path)
             retVal += Unwtar(first_wtar_full_path, os.curdir)
-            #self.unwtar_instructions.append((first_wtar_full_path, os.curdir))
         return retVal
 
     def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
@@ -236,7 +240,6 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if self.mac_current_and_target:
-                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
