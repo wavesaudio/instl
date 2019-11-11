@@ -1,16 +1,14 @@
 import os
-import sys
 import sqlite3
 from contextlib import contextmanager
-import time
 import datetime
 import inspect
+from pathlib import Path
 from _collections import defaultdict
-import operator
 
 import utils
 from configVar import config_vars
-from pyinstl.indexItemTable import IndexItemsTable
+from db.indexItemTable import IndexItemsTable
 from svnTree import SVNTable
 
 """
@@ -24,23 +22,6 @@ from svnTree import SVNTable
 
 force_disk_db = False
 unique_name_to_disk_db = False
-
-
-def get_db_url(name_extra=None, db_file=None):
-    if db_file:
-        db_url = db_file
-    else:
-        logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        db_file_name = "instl.sqlite"
-        if name_extra:
-            db_file_name = name_extra+"."+db_file_name
-        if unique_name_to_disk_db:
-            db_file_name = str(datetime.datetime.now().timestamp())+"."+db_file_name
-        db_file_in_logs = os.path.join(logs_dir, db_file_name)
-        #print("db_file:", db_file)
-        db_url = db_file_in_logs
-    return db_url
 
 
 class Statistic():
@@ -64,7 +45,7 @@ class Statistic():
 
 
 class DBMaster(object):
-    def __init__(self, db_url, ddl_folder) -> None:
+    def __init__(self, db_url: Path, ddl_folder: Path) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
         self.db_file_path = db_url
         self.ddl_files_dir = ddl_folder
@@ -75,18 +56,12 @@ class DBMaster(object):
         self.print_execute_times = False
         self.transaction_depth = 0
 
-    def get_file_path(self):
+    def get_file_path(self) -> Path:
         return self.db_file_path
 
-    def read_ddl_file(self, ddl_file_name):
-        ddl_path = os.path.join(self.internal_data_folder, "db", ddl_file_name)
-        with open(ddl_path, "r") as rfd:
-            ddl_text = rfd.read()
-        return ddl_text
-
-    def init_from_ddl(self, ddl_files_dir, db_file_path):
+    def init_from_ddl(self, ddl_files_dir: Path, db_file_path: Path):
         self.ddl_files_dir = ddl_files_dir
-        self.db_file_path = db_file_path
+        self.db_file_path: Path = Path(db_file_path)
         self.open()
 
     def init_from_existing_connection(self, conn, curs):
@@ -98,9 +73,9 @@ class DBMaster(object):
 
     def open(self):
         if not self.__conn:
-            create_new_db = not os.path.isfile(self.db_file_path)
-            self.__conn = sqlite3.connect(self.db_file_path)
-            utils.chown_chmod_on_path(self.db_file_path)
+            create_new_db = not self.db_file_path.is_file()
+            self.__conn = sqlite3.connect(os.fspath(self.db_file_path))
+
             self.__curs = self.__conn.cursor()
             self.configure_db()
             if create_new_db:
@@ -111,6 +86,9 @@ class DBMaster(object):
             else:
                 pass
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
+
+    def set_db_file_owner(self):
+        utils.chown_chmod_on_path(self.db_file_path)
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
@@ -134,6 +112,13 @@ class DBMaster(object):
 
     def create_function(self, func_name, num_params, func_ptr):
         self.__conn.create_function(func_name, num_params, func_ptr)
+
+    def close_and_delete(self):
+        self.close()
+        try:
+            self.db_file_path.unlink()
+        except FileNotFoundError:
+            pass
 
     def close(self):
         if self.__conn:
@@ -250,11 +235,12 @@ class DBMaster(object):
     def exec_script_file(self, file_name):
         with self.transaction("exec_script_file_"+file_name) as curs:
             if os.path.isfile(file_name):
-                script_file_path = file_name
+                script_file_path = Path(file_name)
             else:
-                script_file_path = os.path.join(self.ddl_files_dir, file_name)
-            ddl_text = open(script_file_path, "r").read()
-            curs.executescript(ddl_text)
+                script_file_path = self.ddl_files_dir.joinpath(file_name)
+            with open(script_file_path, "r") as rfd:
+                ddl_text = rfd.read()
+                curs.executescript(ddl_text)
 
     def select_and_fetchone(self, query_text, query_params=None):
         """
@@ -309,7 +295,8 @@ class DBMaster(object):
         return retVal
 
     def lock_table(self, table_name):
-        query_text = f"""
+        query_text = f"""-- noinspection SqlResolveForFile
+
             CREATE TRIGGER IF NOT EXISTS lock_INSERT_{table_name}
             BEFORE INSERT ON {table_name}
             BEGIN
@@ -358,8 +345,8 @@ class DBAccess(object):
     def __get__(self, instance, owner):
         if self._db is None:
             self.get_default_db_file()
-            db_url = os.fspath(config_vars["__MAIN_DB_FILE__"])
-            ddls_folder = os.fspath(config_vars["__INSTL_DEFAULTS_FOLDER__"])
+            db_url = config_vars["__MAIN_DB_FILE__"].Path()
+            ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
             self._db = DBMaster(db_url, ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
         return self._db
@@ -375,20 +362,19 @@ class DBAccess(object):
             db_base_path = None
             if "__MAIN_OUT_FILE__" in config_vars:
                 # try to set the db file next to the output file
-                db_base_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+                db_base_path = config_vars["__MAIN_OUT_FILE__"].Path()
             elif "__MAIN_INPUT_FILE__" in config_vars:
                 # if no output file try next to the input file
-                db_base_path = config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)")
+                db_base_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)"))
             else:
                 # as last resort try the Logs folder on desktop if one exists
-                logs_dir = os.path.join(os.path.expanduser("~"), "Desktop", "Logs")
-                if os.path.isdir(logs_dir):
-                    db_base_path = config_vars.resolve_str(f"{logs_dir}/instl-$(__MAIN_COMMAND__)")
+                logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
+                if logs_dir.is_dir():
+                    db_base_path = logs_dir.joinpath(config_vars.resolve_str("instl-$(__MAIN_COMMAND__)"))
 
             if db_base_path:
                 # set the proper extension
-                db_base_path, ext = os.path.splitext(db_base_path)
-                db_base_path = config_vars.resolve_str(f"{db_base_path}.$(DB_FILE_EXT)")
+                db_base_path = db_base_path.parent.joinpath(db_base_path.name+config_vars.resolve_str(".$(DB_FILE_EXT)"))
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
 
         if self._owner.refresh_db_file:
@@ -437,7 +423,7 @@ class DBManager(object):
     @classmethod
     def reset_db(cls):
         if cls.db:
-            cls.db.close()
+            cls.db.close_and_delete()
         cls.db = DBAccess()
         cls.info_map_table = TableAccess(SVNTable)
         cls.items_table = TableAccess(IndexItemsTable)

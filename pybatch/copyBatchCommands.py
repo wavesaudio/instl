@@ -22,7 +22,7 @@ def _fast_copy_file(src, dst):
                 wfd.write(buf)
 
 
-class RsyncClone(PythonBatchCommandBase, essential=True):
+class RsyncClone(PythonBatchCommandBase):
     """ base class for copying file system objects
         tries to mimic rsync behaviour
     """
@@ -123,8 +123,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_tree(resolved_src, resolved_dst)
 
@@ -369,11 +369,8 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
         self.statistics['dirs'] += 1
         log.debug(f"copy folder '{src}' to '{dst}'")
 
-        if self.top_destination_does_not_exist:
-            dst.mkdir(parents=True, exist_ok=True)
-            if self.copy_owner and self.has_chown:
-                src_stat = src.stat()
-                os.chown(dst, src_stat[stat.ST_UID], src_stat[stat.ST_GID])
+        # call MakeDir even if dst already exists, so permissions/ACL (and possibly owner) will be set correctly
+        MakeDir(dst, chowner=(self.copy_owner and self.has_chown), own_progress_count=0)()
 
         if not self.top_destination_does_not_exist and self.delete_extraneous_files:
             self.remove_extraneous_files(dst, src_file_names+src_dir_names)
@@ -414,11 +411,26 @@ class RsyncClone(PythonBatchCommandBase, essential=True):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
-        last_src_stat = os.lstat(self.last_src)
-        last_dst_stat = os.lstat(self.last_dst)
+
+        last_src_path = "unknown"
+        last_src_mode = "unknown"
+        try:
+            last_src_path = Path(self.last_src)
+            last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
+        except:
+            pass
+
+        last_dst_path = "unknown"
+        last_dst_mode = "unknown"
+        try:
+            last_dst_path = Path(self.last_dst)
+            last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
+        except:
+            pass
+
         self._error_dict.update(
-            {'last_src':  {"path": os.fspath(self.last_src), "mode": utils.unix_permissions_to_str(last_src_stat.st_mode)},
-             'last_dst':  {"path": os.fspath(self.last_dst), "mode": utils.unix_permissions_to_str(last_dst_stat.st_mode)}})
+            {'last_src':  {"path": os.fspath(last_src_path), "mode": last_src_mode},
+             'last_dst':  {"path": os.fspath(last_dst_path), "mode": last_dst_mode}})
 
 
 class CopyDirToDir(RsyncClone):
@@ -430,8 +442,8 @@ class CopyDirToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         final_dst: Path = resolved_dst.joinpath(resolved_src.name)
         self.top_destination_does_not_exist = not final_dst.exists()
         self.copy_tree(resolved_src, final_dst)
@@ -495,8 +507,8 @@ class CopyFileToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         self.top_destination_does_not_exist = not resolved_dst.exists()
         self.copy_file_to_dir(resolved_src, resolved_dst)
 
@@ -528,8 +540,8 @@ class CopyFileToFile(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ResolvedPath(self.src)
-        resolved_dst: Path = utils.ResolvedPath(self.dst)
+        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
         resolved_dst.parent.mkdir(parents=True, exist_ok=True)
         self.top_destination_does_not_exist = False
         self.copy_file_to_file(resolved_src, resolved_dst)
@@ -585,3 +597,29 @@ class CopyBundle(RsyncClone):
     def __call__(self, *args, **kwargs) -> None:
         with CopyDirToDir(self.source, self.destination, link_dest=self.link_dest, ignore_patterns=self.ignore_patterns) as cdtd:
             cdtd()
+
+
+class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
+    def __init__(self, glob_pattern, src, dst, **kwargs):
+        super().__init__(src, dst, **kwargs)
+        self.glob_pattern = glob_pattern
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.glob_pattern))
+        super().repr_own_args(all_args)
+
+    def __call__(self, *args, **kwargs) -> None:
+        resolved_source_dir: Path = utils.ExpandAndResolvePath(self.src)
+        resolved_destination_dir: Path = utils.ExpandAndResolvePath(self.dst)
+        globed_files =  list(resolved_source_dir.glob(self.glob_pattern))
+        if globed_files:
+            resolved_destination_dir.mkdir(parents=True, exist_ok=True)
+            kwargs = self.all_kwargs_dict()
+            kwargs['own_progress_count'] = 0
+            for globed_file in globed_files:
+                if globed_file.is_file():
+                    with CopyFileToDir(globed_file, resolved_destination_dir, **kwargs) as copier:
+                        copier()
+                elif not self.only_files:
+                    with CopyDirToDir(globed_file, resolved_destination_dir, **kwargs) as copier:
+                        copier()

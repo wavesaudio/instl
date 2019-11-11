@@ -28,64 +28,6 @@ def can_skip_unwtar(what_to_work_on: Path, where_to_unwtar: Path):
     return retVal
 
 
-def unwtar_a_file(wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=False):
-    try:
-        wtar_file_paths = utils.find_split_files(wtar_file_path)
-
-        log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
-        if ignore is None:
-            ignore = ()
-
-        first_wtar_file_dir, first_wtar_file_name = os.path.split(wtar_file_paths[0])
-        destination_leaf_name = utils.original_name_from_wtar_name(first_wtar_file_name)
-        destination_path = os.path.join(destination_folder, destination_leaf_name)
-
-        do_the_unwtarring = True
-        with utils.MultiFileReader("br", wtar_file_paths) as fd:
-            with tarfile.open(fileobj=fd) as tar:
-                tar_total_checksum = tar.pax_headers.get("total_checksum")
-                #log.debug(f"total checksum for tarfile(s) {wtar_file_paths} {tar_total_checksum}")
-                if tar_total_checksum:
-                    if os.path.exists(destination_path):
-                        with utils.ChangeDirIfExists(destination_folder):
-                            disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-                            #log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
-
-                        if disk_total_checksum == tar_total_checksum:
-                            do_the_unwtarring = False
-                            log.debug(f"{wtar_file_paths[0]} skipping unwtarring because item exists and is identical to archive")
-                if do_the_unwtarring:
-                    if os.path.exists(destination_path):
-                        try:
-                            utils.safe_remove_file_system_object(destination_path, ignore_errors=False)
-                        except PermissionError as pe:
-                            ChmodAndChown(destination_path, "a+rw", int(config_vars.get("ACTING_UID", -1)),
-                                              int(config_vars.get("ACTING_GID", -1)),
-                                              recursive=True, own_progress_count=0)()
-                            log.debug(f"failed to remove {destination_path}, retrying after ChmodAndChow")
-                            utils.safe_remove_file_system_object(destination_path, ignore_errors=True)
-                            log.debug(f"2nd safe_remove_file_system_object on on {destination_path} done")
-                    tar.extractall(destination_folder)
-
-                    if copy_owner:
-                        from pybatch import Chown
-                        first_wtar_file_st = os.stat(wtar_file_paths[0])
-                        #log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
-                        Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
-
-        if no_artifacts:
-            for wtar_file in wtar_file_paths:
-                os.remove(wtar_file)
-
-    except OSError as e:
-        log.warning(f"Invalid stream on split file with {wtar_file_paths[0]}")
-        raise e
-
-    except tarfile.TarError:
-        log.warning(f"tarfile error while opening file {os.path.abspath(wtar_file_paths[0])}")
-        raise
-
-
 class Wtar(PythonBatchCommandBase):
     """ create a new wtar archive for a file or folder
     """
@@ -156,10 +98,10 @@ class Wtar(PythonBatchCommandBase):
         """
 
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_what_to_wtar = utils.ResolvedPath(self.what_to_wtar)
+        resolved_what_to_wtar = utils.ExpandAndResolvePath(self.what_to_wtar)
 
         if self.where_to_put_wtar is not None:
-            resolved_where_to_put_wtar = utils.ResolvedPath(self.where_to_put_wtar)
+            resolved_where_to_put_wtar = utils.ExpandAndResolvePath(self.where_to_put_wtar)
         else:
             resolved_where_to_put_wtar = resolved_what_to_wtar.parent
             if not resolved_where_to_put_wtar:
@@ -182,7 +124,7 @@ class Wtar(PythonBatchCommandBase):
         tar_total_checksum = utils.get_wtar_total_checksum(target_wtar_file)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        self._doing = f"""wtarring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
+        self.doing = f"""wtarring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
         with utils.ChangeDirIfExists(resolved_what_to_wtar.parent):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(resolved_what_to_wtar.name, ignore=ignore_files)["total_checksum"]}
 
@@ -199,7 +141,7 @@ class Wtar(PythonBatchCommandBase):
                     # file in no particular order and taring the same file twice
                     # might produce different results. By supplying the mtime
                     # ourselves AND passing an OrderedDict as the pax_headers
-                    # hopefully the tar files will be the same each time.
+                    # hopefully the final tar will be the same for different runs.
                     file_pax_headers = OrderedDict()
                     file_pax_headers["checksum"] = utils.get_file_checksum(tarinfo.path)
                     mode_time = str(float(os.lstat(tarinfo.path)[stat.ST_MTIME]))
@@ -229,6 +171,8 @@ class Unwtar(PythonBatchCommandBase):
         self.where_to_unwtar = where_to_unwtar if where_to_unwtar else None
         self.no_artifacts = no_artifacts
         self.copy_owner = copy_owner
+        self.wtar_file_paths = None
+        self.wtar_file_paths_details = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(f'''what_to_unwtar={utils.quoteme_raw_by_type(self.what_to_unwtar)}''')
@@ -240,30 +184,94 @@ class Unwtar(PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f"""Expand '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""
 
+    def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
+        super().error_dict_self(exc_type, exc_val, exc_tb)
+        # replace plain paths with detailed info such as size, permissions, mod date, user, group
+        self.wtar_file_paths = self.wtar_file_paths_details
+        self.wtar_file_paths_details = None
+
+    def unwtar_a_file(self, wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=False):
+        if ignore is None:
+            ignore = ()
+        try:
+            self.wtar_file_paths = utils.find_split_files(wtar_file_path)
+            self.wtar_file_paths_details = [utils.single_disk_item_listing(wtar_file_path, "PSRTuUgG") for wtar_file_path in self.wtar_file_paths]
+
+            log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
+
+            destination_leaf_name = utils.original_name_from_wtar_name(self.wtar_file_paths[0].name)
+            destination_path = destination_folder.joinpath(destination_leaf_name)
+            self.doing = f"""unwtar file '{wtar_file_path}' to '{destination_folder} ({"already exists" if destination_path.exists() else "not exists"})'"""
+
+            do_the_unwtarring = True
+            with utils.MultiFileReader("br", self.wtar_file_paths) as fd:
+                with tarfile.open(fileobj=fd) as tar:
+                    tar_total_checksum = tar.pax_headers.get("total_checksum")
+                    # log.debug(f"total checksum for tarfile(s) {self.wtar_file_paths} {tar_total_checksum}")
+                    if tar_total_checksum:
+                        if destination_path.exists():
+                            with utils.ChangeDirIfExists(destination_folder):
+                                disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+                                # log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
+
+                            if disk_total_checksum == tar_total_checksum:
+                                do_the_unwtarring = False
+                                log.debug(f"{self.wtar_file_paths[0]} skipping unwtarring because item(s) exist and are identical to archive")
+                    if do_the_unwtarring:
+                        if destination_path.exists():
+                            try:
+                                utils.safe_remove_file_system_object(destination_path, ignore_errors=False)
+                            except PermissionError as pe:
+                                ChmodAndChown(destination_path, "a+rw", int(config_vars.get("ACTING_UID", -1)),
+                                              int(config_vars.get("ACTING_GID", -1)),
+                                              recursive=True, own_progress_count=0)()
+                                log.debug(f"failed to remove {destination_path}, retrying after ChmodAndChow")
+                                utils.safe_remove_file_system_object(destination_path, ignore_errors=True)
+                                log.debug(f"2nd safe_remove_file_system_object on on {destination_path} done")
+                        tar.extractall(destination_folder)
+
+                        if copy_owner:
+                            from pybatch import Chown
+                            first_wtar_file_st = self.wtar_file_paths[0].stat()
+                            # log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
+                            Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
+
+            if no_artifacts:
+                for wtar_file in self.wtar_file_paths:
+                    os.remove(wtar_file)
+
+        except OSError as e:
+            log.warning(f"Invalid stream on split file with {self.wtar_file_paths[0]}")
+            raise e
+
+        except tarfile.TarError:
+            log.warning(f"tarfile error while unwtarring file {self.wtar_file_paths[0]}")
+            raise
+
     def __call__(self, *args, **kwargs) -> None:
 
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        what_to_unwtar: Path = utils.ResolvedPath(self.what_to_unwtar)
+        self.what_to_unwtar: Path = utils.ExpandAndResolvePath(self.what_to_unwtar)
 
-        if what_to_unwtar.is_file():
-            if utils.is_first_wtar_file(what_to_unwtar):
+        if self.what_to_unwtar.is_file():
+            if utils.is_first_wtar_file(self.what_to_unwtar):
                 if self.where_to_unwtar:
-                    destination_folder: Path = utils.ResolvedPath(self.where_to_unwtar)
+                    destination_folder: Path = utils.ExpandAndResolvePath(self.where_to_unwtar)
                 else:
-                    destination_folder = what_to_unwtar.parent
-                self._doing = f"""unwtar file '{what_to_unwtar}' to '{destination_folder}''"""
-                unwtar_a_file(what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
+                    destination_folder = self.what_to_unwtar.parent
 
-        elif what_to_unwtar.is_dir():
+                self.unwtar_a_file(self.what_to_unwtar, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
+
+        elif self.what_to_unwtar.is_dir():
             if self.where_to_unwtar:
-                destination_folder: Path = Path(utils.ResolvedPath(self.where_to_unwtar), what_to_unwtar.name)
+                destination_folder: Path = Path(self.where_to_unwtar, self.what_to_unwtar.name)
             else:
-                destination_folder = what_to_unwtar
-            self._doing = f"""unwtar folder '{what_to_unwtar}' to '{destination_folder}''"""
-            if not can_skip_unwtar(what_to_unwtar, destination_folder):
-                for root, dirs, files in os.walk(what_to_unwtar, followlinks=False):
+                destination_folder = self.what_to_unwtar
+            self.doing = f"""unwtar folder '{self.what_to_unwtar}' to '{destination_folder}''"""
+            if not can_skip_unwtar(self.what_to_unwtar, destination_folder):
+                for root, dirs, files in os.walk(self.what_to_unwtar, followlinks=False):
                     # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                     # to the top level of the sync folder.
                     if "bookkeeping" in dirs:
@@ -272,18 +280,17 @@ class Unwtar(PythonBatchCommandBase):
                         continue
 
                     root_Path = Path(root)
-                    tail_folder = root_Path.relative_to(what_to_unwtar)
+                    tail_folder = root_Path.relative_to(self.what_to_unwtar)
                     for a_file in files:
                         a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
                             where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
-                            self._doing = f"""unwtarring '{a_file_path}' to '{where_to_unwtar_the_file}''"""
-                            unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
+                            self.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
             else:
-                log.debug(f"unwtar {what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
+                log.debug(f"unwtar {self.what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
         else:
-            raise FileNotFoundError(what_to_unwtar)
+            raise FileNotFoundError(self.what_to_unwtar)
 
 
 class Wzip(PythonBatchCommandBase):
@@ -333,14 +340,17 @@ class Wzip(PythonBatchCommandBase):
             all_args.append(utils.quoteme_raw_by_type(self.where_to_put_wzip))
 
     def progress_msg_self(self) -> str:
-        return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
+        if self.where_to_put_wzip:
+            return f"""Zip '{self.what_to_wzip}' to '{self.where_to_put_wzip}'"""
+        else:
+            return f"""Zip '{self.what_to_wzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_what_to_zip = utils.ResolvedPath(self.what_to_wzip)
+        resolved_what_to_zip = utils.ExpandAndResolvePath(self.what_to_wzip)
 
         if self.where_to_put_wzip:
-            target_wzip_file = utils.ResolvedPath(self.where_to_put_wzip)
+            target_wzip_file = utils.ExpandAndResolvePath(self.where_to_put_wzip)
         else:
             target_wzip_file = resolved_what_to_zip.parent
             if not target_wzip_file:  # os.path.split might return empty string
@@ -350,7 +360,7 @@ class Wzip(PythonBatchCommandBase):
             target_wzip_file.mkdir(parents=True, exist_ok=True)
             target_wzip_file = target_wzip_file.joinpath(resolved_what_to_zip.name+".wzip")
 
-        self._doing = f"""wziping '{resolved_what_to_zip}' to '{target_wzip_file}'"""
+        self.doing = f"""wziping '{resolved_what_to_zip}' to '{target_wzip_file}'"""
         zlib_compression_level = int(config_vars.get("ZLIB_COMPRESSION_LEVEL", "8"))
         with open(target_wzip_file, "wb") as wfd, open(resolved_what_to_zip, "rb") as rfd:
             wfd.write(zlib.compress(rfd.read(), zlib_compression_level))
@@ -373,8 +383,8 @@ class Unwzip(PythonBatchCommandBase):
         return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        resolved_what_to_unwzip = utils.ResolvedPath(self.what_to_unwzip)
-        target_unwzip_file = utils.ResolvedPath(self.where_to_put_unwzip)
+        resolved_what_to_unwzip = utils.ExpandAndResolvePath(self.what_to_unwzip)
+        target_unwzip_file = utils.ExpandAndResolvePath(self.where_to_put_unwzip)
         what_to_work_on_dir, what_to_work_on_leaf = os.path.split(resolved_what_to_unwzip)
         if not target_unwzip_file:
             target_unwzip_file = resolved_what_to_unwzip.parent
@@ -387,7 +397,7 @@ class Unwzip(PythonBatchCommandBase):
                 what_to_work_on_leaf = resolved_what_to_unwzip.stem
             target_unwzip_file = os.path.join(target_unwzip_file, what_to_work_on_leaf)
 
-        self._doing = f"""unzipping '{resolved_what_to_unwzip}' to '{target_unwzip_file}''"""
+        self.doing = f"""unzipping '{resolved_what_to_unwzip}' to '{target_unwzip_file}''"""
         with open(resolved_what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
             decompressed = zlib.decompress(rfd.read())
             wfd.write(decompressed)

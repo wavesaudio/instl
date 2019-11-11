@@ -61,15 +61,11 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                         self.config_vars.read_environment(contents_list)
                     elif self._allow_reading_of_internal_vars or not internal_identifier_re.match(
                             identifier):  # do not read internal state identifiers
-                        #self.config_vars[identifier] = [item.value for item in contents]
-                        values = list()
-                        for item in contents:
-                            with kwargs['node-stack'](item):
-                                if isinstance(item.value, (str, int, type(None))):
-                                    values.append(item.value)
-                                else:
-                                    raise TypeError(f"Values for configVar {identifier} should be of type str or int not {type(item.value)}")
-                        self.config_vars[identifier] = values
+                        values = self.read_values_for_config_var(contents, identifier, **kwargs)
+                        the_config_var = self.config_vars.setdefault(key=identifier, default=None, callback_when_value_is_set=None)
+                        if contents.tag != "!+=":
+                            the_config_var.clear()
+                        the_config_var.extend(values)
 
     def read_defines_if_not_exist(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
@@ -80,14 +76,19 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                         raise ValueError("!define_if_not_exist doc cannot except __include__ and __include_if_exist__")
                     if self._allow_reading_of_internal_vars or not internal_identifier_re.match(identifier):  # do not read internal state identifiers
                         if identifier not in self.config_vars:
-                            values = list()
-                            for item in contents:
-                                with kwargs['node-stack'](item):
-                                    if isinstance(item.value, (str, int)):
-                                        values.append(item.value)
-                                    else:
-                                        raise TypeError(f"Values for configVar {identifier} should be of type str or int not {type(item.value)}")
+                            values = self.read_values_for_config_var(contents, identifier, **kwargs)
                             self.config_vars[identifier] = values
+
+    def read_values_for_config_var(self, _contents, _identifier, **kwargs):
+        values = list()
+
+        for item in _contents:
+            with kwargs['node-stack'](item):
+                if isinstance(item.value, (str, int, type(None))):
+                    values.append(item.value)
+                else:
+                    raise TypeError(f"Values for configVar {_identifier} should be of type str or int not {type(item.value)}")
+        return values
 
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes

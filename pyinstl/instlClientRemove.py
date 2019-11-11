@@ -29,9 +29,9 @@ class InstlClientRemove(InstlClient):
 
     def create_remove_instructions(self):
 
-        have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_PATH"])
-        if not os.path.isfile(have_info_path):
-            have_info_path = os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"])
+        have_info_path = config_vars["HAVE_INFO_MAP_PATH"].Path()
+        if not have_info_path or not have_info_path.is_file():
+            have_info_path = config_vars["SITE_HAVE_INFO_MAP_PATH"].Path()
         self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
         self.calc_iid_to_name_and_version()
 
@@ -46,7 +46,7 @@ class InstlClientRemove(InstlClient):
         for folder_name in sorted_target_folder_list:
             with self.batch_accum.sub_accum(Stage("Remove from folder", folder_name)) as folder_accum_transaction:
                 folder_accum_transaction += self.create_remove_previous_sources_instructions_for_target_folder(folder_name)
-                config_vars["__TARGET_DIR__"] = os.path.normpath(folder_name)
+                config_vars["__TARGET_DIR__"] = Path(folder_name)
                 items_in_folder = self.all_iids_by_target_folder[folder_name]
 
                 folder_accum_transaction += self.accumulate_unique_actions_for_active_iids('pre_remove_from_folder', items_in_folder)
@@ -78,8 +78,9 @@ class InstlClientRemove(InstlClient):
 
         retVal = AnonymousAccum()
         source_path, source_type = source[0], source[1]
-        base_, leaf = os.path.split(source_path)
-        to_remove_path = os.path.normpath(os.path.join(folder, leaf))
+        folder_Path = Path(folder)
+        source_Path = Path(source_path)
+        to_remove_path = folder_Path.joinpath(source_Path.name)
 
         specific_remove_actions = self.items_table.get_details_for_active_iids('remove_item', unique_values=False, limit_to_iids=(IID,))
 

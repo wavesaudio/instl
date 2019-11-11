@@ -6,7 +6,6 @@ import sys
 import re
 import abc
 from pathlib import Path
-import platform
 import appdirs
 import urllib.error
 import io
@@ -54,7 +53,7 @@ def check_version_compatibility():
     return retVal, message
 
 
-class IndexYamlReader(DBManager, ConfigVarYamlReader):
+class IndexYamlReaderBase(DBManager, ConfigVarYamlReader):
 
     def __init__(self, config_vars, **kwargs) -> None:
         ConfigVarYamlReader.__init__(self, config_vars)
@@ -82,8 +81,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
-                                             'doit', 'report-versions', 'exec', 'read-yaml', 'trans', 'translate-guids',
-                                             'verify-repo', 'depend', 'fix-props']
+                                             'doit', 'report-versions', 'read-yaml', 'translate-guids',
+                                             'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
+                                             'short-index']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -92,7 +92,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         self.fixed_command = None
 
         DBManager.__init__(self)
-        IndexYamlReader.__init__(self, config_vars)
+        IndexYamlReaderBase.__init__(self, config_vars)
 
         self.path_searcher = utils.SearchPaths(config_vars, "__SEARCH_PATHS__")
         self.url_translator = connectionBase.translate_url
@@ -100,9 +100,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # noinspection PyUnresolvedReferences
         self.read_defaults_file(super().__thisclass__.__name__)
         # initialize the search paths helper with the current directory and dir where instl is now
-        self.path_searcher.add_search_path(os.getcwd())
-        self.path_searcher.add_search_path(os.path.dirname(os.path.realpath(sys.argv[0])))
-        self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].str())
+        self.path_searcher.add_search_path(Path.cwd())
+        self.path_searcher.add_search_path(Path(config_vars["__ARGV__"][0]).resolve())
+        self.path_searcher.add_search_path(config_vars["__INSTL_DATA_FOLDER__"].Path())
 
         self.batch_accum = PythonBatchCommandAccum()
         self.dl_tool = CUrlHelper()
@@ -122,7 +122,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
-        IndexYamlReader.init_specific_doc_readers(self)
+        IndexYamlReaderBase.init_specific_doc_readers(self)
         self.specific_doc_readers.pop("__no_tag__", None)
         self.specific_doc_readers.pop("__unknown_tag__", None)
 
@@ -143,16 +143,19 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.specific_doc_readers["!" + acceptibul] = self.read_defines
 
     def get_version_str(self, short=False):
-        instl_ver_str = ".".join(list(config_vars["__INSTL_VERSION__"]))
-        if not short:
-            if "__PLATFORM_NODE__" not in config_vars:
-                config_vars.update({"__PLATFORM_NODE__": platform.node()})
-            instl_ver_str = config_vars.resolve_str(
-                "$(INSTL_EXEC_DISPLAY_NAME) version "+instl_ver_str+" $(__COMPILATION_TIME__) $(__PLATFORM_NODE__)")
+        if short:
+            to_resolve_var = "__INSTL_VERSION_STR_SHORT__"
+        else:
+            to_resolve_var = "__INSTL_VERSION_STR_LONG__"
+        instl_ver_str = config_vars[to_resolve_var].str()
         return instl_ver_str
 
     def init_default_vars(self, initial_vars):
         config_vars.update(initial_vars)
+
+        # settings these configVar requires setting global values in files.py as soon as possible
+        config_vars["ACTING_UID"].set_callback_when_value_is_set(utils.set_active_user_or_group_config_var_callback),
+        config_vars["ACTING_GID"].set_callback_when_value_is_set(utils.set_active_user_or_group_config_var_callback),
 
         # read defaults/main.yaml
         self.read_defaults_file("main", ignore_if_not_exist=False)
@@ -281,12 +284,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True
-                        destination_file_resolved_path = utils.ResolvedPath(config_vars.resolve_str(copy_destination.value))
+                        destination_file_resolved_path = utils.ExpandAndResolvePath(config_vars.resolve_str(copy_destination.value))
                         if destination_file_resolved_path.is_file() and expected_checksum is not None:
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            self.batch_accum += MakeDirs(destination_file_resolved_path.parent)
+                            self.batch_accum += MakeDir(destination_file_resolved_path.parent, chowner=True)
                             self.batch_accum += CopyFileToFile(file_path, destination_file_resolved_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
@@ -365,6 +368,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
 
+        in_batch_accum.initial_progress = self.internal_progress
         self.create_variables_assignment(in_batch_accum)
         self.init_python_batch(in_batch_accum)
 
@@ -372,25 +376,18 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         final_repr = repr(in_batch_accum)
 
-        out_file = os.fspath(config_vars["__MAIN_OUT_FILE__"])
-        out_file += file_name_post_fix
-        out_file = os.path.abspath(out_file)
-        d_path, f_name = os.path.split(out_file)
-        os.makedirs(d_path, exist_ok=True)
+        out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
+        if out_file:
+            out_file = out_file.parent.joinpath(out_file.name+file_name_post_fix)
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            self.out_file_realpath = os.fspath(out_file)
+        else:
+            self.out_file_realpath = "stdout"
+
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(final_repr)
             fd.write('\n')
 
-        if out_file != "stdout":
-            self.out_file_realpath = os.path.realpath(out_file)
-            # chmod to 0777 so that file created under sudo, can be re-written under regular user.
-            # However regular user cannot chmod for file created under sudo, hence the try/except
-            try:
-                os.chmod(self.out_file_realpath, 0o777)
-            except Exception:
-                pass
-        else:
-            self.out_file_realpath = "stdout"
         msg = " ".join(
             (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)
@@ -417,7 +414,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")
-        IndexYamlReader.read_index(self, a_node, *args, **kwargs)
+        IndexYamlReaderBase.read_index(self, a_node, *args, **kwargs)
         repo_rev = str(config_vars.get("REPO_REV", "unknown"))
         self.progress("repo-rev", repo_rev)
 

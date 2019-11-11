@@ -105,7 +105,8 @@ def prepare_args_parser(in_command):
         'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
         'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
         'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'uninstall previously copied files, considering dependencies'},
-        })
+        'short-index':      {'mode': 'client', 'options': {'in', 'out'}, 'help': 'create short version of the index'},
+    })
 
     if in_command not in all_command_details:
         # do_something commands
@@ -113,32 +114,26 @@ def prepare_args_parser(in_command):
             'check-checksum':       {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
             'checksum':             {'mode': 'do_something', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
             'command-list':         {'mode': 'do_something', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
-            'create-folders':       {'mode': 'do_something', 'options': ('in',  'prog',), 'help':  'create folders from info_map file'},
             'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
             'fail':                 {'mode': 'do_something', 'options': (), 'help': "fail and return exit code"},
             'help':                 {'mode': 'do_something', 'options': (), 'help':  'help'},
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
-            'mac-dock':             {'mode': 'do_something', 'options': (), 'help': "add or remove to Mac OS's Dock"},
             'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
-            'remove-empty-folders': {'mode': 'do_something', 'options': ('in', ), 'help':  'remove folders is they are empty'},
             'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
-            'run-process':          {'mode': 'do_something', 'options': (), 'help':  'Run a processes with optional abort file'},
-            'set-exec':             {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'set executable bit for appropriate files'},
+            'run-process':          {'mode': 'do_something', 'options': ('in_opt',), 'help':  'Run a processes with optional abort file'},
             'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
             'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
             'unwtar':               {'mode': 'do_something', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
             'version':              {'mode': 'do_something', 'options': (), 'help':  'display instl version'},
-            'win-shortcut':         {'mode': 'do_something', 'options': (), 'help':  'create a Windows shortcut'},
             'wtar':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wtar files from specified files and folders'},
             'wzip':                 {'mode': 'do_something', 'options': ('in', 'out'), 'help':  'create .wzip file from specified file'},
-            'encode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert a real symlink into a .symlink file'},
-            'decode-symlink':       {'mode': 'do_something', 'options': ('in',), 'help':  'convert .symlink file into a real symlink'}
             })
 
     if in_command not in all_command_details:
         # admin commands
         all_command_details.update({
             # converted to instl 2 style
+            'activate-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
             'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
             'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
@@ -147,19 +142,12 @@ def prepare_args_parser(in_command):
             'stage2svn':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
             'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
             'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
-            'up2s3':                {'mode': 'admin', 'options': ('conf', 'out', 'run', 'rev'), 'help': 'upload revision to s3'},
-            'wait-on-commit-trigger': {'mode': 'admin', 'options': ('conf',), 'help': 'wait for svn commit and upload revision to s3'},
+            'up2s3':                {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'upload revision to s3'},
+            'wait-on-action-trigger': {'mode': 'admin', 'options': ('conf',), 'help': 'wait for svn commit and upload revision to s3'},
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-            'create-infomap':       {'mode': 'admin', 'options': ('conf', 'out', 'run'), 'help': 'create infomap file for repository'},
-            'create-links':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'create links from the base SVN checkout folder for a specific version'},
-            'create-repo-rev-file': {'mode': 'admin', 'options': ('conf',), 'help':  'create repo rev file for a specific revision'},
-            'filter-infomap':       {'mode': 'admin', 'options': ('in',), 'help':  'filter infomap.txt to sub files according to index.yaml'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
-            'trans':                {'mode': 'admin', 'options': ('in', 'out',), 'help':  'translate svn map files from one format to another'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
-            'up-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
-            'up2s3_legacy':         {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload installation sources to S3'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
             'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},
             })
@@ -191,7 +179,7 @@ def prepare_args_parser(in_command):
                     break
                 yield arg
 
-    parser = argparse.ArgumentParser(description='instl: cross platform svn based installer',
+    parser = argparse.ArgumentParser(description='instl: cross platform installer',
                     prefix_chars='-+',
                     fromfile_prefix_chars='@',
                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -274,7 +262,7 @@ def prepare_args_parser(in_command):
         is_required = 'conf' in command_details['options']
         config_file_options.add_argument('--config-file', '-s',
                                     required=is_required,
-                                    nargs=1,
+                                    nargs='+',
                                     metavar='path-to-config-file',
                                     dest='__CONFIG_FILE__',
                                     help="path to config-file")
@@ -346,44 +334,8 @@ def prepare_args_parser(in_command):
                             action='store_true',
                             dest='__SILENT__',
                             help="minimal output")
-    elif 'trans' == in_command:
-        trans_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        trans_options.add_argument('--props', '-p',
-                                required=False,
-                                nargs=1,
-                                metavar='path-to-props-file',
-                                dest='__PROPS_FILE__',
-                                help="file to read svn properties from")
 
-        trans_options.add_argument('--base-repo-rev',
-                                required=False,
-                                nargs=1,
-                                metavar='base-repo-rev',
-                                dest='BASE_REPO_REV',
-                                help="minimal version, all version below will be changed to base-repo-rev")
-        trans_options.add_argument('--base-url',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='base-url',
-                                    dest='__BASE_URL__',
-                                    help="")
-        trans_options.add_argument('--file-sizes',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='file-sizes-file',
-                                    dest='__FILE_SIZES_FILE__',
-                                    help="")
-
-    elif 'create-repo-rev-file' == in_command:
-        create_repo_rev_file_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        create_repo_rev_file_options.add_argument('--rev',
-                                required=False,
-                                nargs=1,
-                                metavar='revision-to-create-file-for',
-                                dest='TARGET_REPO_REV',
-                                help="revision to create file for")
-
-    elif 'up-repo-rev' == in_command:
+    elif 'activate-repo-rev' == in_command:
         up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
         up_repo_rev_options.add_argument('--just-with-number', '-j',
                             required=False,
@@ -391,54 +343,6 @@ def prepare_args_parser(in_command):
                             metavar='just-with-number',
                             dest='__JUST_WITH_NUMBER__',
                             help="up load just the repo-rev file that ends with a specific number, not the general one")
-
-    elif 'win-shortcut' == in_command:
-        short_cut_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        short_cut_options.add_argument('--shortcut',
-                            required=True,
-                            nargs=1,
-                            metavar='shortcut',
-                            dest='__SHORTCUT_PATH__',
-                            help="path to the shortcut itself")
-        short_cut_options.add_argument('--target',
-                                       required=True,
-                                       nargs=1,
-                                       metavar='target',
-                                       dest='__SHORTCUT_TARGET_PATH__',
-                                       help="path to the item being shortcut")
-        short_cut_options.add_argument('--run-as-admin',
-                                       required=False,
-                                       default=False,
-                                       action='store_true',
-                                       dest='__RUN_AS_ADMIN__',
-                                       help="set run as admin flag")
-
-    elif 'mac-dock' == in_command:
-        mac_dock_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        mac_dock_options.add_argument('--path',
-                                required=False,
-                                nargs=1,
-                                metavar='dock-item-path',
-                                dest='__DOCK_ITEM_PATH__',
-                                help="path to dock item")
-        mac_dock_options.add_argument('--label',
-                                required=False,
-                                nargs=1,
-                                metavar='dock-item-label',
-                                dest='__DOCK_ITEM_LABEL__',
-                                help="label for dock item")
-        mac_dock_options.add_argument('--remove',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='__REMOVE_FROM_DOCK__',
-                                help="remove from dock")
-        mac_dock_options.add_argument('--restart',
-                                required=False,
-                                default=False,
-                                action='store_true',
-                                dest='__RESTART_THE_DOCK__',
-                                help="restart the dock")
 
     elif 'unwtar' == in_command:
         unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
@@ -448,7 +352,7 @@ def prepare_args_parser(in_command):
                                 action='store_true',
                                 dest='__NO_WTAR_ARTIFACTS__',
                                 help="remove all .wtar files and .done files")
-    elif in_command in ('create-links', 'up2s3'):
+    elif in_command in ('up2s3',):
         which_revision_options = command_parser.add_argument_group(description=in_command+' arguments:')
         which_revision_options.add_argument('--revision',
                                 required=False,
@@ -527,7 +431,7 @@ def prepare_args_parser(in_command):
     general_options.add_argument('--no-system-log',
                             required=False,
                             action='store_const',
-                            metavar='no_stdout',
+                            metavar='no_system_log',
                             const='__NO_SYSLOG__',
                             help="do not output to system log")
     general_options.add_argument('--log',

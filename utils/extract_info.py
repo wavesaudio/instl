@@ -7,6 +7,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 import codecs
 import re
+from pathlib import Path
 
 import utils
 
@@ -31,10 +32,10 @@ plugin_version_and_guid_re = re.compile("""
 
 
 # cross platform
-def plugin_bundle(in_os, in_path):
+def plugin_bundle(in_os, in_path: Path):
     retVal = None
-    xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
-    if os.path.exists(xml_path):
+    xml_path = in_path.joinpath('Contents', 'Info.xml')
+    if xml_path.exists():
         with utils.utf8_open_for_read(xml_path, "r") as rfd:
             info_xml = rfd.read()
             match = plugin_version_and_guid_re.match(info_xml)
@@ -48,15 +49,16 @@ def plugin_bundle(in_os, in_path):
     return retVal
 
 
-def get_info_from_plugin(in_os, in_path):
+def get_info_from_plugin(in_os, in_path: Path):
     retVal = dict()
     try:
-        xml_path = os.path.join(in_path, 'Contents', 'Info.xml')
-        if not os.path.exists(xml_path):
-            xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
-        tree = ET.parse(xml_path)
+        in_path = in_path.resolve()
+        xml_path = in_path.joinpath('Contents', 'Info.xml')
+        if not xml_path.exists():
+            xml_path = in_path.joinpath('Contents', 'Resources', 'InfoXML', '1000.xml')
+        tree = ET.parse(os.fspath(xml_path))
         xml = tree.getroot()
-        retVal['path'] = os.path.realpath(in_path)
+        retVal['path'] = os.fspath(in_path)
         for child in xml.iter('LicenseGUID'):
             retVal['LicenseGUID'] = child.text.lower()
             break
@@ -76,11 +78,12 @@ def get_info_from_plugin(in_os, in_path):
         pass
     return retVal
 
-def get_guid(in_os, in_path):
+
+def get_guid(in_os, in_path: Path):
     guid = None
     try:
-        xml_path = os.path.join(in_path, 'Contents', 'Resources', 'InfoXML', '1000.xml')
-        if os.path.exists(xml_path):
+        xml_path = in_path.joinpath('Contents', 'Resources', 'InfoXML', '1000.xml')
+        if xml_path.exists():
             tree = ET.parse(xml_path)
             xml = tree.getroot()
             for child in xml.iter('LicenseGUID'):
@@ -113,8 +116,8 @@ def get_wfi_version(in_os, in_path):
 def Mac_bundle(in_os, in_path):
     retVal = None
     try:
-        plist_path = os.path.join(in_path, 'Contents/Info.plist')
-        if os.path.exists(plist_path):
+        plist_path = Path(in_path, 'Contents/Info.plist')
+        if plist_path.exists():
             with open(plist_path, 'rb') as fp:
                 pl = plistlib.load(fp)
                 version = pl.get('CFBundleGetInfoString', "").split()
@@ -134,8 +137,8 @@ def Mac_bundle(in_os, in_path):
 def Mac_framework(in_os, in_path):
     retVal = None
     try:
-        plist_path = os.path.join(in_path, 'Versions/Current/Resources/Info.plist')
-        if os.path.exists(plist_path):
+        plist_path = Path(in_path, 'Versions/Current/Resources/Info.plist')
+        if plist_path.exists():
             with open(plist_path, 'rb') as fp:
                 pl = plistlib.load(fp)
                 version = pl.get('CFBundleGetInfoString', "").split()
@@ -190,17 +193,17 @@ def Mac_pkg(in_os, in_path):
 
 
 # Windows
-def Win_bundle(in_os, in_path):
+def Win_bundle(in_os, in_path: Path):
     retVal = None
     try:
-        dll_name = os.path.basename(in_path).replace('bundle', 'dll')
-        dll_path = os.path.join(in_path, 'Contents', 'Win64', dll_name)
-        if not os.path.exists(dll_path):
-            dll_path = os.path.join(in_path, 'Contents', 'Win32', dll_name)
-        if not os.path.exists(dll_path):
+        dll_name = in_path.name.replace('bundle', 'dll')
+        dll_path = in_path.joinpath('Contents', 'Win64', dll_name)
+        if not dll_path.exists():
+            dll_path = in_path.joinpath('Contents', 'Win32', dll_name)
+        if not dll_path.exists():
             version = None
         else:
-            info = win32api.GetFileVersionInfo(dll_path, "\\")
+            info = win32api.GetFileVersionInfo(os.fspath(dll_path), "\\")
             ms = info['FileVersionMS']
             ls = info['FileVersionLS']
             version = '%d.%d.%d.%d' % (win32api.HIWORD(ms), win32api.LOWORD(ms), win32api.HIWORD(ls), win32api.LOWORD(ls))
@@ -247,8 +250,8 @@ def Win_file(in_os, in_path):
     return retVal
 
 
-def extract_binary_info(in_os, in_path):
-    filename, file_extension = os.path.splitext(in_path)
+def extract_binary_info(in_os, in_path: Path):
+    file_extension = in_path.suffix
     func = extract_info_funcs_by_extension[in_os].get(file_extension, default_extract_info)
     retVal = func(in_os, in_path)
     return retVal
@@ -281,7 +284,11 @@ extract_info_funcs_by_extension = {
 
 
 class check_binaries_versions_filter_with_ignore_regexes(object):
-    def __init__(self, ignore_file_regexes=[".^"], ignore_folder_regexes=[".^"]):
+    def __init__(self, ignore_file_regexes=None, ignore_folder_regexes=None):
+        if ignore_file_regexes is None:
+            ignore_file_regexes = [".^"]
+        if ignore_folder_regexes is None:
+            ignore_folder_regexes = [".^"]
         self.compiled_ignore_file_regex = None
         self.compiled_ignore_folder_regex = None
         self.set_file_ignore_regexes(ignore_file_regexes)
@@ -295,6 +302,7 @@ class check_binaries_versions_filter_with_ignore_regexes(object):
 
     def __call__(self, in_path):
         retVal = True
+        in_path = os.fspath(in_path)
         if os.path.isfile(in_path):
             if self.compiled_ignore_file_regex.search(in_path):
                 retVal = False
@@ -304,25 +312,26 @@ class check_binaries_versions_filter_with_ignore_regexes(object):
         return retVal
 
 
-def check_binaries_versions_in_folder(current_os, in_path, in_filter=lambda p: True):
+def check_binaries_versions_in_folder(current_os, in_path: Path, in_filter=lambda p: True):
     retVal = list()
     for root_path, dirs, files in os.walk(in_path, followlinks=False):
         if not in_filter(root_path):
             del dirs[:]  # skip root_path and it's siblings
             del files[:]
         else:
-            info = extract_binary_info(current_os, root_path)
+            root_Path = Path(root_path)
+            info = extract_binary_info(current_os, root_Path)
             if info is not None:
                 retVal.append(info)
                 del dirs[:]  # info was found for root_path, no need to dig deeper
                 del files[:]
             else:
                 for a_file in files:
-                    file_full_path = os.path.join(root_path, a_file)
-                    if not in_filter(file_full_path):
+                    file_full_Path = root_Path.joinpath(a_file)
+                    if not in_filter(file_full_Path):
                         continue
-                    if not os.path.islink(file_full_path):
-                        info = extract_binary_info(current_os, file_full_path)
+                    if not file_full_Path.is_symlink():
+                        info = extract_binary_info(current_os, file_full_Path)
                         if info is not None:
                             retVal.append(info)
     return retVal

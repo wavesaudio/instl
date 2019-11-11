@@ -228,7 +228,7 @@ class IndexItemsTable(object):
         VALUES ("__ALL_ITEMS_IID__", 1, 0, 0, 0, 0);
 
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
-            SELECT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
+            SELECT DISTINCT "__ALL_ITEMS_IID__", "__ALL_ITEMS_IID__", "depends", index_item_t.iid, 0, 0
             FROM index_item_t
             WHERE iid NOT IN {iids_to_ignore_str};
 
@@ -236,7 +236,7 @@ class IndexItemsTable(object):
         VALUES ("__ALL_GUIDS_IID__", 1, 0, 0);
 
         INSERT INTO index_item_detail_t(original_iid, owner_iid, detail_name, detail_value, os_id, generation)
-            SELECT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", index_item_detail_t.owner_iid, 0, 0
+            SELECT DISTINCT "__ALL_GUIDS_IID__", "__ALL_GUIDS_IID__", "depends", index_item_detail_t.owner_iid, 0, 0
             FROM index_item_detail_t
             WHERE index_item_detail_t.detail_name="guid"
             AND index_item_detail_t.owner_iid=index_item_detail_t.original_iid
@@ -1355,9 +1355,56 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
+    def get_info_map_and_sync_base_urls(self, detail_name):
+        """ select all unique info_map names and their sync_base_url - if any
+            results is a list of tuples: [(C1_Setups_Library_IID, None),
+                                          (Instrument_Data_Electric200__SD_Sample_Library_IID, $(BASE_LINKS_URL)/Common)]
+        """
+        query_text = """
+          SELECT DISTINCT index_item_detail_info_map_t.detail_value, index_item_detail_sync_base_url_t.detail_value
+          FROM index_item_detail_t AS index_item_detail_info_map_t
+          LEFT JOIN  index_item_detail_t AS index_item_detail_sync_base_url_t
+          ON index_item_detail_sync_base_url_t.detail_name = 'sync_base_url'
+          AND index_item_detail_info_map_t.owner_iid = index_item_detail_sync_base_url_t.owner_iid
+          WHERE index_item_detail_info_map_t.detail_name = 'info_map'
+          ORDER BY index_item_detail_info_map_t.detail_value
+        """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
 
+    def get_data_for_short_index(self):
+        """ get all iids that have guids with their name and version
+            returns IID, GUID, NAME, VERSION, generation
+        """
 
+        query_text = """
+            SELECT index_item_t.iid AS IID,
+                   item_guid_t.detail_value AS GUID,
+                   item_name_t.detail_value AS NAME,
+                   item_version_t.detail_value AS VERSION,
+                   item_guid_2_t.detail_value AS VERSION,
+                   min(item_version_t.generation) AS generation,
+                   max(item_guid_2_t.generation) AS generation
+            FROM index_item_t
+            
+            JOIN index_item_detail_t AS item_guid_t
+            ON item_guid_t.owner_iid == index_item_t.iid
+            AND item_guid_t.detail_name == 'guid'
+            
+            LEFT JOIN index_item_detail_t AS item_name_t
+            ON item_name_t.owner_iid == index_item_t.iid
+            AND item_name_t.detail_name == 'name'
+            
+            LEFT JOIN index_item_detail_t AS item_version_t
+            ON item_version_t.owner_iid == index_item_t.iid
+            AND item_version_t.detail_name == 'version'
+            
+            JOIN index_item_detail_t AS item_guid_2_t
+            ON item_guid_2_t.owner_iid == index_item_t.iid
+            AND item_guid_2_t.detail_name == 'guid'
+            
+            GROUP BY index_item_t.iid
+        """
 
-
-
-
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal

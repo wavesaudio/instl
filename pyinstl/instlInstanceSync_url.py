@@ -28,18 +28,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_commands = AnonymousAccum()
 
-        create_sync_folders_commands += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
         create_sync_folders_commands += CreateSyncFolders()
-        # TODO
-        # self.instlObj.platform_helper.num_items_for_progress_report += need_download_dirs_num
-        self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
-        for sync_dir in list(config_vars["ALL_SYNC_DIRS"]):
-            if config_vars["__CURRENT_OS__"].str() == "Mac":
-                create_sync_folders_commands += Chown(path=sync_dir, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
-            elif config_vars["__CURRENT_OS__"].str() == "Win":
-                create_sync_folders_commands += FullACLForEveryone(path=sync_dir)
+        self.instlObj.progress(f"{need_download_dirs_num} folders to create")
 
         return create_sync_folders_commands
 
@@ -88,26 +80,26 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """
         dl_commands = AnonymousAccum()
 
-        main_out_file_dir, main_out_file_leaf = os.path.split(os.fspath(config_vars["__MAIN_OUT_FILE__"]))
-        curl_config_folder = os.path.join(main_out_file_dir, "curl")
-        os.makedirs(curl_config_folder, exist_ok=True)
-        curl_config_file_path = config_vars.resolve_str(os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME)"))
+        main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
+        curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
+        MakeDir(curl_config_folder, chowner=True)()
+        curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
+
         num_config_files = int(config_vars["PARALLEL_SYNC"])
         # TODO: Move class someplace else
         config_file_list = self.instlObj.dl_tool.create_config_files(curl_config_file_path, num_config_files)
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:
-            if actual_num_config_files > 1:
-                dl_start_message = f"Downloading with {actual_num_config_files} processes in parallel"
+            if num_config_files > 1:
+                dl_start_message = f"Downloading with {num_config_files} processes in parallel"
             else:
                 dl_start_message = "Downloading with 1 process"
             dl_commands += Progress(dl_start_message)
 
             num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
 
-            parallel_run_config_file_path = config_vars.resolve_str(
-                os.path.join(curl_config_folder, "$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            parallel_run_config_file_path = curl_config_folder.joinpath(config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
             dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, own_progress_count=num_files_to_download, report_own_progress=False)
 
@@ -136,8 +128,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
-        check_checksum_instructions_accum += Progress("Check checksum ...", own_progress_count=num_files)
-        check_checksum_instructions_accum += CheckDownloadFolderChecksum()
+        check_checksum_instructions_accum += Progress("Check checksum ...")
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files)
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 
@@ -209,7 +201,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         with self.instlObj.batch_accum.sub_accum(Stage("download", "$(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
-            sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
+            sync_accum += MakeDir("$(LOCAL_REPO_SYNC_DIR)", chowner=True)
 
             with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
                 with local_repo_sync_dir_accum.sub_accum(Stage("remove_redundant_files_in_sync_folder")) as rrfisf:

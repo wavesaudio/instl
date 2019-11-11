@@ -1,16 +1,10 @@
 #!/usr/bin/env python3.6
 
-import os
-import utils
 import logging
 log = logging.getLogger()
 
 from .instlInstanceBase import InstlInstanceBase
-from configVar import config_vars
-from .indexItemTable import IndexItemsTable
 from pybatch import *
-
-# to do: under doit command all copy... python-batch should default to hard-links=False
 
 
 class InstlDoIt(InstlInstanceBase):

@@ -92,7 +92,7 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
             if self.urls_to_download_last:
                 actual_num_config_files += 1
             num_digits = len(str(actual_num_config_files))
-            file_name_list = ["-".join((curl_config_file_path, str(file_i).zfill(num_digits))) for file_i in range(actual_num_config_files)]
+            file_name_list = ["-".join((os.fspath(curl_config_file_path), str(file_i).zfill(num_digits))) for file_i in range(actual_num_config_files)]
 
             # open the files make sure they have r/w permissions and are utf-8
             wfd_list = list()

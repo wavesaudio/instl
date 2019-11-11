@@ -1,4 +1,5 @@
 awscli
 redis
 aws
-boto
+boto3
+pip

@@ -4,6 +4,7 @@ import io
 import os
 import stat
 import tarfile
+from typing import Union
 
 
 """
@@ -54,7 +55,7 @@ class MultiFileReader(io.RawIOBase):
         self.num_files = len(self.the_files)
         self.total_size = -1
         self.current_fd_index = -1
-        self.empty_buffer = ''
+        self.empty_buffer: Union[str, bytes] = ''
         if 'b' in self.mode:
             self.empty_buffer = b''
 

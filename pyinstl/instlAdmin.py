@@ -1,24 +1,46 @@
 #!/usr/bin/env python3.6
 
+import logging
+log = logging.getLogger()
 
 import os
 import sys
+import traceback
 import filecmp
-import io
+import multiprocessing as mp
+import time
+import datetime
 import re
-import shutil
-import subprocess
-from collections import defaultdict
-import stat
-import zlib
-import tempfile
+import redis
+import boto3
+import threading
 
 import utils
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
-from configVar import config_vars
-from svnTree import SVNTable
 from pybatch import *
+from .instlException import InstlException
+
+
+def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbeat_interval):
+    """ start a daemon thread that will periodically set a redis key to a string containing the current date/time
+        a daemon thread will stop when the application quits, so no need to join the thread
+    """
+    def heartbeat_redis(redis_host, redis_port, heartbeat_key, heartbeat_interval):
+        try:
+            r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+            while True:
+                now_time = time.time()
+                r.set(heartbeat_key, str(datetime.datetime.fromtimestamp(now_time)))
+                time_to_sleep = max(now_time + heartbeat_interval - time.time(), 0.01)
+                #print(f"{now_time} {time_to_sleep}")
+                time.sleep(time_to_sleep)
+        except Exception as ex:
+            print(f"Exception in heartbeat_redis {ex}")
+
+    thread_name = "redis heartbeat"
+    x = threading.Thread(target=heartbeat_redis, args=(redis_host, redis_port, heartbeat_key, heartbeat_interval), daemon=True, name=thread_name)
+    x.start()
 
 
 # noinspection PyPep8,PyPep8,PyPep8
@@ -29,46 +51,34 @@ class InstlAdmin(InstlInstanceBase):
         self.total_self_progress = 1000
         self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
+        self.config_vars_stack_size_before_reading_config_files = None
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
-            config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__)-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+            config_vars["__MAIN_OUT_FILE__"] = "$(__CONFIG_FILE__[0])-$(__MAIN_COMMAND__).$(BATCH_EXT)"
+
+    def read_config_files(self, reset_previous=False):
+        if reset_previous:
+            config_vars.resize_stack(self.config_vars_stack_size_before_reading_config_files)
+        self.config_vars_stack_size_before_reading_config_files = config_vars.stack_size()
+
+        config_vars.push_scope()
+        if "__CONFIG_FILE__" in config_vars:
+            for config_file in config_vars["__CONFIG_FILE__"].list():
+                config_file_resolved = self.path_searcher.find_file(os.fspath(config_file), return_original_if_not_found=True)
+                config_vars.setdefault("__CONFIG_FILE_PATH__", default=None).append(config_file_resolved)
+
+                self.read_yaml_file(config_file_resolved)
+            self.resolve_defined_paths()
 
     def set_default_variables(self):
-        if "__CONFIG_FILE__" in config_vars:
-            config_file_resolved = self.path_searcher.find_file(os.fspath(config_vars["__CONFIG_FILE__"]), return_original_if_not_found=True)
-            config_vars["__CONFIG_FILE_PATH__"] = config_file_resolved
-
-            self.read_yaml_file(config_file_resolved)
-            self.resolve_defined_paths()
+        self.read_config_files()
 
     def do_command(self):
         self.set_default_variables()
         #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
-
-    def do_trans(self):
-        self.info_map_table.read_from_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]), a_format="info", disable_indexes_during_read=True)
-
-        if "__PROPS_FILE__" in config_vars:
-            self.info_map_table.read_from_file(config_vars["__PROPS_FILE__"].str(), a_format="props")
-        if "__FILE_SIZES_FILE__" in config_vars:
-            self.info_map_table.read_from_file(config_vars["__FILE_SIZES_FILE__"].str(), a_format="file-sizes")
-
-        base_rev = int(config_vars["BASE_REPO_REV"])
-        if base_rev > 0:
-            self.info_map_table.set_base_revision(base_rev)
-
-        if "__BASE_URL__" in config_vars:
-            self.add_urls_to_info_map()
-        self.info_map_table.write_to_file(os.fspath(config_vars["__MAIN_OUT_FILE__"]), field_to_write=self.fields_relevant_to_info_map)
-
-    def add_urls_to_info_map(self):
-        base_url = config_vars["__BASE_URL__"].str()
-        for file_item in self.info_map_table.get_items(what="file"):
-            file_item.url = os.path.join(base_url, str(file_item.revision), file_item.path)
-            self.progress(file_item)
 
     def get_revision_range(self):
         revision_range_re = re.compile("""
@@ -88,386 +98,12 @@ class InstlAdmin(InstlInstanceBase):
                 max_rev += min_rev
         return min_rev, max_rev
 
-    def needToCreatelinksForRevision(self, revision):
-        """ Need to create links if the create_links_done_stamp_file was not found.
-
-            If the file was found there is still one situation where we would like
-            to re-create the links: If the links are for a revision that was not the
-            base revision and now this revision is the base revision. In which case
-            the whole revision will need to be uploaded.
-        """
-        current_base_repo_rev = int(config_vars["BASE_REPO_REV"])
-        retVal = True
-        revision_folder_hierarchy = self.repo_rev_to_folder_hierarchy(revision)
-        revision_links_folder = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/" + revision_folder_hierarchy)
-        create_links_done_stamp_file = config_vars.resolve_str(revision_links_folder + "/$(CREATE_LINKS_STAMP_FILE_NAME)")
-        if os.path.isfile(create_links_done_stamp_file):
-            if revision == current_base_repo_rev:  # revision is the new base_repo_rev
-                try:
-                    previous_base_repo_rev = int(utils.utf8_open_for_read(create_links_done_stamp_file, "r").read())  # try to read the previous
-                    if previous_base_repo_rev == current_base_repo_rev:
-                        retVal = False
-                    else:
-                        msg = " ".join( ("new base revision", str(current_base_repo_rev), "(was", str(previous_base_repo_rev),") need to refresh links") )
-                        self.batch_accum += Echo(msg)
-                        self.progress(msg)
-                        # if we need to create links, remove the upload stems in order to force upload
-                        try: os.remove(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+revision_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)"))
-                        except Exception: pass
-                except Exception:
-                    pass  # no previous base repo rev indication was found so return True to re-create the links
-            else:
-                retVal = False
-        return retVal
-
     def get_last_repo_rev(self):
         repo_url = config_vars["SVN_REPO_URL"].str()
         with SVNLastRepoRev(url=repo_url, reply_config_var="__LAST_REPO_REV__") as lrr:
             lrr()
         retVal = int(config_vars["__LAST_REPO_REV__"])
         return retVal
-
-    def do_create_links(self):
-        self.check_prerequisite_var_existence(("REPO_NAME", "SVN_REPO_URL", "ROOT_LINKS_FOLDER_REPO"))
-
-        self.batch_accum.set_current_section('links')
-
-        # call svn info to find out the last repo revision
-        last_repo_rev = self.get_last_repo_rev()
-        min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
-        base_repo_rev = int(config_vars["BASE_REPO_REV"])
-        curr_repo_rev = int(config_vars["REPO_REV"])
-        if base_repo_rev > curr_repo_rev:
-            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
-        if curr_repo_rev > last_repo_rev:
-            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
-
-        self.batch_accum += self.platform_helper.mkdir("$(ROOT_LINKS_FOLDER_REPO)/Base")
-
-        self.batch_accum += Cd("$(ROOT_LINKS_FOLDER_REPO)")
-        ignore_nums = list()
-        no_need_link_nums = list()
-        yes_need_link_nums = list()
-        max_repo_rev_to_work_on = curr_repo_rev
-        if "__WHICH_REVISION__" in config_vars:
-            which_revision = config_vars["__WHICH_REVISION__"].str()
-            if which_revision == "all":
-                max_repo_rev_to_work_on = last_repo_rev
-            else:  # force one specific revision
-                base_repo_rev = int(which_revision)
-                max_repo_rev_to_work_on = base_repo_rev
-
-        for revision in range(base_repo_rev, max_repo_rev_to_work_on+1):
-            if revision < min_repo_rev_to_work_on:
-                ignore_nums.append(revision)
-                continue
-            if self.needToCreatelinksForRevision(revision):
-                yes_need_link_nums.append(str(revision))
-                #save_dir_var = "REV_" + str(revision) + "_SAVE_DIR"
-                #self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-                config_vars["__CURR_REPO_REV__"] = str(revision)
-                config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(revision)
-                #accum = BatchAccumulator()
-                #accum.set_current_section('links')
-                self.create_links_for_revision(revision)
-                #revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
-                #self.batch_accum += revision_lines
-                #self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
-            else:
-                no_need_link_nums.append(str(revision))
-
-        if yes_need_link_nums:
-            if no_need_link_nums:
-                no_need_links_str = utils.find_sequences(no_need_link_nums)
-                self.progress("Links already created for revisions:", no_need_links_str)
-            if ignore_nums:
-                ignore_nums_str = utils.find_sequences(ignore_nums)
-                self.progress("Ignoring revisions below:", min_repo_rev_to_work_on, ignore_nums_str)
-            yes_need_links_str = utils.find_sequences(yes_need_link_nums)
-            config_vars["__NEED_UPLOAD_REPO_REV_LIST__"] = yes_need_link_nums
-            self.progress("Need to create links for revisions:", yes_need_links_str)
-        else:
-            self.progress("Links already created for all revisions:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on))
-
-        self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
-
-    def create_links_for_revision(self, revision: int):
-        with self.batch_accum.sub_accum(Stage(f"create links for revision {revision}")) as accum:
-            assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
-            base_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/Base"
-            revision_folder_path = "$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"
-            revision_instl_folder_path = revision_folder_path + "/instl"
-
-            # sync revision __CURR_REPO_REV__ from SVN to Base folder
-            accum += SVNCheckout(url="$(__CURR_REPO_REV__)", repo_rev=revision, where=base_folder_path)
-                #accum += Echo("Getting revision $(__CURR_REPO_REV__) from $(SVN_REPO_URL)")
-                #checkout_command_parts = ['"$(SVN_CLIENT_PATH)"', "co", '"' + "$(SVN_REPO_URL)@$(__CURR_REPO_REV__)" + '"',
-                #                          '"' + base_folder_path + '"', "--depth", "infinity"]
-                #accum += " ".join(checkout_command_parts)
-                #accum += Progress("Create links for revision $(__CURR_REPO_REV__)")
-
-            # copy Base folder to revision folder
-            accum += Progress("Copy revision $(__CURR_REPO_REV__) to "+revision_folder_path)
-            accum += MakeDirs(revision_folder_path)
-                #accum += self.platform_helper.mkdir(revision_folder_path)
-            accum += CopyDirContentsToDir(config_vars.resolve_str(base_folder_path),
-                                                                             config_vars.resolve_str(revision_folder_path),
-                                                                             hard_links=True, ignore_patterns=[".svn"], preserve_dest_files=False)
-
-            # get info from SVN for all files in revision
-            self.create_info_map(base_folder_path, revision_instl_folder_path, accum)
-
-            accum += self.platform_helper.pushd(revision_folder_path)
-            # create depend file
-            accum += Progress("Create dependencies file ...")
-            create_depend_file_command_parts = [self.platform_helper.run_instl(), "depend", "--in", "instl/index.yaml",
-                                                "--out", "instl/index-dependencies.yaml"]
-            accum += " ".join(create_depend_file_command_parts)
-            accum += Progress("Create dependencies file done")
-
-            # create repo-rev file
-            accum += Progress("Create repo-rev file ...")
-            create_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "create-repo-rev-file",
-                                                  "--config-file", '"$(__CONFIG_FILE_PATH__)"', "--rev", "$(__CURR_REPO_REV__)"]
-            accum += " ".join(create_repo_rev_file_command_parts)
-            accum += Progress("Create repo-rev file done")
-
-            accum += self.platform_helper.rmfile("$(UP_2_S3_STAMP_FILE_NAME)")
-            accum += Progress("Remove $(UP_2_S3_STAMP_FILE_NAME)")
-            accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(CREATE_LINKS_STAMP_FILE_NAME)"])
-            accum += Progress("Create $(CREATE_LINKS_STAMP_FILE_NAME)")
-
-            accum += self.platform_helper.popd()
-            accum += Echo("done create-links version $(__CURR_REPO_REV__)")
-
-    def do_up2s3_legacy(self):
-        min_repo_rev_to_work_on = int(config_vars.get("IGNORE_BELOW_REPO_REV", "1"))
-        base_repo_rev = int(config_vars["BASE_REPO_REV"])
-        curr_repo_rev = int(config_vars["REPO_REV"])
-        # call svn info to find out the last repo revision
-        last_repo_rev = self.get_last_repo_rev()
-        if base_repo_rev > curr_repo_rev:
-            raise ValueError(f"base_repo_rev {base_repo_rev} > curr_repo_rev {curr_repo_rev}")
-        if curr_repo_rev > last_repo_rev:
-            raise ValueError(f"base_repo_rev {base_repo_rev} > last_repo_rev {last_repo_rev}")
-
-        max_repo_rev_to_work_on = curr_repo_rev
-        if "__WHICH_REVISION__" in config_vars:
-            which_revision = config_vars["__WHICH_REVISION__"].str()
-            if which_revision == "all":
-                max_repo_rev_to_work_on = last_repo_rev
-            else:  # force one specific revision
-                base_repo_rev = int(which_revision)
-                max_repo_rev_to_work_on = base_repo_rev
-
-        revision_list = list(range(base_repo_rev, max_repo_rev_to_work_on+1))
-        dirs_that_dont_need_upload = list()
-        dirs_that_need_upload = list()
-        dirs_missing = list()
-        for dir_as_int in revision_list:
-            if dir_as_int < min_repo_rev_to_work_on:
-                continue
-            dir_as_int_folder_hierarchy = self.repo_rev_to_folder_hierarchy(dir_as_int)
-            dir_name = str(dir_as_int)
-            if not os.path.isdir(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/" + dir_as_int_folder_hierarchy)):
-                self.progress("revision dir", dir_as_int_folder_hierarchy, "is missing, run create-links to create this folder")
-                dirs_missing.append(dir_name)
-            else:
-                create_links_done_stamp_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(CREATE_LINKS_STAMP_FILE_NAME)")
-                if not os.path.isfile(create_links_done_stamp_file):
-                    self.progress("revision dir", dir_as_int_folder_hierarchy, "does not have create-links stamp file:", create_links_done_stamp_file)
-                else:
-                    up_2_s3_done_stamp_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/"+dir_as_int_folder_hierarchy+"/$(UP_2_S3_STAMP_FILE_NAME)")
-                    if os.path.isfile(up_2_s3_done_stamp_file):
-                        dirs_that_dont_need_upload.append(dir_name)
-                    else:
-                        dirs_that_need_upload.append(dir_name)
-        if dirs_missing:
-            sequences_of_dirs_missing = utils.find_sequences(dirs_missing)
-            self.progress("Revisions cannot be uploaded to S3:", sequences_of_dirs_missing)
-            dirs_that_need_upload = []
-        elif dirs_that_need_upload:
-            if dirs_that_dont_need_upload:
-                sequences_of_dirs_that_dont_need_upload = utils.find_sequences(dirs_that_dont_need_upload)
-                self.progress("Revisions already uploaded to S3:", sequences_of_dirs_that_dont_need_upload)
-            sequences_of_dirs_that_need_upload = utils.find_sequences(dirs_that_need_upload)
-            self.progress("Revisions will be uploaded to S3:", sequences_of_dirs_that_need_upload)
-        else:
-            self.progress("All revisions already uploaded to S3:", str(base_repo_rev), "...", str(max_repo_rev_to_work_on))
-
-        self.batch_accum.set_current_section('upload')
-        for dir_name in dirs_that_need_upload:
-            accum = BatchAccumulator()  # sub-accumulator serves as a template for each version
-            accum.set_current_section('upload')
-            save_dir_var = "REV_" + dir_name + "_SAVE_DIR"
-            self.batch_accum += self.platform_helper.save_dir(save_dir_var)
-            config_vars["__CURR_REPO_REV__"] = dir_name
-            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(dir_name)
-            self.upload_to_s3_aws_for_revision(accum)
-            revision_lines = accum.finalize_list_of_lines()  # will resolve with current  __CURR_REPO_REV__
-            self.batch_accum += revision_lines
-            self.batch_accum += self.platform_helper.restore_dir(save_dir_var)
-
-        self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
-
-    def upload_to_s3_aws_for_revision(self, accum):
-        assert config_vars["__CURR_REPO_REV__"].str() == "".join(config_vars["__CURR_REPO_FOLDER_HIERARCHY__"].str().split("/")).lstrip("0")
-        map_file_path = 'instl/full_info_map.txt'
-        info_map_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/" + map_file_path)
-        repo_rev = int(config_vars["__CURR_REPO_REV__"])
-        self.info_map_table.clear_all()
-        self.info_map_table.read_from_file(info_map_path, disable_indexes_during_read=True)
-
-        accum += Cd("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-
-        if 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]):
-            accum += "find . -name .DS_Store -delete"
-
-        # Files a folders that do not belong to __CURR_REPO_REV__ should not be uploaded.
-        # Since aws sync command uploads the whole folder, we delete from disk all files
-        # and folders that should not be uploaded.
-        self.info_map_table.mark_required_for_dir('instl') # never remove the instl folder
-        self.info_map_table.mark_required_for_revision(repo_rev)
-
-        # remove all unrequired files
-        self.info_map_table.ignore_unrequired_where_parent_unrequired()
-        unrequired_items = self.info_map_table.get_unrequired_not_ignored_paths()
-        for i, unrequired_item in enumerate(unrequired_items):
-            accum += self.platform_helper.rm_file_or_dir(unrequired_item)
-            #if i % 1000 == 0:  # only report every 1000'th file
-            #    accum += Progress("rmfile " + unrequired_item +" & 999 more")
-
-        # now remove all empty folders, the files that are left should be uploaded
-        remove_empty_folders_command_parts = [self.platform_helper.run_instl(), "remove-empty-folders", "--in", os.curdir]
-        accum += Progress("remove-empty-folders ...")
-        accum += " ".join(remove_empty_folders_command_parts)
-        accum += Progress("remove-empty-folders done")
-
-        # remove broken links, aws cannot handle them
-        accum += " ".join( ("find", os.curdir, "-type", "l", "!", "-exec", "test", "-e", "{}", "\;", "-exec", "rm", "-f", "{}", "\;") )
-
-        accum += " ".join(["aws", "s3", "sync",
-                           os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)",
-                           "--exclude", '"*.DS_Store"',
-                           "--exclude", '"$(UP_2_S3_STAMP_FILE_NAME)"',
-                           "--exclude", '"$(CREATE_LINKS_STAMP_FILE_NAME)"'
-        ])
-
-        up_repo_rev_file_command_parts = [self.platform_helper.run_instl(), "up-repo-rev",
-                                          "--config-file", '"$(__CONFIG_FILE_PATH__)"',
-                                          "--out", "up_repo_rev.$(__CURR_REPO_REV__)",
-                                          "--just-with-number", "$(__CURR_REPO_REV__)",
-                                          "--run"]
-        accum += " ".join(up_repo_rev_file_command_parts)
-        accum += Progress("up-repo-rev file - just with number")
-
-        accum += " ".join(["echo", "-n", "$(BASE_REPO_REV)", ">", "$(UP_2_S3_STAMP_FILE_NAME)"])
-        accum += Progress("Uploaded $(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-        accum += " ".join(("echo", "find", os.curdir, "-mindepth",  "1", "-maxdepth", "1", "-type", "d", "-not", "-name", "instl"))  #, "-print0", "|", "xargs", "-0", "rm", "-fr"
-        accum += Echo("done up2s3 revision $(__CURR_REPO_REV__)")
-
-    def do_create_repo_rev_file(self):
-        if "REPO_REV_FILE_VARS" not in config_vars:
-            # must have a list of variable names to write to the repo-rev file
-            raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])
-        config_vars["REPO_REV"] = "$(TARGET_REPO_REV)"  # override the repo rev from the config file
-
-        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))
-
-        # check that the variable names from REPO_REV_FILE_VARS do not contain
-        # names that must not be made public
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"].str())
-        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
-
-        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
-
-        dangerous_intersection = set(repo_rev_vars).intersection(
-            {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
-        if dangerous_intersection:
-            self.progress("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
-            raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
-
-        # create checksum for the main info_map file
-        info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
-        zip_info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
-        if use_zlib:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)"
-            info_map_checksum = utils.get_file_checksum(zip_info_map_file)
-        else:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt"
-            info_map_checksum = utils.get_file_checksum(info_map_file)
-        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)"
-        config_vars["INFO_MAP_CHECKSUM"] = info_map_checksum
-
-        # create checksum for the main index.yaml file
-        # zip the index file
-        local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
-        zip_local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
-        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
-        with open(zip_local_index_file, "wb") as wfd:
-            wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
-
-        if use_zlib:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)"
-            index_file_checksum = utils.get_file_checksum(zip_local_index_file)
-        else:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"
-            index_file_checksum = utils.get_file_checksum(local_index_file)
-        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)"
-        config_vars["INDEX_CHECKSUM"] = index_file_checksum
-
-        # check that all variables are present
-        for var in repo_rev_vars:
-            if var not in config_vars:
-                raise ValueError(f"{var} is missing cannot write repo rev file")
-
-        # create yaml out of the variables
-        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
-        repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
-                                              explicit_start=True, sort_mappings=True)
-
-        # repo rev file is written to the admin folder and to the repo-rev folder
-        os.makedirs(config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin"), exist_ok=True)
-        admin_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-        with utils.utf8_open_for_write(admin_folder_path, "w") as wfd:
-            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
-            self.progress("created", admin_folder_path)
-        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-
-        with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
-            aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
-            self.progress("created", repo_rev_folder_path)
-
-    def do_up_repo_rev(self):
-        self.batch_accum.set_current_section('admin')
-
-        just_with_number = int(config_vars["__JUST_WITH_NUMBER__"])
-        if just_with_number > 0:
-            config_vars["REPO_REV"] = "$(__JUST_WITH_NUMBER__)"
-
-        if just_with_number == 0:
-            self.batch_accum += " ".join(["aws", "s3", "cp",
-                                "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                               "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)\"",
-                               "--content-type", 'text/plain'
-                                ])
-            self.batch_accum += Progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME)'")
-
-        self.batch_accum += " ".join( ["aws", "s3", "cp",
-                           "\"$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "\"s3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)\"",
-                           "--content-type", 'text/plain'
-                            ] )
-        self.batch_accum += Progress("Uploaded '$(ROOT_LINKS_FOLDER)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)' to 's3://$(S3_BUCKET_NAME)/admin/$(REPO_REV_FILE_NAME).$(REPO_REV)'")
-
-        self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
 
     def do_fix_props(self):
         self.batch_accum.set_current_section('admin')
@@ -523,7 +159,6 @@ class InstlAdmin(InstlInstanceBase):
         retVal = (file_mode & exec_mode) != 0
         return retVal
 
-    # to do: prevent create-links and up2s3 if there are files marked as symlinks
     def do_fix_symlinks(self):
         self.batch_accum.set_current_section('admin')
 
@@ -549,11 +184,11 @@ class InstlAdmin(InstlInstanceBase):
 
     def raise_if_forbidden_file(self, item_to_check):
         if self.compiled_forbidden_file_regex.search(os.fspath(item_to_check)):
-            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
 
     def raise_if_forbidden_dir(self, item_to_check):
         if self.compiled_forbidden_folder_regex.search(os.fspath(item_to_check)):
-            raise utils.InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
@@ -602,7 +237,7 @@ class InstlAdmin(InstlInstanceBase):
             stage_only_item_path = Path(comparator.left, svn_only_item)
             svn_item_path = Path(comparator.right, svn_only_item)
             if stage_only_item_path.is_symlink():
-                raise utils.InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif stage_only_item_path.is_file():
                 self.raise_if_forbidden_file(stage_only_item_path)
 
@@ -638,7 +273,7 @@ class InstlAdmin(InstlInstanceBase):
                 self.batch_accum += CopyDirToDir(stage_only_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"], preserve_dest_files=False)
                 self.batch_accum += Progress(f"copy dir {stage_only_item_path}")
             else:
-                raise utils.InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
+                raise InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
 
         # copy changed items:
 
@@ -650,7 +285,7 @@ class InstlAdmin(InstlInstanceBase):
             left_item_path = Path(comparator.left, diff_item)
             svn_item_path = Path(comparator.right, diff_item)
             if left_item_path.is_symlink():
-                raise utils.InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
+                raise InstlException(left_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif left_item_path.is_file():
                 self.raise_if_forbidden_file(left_item_path)
 
@@ -667,7 +302,7 @@ class InstlAdmin(InstlInstanceBase):
                 else:
                     self.batch_accum += Progress(f"identical {left_item_path}")
             else:
-                raise utils.InstlException(left_item_path+" not a different file or symlink, an abomination!")
+                raise InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
         # removed items:
         for svn_only_item in sorted(comparator.right_only):
@@ -802,6 +437,10 @@ class InstlAdmin(InstlInstanceBase):
         else:
             limit_info_list.append(("", svn_folder, stage_folder))
 
+        if svn_folder.is_dir():
+            with self.batch_accum.sub_accum(Cd(svn_folder)) as suba:
+                suba += SVNCleanup()
+
         for limit_info in limit_info_list:
             limit_checkout_url = checkout_url
             if limit_info[0] != "":
@@ -837,7 +476,7 @@ class InstlAdmin(InstlInstanceBase):
             if not depend_result[IID]['needed_by']:
                 depend_result[IID]['needed_by'] = None # so '~' is displayed instead of []
 
-        out_file_path = os.fspath(config_vars["__MAIN_OUT_FILE__"])
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             aYaml.writeAsYaml(aYaml.YamlDumpWrap(depend_result, sort_mappings=True), out_file)
         self.progress("dependencies written to", out_file_path)
@@ -987,7 +626,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_file_sizes(self):
         self.compile_exclude_regexi()
-        out_file_path = str(config_vars.get("__MAIN_OUT_FILE__", "stdout"))
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
             if what_to_scan.is_file():
@@ -1001,120 +640,6 @@ class InstlAdmin(InstlInstanceBase):
                             file_size = full_path.stat().st_size
                             partial_path = full_path.relative_to(what_to_scan)
                             print(f"{partial_path}, {file_size}", file=out_file)
-
-    def create_info_map(self, svn_folder, results_folder, accum):
-
-        accum += MakeDirs(results_folder)
-            #accum += self.platform_helper.mkdir(results_folder)
-        info_map_info_path = os.path.join(results_folder, "info_map.info")
-        info_map_props_path = os.path.join(results_folder, "info_map.props")
-        info_map_file_sizes_path = os.path.join(results_folder, "info_map.file-sizes")
-        full_info_map_file_path = config_vars.resolve_str(os.path.join(results_folder, "$(FULL_INFO_MAP_FILE_NAME)"))
-
-        with accum.sub_accum(Cd(svn_folder)) as svn_folder_accum:
-            svn_folder_accum += Progress("Get info from svn to" +os.path.join(results_folder, "info_map.info" ))
-                #accum += self.platform_helper.pushd(svn_folder)
-            svn_folder_accum += SVNInfo(url=".", out_file=info_map_info_path)
-                #info_command_parts = ['"$(SVN_CLIENT_PATH)"', "info", "--depth infinity", ">", info_map_info_path]
-                #accum += " ".join(info_command_parts)
-
-            # get properties from SVN for all files in revision
-            svn_folder_accum += SVNPropList(url=".", out_file=info_map_info_path)
-                #props_command_parts = ['"$(SVN_CLIENT_PATH)"', "proplist", "--depth infinity", ">", info_map_props_path]
-                #accum += " ".join(props_command_parts)
-                #accum += Progress("Get props from svn to"+os.path.join(results_folder, "info_map.props"))
-
-        # get sizes of all files
-        file_sizes_command_parts = [self.platform_helper.run_instl(), "file-sizes",
-                                    "--in", svn_folder,
-                                    "--out", info_map_file_sizes_path]
-        accum += " ".join(file_sizes_command_parts)
-        accum += Progress("Get file-sizes from disk to "+os.path.join(results_folder, "info_map.file-sizes"))
-
-        accum += Progress(f"Create {full_info_map_file_path} ...")
-        trans_command_parts = [self.platform_helper.run_instl(), "trans",
-                                   "--in", info_map_info_path,
-                                   "--props ", info_map_props_path,
-                                   "--file-sizes", info_map_file_sizes_path,
-                                   "--base-repo-rev", "$(BASE_REPO_REV)",
-                                   "--out ", full_info_map_file_path]
-        accum += " ".join(trans_command_parts)
-        accum += Progress(f"Create {full_info_map_file_path} done")
-
-        # split info_map.txt according to info_map fields in index.yaml
-        accum += Progress(f"Split {full_info_map_file_path} ...")
-        split_info_map_command_parts = [self.platform_helper.run_instl(), "filter-infomap",
-                                        "--in", results_folder, "--define", config_vars.resolve_str("REPO_REV=$(__CURR_REPO_REV__)")]
-        accum += " ".join(split_info_map_command_parts)
-        accum += Progress(f"Split {full_info_map_file_path} done")
-
-        accum += self.platform_helper.popd()
-
-    def do_create_infomap(self):
-        svn_folder = "$(WORKING_SVN_CHECKOUT_FOLDER)"
-        results_folder = "$(INFO_MAP_OUTPUT_FOLDER)"
-
-        self.batch_accum.set_current_section('admin')
-        self.create_info_map(svn_folder, results_folder, accum)
-
-        self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
-
-    def do_filter_infomap(self):
-        """ filter the full infomap file according to info_map fields in the index
-            __MAIN_INPUT_FILE__ is the folder where to find index.yaml, full_info_map.txt and where to create info_map files
-         """
-        instl_folder = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        full_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(FULL_INFO_MAP_FILE_NAME)"))
-        index_yaml_path = Path(instl_folder, "index.yaml")
-        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
-
-        # read the index
-        self.read_yaml_file(index_yaml_path)
-        # read the full info map
-        self.info_map_table.read_from_file(full_info_map_file_path, a_format="text", disable_indexes_during_read=True)
-        # fill the iid_to_svn_item_t table
-        self.info_map_table.populate_IIDToSVNItem()
-
-        # get the list of info map file names
-        all_info_maps = self.items_table.get_unique_detail_values('info_map')
-
-        lines_for_main_info_map = list()  # each additional info map is written into the main info map
-        # write each info map to file
-        for infomap_file_name in all_info_maps:
-            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
-            info_map_items = self.info_map_table.get_required_items()
-            if info_map_items:  # could be that no items are linked to the info map file
-                info_map_file_path = instl_folder.joinpath(infomap_file_name)
-                self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
-
-                info_map_checksum = utils.get_file_checksum(info_map_file_path)
-                info_map_size = os.path.getsize(info_map_file_path)
-                line_for_main_info_map = f"instl/{infomap_file_name}, f, $(REPO_REV), {info_map_checksum}, {info_map_size}"
-                lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
-
-                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
-                zip_info_map_file_path = instl_folder.joinpath(zip_infomap_file_name)
-                with Wzip(info_map_file_path, instl_folder) as wzipper:
-                    wzipper()
-
-                zip_info_map_checksum = utils.get_file_checksum(zip_info_map_file_path)
-                zip_info_map_size = os.path.getsize(zip_info_map_file_path)
-                line_for_main_info_map = f"instl/{zip_infomap_file_name}, f, $(REPO_REV), {zip_info_map_checksum}, {zip_info_map_size}"
-                lines_for_main_info_map.append(config_vars.resolve_str(line_for_main_info_map))
-
-        # write default info map to file
-        default_info_map_file_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)/$(MAIN_INFO_MAP_FILE_NAME)"))
-        items_for_default_info_map = self.info_map_table.get_items_for_default_infomap()
-        self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=items_for_default_info_map, field_to_write=self.fields_relevant_to_info_map)
-
-        with open(default_info_map_file_path, "a") as wfd:
-            wfd.write("\n".join(lines_for_main_info_map))
-
-        zip_default_info_map_file_path = Path(default_info_map_file_path, config_vars["WZLIB_EXTENSION"].str())
-        with Wzip(default_info_map_file_path, instl_folder) as wzipper:
-            wzipper()
 
     def do_read_info_map(self):
         files_to_read = list(config_vars["__MAIN_INPUT_FILE__"])
@@ -1196,97 +721,292 @@ class InstlAdmin(InstlInstanceBase):
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
         assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
 
-        config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        checkout_url = str(config_vars['SVN_REPO_URL'])
-        checkout_folder = Path(config_vars['SVN_CHECKOUT_FOLDER'])
-        checkout_folder_instl_folder_path = checkout_folder.joinpath("instl")
-        checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
-
-        revision_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)"))
-        revision_instl_folder_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"))
-        revision_instl_index_path = Path(config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"))
-
-        info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
-        info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
-        info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
-        full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
-
-        batch_accum.set_current_section('admin')
-        # checkout specific repo-rev to base folder
-        # full checkout might take a long time so checking out to base folder, if done in repo-rev order
-        # will only get the files of that repo-rev instead of the whole repository
-
-        skip_some_actions = False  # to save time during debugging
-
-        checkout_log_file = config_vars['__MAIN_OUT_FILE__'].Path().parent.joinpath("svn_checkout.log")
-        batch_accum += SVNCleanup(working_copy_path=checkout_folder, skip_action=skip_some_actions)
-        batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_folder, repo_rev=repo_rev, out_file=checkout_log_file, skip_action=skip_some_actions)
-
-        batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-        batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
-        with batch_accum.sub_accum(Cd(checkout_folder)) as sub_accum:
-            sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions)
-            sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions)
-            sub_accum += FileSizes(folder_to_scan=checkout_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
-
-        batch_accum += IndexYamlReader(checkout_folder_index_path)
-        batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
-        batch_accum += SVNInfoReader(info_map_props_path, format='props')
-        batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
-        base_rev = int(config_vars["BASE_REPO_REV"])
-        if base_rev > 0:
-            batch_accum += SetBaseRevision(base_rev)
-
-        # copy all (and only) the files from repo-rev
-        batch_accum += CopySpecificRepoRev(checkout_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
-        # also copy the whole instl folder
-        batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
-
-        batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
-        batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
-        batch_accum += CreateRepoRevFile()
-
-        with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
-            sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)")
-
-        self.write_batch_file(batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
-            self.run_batch_file()
-
-    def do_wait_on_commit_trigger(self):
-        import time
-        import redis
-
-        redis_host = config_vars['REDIS_HOST'].str()
-        redis_port = config_vars['REDIS_PORT'].int()
         r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
-        trigger_redis_key = config_vars['SVN_COMMIT_TRIGGER_REDIS_KEY'].str()
-        done_redis_key = config_vars['UP2S3_DONE_REDIS_KEY'].str()
+        try:
 
+            config_vars['UP2S3_STATUS'] = "FAILED"
+            config_vars['UP2S3_EXCEPTION'] = ""
+            config_vars["REPO_REV"] = str(repo_rev)
+            config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+
+            checkout_url = str(config_vars['SVN_REPO_URL'])
+            checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
+            checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
+            checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
+
+            revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
+            revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
+            revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
+
+            info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
+            info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
+            info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
+            full_info_map_file_path = revision_instl_folder_path.joinpath(str(config_vars['FULL_INFO_MAP_FILE_NAME']))
+
+            batch_accum.set_current_section('admin')
+            # checkout specific repo-rev to base folder
+            # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+            # will only get the files of that repo-rev instead of the whole repository
+
+            skip_some_actions = False  # to save time during debugging
+
+            if checkout_base_folder.is_dir():   # check if folder is indeed svn checkout folder
+                if checkout_base_folder.joinpath(".svn").is_dir():
+                    batch_accum += SVNCleanup(working_copy_path=checkout_base_folder, skip_action=skip_some_actions, stderr_means_err=False)
+                else:
+                    shutil.rmtree(checkout_base_folder)
+
+            batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
+
+            batch_accum += MakeDir(revision_folder_path)  # create specific repo-rev folder
+            batch_accum += MakeDir(revision_instl_folder_path)  # create specific repo-rev instl folder
+            with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
+                sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
+                sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
+                sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
+
+            batch_accum += IndexYamlReader(checkout_folder_index_path)
+            batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
+            batch_accum += SVNInfoReader(info_map_props_path, format='props')
+            batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
+            base_rev = int(config_vars["BASE_REPO_REV"])
+            if base_rev > 0:
+                batch_accum += SetBaseRevision(base_rev)
+
+            # copy all (and only) the files from repo-rev
+            batch_accum += CopySpecificRepoRev(checkout_base_folder, revision_folder_path, repo_rev, skip_action=skip_some_actions)
+            # also copy the whole instl folder
+            batch_accum += CopyDirToDir(checkout_folder_instl_folder_path, revision_folder_path, delete_extraneous_files=False)
+
+            batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
+            batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
+            batch_accum += Wzip(revision_instl_index_path)
+            batch_accum += CreateRepoRevFile()
+
+            with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+                sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")
+                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
+                sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+            batch_accum += RmDirContents(revision_folder_path, exclude=['instl'])
+
+            self.write_batch_file(batch_accum)
+            if bool(config_vars["__RUN_BATCH__"]):
+                self.run_batch_file()
+
+            r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            config_vars['UP2S3_STATUS'] = "Completed"
+        except Exception as ex:
+            config_vars['UP2S3_EXCEPTION'] = f"{ex}"
+            print(f"up2s3_repo_rev exception {ex}")
+            raise
+        finally:
+            self.send_email_from_template_file(config_vars["UP2S3_EMAIL_TEMPLATE_PATH"].Path())
+
+    def report_instl_info_to_redis(self, redis_instance):
+        instl_info_redis_key = config_vars.get("INSTL_INFO_REDIS_KEY", None).str()
+        if instl_info_redis_key:
+            instl_info_dict = dict()
+            instl_info_dict["version"] = self.get_version_str(short=True)
+            instl_info_dict["version string"] = self.get_version_str(short=False)
+            instl_info_dict["path"] = config_vars["__INSTL_EXE_PATH__"].str()
+            instl_info_dict["python version"] = config_vars["__PYTHON_VERSION__"].str()
+            instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
+            redis_instance.hmset(instl_info_redis_key, instl_info_dict)
+
+    def do_wait_on_action_trigger(self):
+
+        sys.path.append(os.pardir)
+        sys.path.append(f"{os.pardir}/{os.pardir}")
+        from .instl_main import instl_own_main
+
+        # config yaml such as stout-config.yaml with definitions needed for this function to work
+        main_input_file = Path(config_vars["__CONFIG_FILE__"][0]).resolve()
+        # other config files are assumed to exist below the folder where main_input_file is found
+        main_config_folder = main_input_file.parent
+
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+
+        waiting_list_redis_key = config_vars['WAITING_LIST_REDIS_KEY'].str()
+
+        # heartbeat_redis_key: regular time stamps will be send to this key
+        heartbeat_redis_key = config_vars.get("HEARTBEAT_COUNTER_REDIS_KEY", None).str()
+        if heartbeat_redis_key:
+            start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
+
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        self.report_instl_info_to_redis(r)
+        trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
-            print(f"wait_on_commit_trigger: {redis_host}:{redis_port} {trigger_redis_key}")
-            poped = r.brpop(trigger_redis_key, 60)
+            log.info(f"wait on redis list: {redis_host}:{redis_port} {waiting_list_redis_key}")
+            log.info(f"to upload: lpush {waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+            log.info(f"to activate: lpush {waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+            log.info(f"special values: lpush {waiting_list_redis_key} stop|ping|reload-config-files")
+            r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
+            poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
                 key = str(poped[0])
-                if key == trigger_redis_key:
-                    if poped[1] == "stop":
-                        print(f"{trigger_redis_key} received 'stop' no more waiting on {trigger_redis_key}")
-                        break
+                value = str(poped[1])
+                r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), value)
 
-                    repo_rev = int(poped[1])
-                    print(f"{trigger_redis_key} repo-rev {repo_rev} triggered")
-                    config_vars['TARGET_REPO_REV'] = repo_rev
-                    config_vars['__MAIN_OUT_FILE__'] = f"{trigger_redis_key}:{repo_rev}.py"
-                    config_vars["__RUN_BATCH__"] = True
-                    try:
-                        self.reset_db()
-                        batch_accum = PythonBatchCommandAccum()
-                        self.up2s3_repo_rev(repo_rev, batch_accum)
+                log.info(f"popped key: {key}, value: {value}")
+                if value == "stop":
+                    log.info(f"received stop")
+                    break
+                elif value == "ping":
+                    ping_redis_key = f"{key}:ping"
+                    r.incr(ping_redis_key, 1)
+                    log.info(f"ping incremented {ping_redis_key}")
+                elif value == "reload-config-files":
+                    log.info(f"reloading config files {config_vars['__CONFIG_FILE__'].list()}")
+                    self.read_config_files(reset_previous=True)
+                else:
+                    with config_vars.push_scope_context(use_cache=True):
+                        try:
+                            what_to_do, domain, major_version, repo_rev = value.split(":")
+                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do.lower()]
+                            config_vars["TARGET_DOMAIN"] = domain
+                            config_vars["TARGET_MAJOR_VERSION"] = major_version
+                            config_vars["TARGET_REPO_REV"] = repo_rev
+                            log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                            config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
 
-                        print(f"{trigger_redis_key} up2s3 of repo-rev {repo_rev} done")
-                        r.lpush(done_redis_key, repo_rev)
-                    except Exception as ex:
-                        print(f"Exception {ex} in {trigger_redis_key} up2s3 of repo-rev {repo_rev}")
-            time.sleep(1)
+                            domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
+                            domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
+                            up2s3_yaml_dict = {
+                                "__include__": [os.fspath(domain_major_version_config_file),
+                                                os.fspath(main_input_file)],
+                                'TARGET_DOMAIN': domain,
+                                'TARGET_MAJOR_VERSION': major_version,
+                                'TARGET_REPO_REV': repo_rev,
+                                'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
+                            }
+                            define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
+                                                                '!define', "definitions",
+                                                                explicit_start=True, sort_mappings=False)
+
+                            work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
+                            with utils.utf8_open_for_write(work_config_file, "w") as wfd:
+                                aYaml.writeAsYaml(define_dict, wfd)
+
+                            work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
+                            up2s3_process = mp.Process (target=instl_own_main,
+                                                        name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
+                                                        args=([str(config_vars["__INSTL_EXE_PATH__"]),
+                                                              instl_command_name,
+                                                               "--config-file", os.fspath(work_config_file),
+                                                               "--log", os.fspath(work_log_file),
+                                                               "--run"],))
+
+                            up2s3_process.start()
+                            up2s3_process.join()
+
+                        except Exception as ex:
+                            log.info(f"Exception {ex} while handling {key} {value}")
+
+            r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
+            time.sleep(2)
+        log.info(f"stopped waiting on {trigger_keys_to_wait_on}")
+        r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "stopped")
+
+    def do_activate_repo_rev(self):
+
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+
+        try:
+
+            config_vars['ACTIVATE_STATUS'] = "FAILED"
+            config_vars['ACTIVATE_EXCEPTION'] = ""
+
+            s3_resource = boto3.resource('s3')
+            bucket_name = str(config_vars["S3_BUCKET_NAME"])
+            repo_rev_file_specific_name = str(config_vars["REPO_REV_FILE_SPECIFIC_NAME"])  # file name for a specific repo-rev file e.g. V9_repo_rev.yaml.236
+            repo_rev_file_specific_key = f"admin/{repo_rev_file_specific_name}"
+
+            repo_rev_file_activated_name = str(config_vars["REPO_REV_FILE_BASE_NAME"])  # file name for activated repo-rev file e.g. V9_repo_rev.yaml
+            repo_rev_file_activated_key = f"admin/{repo_rev_file_activated_name}"
+
+            # find if the specific file exists in the admin folder of the bucket
+            def is_file_in_s3(_s3_resource, _bucket_name, path_in_bucket):
+                retVal = False
+                try:
+                    ls_response = _s3_resource.meta.client.list_objects_v2(Bucket=_bucket_name, Prefix=path_in_bucket)
+                    list_of_files = ls_response['Contents']
+                    for file in list_of_files:
+                        if file["Key"] == path_in_bucket:
+                            retVal = True
+                            break
+                except Exception:
+                    pass
+                return retVal
+
+            if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_specific_key):
+                raise FileNotFoundError(f"{repo_rev_file_specific_key} was not found in bucket {bucket_name}")
+
+            # now copy the specific file to be the activated file, this is done directly on s3
+            s3_resource.meta.client.copy({'Bucket': bucket_name, 'Key': repo_rev_file_specific_key},
+                                         Bucket=bucket_name, Key=repo_rev_file_activated_key)
+            log.info(f"activated repo-rev {config_vars['TARGET_REPO_REV']} for {config_vars['TARGET_MAJOR_VERSION']} on {config_vars['TARGET_DOMAIN']}")
+
+            if not is_file_in_s3(s3_resource, bucket_name, repo_rev_file_activated_key):
+                raise FileNotFoundError(f"{repo_rev_file_activated_key} was not found in bucket {bucket_name}")
+
+            target_domain = config_vars["TARGET_DOMAIN"].str()
+            major_version = config_vars["TARGET_MAJOR_VERSION"].str()
+            target_repo_rev = config_vars["TARGET_REPO_REV"].int()
+            work_folder = config_vars["TARGET_WORK_FOLDER"].Path()
+
+            # download the activated file to the work folder for reference
+            copy_of_activated_repo_rev_file_path = config_vars.resolve_str(f"{work_folder}/$(REPO_REV_FILE_BASE_NAME)")
+            s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
+            log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
+            with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
+                repo_rev_file_text = rfd.read()
+                match = re.search(r"^REPO_REV:\s+(?P<target_repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
+                if match:
+                    actual_activated_repo_rev_from_s3 = int(match.group('target_repo_rev'))
+                    if actual_activated_repo_rev_from_s3 == target_repo_rev:
+                        log.info(f"verified activated repo-rev for {target_domain} {major_version} is {actual_activated_repo_rev_from_s3}")
+                    else:
+                        raise ValueError(f"activated repo-rev for {target_domain} {major_version} is {actual_activated_repo_rev_from_s3} not {target_repo_rev}")
+                else:
+                    raise ValueError(f"regex could find 'REPO_REV:' in {copy_of_activated_repo_rev_file_path}")
+
+            r.hset(config_vars["ACTIVATE_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["ACTIVATE_REPO_REV_CURRENT_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            config_vars['ACTIVATE_STATUS'] = "Completed"
+
+        except Exception as ex:
+            config_vars['ACTIVATE_EXCEPTION'] = f"{ex}"
+            print(f"do_activate_repo_rev exception {ex}")
+            raise
+        finally:
+            self.send_email_from_template_file(config_vars["ACTIVATE_REPO_REV_EMAIL_TEMPLATE_PATH"].Path())
+
+    def get_work_folder(self):
+        """ calculate the path of the work folder for specific repo_rev/major_version/domain
+            create the folder
+            assign the path to configVar
+        """
+
+        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
+        work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
+        work_folder.mkdir(parents=True, exist_ok=True)
+        return work_folder
+
+    def send_email_from_template_file(self, path_to_template):
+        work_folder = config_vars["TARGET_WORK_FOLDER"].Path()
+        path_to_resolved = work_folder.joinpath(path_to_template.name)
+        try:
+            ResolveConfigVarsInFile(path_to_template, path_to_resolved)()
+            utils.send_email_from_template_file(path_to_resolved)
+        except Exception as ex:
+            with open(path_to_resolved, "a") as wfd:
+                wfd.write(f"\nFailed to send email\n{traceback.format_exc()}")

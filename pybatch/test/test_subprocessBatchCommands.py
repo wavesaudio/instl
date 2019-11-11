@@ -53,6 +53,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         pass
 
     def test_Curl_repr(self):
+        """ validate Curl object recreation with Curl.__repr__() """
         url_from = r"http://www.google.com"
         file_to = "/q/w/r"
         curl_path = 'curl'
@@ -75,7 +76,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         else:
             curl_path = shutil.which("curl")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
         self.pbt.exec_and_capture_output()
 
@@ -84,6 +85,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertIn("A static web page", downloaded_data)
 
     def test_ShellCommand_repr(self):
+        """ validate ShellCommand object recreation with ShellCommand.__repr__() """
         list_of_objs = list()
         list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
@@ -102,12 +104,13 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
         # test that exception from exit code is not suppressed when not in ignore_specific_exit_codes
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum as batchi:
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
     def test_ScriptCommand_repr(self):
+        """ validate ScriptCommand object recreation with ScriptCommand.__repr__() """
         list_of_objs = list()
         list_of_error_to_ignore_lists = ((), (19,), (1,2,3))
         for ignore_all_errors in (True, False):
@@ -135,14 +138,15 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             #             r"cmd /C dir %userprofile%\desktop >> %userprofile%\desktop\geronimo.txt",
             #             r"cmd /C dir %userprofile%\desktop",]
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         #self.pbt.batch_accum += ConfigVarAssign("geronimo", *geronimo)
-        self.pbt.batch_accum += MakeDirs(batches_dir)
+        self.pbt.batch_accum += MakeDir(batches_dir)
         self.pbt.batch_accum += ShellCommands(shell_command_list=geronimo, message="testing ShellCommands")
 
         self.pbt.exec_and_capture_output()
 
     def test_ParallelRun_repr(self):
+        """ validate ParallelRun object recreation with ParallelRun.__repr__() """
         obj = ParallelRun("/rik/ya/vik", True)
         obj_recreated = eval(repr(obj))
         diff_explanation = obj.explain_diff(obj_recreated)
@@ -160,7 +164,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f"""# meanwhile, do the ps\n""")
                 wfd.write(f"""ps -x > ps.out.txt\n""")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, True)
 
@@ -178,7 +182,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f"""# while also doing some bad\n""")
                 wfd.write(f"""false\n""")
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, True)
 
@@ -202,7 +206,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             # save a copy of the input file
             sub_bc += CopyFileToFile(zip_input, zip_input_copy, hard_links=False)
@@ -222,7 +226,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 wfd.write(f'''# also run some random program\n''')
                 wfd.write(f'''bison --version\n''')
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
             sub_bc += ParallelRun(test_file, False)
 
@@ -234,6 +238,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(filecmp.cmp(zip_input, zip_input_copy), f"'{zip_input}' and '{zip_input_copy}' should be identical")
 
     def test_RunInThread_repr(self):
+        """ validate RunInThread object recreation with RunInThread.__repr__() """
         self.pbt.reprs_test_runner(RunInThread(Ls('rumba', out_file="empty.txt")),
                                    RunInThread(Ls("/per/pen/di/cular", out_file="perpendicular_ls.txt", ls_format='abc')),
                                    RunInThread(Ls(r"C:\Users\nira\AppData\Local\Waves Audio\instl\Cache/instl/V10", out_file="Lollobrigida.txt")))
@@ -243,9 +248,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         list_out_file = self.pbt.path_inside_test_folder("list-output")
 
         # create the folder, with sub folder and one known file
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as cd1_accum:
-             cd1_accum += MakeDirs(folder_to_list)
+             cd1_accum += MakeDir(folder_to_list)
              with cd1_accum.sub_accum(Cd(folder_to_list)) as cd2_accum:
                 cd2_accum += MakeRandomDirs(num_levels=3, num_dirs_per_level=2, num_files_per_dir=8, file_size=41)
              cd1_accum += RunInThread(Ls(folder_to_list, out_file=list_out_file))
@@ -256,6 +261,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")
 
     def test_Subprocess_repr(self):
+        """ validate Subprocess object recreation with Subprocess.__repr__() """
         self.pbt.reprs_test_runner(Subprocess("/rik/ya/vik", message="sababa"),
                                    Subprocess("/rik/ya/vik", "kiki di", message="sababa"),
                                    Subprocess("/rik/ya/vik", "kiki di", "Rubik Rosenthal"))
@@ -263,8 +269,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_Subprocess(self):
         folder_ = self.pbt.path_inside_test_folder("folder_")
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(folder_)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_)
         self.pbt.batch_accum += Subprocess("python3.6", "--version")
         self.pbt.batch_accum += Subprocess("python3.6", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
@@ -275,7 +281,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         elif running_on_Win:
             path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)
         self.pbt.exec_and_capture_output()
 

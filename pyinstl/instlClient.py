@@ -12,6 +12,7 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from configVar import config_vars
 from pybatch import *
+from .connectionBase import connection_factory
 
 
 class InstlClient(InstlInstanceBase):
@@ -66,7 +67,10 @@ class InstlClient(InstlInstanceBase):
         self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        self.read_yaml_file(main_input_file_path)
+        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars))
+
+        self.db.set_db_file_owner()
+
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
             raise Exception(errorMessage)
@@ -86,7 +90,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.create_default_items(iids_to_ignore=self.auxiliary_iids)
 
         self.resolve_defined_paths()
-        self.batch_accum.set_current_section('begin')
+        self.batch_accum.set_current_section('pre')
+        self.save_previous_state()
         command_title = {'sync': 'download', 'uninstall': 'uninstall', 'remove': 'remove', 'read_yaml': 'yaml', "report_versions": "report"}
         self.progress(f"""calculate {command_title.get(self.fixed_command, "install")} items""")
         self.calculate_install_items()
@@ -105,8 +110,6 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
-        utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())
-        log.info(f"""acting_uid: {utils.global_acting_uid}, acting_gid: {utils.global_acting_gid}""")
 
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
@@ -333,7 +336,7 @@ class InstlClient(InstlInstanceBase):
 
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
-            os.makedirs(new_require_file_path.parent, exist_ok=True)
+            MakeDir(new_require_file_path.parent, remove_obstacles=True, chowner=True, recursive_chmod=False, own_progress_count=0)()
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
             self.batch_accum += Chmod(new_require_file_path, "a+rw", ignore_all_errors=True)
@@ -392,7 +395,6 @@ class InstlClient(InstlInstanceBase):
     def get_version_of_installed_binaries(self):
         binaries_version_list = list()
         try:
-            path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
 
             ignore_regexes_filter = utils.check_binaries_versions_filter_with_ignore_regexes()
 
@@ -404,9 +406,10 @@ class InstlClient(InstlInstanceBase):
                 ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX"])
                 ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
+            current_os = config_vars["__CURRENT_OS__"].str()
+            path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
             for a_path in path_to_search:
-                current_os = config_vars["__CURRENT_OS__"].str()
-                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, a_path, ignore_regexes_filter)
+                binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, Path(a_path), ignore_regexes_filter)
                 binaries_version_list.extend(binaries_version_from_folder)
 
             self.items_table.insert_binary_versions(binaries_version_list)
@@ -505,7 +508,7 @@ class InstlClient(InstlInstanceBase):
 
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
-        target_folder_path_resolved = utils.ResolvedPath(config_vars.resolve_str(target_folder_path))
+        target_folder_path_resolved = utils.ExpandAndResolvePath(config_vars.resolve_str(target_folder_path))
         if target_folder_path_resolved.is_dir():  # no need to remove previous sources if folder does not exist
             iids_in_folder = self.all_iids_by_target_folder[target_folder_path]
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True, limit_to_iids=iids_in_folder)
@@ -566,6 +569,17 @@ class InstlClient(InstlInstanceBase):
                 if iid in active_iids:
                     self.read_yaml_from_node(defines_for_iid)
 
+    def save_previous_state(self):
+        current_require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
+        new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].Path()
+        main_input_file = config_vars["__MAIN_INPUT_FILE__"].Path()
+
+        save_require_before_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_before.yaml")
+        save_require_after_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_after.yaml")
+
+        self.batch_accum += CopyFileToFile(current_require_file_path, save_require_before_file_path, ignore_if_not_exist=True, hard_links=False, copy_owner=True)
+        self.batch_accum += CopyFileToFile(new_require_file_path, save_require_after_file_path, ignore_if_not_exist=True, hard_links=False, copy_owner=True)
+
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
@@ -581,7 +595,7 @@ def InstlClientFactory(initial_vars, command):
     elif command == "uninstall":
         from .instlClientUninstall import InstlClientUninstall
         retVal = InstlClientUninstall(initial_vars)
-    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml'):
+    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml', 'short-index'):
         from .instlClientReport import InstlClientReport
         retVal = InstlClientReport(initial_vars)
     elif command == "synccopy":

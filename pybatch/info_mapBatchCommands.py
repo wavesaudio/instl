@@ -13,7 +13,7 @@ import utils
 
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
@@ -46,11 +46,18 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
 
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
         for file_item in dl_file_items:
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
+            self.doing = f"""check checksum for '{file_item.download_path}'"""
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
@@ -106,6 +113,7 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     """
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
@@ -113,15 +121,21 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
+    def increment_and_output_progress(self):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"create sync folder {dl_dir}")
             self.doing = f"""creating sync folder '{dl_dir}'"""
             if dl_dir.download_path:  # direct_sync items have absolute path in member .download_path
-                MakeDirs(dl_dir.download_path)()
+                MakeDir(dl_dir.download_path)()
             else:  # cache items have relative path in member .path
-                MakeDirs(dl_dir.path)()
+                MakeDir(dl_dir.path)()
 
 
 class SetBaseRevision(DBManager, PythonBatchCommandBase):
@@ -133,7 +147,7 @@ class SetBaseRevision(DBManager, PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.base_rev))
 
     def progress_msg_self(self):
-        return f"Set base repo-rev to {self.base_rev}"
+        return f"Set base-repo-rev to repo-rev#{self.base_rev}"
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
@@ -184,9 +198,19 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         info_map_to_item = dict()
         all_info_map_names = self.items_table.get_unique_detail_values('info_map')
         for infomap_file_name in all_info_map_names:
-            self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
-            info_map_items = self.info_map_table.get_required_items()
-            info_map_to_item[infomap_file_name] = info_map_items
+            info_map_file_path = self.work_folder.joinpath(infomap_file_name)
+            if info_map_file_path.is_file():
+                log.info(f"{infomap_file_name} was found so no need to create it")
+                # file already exists, probably copied from the "Common" repository
+                # just checking that the fie is also zipped
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_info_map_file_path = self.work_folder.joinpath(zip_infomap_file_name)
+                if not zip_info_map_file_path.is_file():
+                    raise FileNotFoundError(f"found {info_map_file_path} but not {zip_info_map_file_path}")
+            else:
+                self.info_map_table.mark_items_required_by_infomap(infomap_file_name)
+                info_map_items = self.info_map_table.get_required_items()
+                info_map_to_item[infomap_file_name] = info_map_items
 
         files_to_add_to_default_info_map = list()  # the named info_map files and their wzip version should be added to the default info_map
         # write each info map to file
@@ -207,6 +231,8 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         default_info_map_file_path = self.work_folder.joinpath(default_info_map_file_name)
         info_map_items = self.info_map_table.get_items_for_default_infomap()
         self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+        with Wzip(default_info_map_file_path, self.work_folder, own_progress_count=0) as wzipper:
+            wzipper()
 
         # add a line to default info map for each non default info_map created above
         with open(default_info_map_file_path, "a") as wfd:
@@ -230,8 +256,8 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
         return f'''read index.yaml from {self.index_yaml_path}'''
 
     def __call__(self, *args, **kwargs) -> None:
-        from pyinstl import IndexYamlReader
-        reader = IndexYamlReader(config_vars)
+        from pyinstl import IndexYamlReaderBase
+        reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
 
 
@@ -248,7 +274,7 @@ class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.repo_rev))
 
     def progress_msg_self(self) -> str:
-        return f'''Copy repo-rev {self.repo_rev} files from {self.checkout_folder} to {self.repo_rev_folder}'''
+        return f'''Copy files of repo-rev#{self.repo_rev} from {self.checkout_folder} to {self.repo_rev_folder}'''
 
     def __call__(self, *args, **kwargs) -> None:
         self.info_map_table.mark_required_for_revision(self.repo_rev)
@@ -274,70 +300,58 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         pass
 
     def progress_msg_self(self) -> str:
-        return f'''create repo-rev file for {config_vars["TARGET_REPO_REV"].str()}'''
+        return f'''create file for repo-rev#{config_vars["TARGET_REPO_REV"].str()}'''
 
     def __call__(self, *args, **kwargs) -> None:
         if "REPO_REV_FILE_VARS" not in config_vars:
             # must have a list of variable names to write to the repo-rev file
             raise ValueError("REPO_REV_FILE_VARS must be defined")
-        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])
-        config_vars["REPO_REV"] = "$(TARGET_REPO_REV)"  # override the repo rev from the config file
-
-        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))
-
-        config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"].str())
-        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
-
-        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
-
+        repo_rev_vars = list(config_vars["REPO_REV_FILE_VARS"])  # list of configVars to write to the repo-rev file
         # check that the variable names from REPO_REV_FILE_VARS do not contain
         # names that must not be made public
         dangerous_intersection = set(repo_rev_vars).intersection(
             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "PRIVATE_KEY", "PRIVATE_KEY_FILE"})
         if dangerous_intersection:
-            self.progress("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
+            log.warning("found", str(dangerous_intersection), "in REPO_REV_FILE_VARS, aborting")
             raise ValueError(f"file REPO_REV_FILE_VARS {dangerous_intersection} and so is forbidden to upload")
 
-        # create checksum for the main info_map file
-        info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt")
-        zip_info_map_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)")
+        use_zlib = bool(config_vars.get("USE_ZLIB", "False"))  # should we consider zipped files or not
+        zip_extension = ""
         if use_zlib:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt$(WZLIB_EXTENSION)"
-            info_map_checksum = utils.get_file_checksum(zip_info_map_file)
-        else:
-            config_vars["RELATIVE_INFO_MAP_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/info_map.txt"
-            info_map_checksum = utils.get_file_checksum(info_map_file)
-        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INFO_MAP_URL)"
-        config_vars["INFO_MAP_CHECKSUM"] = info_map_checksum
+            zip_extension = config_vars.get("WZLIB_EXTENSION", ".wzip").str()
 
-        # create checksum for the main index.yaml file
-        # zip the index file
-        local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml")
-        zip_local_index_file = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)")
-        zlib_compression_level = int(config_vars["ZLIB_COMPRESSION_LEVEL"])
-        with open(zip_local_index_file, "wb") as wfd:
-            wfd.write(zlib.compress(open(local_index_file, "r").read().encode(), zlib_compression_level))
+        revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
 
-        if use_zlib:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml$(WZLIB_EXTENSION)"
-            index_file_checksum = utils.get_file_checksum(zip_local_index_file)
-        else:
-            config_vars["RELATIVE_INDEX_URL"] = "$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/index.yaml"
-            index_file_checksum = utils.get_file_checksum(local_index_file)
-        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(RELATIVE_INDEX_URL)"
-        config_vars["INDEX_CHECKSUM"] = index_file_checksum
+        # create checksum for the main info_map file, either wzipped or not
+        main_info_map_file_name = "info_map.txt"+zip_extension
+        main_info_map_file = revision_instl_folder_path.joinpath(main_info_map_file_name)
+        main_info_map_checksum = utils.get_file_checksum(main_info_map_file)
+
+        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+main_info_map_file_name
+        config_vars["INFO_MAP_CHECKSUM"] = main_info_map_checksum
+
+        # create checksum for the main index.yaml file, either wzipped or not
+        index_file_name = "index.yaml"+zip_extension
+        index_file_path = revision_instl_folder_path.joinpath(index_file_name)
+
+        config_vars["INDEX_CHECKSUM"] = utils.get_file_checksum(index_file_path)
+        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+index_file_name
+
+        config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
+        config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
 
         # check that all variables are present
-        for var in repo_rev_vars:
-            if var not in config_vars:
-                raise ValueError(f"{var} is missing cannot write repo rev file")
+        # <class 'list'>: ['INSTL_FOLDER_BASE_URL', 'REPO_REV_FOLDER_HIERARCHY', 'SYNC_BASE_URL']
+        missing_vars = [var for var in repo_rev_vars if var not in config_vars]
+        if missing_vars:
+            raise ValueError(f"{missing_vars} are missing cannot write repo rev file")
 
         # create yaml out of the variables
-        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars, include_comments=False)
+        variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
-        repo_rev_folder_path = config_vars.resolve_str("$(ROOT_LINKS_FOLDER_REPO)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/$(REPO_REV_FILE_NAME).$(TARGET_REPO_REV)")
-
-        with utils.utf8_open_for_write(repo_rev_folder_path, "w") as wfd:
+        repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"]
+        with utils.utf8_open_for_write(repo_rev_file_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
-            self.progress("created", repo_rev_folder_path)
+            log.info(f"""create {repo_rev_file_path}""")
+

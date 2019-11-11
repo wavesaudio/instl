@@ -27,9 +27,9 @@ def camel_to_snake_case(identifier):
     return identifier2
 
 
-class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
+class PythonBatchCommandAccum(PythonBatchCommandBase):
 
-    section_order = ("prepare", "assign", "begin", "links", "upload", "pre-sync", "sync", "post-sync",
+    section_order = ("prepare", "assign", "begin", "links", "upload", "pre", "pre-sync", "sync", "post-sync",
                      "copy", "post-copy", "remove", "admin", "pre_doit", "doit", "post_doit", "end",
                      "post", "epilog")
     special_sections = ("assign", "epilog")
@@ -39,15 +39,20 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         self.current_section: str = None
         self.sections = dict()
         self.creation_time = time.strftime('%d-%m-%y_%H-%M')
+        self.initial_progress = 0
 
-    def clear(self):
+    def clear(self, section_name=None):
         self.sections = dict()
-        if self.current_section:
+        if section_name is None:
             self.set_current_section(self.current_section)
+        else:
+            self.set_current_section(section_name)
         PythonBatchCommandBase.running_progress = 0
 
     def set_current_section(self, section_name):
-        if section_name in PythonBatchCommandAccum.section_order:
+        if section_name is None:
+            self.current_section: str = None
+        elif section_name in PythonBatchCommandAccum.section_order:
             self.current_section = section_name
             if self.current_section not in self.sections:
                 self.sections[self.current_section] = Stage(self.current_section)
@@ -92,8 +97,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
         opening_code_lines.append(f"""from configVar import config_vars""")
         opening_code_lines.append(f"""utils.set_acting_ids(config_vars.get("ACTING_UID", -1).int(), config_vars.get("ACTING_GID", -1).int())""")
         opening_code_lines.append(f"""from pybatch import *""")
-        opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress}""")
-        opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress}""")
+        opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress+self.initial_progress}""")
+        opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress+self.initial_progress}""")
         opening_code_lines.append(f"""if __name__ is '__main__':""")
         opening_code_lines.append(f"""    from utils import log_utils""")
         opening_code_lines.append(f"""    log_utils.config_logger()""")
@@ -109,7 +114,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase, essential=True):
 
     def __repr__(self):
         single_indent = "    "
-        running_progress_count = 0
+        running_progress_count = self.initial_progress
 
         def _create_unique_obj_name(obj, prog_count):
             try:

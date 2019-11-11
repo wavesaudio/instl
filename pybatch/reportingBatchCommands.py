@@ -38,7 +38,7 @@ class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call
         raise NotImplementedError("AnonymousAccum.__call__ should not be called")
 
 
-class RaiseException(pybatch.PythonBatchCommandBase, essential=True):
+class RaiseException(pybatch.PythonBatchCommandBase):
     """ raise a specific exception - for debugging """
     def __init__(self, exception_type, exception_message, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -109,7 +109,7 @@ class Progress(pybatch.PythonBatchCommandBase, essential=False, call__call__=Tru
 
     def __call__(self, *args, **kwargs) -> None:
         with self.timing_contextmanager():
-            log.info(f"{self.progress_msg()} {self.progress_msg_self()}")
+            self.increment_and_output_progress()
 
 
 class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
@@ -148,7 +148,7 @@ class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_mana
         pass
 
 
-class PythonDoSomething(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class PythonDoSomething(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
 
     def __init__(self, some_python_code, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -166,7 +166,7 @@ class PythonDoSomething(pybatch.PythonBatchCommandBase, essential=True, call__ca
             pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
-class PythonVarAssign(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class PythonVarAssign(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ creates a python variable assignment, e.g.
         x = y
     """
@@ -261,7 +261,7 @@ class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_conte
             log.info(resolved)
 
 
-class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__call__=False, is_context_manager=True):
+class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=True):
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
         self.name = name
@@ -283,7 +283,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__c
 
     def log_error(self, exc_type, exc_val, exc_tb):
         error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
-        error_json = json.dumps(error_dict, separators=(',\n', ': '), sort_keys=True, default=utils.extra_json_serializer)
+        error_json = json.dumps(error_dict, separators=(',', ':'), sort_keys=True, default=utils.extra_json_serializer)
         log.error(f"---\n{error_json}\n...\n")
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -296,30 +296,31 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, essential=True, call__c
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
-class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
-    def __init__(self, unresolved_file, resolved_file=None, config_file=None, **kwargs):
+class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, **kwargs):
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
         if resolved_file:
             self.resolved_file = resolved_file
         else:
             self.resolved_file = self.unresolved_file
-        self.config_file = config_file
+        self.config_files = config_files
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
         if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
-        all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
+        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
 
     def __call__(self, *args, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_file is not None:
+        if self.config_files is not None:
             reader = ConfigVarYamlReader(config_vars)
-            reader.read_yaml_file(self.config_file)
+            for config_file in self.config_files:
+                reader.read_yaml_file(config_file)
         with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
@@ -327,7 +328,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase, essential=True):
             wfd.write(resolved_text)
 
 
-class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase, essential=True):
+class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase):
     def __init__(self, file_to_read, **kwargs):
         super().__init__(**kwargs)
         self.file_to_read = file_to_read
@@ -342,7 +343,6 @@ class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase, essential=True):
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(self.file_to_read)
-
 
 class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=True):
     def __init__(self, file_path_to_read, var_name, **kwargs):
@@ -364,8 +364,7 @@ class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=T
             value = value.strip()
             config_vars[self.var_name] = value
 
-
-class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+class EnvironVarAssign(PythonDoSomething, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ assigns an environment variable
     """
     def __init__(self, var_name, var_value, **kwargs) -> None:
@@ -385,11 +384,11 @@ def convertSeconds(seconds):
     return converted_str
 
 
-class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase, essential=True):
+class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
 
     def __init__(self, path_to_py_batch, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__init__(self, **kwargs)
-        self.path_to_py_batch = utils.ResolvedPath(path_to_py_batch)
+        self.path_to_py_batch = utils.ExpandAndResolvePath(path_to_py_batch)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.path_to_py_batch))

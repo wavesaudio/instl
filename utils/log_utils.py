@@ -25,43 +25,49 @@ from utils import misc_utils as utils
 top_logger = logging.getLogger()
 
 
-def config_logger():
-    if '--no-stdout' not in sys.argv:
+def config_logger(argv=None):
+    if argv is None:
+        argv = sys.argv
+    if '--no-stdout' not in argv:
         setup_stream_hdlr()
     # command line options relating to logging are parsed here, as soon as possible
-    if '--log' in sys.argv:
+    if '--log' in argv:
         try:
-            log_option_index = sys.argv.index('--log')
-            for i_log_file in range(log_option_index+1, len(sys.argv)):
-                log_file_path = sys.argv[i_log_file]
+            log_option_index = argv.index('--log')
+            for i_log_file in range(log_option_index+1, len(argv)):
+                log_file_path = argv[i_log_file]
                 if not log_file_path.startswith('-'):
                     setup_file_logging(log_file_path, rotate=False)
                 else:
                     break
         except:
             pass
-    elif '--no-system-log' not in sys.argv:
+    elif '--no-system-log' not in argv:
         system_log_file_path = utils.get_system_log_file_path()
         setup_file_logging(system_log_file_path)
 
 
 def setup_stream_hdlr():
     stdout_stream_hdlr = logging.StreamHandler(stream=sys.stdout)
+    stdout_stream_hdlr.setLevel(logging.INFO)
+    stdout_stream_hdlr.addFilter(SameLevelFilter(logging.WARNING))  # Setting stdout to ignore any message higher than warning
+    stdout_stream_hdlr.setFormatter(logging.Formatter('%(message)s'))
+    stdout_stream_hdlr.name = "instl stdout handler"
+    top_logger.addHandler(stdout_stream_hdlr)
+
     stderr_stream_hdlr = logging.StreamHandler(stream=sys.stderr)
-    for strm_hdlr in [stdout_stream_hdlr, stderr_stream_hdlr]:
-        strm_hdlr.setLevel(logging.INFO if strm_hdlr == stdout_stream_hdlr else logging.ERROR)
-        if strm_hdlr == stdout_stream_hdlr:
-            strm_hdlr.addFilter(SameLevelFilter(logging.WARNING))  # Setting stdout to ignore any message higher than warning
-        strm_hdlr.setFormatter(logging.Formatter('%(message)s'))
-        top_logger.addHandler(strm_hdlr)
+    stderr_stream_hdlr.setLevel(logging.ERROR)
+    stderr_stream_hdlr.setFormatter(logging.Formatter('%(message)s'))
+    stderr_stream_hdlr.name = "instl stderr handler"
+    top_logger.addHandler(stderr_stream_hdlr)
 
 
-format_per_level = {logging.CRITICAL: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.ERROR: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.WARNING: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
+format_per_level = {logging.CRITICAL: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.ERROR: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.WARNING: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
                    logging.INFO: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
-                   logging.DEBUG: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}',
-                   logging.NOTSET: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s | {%(name)s.%(funcName)s,%(lineno)s}'}
+                   logging.DEBUG: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s',
+                   logging.NOTSET: '%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s'}
 
 
 class PerLevelFormatter(logging.Formatter):
@@ -95,6 +101,7 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
 
     fileLogHandler.setFormatter(formatter)
     top_logger.addHandler(fileLogHandler)
+    print(f"logging to  {log_file_path}")
 
 
 class ParentLogFilter(logging.Filter):
@@ -251,97 +258,6 @@ def close_log_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
             hdlr.close()
         except OSError:
             root_logger.warning('Failed to close log handler - %s' % hdlr)
-
-
-def install_mp_handler(logger=None):
-    """Wraps the handlers in the given Logger with an MultiProcessingHandler.
-
-    :param logger: whose handlers to wrap. By default, the root logger.
-    """
-    if logger is None:
-        logger = logging.getLogger()
-
-    for i, orig_handler in enumerate(list(logger.handlers)):
-        handler = MultiProcessingHandler(
-            'mp-handler-{0}'.format(i), sub_handler=orig_handler)
-
-        logger.removeHandler(orig_handler)
-        logger.addHandler(handler)
-
-
-class MultiProcessingHandler(logging.Handler):
-
-    def __init__(self, name, sub_handler=None):
-        super(MultiProcessingHandler, self).__init__()
-
-        if sub_handler is None:
-            sub_handler = logging.StreamHandler()
-        self.sub_handler = sub_handler
-
-        self.setLevel(self.sub_handler.level)
-        self.setFormatter(self.sub_handler.formatter)
-
-        self.queue = multiprocessing.Queue(-1)
-        self._is_closed = False
-        # The thread handles receiving records asynchronously.
-        self._receive_thread = threading.Thread(target=self._receive, name=name)
-        self._receive_thread.daemon = True
-        self._receive_thread.start()
-
-    def setFormatter(self, fmt):
-        super(MultiProcessingHandler, self).setFormatter(fmt)
-        self.sub_handler.setFormatter(fmt)
-
-    def _receive(self):
-        while not (self._is_closed and self.queue.empty()):
-            try:
-                record = self.queue.get(timeout=0.2)
-                self.sub_handler.emit(record)
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except EOFError:
-                break
-            except queue.Empty:
-                pass  # This periodically checks if the logger is closed.
-            except:
-                traceback.print_exc(file=sys.stderr)
-
-        self.queue.close()
-        self.queue.join_thread()
-
-    def _send(self, s):
-        self.queue.put_nowait(s)
-
-    def _format_record(self, record):
-        # ensure that exc_info and args
-        # have been stringified. Removes any chance of
-        # unpickleable things inside and possibly reduces
-        # message size sent over the pipe.
-        if record.args:
-            record.msg = record.msg % record.args
-            record.args = None
-        if record.exc_info:
-            self.format(record)
-            record.exc_info = None
-
-        return record
-
-    def emit(self, record):
-        try:
-            s = self._format_record(record)
-            self._send(s)
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
-            self.handleError(record)
-
-    def close(self):
-        if not self._is_closed:
-            self._is_closed = True
-            self._receive_thread.join(5.0)  # Waits for receive queue to empty.
-
-            self.sub_handler.close()
-            super(MultiProcessingHandler, self).close()
 
 
 class SameLevelFilter(logging.Filter):

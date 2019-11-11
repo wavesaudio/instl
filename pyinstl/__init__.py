@@ -4,4 +4,6 @@
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
 from .connectionBase import connection_factory
-from .instlInstanceBase import IndexYamlReader
+from .instlInstanceBase import IndexYamlReaderBase
+from .instlException import InstlException, InstlFatalException
+
