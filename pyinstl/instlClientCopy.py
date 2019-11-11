@@ -62,7 +62,7 @@ class InstlClientCopy(InstlClient):
             for target_folder_path in folder_list:
                 target_folder_path = utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(target_folder_path)))
                 our_folder = next((False for p in third_party_folders if p == target_folder_path), True)
-                create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=our_folder)
+                create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=False)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
@@ -240,14 +240,11 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if self.mac_current_and_target:
-                retVal += ChmodAndChown(path=source_path_name, mode="a+rwX", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
                         # executable files should also get exec bit
                         retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
-            elif self.win_current_and_target:
-                retVal += FullACLForEveryone(path=source_path_name, ignore_all_errors=True)
 
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, os.curdir)

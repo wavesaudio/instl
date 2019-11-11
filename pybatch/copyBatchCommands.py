@@ -369,11 +369,8 @@ class RsyncClone(PythonBatchCommandBase):
         self.statistics['dirs'] += 1
         log.debug(f"copy folder '{src}' to '{dst}'")
 
-        if self.top_destination_does_not_exist:
-            dst.mkdir(parents=True, exist_ok=True)
-            if self.copy_owner and self.has_chown:
-                src_stat = src.stat()
-                os.chown(dst, src_stat[stat.ST_UID], src_stat[stat.ST_GID])
+        # call MakeDir even if dst already exists, so permissions/ACL (and possibly owner) will be set correctly
+        MakeDir(dst, chowner=(self.copy_owner and self.has_chown), own_progress_count=0)()
 
         if not self.top_destination_does_not_exist and self.delete_extraneous_files:
             self.remove_extraneous_files(dst, src_file_names+src_dir_names)
