@@ -130,23 +130,6 @@ class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, 
         pass
 
 
-class ReadFileAndSetTheValueIntoEnvironementVaraiable(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
-    def __init__(self, message, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.message = message
-
-    def __repr__(self) -> str:
-        the_repr = f'''print("{self.message}")'''
-        return the_repr
-
-    def progress_msg_self(self) -> str:
-        print(self.message)
-
-
-    def __call__(self, *args, **kwargs) -> None:
-        pass
-
-
 class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ write a remark in code
     """

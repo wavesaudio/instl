@@ -145,7 +145,6 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
         with open(self.pbt.output_file_name, "r") as rfd:
-            res = rfd.read()
             self.assertIn(str(config_vars["SOME_VAR_TO_PRINT"]), rfd.read())
 
     def test_PythonBatchRuntime_repr(self):
