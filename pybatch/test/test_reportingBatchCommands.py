@@ -202,3 +202,17 @@ STEVE: Jobs
 
         self.assertTrue(var_name in os.environ, f"EnvironVarAssign.repr did not set environment variable '{var_name}' at all")
         self.assertEqual(os.environ[var_name], var_value, f"EnvironVarAssign.repr did not set environment variable '{var_name}' correctly")
+
+    def test_ReadConfigVarValueFromTextFile(self):
+        var_name = 'BUILD_NUMBER'
+        var_value = "1234"
+
+        config_file = self.pbt.path_inside_test_folder("config_file")
+        config_text = var_value
+        with config_file.open("w") as wfd:
+            wfd.write(config_text)
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ReadConfigVarValueFromTextFile(config_file.absolute(), var_name)
+        self.pbt.exec_and_capture_output()
+        self.assertEqual(config_vars[var_name].values[0] , var_value, f"ReadConfigVarValueFromTextFile did not set environment variable '{var_name}' correctly")

@@ -37,6 +37,7 @@ from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
+from .reportingBatchCommands import ReadConfigVarValueFromTextFile
 from .reportingBatchCommands import EnvironVarAssign
 from .reportingBatchCommands import PatchPyBatchWithTimings
 
