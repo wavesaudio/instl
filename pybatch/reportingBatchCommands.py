@@ -130,6 +130,23 @@ class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, 
         pass
 
 
+class ReadFileAndSetTheValueIntoEnvironementVaraiable(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+    def __init__(self, message, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.message = message
+
+    def __repr__(self) -> str:
+        the_repr = f'''print("{self.message}")'''
+        return the_repr
+
+    def progress_msg_self(self) -> str:
+        print(self.message)
+
+
+    def __call__(self, *args, **kwargs) -> None:
+        pass
+
+
 class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ write a remark in code
     """
@@ -342,6 +359,27 @@ class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase, essential=True):
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(self.file_to_read)
+
+
+class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=True):
+    def __init__(self, file_path_to_read, var_name, **kwargs):
+        super().__init__(**kwargs)
+        self.file_path_to_read = file_path_to_read
+        self.var_name = var_name
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.file_path_to_read))
+        all_args.append(self.unnamed__init__param(self.var_name))
+
+    def progress_msg_self(self) -> str:
+        return f'''Reading config variable:{self.var_name}, from {self.file_path_to_read}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        with open(self.file_path_to_read, 'r') as f:
+            value = f.read()
+            value = value.strip()
+            config_vars[self.var_name] = value
 
 
 class EnvironVarAssign(PythonDoSomething, essential=True, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
