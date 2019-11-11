@@ -14,7 +14,6 @@ import filecmp
 import random
 import string
 from collections import namedtuple
-import appdirs
 
 import utils
 from pybatch import *
