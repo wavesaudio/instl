@@ -336,7 +336,7 @@ class InstlClient(InstlInstanceBase):
 
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
-            os.makedirs(new_require_file_path.parent, exist_ok=True)
+            MakeDir(new_require_file_path.parent, remove_obstacles=True, chowner=True, recursive_chmod=False, own_progress_count=0)()
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
             self.batch_accum += Chmod(new_require_file_path, "a+rw", ignore_all_errors=True)
