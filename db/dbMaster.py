@@ -102,9 +102,9 @@ class DBMaster(object):
         """ callback for sqlite3.connection.set_authorizer"""
         return sqlite3.SQLITE_OK
 
-    def progress_handler_sqlite3(self):
+    def set_progress_handler(self, progress_callback, n_instructions):
         """ callback for sqlite3.connection.set_progress_handler"""
-        self.logger.debug('DB progress')
+        self.__conn.set_progress_handler(progress_callback, n_instructions)
 
     def trace_handler_sqlite3(self, statement):
         """ callback for sqlite3.connection.set_trace_callback"""
@@ -174,61 +174,85 @@ class DBMaster(object):
     def curs(self):
         return self.__curs
 
+    class ProgressCallBacker:
+        def __init__(self, db_master, _description, _progress_callback):
+            self.db_master = db_master
+            self.description = _description
+            self.progress_callback = _progress_callback
+            self.counter = 0
+
+        def __enter__(self):
+            if self.progress_callback:
+                self.progress_callback(f"{self.description} {self.counter}")
+                self.db_master.set_progress_handler(self, 50 * 1024 * 1024)
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self.progress_callback:
+                self.db_master.set_progress_handler(None, 0)
+
+        def __call__(self, *args, **kwargs):
+            self.counter += 1
+            self.progress_callback(f"{self.description} {self.counter}")
+
     @contextmanager
-    def transaction(self, description=None):
+    def transaction(self, description=None, progress_callback=None):
         try:
+
             if not description:
                 try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
                     description = inspect.stack()[2][3]
                 except IndexError as ex:
                     description = "unknown"
-            #time1 = time.perf_counter()
-            self.begin()
-            yield self.__curs
-            self.commit()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                self.begin()
+                yield self.__curs
+                self.commit()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
         except:
             self.rollback()
             raise
 
     @contextmanager
-    def selection(self, description=None):
+    def selection(self, description=None, progress_callback=None):
         """ returns a cursor for SELECT queries.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            #time1 = time.perf_counter()
-            yield self.__conn.cursor()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    if not description:
-            #        description = inspect.stack()[2][3]
-            #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                yield self.__conn.cursor()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    if not description:
+                #        description = inspect.stack()[2][3]
+                #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
     @contextmanager
-    def temp_transaction(self, description=None):
+    def temp_transaction(self, description=None, progress_callback=None):
         """ returns a cursor for working with CREATE TEMP TABLE.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            #time1 = time.perf_counter()
-            yield self.__conn.cursor()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    if not description:
-            #        description = inspect.stack()[2][3]
-            #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                yield self.__conn.cursor()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    if not description:
+                #        description = inspect.stack()[2][3]
+                #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -242,7 +266,7 @@ class DBMaster(object):
                 ddl_text = rfd.read()
                 curs.executescript(ddl_text)
 
-    def select_and_fetchone(self, query_text, query_params=None):
+    def select_and_fetchone(self, query_text, query_params=None, progress_callback=None):
         """
             execute a select statement and convert the returned list
             of tuples to a list of values.
@@ -256,7 +280,7 @@ class DBMaster(object):
                 description = inspect.stack()[1][3]
             else:
                 description = None
-            with self.selection(description) as curs:
+            with self.selection(description=description, progress_callback=progress_callback) as curs:
                 curs.execute(query_text, query_params)
                 one_result = curs.fetchone()
                 if one_result:
@@ -268,7 +292,7 @@ class DBMaster(object):
             raise
         return retVal
 
-    def select_and_fetchall(self, query_text, query_params=None):
+    def select_and_fetchall(self, query_text, query_params=None, progress_callback=None):
         """
             execute a select statement and convert the returned list
             of tuples to a list of values.
@@ -282,7 +306,7 @@ class DBMaster(object):
                 description = inspect.stack()[1][3]
             else:
                 description = None
-            with self.selection(description) as curs:
+            with self.selection(description=description, progress_callback=progress_callback) as curs:
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:

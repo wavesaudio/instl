@@ -325,7 +325,7 @@ class SVNTable(object):
         yield
         self.create_indexes()
 
-    def read_from_file(self, in_file, a_format="guess", disable_indexes_during_read=False) -> None:
+    def read_from_file(self, in_file, a_format="guess", disable_indexes_during_read=False, progress_callback=None) -> None:
         """ Reads from file. All previous sub items are cleared
             before reading, unless the a_format is 'props' in which case
             the properties are added to existing sub items.
@@ -343,14 +343,14 @@ class SVNTable(object):
             with utils.open_for_read_file_or_url(in_file, config_vars=config_vars) as open_file:
                 if disable_indexes_during_read:
                     self.drop_indexes()
-                self.read_func_by_format[a_format](open_file.fd)
+                self.read_func_by_format[a_format](open_file.fd, progress_callback=progress_callback)
                 if disable_indexes_during_read:
                     self.create_indexes()
                 self.files_read_list.append(in_file)
         else:
             raise ValueError(f"Unknown read a_format {a_format}")
 
-    def read_from_svn_info(self, rfd) -> None:
+    def read_from_svn_info(self, rfd, progress_callback=None) -> None:
         """ reads new items from svn info items prepared by iter_svn_info
             items are inserted in lexicographic directory order, so '/'
             sorts before other characters: key=lambda x: x['path'].split('/')
@@ -409,7 +409,8 @@ class SVNTable(object):
                 yield create_list_from_record(record)
 
         row_yielder = yield_row(rfd)
-        with self.db.transaction() as curs:
+        description = f"read svn info from {rfd.name}"
+        with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
             insert_q = """
                 INSERT INTO svn_item_t (path, revision,
                                       checksum,
@@ -418,12 +419,12 @@ class SVNTable(object):
                                       required, need_download, extra_props)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            for rows in utils.iter_grouper(10000, row_yielder):
-                #print(f"read another {len(rows)} rows from {rfd.name}")
+            for rows in utils.iter_grouper(8192, row_yielder):
                 curs.executemany(insert_q, rows)
 
-    def read_from_text(self, rfd):
+    def read_from_text(self, rfd, progress_callback=None):
         dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
+
         def yield_row(_rfd_):
             reader = csv.reader(_rfd_, skipinitialspace=True)
             for row in reader:
@@ -455,7 +456,8 @@ class SVNTable(object):
                     yield row_data
 
         row_yielder = yield_row(rfd)
-        with self.db.transaction() as curs:
+        description = f"read info_map from {rfd.name}"
+        with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       checksum, size, url, download_path,
@@ -465,8 +467,7 @@ class SVNTable(object):
                                       symlinkFlag)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                 """
-            for rows in utils.iter_grouper(10000, row_yielder):
-                #print(f"read another {len(rows)} rows from {rfd.name}")
+            for rows in utils.iter_grouper(8192, row_yielder):
                 curs.executemany(insert_q, rows)
 
     @staticmethod
@@ -483,7 +484,7 @@ class SVNTable(object):
     def valid_write_formats(self) -> List[str]:
         return list(self.write_func_by_format.keys())
 
-    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None) -> None:
+    def write_to_file(self, in_file, in_format="guess", comments=True, items_list=None, field_to_write=None, progress_callback=None) -> None:
         """ pass in_file=None to output to stdout.
             in_format is either text, yaml, pickle
         """
@@ -495,20 +496,23 @@ class SVNTable(object):
             in_format = map_info_extension_to_format[extension[1:]]
         if in_format in list(self.write_func_by_format.keys()):
             with utils.write_to_file_or_stdout(in_file) as wfd:
-                self.write_func_by_format[in_format](wfd, items_list, comments, field_to_write=field_to_write)
+                self.write_func_by_format[in_format](wfd, items_list, comments, field_to_write=field_to_write, progress_callback=progress_callback)
                 self.files_written_list.append(in_file)
         else:
             raise ValueError(f"Unknown write in_format {in_format}")
 
-    def write_as_text(self, wfd, items_list, comments=True, field_to_write=None) -> None:
+    def write_as_text(self, wfd, items_list, comments=True, field_to_write=None, progress_callback=None) -> None:
         if comments and len(self.comments) > 0:
             for comment in self.comments:
                 wfd.write(f"# {comment}\n")
             wfd.write("\n")
-        for item in items_list:
-            wfd.write(f"{item.str_specific_fields(field_to_write)}\n")
+        for items in utils.iter_grouper(8192, items_list):
+            if progress_callback:
+                progress_callback(f"write {len(items)} rows to {wfd.name}")
+            for item in items:
+                wfd.write(f"{item.str_specific_fields(field_to_write)}\n")
 
-    def initialize_from_folder(self, in_folder) -> None:
+    def initialize_from_folder(self, in_folder, progress_callback=None) -> None:
         def yield_row(_in_folder_) -> Generator:
             base_folder_len = len(_in_folder_)+1
             for root, dirs, files in os.walk(_in_folder_, followlinks=False):
@@ -543,15 +547,15 @@ class SVNTable(object):
                     yield row_data
 
         row_yielder = yield_row(in_folder)
-        with self.db.transaction() as curs:
+        description = f"initialize svn info from folder {in_folder}"
+        with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
             insert_q = """
                 INSERT INTO svn_item_t (path, flags, revision,
                                       level, parent, leaf,
                                       fileFlag, symlinkFlag, wtarFlag, unwtarred )
                  VALUES(?,?,?,?,?,?,?,?,?,?);
                 """
-            for rows in utils.iter_grouper(10000, row_yielder):
-                #print(f"read another {len(rows)} rows from {in_folder}")
+            for rows in utils.iter_grouper(8192, row_yielder):
                 curs.executemany(insert_q, rows)
 
     def num_items(self, item_filter="all-items") -> int:
@@ -600,7 +604,7 @@ class SVNTable(object):
                 """
             curs.execute(update_q, {"base_revision": base_revision})
 
-    def read_file_sizes(self, rfd) -> None:
+    def read_file_sizes(self, rfd, progress_callback=None) -> None:
         def yield_row(_rfd_):
             line_num = 0
             for line in rfd:
@@ -613,17 +617,17 @@ class SVNTable(object):
                     yield {"old_path": parts[0], "new_size": int(parts[1])}  # path, size
 
         row_yielder = yield_row(rfd)
-        with self.db.transaction() as curs:
+        description = f"read files sizes from {rfd.name}"
+        with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
             update_q = """
                 UPDATE  svn_item_t
                 SET size = :new_size
                 WHERE path = :old_path
                 """
-            for rows in utils.iter_grouper(10000, row_yielder):
-                #print(f"read another {len(rows)} rows from {rfd.name}")
+            for rows in utils.iter_grouper(8192, row_yielder):
                 curs.executemany(update_q, rows)
 
-    def read_props(self, rfd) -> None:
+    def read_props(self, rfd, progress_callback=None) -> None:
         props_line_re = re.compile("""
                     ^
                     (
@@ -645,7 +649,8 @@ class SVNTable(object):
             prop_name_to_flag = {'executable': 'x', 'special': 's'}
             props_to_ignore = ['mime-type']
             path = None
-            with self.db.transaction() as curs:
+            description = f"read properties from {rfd.name}"
+            with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
                 prop_name_to_flag_query_params = list()
                 not_in_props_to_ignore_query_params = list()
                 for line in rfd:
@@ -723,14 +728,15 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
-    def get_files_that_should_be_removed_from_sync_folder(self, files_to_check) -> List[int]:
+    def get_files_that_should_be_removed_from_sync_folder(self, files_to_check, progress_callback=None) -> List[int]:
         """
         :param files_to_check: a list of tuples [(partial_path, full_path), ...]
+        :param progress_callback: progress callback, if not None must accept a single string parameter and return None
         :return: list of indexes into files_to_check who's partial path is not in info_map
         """
         retVal = list()
 
-        with self.db.transaction() as curs:
+        with self.db.transaction(description="get_files_that_should_be_removed_from_sync_folder", progress_callback=progress_callback) as curs:
             create_table_text = """CREATE TEMP TABLE cache_folder_file_paths_t (path TEXT, remove BOOLEAN DEFAULT 1);"""
             curs.execute(create_table_text)
 
@@ -1140,7 +1146,7 @@ class SVNTable(object):
             num_required_files = self.mark_required_for_file(source_path)
         return num_required_files
 
-    def mark_required_completion(self) -> int:
+    def mark_required_completion(self, progress_callback=None) -> int:
         """ after some files were marked as required,
             mark their parent dirs are required as well
         """
@@ -1163,12 +1169,12 @@ class SVNTable(object):
             SET required=1
             WHERE _id IN (SELECT __ID FROM get_parents);
             """
-        with self.db.transaction() as curs:
+        with self.db.transaction(description="mark_required_completion", progress_callback=progress_callback) as curs:
             curs.execute(query_text)
             retVal = curs.rowcount
         return retVal
 
-    def mark_need_download(self) -> None:
+    def mark_need_download(self, progress_callback=None) -> None:
         self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
         # mark files that need download
         query_text = """
@@ -1179,7 +1185,7 @@ class SVNTable(object):
             AND fileFlag == 1
             AND need_to_download_file(download_path, checksum)
             """
-        with self.db.transaction("mark_need_download") as curs:
+        with self.db.transaction("mark_need_download", progress_callback=progress_callback) as curs:
             curs.execute(query_text)
         # mark folders of files that need download
         query_text = """
@@ -1200,7 +1206,7 @@ class SVNTable(object):
             SET need_download=1
             WHERE _id IN (SELECT __PARENT_ID FROM get_parents)
             """
-        with self.db.transaction("mark_need_download_recursive") as curs:
+        with self.db.transaction(description="mark_need_download_recursive", progress_callback=progress_callback) as curs:
             curs.execute(query_text)
 
     def mark_required_for_revision(self, required_revision) -> None:
@@ -1244,7 +1250,7 @@ class SVNTable(object):
             min_revision, max_revision = curs.fetchone()
         return min_revision, max_revision
 
-    def mark_required_files_for_active_items(self) -> None:
+    def mark_required_files_for_active_items(self, progress_callback=None) -> None:
         script_text = """
             -- mark files and folders that appear in install_sources of required items
             UPDATE svn_item_t
@@ -1298,7 +1304,7 @@ class SVNTable(object):
             SET required=1
             WHERE _id IN (SELECT __ID FROM get_parents);
         """
-        with self.db.transaction() as curs:
+        with self.db.transaction(description="mark_required_files_for_active_items", progress_callback=progress_callback) as curs:
             curs.executescript(script_text)
 
     def get_download_roots(self) -> List[str]:

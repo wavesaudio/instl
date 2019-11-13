@@ -112,18 +112,18 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         self.doing = f"""creating a folder '{self.path_to_make}'"""
         self.path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
 
-        with ChFlags(self.path_to_make, 'nohidden', 'unlocked', own_progress_count=0) as ch_da_flags:
+        with ChFlags(self.path_to_make, 'nohidden', 'unlocked', report_own_progress=False) as ch_da_flags:
             ch_da_flags()
 
         if sys.platform == 'darwin':
-            with Chmod(self.path_to_make, "a+rwX", recursive=self.recursive_chmod, own_progress_count=0) as chmod_on_dir:
+            with Chmod(self.path_to_make, "a+rwX", recursive=self.recursive_chmod, report_own_progress=False) as chmod_on_dir:
                 chmod_on_dir()
         elif sys.platform == 'win32':
-            with FullACLForEveryone(self.path_to_make, recursive=self.recursive_chmod, own_progress_count=0) as acl_on_dir:
+            with FullACLForEveryone(self.path_to_make, recursive=self.recursive_chmod, report_own_progress=False) as acl_on_dir:
                 acl_on_dir()
 
         if self.chowner:
-             with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, own_progress_count=0) as change_user:
+             with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
                 change_user()
 
 

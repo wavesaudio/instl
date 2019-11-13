@@ -340,7 +340,7 @@ class InstlClientCopy(InstlClient):
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     for source in resolved_sources_for_iid:
-                        self.progress(f"copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
+                        self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                         with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
                             source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item", message=None)

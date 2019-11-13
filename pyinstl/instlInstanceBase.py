@@ -118,7 +118,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 30000
+                self.total_self_progress *= 5
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):

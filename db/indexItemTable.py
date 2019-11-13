@@ -584,7 +584,7 @@ class IndexItemsTable(object):
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
                                                                   detail_name, detail_value, tag)
                                                                   VALUES(?,?,?,?,?,?)"""
-        with self.db.transaction() as curs:
+        with self.db.transaction(description="read_index_node", progress_callback=kwargs.get('progress_callback', None)) as curs:
             curs.executemany(insert_item_q, index_items)
             curs.executemany(insert_item_detail_q, items_details)
             curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")

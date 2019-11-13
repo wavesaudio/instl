@@ -19,7 +19,8 @@ class InstlClient(InstlInstanceBase):
     """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.total_self_progress: int = 30000
+        self.total_self_progress: int = 15000
+        self.internal_progress = int(self.total_self_progress / 100) * 2
         self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
@@ -67,7 +68,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars))
+        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars), progress_callback=self.progress)
 
         self.db.set_db_file_owner()
 
@@ -444,7 +445,6 @@ class InstlClient(InstlInstanceBase):
         local_repo_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
         config_vars.setdefault("ALL_SYNC_DIRS", local_repo_sync_dir)
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
-            log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
@@ -465,6 +465,7 @@ class InstlClient(InstlInstanceBase):
                     if need_to_sync:
                         config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                         item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
+                        self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
                         if source_tag == '!dir':
                             source_parent = "/".join(resolved_source_parts[:-1])
                             for item in item_paths:
@@ -485,6 +486,7 @@ class InstlClient(InstlInstanceBase):
 
                 else:
                     item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
+                    self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
@@ -492,6 +494,7 @@ class InstlClient(InstlInstanceBase):
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
+                self.progress(f"mark for download {len(items_for_file)} files of {iid}/{source}")
                 if direct_sync:
                     config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                     for item in items_for_file:

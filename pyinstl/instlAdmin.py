@@ -485,7 +485,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(config_vars["STAGING_FOLDER_INDEX"].str())
 
         the_folder = config_vars["STAGING_FOLDER"].str()
-        self.info_map_table.initialize_from_folder(the_folder)
+        self.info_map_table.initialize_from_folder(the_folder, progress_callback=self.progress)
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
 
@@ -645,7 +645,7 @@ class InstlAdmin(InstlInstanceBase):
         files_to_read = list(config_vars["__MAIN_INPUT_FILE__"])
         with self.info_map_table.reading_files_context():
             for f2r in files_to_read:
-                self.info_map_table.read_from_file(f2r)
+                self.info_map_table.read_from_file(f2r, progress_callback=self.progress)
 
     def do_check_instl_folder_integrity(self):
         instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].Path()

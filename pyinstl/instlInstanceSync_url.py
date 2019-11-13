@@ -82,7 +82,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
         curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
-        MakeDir(curl_config_folder, chowner=True)()
+        MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
         curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
@@ -139,20 +139,22 @@ class InstlInstanceSync_url(InstlInstanceSync):
             as it appears in the info_map db. The list is processed against the db which returns the indexes of the redundant
             files. The full path versions of the indexed files is used to create remove instructions
         """
-        self.instlObj.progress("removing redundant files from sync folder")
         pure_local_sync_dir = PurePath(self.local_sync_dir)
         files_to_check = list()
-        for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
-            try: dirs.remove("bookkeeping")
-            except Exception: pass # todo: use FOLDER_EXCLUDE_REGEX
-            try: files.remove(".DS_Store")
-            except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
-            for disk_item in files:
-                item_full_path = PurePath(root, disk_item)
-                item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
-                files_to_check.append(item_partial_path)
+        for scan_folder_top_item in os.scandir(path=self.local_sync_dir):
+            if scan_folder_top_item.is_dir():
+                self.instlObj.progress(f"check for redundant files in sync folder {scan_folder_top_item.path}")
+                for root, dirs, files in os.walk(scan_folder_top_item.path, followlinks=False):
+                    try: dirs.remove("bookkeeping")
+                    except Exception: pass # todo: use FOLDER_EXCLUDE_REGEX
+                    try: files.remove(".DS_Store")
+                    except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
+                    for disk_item in files:
+                        item_full_path = PurePath(root, disk_item)
+                        item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
+                        files_to_check.append(item_partial_path)
         files_to_check.sort()
-        redundant_files = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
+        redundant_files = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check, progress_callback=self.instlObj.progress)
         rm_commands = AnonymousAccum()
         for f in redundant_files:
             item_full_path = pure_local_sync_dir.joinpath(f)
