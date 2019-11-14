@@ -187,8 +187,10 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
     import pwd
 
     the_parts = dict()
-    if 'p' in ls_format or 'P' in ls_format:
+    if 'p' in ls_format:
         the_parts['p'] = os.fspath(the_path)
+    elif 'P' in ls_format:
+        the_parts['P'] = os.fspath(the_path)
 
     try:
         the_stats = os.lstat(the_path)
@@ -253,6 +255,8 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                         path_to_return += '|'
 
                 the_parts[format_char] = path_to_return
+            else:
+                the_parts[format_char] = format_char
 
     except Exception as ex:
         pass
@@ -284,8 +288,10 @@ def win_folder_ls(the_path, ls_format, root_folder=None):
 def win_item_ls(the_path, ls_format, root_folder=None):
     import win32security
     the_parts = dict()
-    if 'p' in ls_format or 'P' in ls_format:
+    if 'p' in ls_format:
         the_parts['p'] = os.fspath(the_path)
+    elif 'P' in ls_format:
+        the_parts['P'] = os.fspath(the_path)
 
     try:
         the_stats = os.lstat(the_path)
@@ -330,6 +336,8 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             elif format_char == 'p' and root_folder is not None:
                 relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
                 the_parts[format_char] = str(relative_path.as_posix())
+            else:
+                the_parts[format_char] = format_char
 
     except Exception as ex:
         pass
@@ -390,17 +398,22 @@ def wtar_item_ls_func(item, ls_format):
     return the_parts
 
 
-if sys.platform in ('darwin', 'linux'):
-    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+def single_disk_item_listing(the_path, ls_format, root_folder=None, output_format="text"):
+    retVal = None
+    if sys.platform in ('darwin', 'linux'):
         item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)
-        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
-        return item_ls_lines[0]
-elif sys.platform == 'win32':
-    def single_disk_item_listing(the_path, ls_format, root_folder=None):
+    elif sys.platform == 'win32':
         item_ls_dict = win_item_ls(the_path, ls_format, root_folder)
-        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
-        return item_ls_lines[0]
 
+    if output_format == "text":
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        retVal = item_ls_lines[0]
+    elif output_format == "json":
+        item_ls_lines= translate_json_key_names([item_ls_dict])
+        retVal = item_ls_lines[0]
+    elif output_format == 'dicts':
+        retVal = translate_item_dict_to_be_keyed_by_path(item_ls_dict)
+    return retVal
 
 if __name__ == "__main__":
 

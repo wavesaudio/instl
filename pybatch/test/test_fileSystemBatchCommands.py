@@ -426,6 +426,14 @@ class TestPythonBatchFileSystem(unittest.TestCase):
 
         self.pbt.exec_and_capture_output("chmod restore perm")
 
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
+    def test_Chmod_recursive_parse_stderr_Mac(self):
+        bad_folder = Path("/Library/User Pictures/Fun")
+        self.pbt.batch_accum.clear(section_name="doit")
+        #self.pbt.batch_accum += Chmod(bad_folder, "a-wx", recursive=True)
+        self.pbt.batch_accum += ChFlags(bad_folder, "hidden", recursive=True)
+        self.pbt.exec_and_capture_output("Chmod_recursive_parse_stderr_Mac")
+
     def test_ChmodAndChown_repr(self):
         pass
 

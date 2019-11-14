@@ -259,6 +259,19 @@ class ChFlags(RunProcessBase):
         run_args.append(joint_flags)
         run_args.append(os.fspath(path))
 
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            if sys.platform == 'darwin':
+                list_of_errors = re.findall("chflags: (?P<_path>.+): Permission denied", self.stderr)
+                if list_of_errors:
+                    list_of_listings = list()
+                    for _error in list_of_errors:
+                        dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                        list_of_listings.append(dir_listing)
+                    self._error_dict["ls of problem files"] = list_of_listings
+        except:  # populating the error dict should continue
+            pass
+
 
 class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
     """ Remove the system's read-only flag (not permissions).
@@ -497,6 +510,20 @@ class Chmod(RunProcessBase):
                     dacl.AddAccessAllowedAce(win32security.ACL_REVISION, perms, account)
                 sd.SetSecurityDescriptorDacl(1, dacl, 0)
                 win32security.SetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION, sd)
+
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.recursive:
+                if sys.platform == 'darwin':
+                    list_of_errors = re.findall("Unable to change file mode on (?P<_path>.+): Operation not permitted", self.stderr)
+                    if list_of_errors:
+                        list_of_listings = list()
+                        for _error in list_of_errors:
+                            dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                            list_of_listings.append(dir_listing)
+                        self._error_dict["ls of problem files"] = list_of_listings
+        except:  # populating the error dict should continue
+            pass
 
 
 class ChmodAndChown(PythonBatchCommandBase):
