@@ -63,6 +63,7 @@ from .fileSystemBatchCommands import Unlock
 from .fileSystemBatchCommands import Ls
 from .fileSystemBatchCommands import FileSizes
 from .fileSystemBatchCommands import SplitFile
+from .fileSystemBatchCommands import FixAllPermissions
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands

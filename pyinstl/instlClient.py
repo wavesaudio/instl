@@ -213,7 +213,9 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["main"],
-                main_iids)
+                main_iids,
+                progress_callback=self.progress)
+
 
         # find dependant of main install items
         main_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["main"])
@@ -221,14 +223,17 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["depend"],
-            main_iids_and_dependents)
+            main_iids_and_dependents,
+            progress_callback=self.progress)
 
         # mark update install items, but only those not already marked as main or depend
         update_iids = list(config_vars["__MAIN_UPDATE_IIDS__"])
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
-                update_iids)
+                update_iids,
+                progress_callback=self.progress)
+
 
         # find dependants of update install items
         update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
@@ -236,7 +241,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["depend"],
-            update_iids_and_dependents)
+            update_iids_and_dependents,
+            progress_callback=self.progress)
 
         all_items_to_install = self.items_table.get_iids_by_status(
             self.items_table.install_status["main"],

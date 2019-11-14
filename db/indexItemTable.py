@@ -845,7 +845,7 @@ class IndexItemsTable(object):
             with self.db.transaction() as curs:
                 curs.execute(query_text)
 
-    def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list):
+    def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list, progress_callback=None):
         if iid_list:
             if bool(config_vars.get("DEBUG_INDEX_DB", False)):  # debug code
                 for iid in iid_list:
@@ -871,7 +871,8 @@ class IndexItemsTable(object):
                     AND install_status={old_status}
                     AND ignore = 0
                   """
-                with self.db.transaction() as curs:
+                description = f"change status of iids from {old_status} to {new_status}"
+                with self.db.transaction(description=description, progress_callback=progress_callback) as curs:
                     curs.executemany(query_text, query_vars)
 
     def change_status_of_iids(self, new_status, iid_list):

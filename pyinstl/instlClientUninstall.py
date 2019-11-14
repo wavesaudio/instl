@@ -92,7 +92,8 @@ class InstlClientUninstall(InstlClientRemove):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["remove"],
-            all_uninstall_items)
+            all_uninstall_items,
+            progress_callback=self.progress)
         self.sort_all_items_by_target_folder(consider_direct_sync=False)
 
     def create_uninstall_instructions(self):
@@ -173,5 +174,6 @@ class InstlClientUninstall(InstlClientRemove):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["remove"],
-            all_uninstall_items)
+            all_uninstall_items,
+            progress_callback=self.progress)
         self.sort_all_items_by_target_folder(consider_direct_sync=False)

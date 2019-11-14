@@ -32,8 +32,19 @@ class RmFile(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.exists():
-            self.doing = f"""removing file '{resolved_path}'"""
-            resolved_path.unlink()
+            try:
+                self.doing = f"""removing file '{resolved_path}'"""
+                resolved_path.unlink()
+            except Exception as ex1:
+                try:
+                    log.info(f"Fixing permission for removing {resolved_path}")
+                    from pybatch import FixAllPermissions
+                    with FixAllPermissions(resolved_path, report_own_progress=False) as allower:
+                        allower()
+                    self.doing = f"""removing file (after FixAllPermissions) '{resolved_path}'"""
+                    resolved_path.unlink()
+                except Exception as ex2:
+                    raise
 
 
 class RmDir(PythonBatchCommandBase):
@@ -63,8 +74,19 @@ class RmDir(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
         if resolved_path.exists():
-            self.doing = f"""removing folder '{resolved_path}'"""
-            shutil.rmtree(resolved_path, onerror=self.on_rm_error)
+            try:
+                self.doing = f"""removing folder '{resolved_path}'"""
+                shutil.rmtree(resolved_path, onerror=self.on_rm_error)
+            except Exception as ex1:
+                try:
+                    log.info(f"Fixing permission for removing {resolved_path}")
+                    from pybatch import FixAllPermissions
+                    with FixAllPermissions(resolved_path, recursive=True, report_own_progress=False) as allower:
+                        allower()
+                    self.doing = f"""removing folder (after FixAllPermissions) '{resolved_path}'"""
+                    shutil.rmtree(resolved_path, onerror=self.on_rm_error)
+                except Exception as ex2:
+                    raise
 
 
 class RmFileOrDir(PythonBatchCommandBase):
@@ -84,14 +106,26 @@ class RmFileOrDir(PythonBatchCommandBase):
         return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.is_file():
-            self.doing = f"""removing file'{resolved_path}'"""
-            resolved_path.unlink()
-        elif resolved_path.is_dir():
-            self.doing = f"""removing folder'{resolved_path}'"""
-            shutil.rmtree(resolved_path)
+        retry = kwargs.get("retry", True)
+        try:
+            PythonBatchCommandBase.__call__(self, *args, **kwargs)
+            resolved_path = utils.ExpandAndResolvePath(self.path)
+            if resolved_path.is_file():
+                self.doing = f"""removing file'{resolved_path}'"""
+                resolved_path.unlink()
+            elif resolved_path.is_dir():
+                self.doing = f"""removing folder'{resolved_path}'"""
+                shutil.rmtree(resolved_path)
+        except Exception as ex:
+            if retry:
+                kwargs["retry"] = False
+                log.info(f"Fixing permission for removing {resolved_path}")
+                from pybatch import FixAllPermissions
+                with FixAllPermissions(resolved_path, recursive=True, report_own_progress=False) as allower:
+                    allower()
+                self.__call__(*args, **kwargs)
+            else:
+                raise
 
 
 class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_ignore": []}):

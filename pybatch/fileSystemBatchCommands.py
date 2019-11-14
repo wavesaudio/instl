@@ -112,15 +112,8 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         self.doing = f"""creating a folder '{self.path_to_make}'"""
         self.path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
 
-        with ChFlags(self.path_to_make, 'nohidden', 'unlocked', report_own_progress=False) as ch_da_flags:
-            ch_da_flags()
-
-        if sys.platform == 'darwin':
-            with Chmod(self.path_to_make, "a+rwX", recursive=self.recursive_chmod, report_own_progress=False) as chmod_on_dir:
-                chmod_on_dir()
-        elif sys.platform == 'win32':
-            with FullACLForEveryone(self.path_to_make, recursive=self.recursive_chmod, report_own_progress=False) as acl_on_dir:
-                acl_on_dir()
+        with FixAllPermissions(self.path_to_make, recursive=self.recursive_chmod, report_own_progress=False) as perm_allower:
+            perm_allower()
 
         if self.chowner:
              with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
@@ -733,3 +726,28 @@ class JoinFile(PythonBatchCommandBase):
         if self.remove_parts:
             for part_file in files_to_join:
                 os.unlink(part_file)
+
+
+class FixAllPermissions(PythonBatchCommandBase):
+
+    def __init__(self, path, **kwargs):
+        super().__init__(**kwargs)
+        self.path = path
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+
+    def progress_msg_self(self):
+        return f"""{self.__class__.__name__} '{self.path}'"""
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"""allowing all permissions for'{self.path}'"""
+        with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False, recursive=self.recursive) as chflager:
+            chflager()
+        if sys.platform == 'darwin':
+            with Chmod(path=self.path, mode="a+rwX", report_own_progress=False, recursive=self.recursive) as chmoder:
+                chmoder()
+        elif sys.platform == 'win32':
+            with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
+                acler()

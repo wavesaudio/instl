@@ -142,6 +142,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         pure_local_sync_dir = PurePath(self.local_sync_dir)
         files_to_check = list()
         for scan_folder_top_item in os.scandir(path=self.local_sync_dir):
+            if scan_folder_top_item.name in ("bookkeeping", ".DS_Store"):
+                continue
             if scan_folder_top_item.is_dir():
                 self.instlObj.progress(f"check for redundant files in sync folder {scan_folder_top_item.path}")
                 for root, dirs, files in os.walk(scan_folder_top_item.path, followlinks=False):
