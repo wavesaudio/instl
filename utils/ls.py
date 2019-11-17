@@ -7,6 +7,7 @@ import datetime
 import stat
 import json
 import tarfile
+import re
 from pathlib import Path, PurePath
 
 import utils
@@ -138,9 +139,11 @@ def list_of_dicts_describing_disk_items_to_text_lines(items_list, ls_format):
 
 
 format_char_to_json_key = {
+    'a': 'attribs',  # sames as f - flags
     'C': 'checksum',
     'D': 'DIR',
     'g': 'gid',
+    'f': 'flags',  # sames as a - attribs
     'G': 'group',
     'I': 'inode',
     'L': 'num links',
@@ -187,10 +190,11 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
     import pwd
 
     the_parts = dict()
+    the_path_str = os.fspath(the_path)
     if 'p' in ls_format:
-        the_parts['p'] = os.fspath(the_path)
+        the_parts['p'] = the_path_str
     elif 'P' in ls_format:
-        the_parts['P'] = os.fspath(the_path)
+        the_parts['P'] = the_path_str
 
     try:
         the_stats = os.lstat(the_path)
@@ -236,7 +240,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                 else:
                     the_parts[format_char] = ""
             elif format_char == 'P' or format_char == 'p':
-                path_to_return = os.fspath(the_path)
+                path_to_return = the_path_str
                 if format_char == 'p' and root_folder is not None:
                     path_to_return = os.path.relpath(the_path, start=root_folder)
 
@@ -255,6 +259,18 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                         path_to_return += '|'
 
                 the_parts[format_char] = path_to_return
+            elif format_char == 'a' or format_char == 'f':
+                import subprocess
+                completed_process = subprocess.run(f'ls -lO "{the_path_str}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if completed_process.returncode != 0:
+                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                else:
+                    ls_line = utils.unicodify(completed_process.stdout)
+                    flag_matches = re.findall("arch|archived|opaque|nodump|sappnd|sappend|schg|schange|simmutable|uappnd|uappend|uchg|uchange|uimmutable|hidden", ls_line)
+                    if flag_matches:
+                        the_parts[format_char] = ",".join(flag_matches)
+                    else:
+                        the_parts[format_char] = "no flags found"
             else:
                 the_parts[format_char] = format_char
 
@@ -288,10 +304,11 @@ def win_folder_ls(the_path, ls_format, root_folder=None):
 def win_item_ls(the_path, ls_format, root_folder=None):
     import win32security
     the_parts = dict()
+    the_path_str = os.fspath(the_path)
     if 'p' in ls_format:
-        the_parts['p'] = os.fspath(the_path)
+        the_parts['p'] = the_path_str
     elif 'P' in ls_format:
-        the_parts['P'] = os.fspath(the_path)
+        the_parts['P'] = the_path_str
 
     try:
         the_stats = os.lstat(the_path)
@@ -309,7 +326,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
             elif format_char == 'U':
                 try:
-                    sd = win32security.GetFileSecurity(os.fspath(the_path), win32security.OWNER_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(the_path_str, win32security.OWNER_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorOwner()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # user
@@ -318,7 +335,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
 
             elif format_char == 'G':
                 try:
-                    sd = win32security.GetFileSecurity(os.fspath(the_path), win32security.GROUP_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(the_path_str, win32security.GROUP_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorGroup()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # group

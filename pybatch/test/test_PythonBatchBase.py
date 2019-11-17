@@ -20,7 +20,7 @@ import itertools as it
 
 import utils
 from pybatch import *
-from pybatch import PythonBatchCommandAccum
+from pybatch import PythonBatchCommandAccum, FixAllPermissions
 from pybatch.copyBatchCommands import RsyncClone
 from configVar import config_vars
 
@@ -151,16 +151,12 @@ class TestPythonBatch(object):
         self.output_file_name = None
 
     def setUp(self):
-        """ for each test create it's own test sub-fold"""
+        """ for each test create it's own test sub-fold
+            if sub-folder already exists - remove it.
+        """
         if self.test_folder.exists():
-            kwargs = {}
-            if sys.platform == 'darwin':
-                kwargs['follow_symlinks'] = False
-            for root, dirs, files in os.walk(str(self.test_folder)):
-                for d in dirs:
-                    os.chmod(os.path.join(root, d), Chmod.all_read_write_exec, **kwargs)
-                for f in files:
-                    os.chmod(os.path.join(root, f), Chmod.all_read_write, **kwargs)
+            with FixAllPermissions(self.test_folder, recursive=True, report_own_progress=False)as fixer:
+                fixer()
             shutil.rmtree(self.test_folder)  # make sure the folder is erased
         self.test_folder.mkdir(parents=True, exist_ok=False)
         self.batch_accum.set_current_section("doit")

@@ -48,32 +48,81 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.reprs_test_runner(RmFile(r"\just\remove\me\already"))
 
     def test_RmFile(self):
+        file_actually_a_folder = self.pbt.path_inside_test_folder("file_actually_a_folder")
+        self.assertFalse(file_actually_a_folder.exists(), f"file exists '{file_actually_a_folder}'")
+        file_not_existing = self.pbt.path_inside_test_folder("file_not_existing")
+        self.assertFalse(file_not_existing.exists(), f"file exists '{file_not_existing}'")
         file_easy_to_remove = self.pbt.path_inside_test_folder("file_easy_to_remove")
         self.assertFalse(file_easy_to_remove.exists(), f"file exists '{file_easy_to_remove}'")
-        file_hard_to_remove = self.pbt.path_inside_test_folder("file_hard_to_remove")
-        self.assertFalse(file_hard_to_remove.exists(), f"file exists '{file_hard_to_remove}'")
+        file_no_permissions = self.pbt.path_inside_test_folder("file_no_permissions")
+        self.assertFalse(file_no_permissions.exists(), f"file exists '{file_no_permissions}'")
+        file_locked = self.pbt.path_inside_test_folder("file_locked")
+        self.assertFalse(file_locked.exists(), f"file exists '{file_locked}'")
 
         self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(file_actually_a_folder)
         self.pbt.batch_accum += Touch(file_easy_to_remove)
-        self.pbt.batch_accum += Touch(file_hard_to_remove)
-        self.pbt.batch_accum += Chmod(file_hard_to_remove, "a-wr")
-        self.pbt.batch_accum += Chown(file_hard_to_remove, user_id=502, group_id=20)
-        self.pbt.exec_and_capture_output("create file to remove")
+        self.pbt.batch_accum += Touch(file_no_permissions)
+        self.pbt.batch_accum += Chmod(file_no_permissions, "a-wr")
+        self.pbt.batch_accum += Touch(file_locked)
+        self.pbt.batch_accum += ChFlags(file_locked,'locked')
+        self.pbt.exec_and_capture_output("create files to remove")
+        self.assertTrue(file_actually_a_folder.exists(), f"folder was not created '{file_actually_a_folder}'")
         self.assertTrue(file_easy_to_remove.exists(), f"file was not created '{file_easy_to_remove}'")
-        self.assertTrue(file_hard_to_remove.exists(), f"file was not created '{file_hard_to_remove}'")
+        self.assertTrue(file_no_permissions.exists(), f"file was not created '{file_no_permissions}'")
+        self.assertTrue(file_locked.exists(), f"file was not created '{file_locked}'")
 
         self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += RmFile(file_actually_a_folder)
+        self.pbt.batch_accum += RmFile(file_not_existing)
         self.pbt.batch_accum += RmFile(file_easy_to_remove)
-        self.pbt.batch_accum += RmFile(file_hard_to_remove)
-        self.pbt.exec_and_capture_output("remove file to remove")
+        self.pbt.batch_accum += RmFile(file_no_permissions)
+        self.pbt.batch_accum += RmFile(file_locked)
+        self.pbt.exec_and_capture_output("remove files")
         self.assertFalse(file_easy_to_remove.exists(), f"file was not removed '{file_easy_to_remove}'")
-        self.assertFalse(file_hard_to_remove.exists(), f"file was not removed '{file_hard_to_remove}'")
+        self.assertFalse(file_no_permissions.exists(), f"file was not removed '{file_no_permissions}'")
+        self.assertFalse(file_locked.exists(), f"file was not removed '{file_locked}'")
 
     def test_RmDir_repr(self):
        self.pbt.reprs_test_runner(RmDir(r"\just\remove\me\already"))
 
     def test_RmDir(self):
-        pass
+        # some files to be removed as if they were a folder
+        files_map = {name: self.pbt.path_inside_test_folder(name) for name in ("file_pretending_to_be_a_folder", "file_pretending_to_be_a_folder_no_permissions", "file_pretending_to_be_a_folder_locked")}
+        for _file_path in files_map.values():
+            self.assertFalse(_file_path.exists(), f"file already exists '{_file_path}'")
+
+        # some folders to be removed
+        folder_not_existing = self.pbt.path_inside_test_folder("folder_not_existing")
+        folders_map = {name: self.pbt.path_inside_test_folder(name) for name in ("folder_easy_to_remove", "folder_no_permissions", "folder_locked")}
+        for _folder_path in folders_map.values():
+            self.assertFalse(_folder_path.exists(), f"file already exists '{_folder_path}'")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        for _file_path in files_map.values():
+            self.pbt.batch_accum += Touch(_file_path)
+        self.pbt.batch_accum += Chmod(files_map["file_pretending_to_be_a_folder_no_permissions"], "a=r")
+        self.pbt.batch_accum += ChFlags(files_map["file_pretending_to_be_a_folder_locked"], 'locked')
+
+        for _folder_path in folders_map.values():
+            self.pbt.batch_accum += MakeDir(_folder_path)
+        self.pbt.batch_accum += Chmod(folders_map["folder_no_permissions"], "a=r")
+        self.pbt.batch_accum += ChFlags(folders_map["folder_locked"],'locked')
+        self.pbt.batch_accum += MakeDir(folder_not_existing)
+        self.pbt.exec_and_capture_output("create files and folders to remove")
+
+        # check that all files and folders were created
+        for _folder_path in itertools.chain(folders_map.values(), files_map.values()):
+            self.assertTrue(_folder_path.exists(), f"folder/file already exists '{_folder_path}'")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += RmDir(folder_not_existing)
+        for _folder_path in itertools.chain(folders_map.values(), files_map.values()):
+            self.pbt.batch_accum += RmDir(_folder_path)
+        self.pbt.exec_and_capture_output("remove folders")
+
+        for _folder_path in itertools.chain(folders_map.values(), files_map.values()):
+            self.assertFalse(_folder_path.exists(), f"folder/file still exists '{_folder_path}'")
 
     def test_RmFileOrDir_repr(self):
         self.pbt.reprs_test_runner(RmFileOrDir(r"/just/remove/me/already"))

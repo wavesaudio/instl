@@ -28,22 +28,39 @@ class RmFile(PythonBatchCommandBase):
     def progress_msg_self(self):
         return f"""Remove file '{self.path}'"""
 
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            file_listing = utils.single_disk_item_listing(self.path, "PuUgGRTf", output_format="json")
+            self._error_dict["ls"] = file_listing
+        except:  # populating the error dict should continue, even if error_dict_self failed
+            pass
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.exists():
+        for attempt in range(2):
             try:
                 self.doing = f"""removing file '{resolved_path}'"""
                 resolved_path.unlink()
-            except Exception as ex1:
-                try:
-                    log.info(f"Fixing permission for removing {resolved_path}")
-                    from pybatch import FixAllPermissions
-                    with FixAllPermissions(resolved_path, report_own_progress=False) as allower:
-                        allower()
-                    self.doing = f"""removing file (after FixAllPermissions) '{resolved_path}'"""
-                    resolved_path.unlink()
-                except Exception as ex2:
+                break
+            except FileNotFoundError:
+                break
+            except PermissionError as pex:
+                if attempt == 0:
+                    # calling unlink on a folder raises PermissionError
+                    if resolved_path.is_dir():
+                        kwargs_for_rm_dir = self.all_kwargs_dict()
+                        kwargs_for_rm_dir['report_own_progress'] = False
+                        kwargs_for_rm_dir['recursive'] = True
+                        with RmDir(resolved_path, **kwargs_for_rm_dir) as dir_remover:
+                            dir_remover()
+                        break
+                    else:
+                        log.info(f"Fixing permission for removing {resolved_path}")
+                        from pybatch import FixAllPermissions
+                        with FixAllPermissions(resolved_path, report_own_progress=False) as allower:
+                            allower()
+                else:
                     raise
 
 
@@ -64,28 +81,37 @@ class RmDir(PythonBatchCommandBase):
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
 
-    def on_rm_error(self, func, path, exc_info):
-        # path contains the path of the file that couldn't be removed
-        # let's just assume that it's read-only and unlink it.
-        os.chmod(path, stat.S_IWRITE)
-        os.unlink(path)
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            file_listing = utils.single_disk_item_listing(self.path, "PuUgGRTf", output_format="json")
+            self._error_dict["ls"] = file_listing
+        except:  # populating the error dict should continue, even if error_dict_self failed
+            pass
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.exists():
+        for attempt in range(2):
             try:
                 self.doing = f"""removing folder '{resolved_path}'"""
-                shutil.rmtree(resolved_path, onerror=self.on_rm_error)
-            except Exception as ex1:
-                try:
+                shutil.rmtree(resolved_path)
+                break
+            except FileNotFoundError:
+                break
+            except NotADirectoryError:
+                kwargs_for_rm_file = self.all_kwargs_dict()
+                kwargs_for_rm_file['report_own_progress'] = False
+                kwargs_for_rm_file['recursive'] = False
+                with RmFile(resolved_path, **kwargs_for_rm_file) as file_remover:
+                    file_remover()
+                break
+            except PermissionError:
+                if attempt == 0:
                     log.info(f"Fixing permission for removing {resolved_path}")
                     from pybatch import FixAllPermissions
-                    with FixAllPermissions(resolved_path, recursive=True, report_own_progress=False) as allower:
+                    with FixAllPermissions(resolved_path, report_own_progress=False, recursive=True) as allower:
                         allower()
-                    self.doing = f"""removing folder (after FixAllPermissions) '{resolved_path}'"""
-                    shutil.rmtree(resolved_path, onerror=self.on_rm_error)
-                except Exception as ex2:
+                else:
                     raise
 
 

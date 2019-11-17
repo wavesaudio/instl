@@ -269,7 +269,7 @@ class ChFlags(RunProcessBase):
                         dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
                         list_of_listings.append(dir_listing)
                     self._error_dict["ls of problem files"] = list_of_listings
-        except:  # populating the error dict should continue
+        except:  # populating the error dict should continue, even if error_dict_self failed
             pass
 
 
@@ -356,6 +356,23 @@ class Chown(RunProcessBase, call__call__=True):
                 resolved_path = utils.ExpandAndResolvePath(self.path)
                 self.doing = f"""change owner of '{resolved_path}' to '{self.user_id}:{self.group_id}'"""
                 os.chown(resolved_path, uid=int(self.user_id), gid=int(self.group_id))
+
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.recursive:
+                if sys.platform == 'darwin':
+                    list_of_errors = re.findall("chown: (?P<_path>.+): Operation not permitted", self.stderr)
+                    if list_of_errors:
+                        list_of_listings = list()
+                        for _error in list_of_errors:
+                            dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                            list_of_listings.append(dir_listing)
+                        self._error_dict["ls of problem files"] = list_of_listings
+            else:
+                dir_listing = utils.single_disk_item_listing(self.path, "PuUgGRT", output_format="json")
+                self._error_dict["ls of problem file"] = dir_listing
+        except:  # populating the error dict should continue, even if error_dict_self failed
+            pass
 
 
 class Chmod(RunProcessBase):
@@ -515,6 +532,7 @@ class Chmod(RunProcessBase):
         try:
             if self.recursive:
                 if sys.platform == 'darwin':
+                    # parse macOs's error message
                     list_of_errors = re.findall("Unable to change file mode on (?P<_path>.+): Operation not permitted", self.stderr)
                     if list_of_errors:
                         list_of_listings = list()
@@ -522,7 +540,11 @@ class Chmod(RunProcessBase):
                             dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
                             list_of_listings.append(dir_listing)
                         self._error_dict["ls of problem files"] = list_of_listings
-        except:  # populating the error dict should continue
+            else:
+                dir_listing = utils.single_disk_item_listing(self.path, "PuUgGRT", output_format="json")
+                self._error_dict["ls of problem file"] = dir_listing
+
+        except:  # populating the error dict should continue, even if error_dict_self failed
             pass
 
 
@@ -770,6 +792,8 @@ class FixAllPermissions(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.doing = f"""allowing all permissions for'{self.path}'"""
+        # chflags first since (at least on Mac) it has higher priority (e.g. you cannot chmod a-w on files with flags uchg set,
+        # but you can chflags nouchg on files with a-w set)
         with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False, recursive=self.recursive) as chflager:
             chflager()
         if sys.platform == 'darwin':
