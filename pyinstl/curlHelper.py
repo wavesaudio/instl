@@ -121,7 +121,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 {cookie_text}
-write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
+write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}"
 
 
 """
