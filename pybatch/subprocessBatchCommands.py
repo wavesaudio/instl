@@ -80,7 +80,7 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             in_stream = None
             err_stream = subprocess.PIPE
 
-            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell, bufsize=0)
 
             if need_to_close_out_file:
                 out_stream.close()

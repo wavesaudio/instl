@@ -29,6 +29,9 @@ if len(current_os_names) > 1:
 
 config_vars["__CURRENT_OS_NAMES__"] = current_os_names
 
+running_on_Mac = sys.platform == 'darwin'
+running_on_Win = sys.platform == 'win32'
+
 
 from .test_PythonBatchBase import *
 
@@ -54,33 +57,39 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.assertFalse(file_not_existing.exists(), f"file exists '{file_not_existing}'")
         file_easy_to_remove = self.pbt.path_inside_test_folder("file_easy_to_remove")
         self.assertFalse(file_easy_to_remove.exists(), f"file exists '{file_easy_to_remove}'")
-        file_no_permissions = self.pbt.path_inside_test_folder("file_no_permissions")
-        self.assertFalse(file_no_permissions.exists(), f"file exists '{file_no_permissions}'")
+
+        if running_on_Mac:
+            file_no_permissions = self.pbt.path_inside_test_folder("file_no_permissions")
+            self.assertFalse(file_no_permissions.exists(), f"file exists '{file_no_permissions}'")
         file_locked = self.pbt.path_inside_test_folder("file_locked")
         self.assertFalse(file_locked.exists(), f"file exists '{file_locked}'")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(file_actually_a_folder)
         self.pbt.batch_accum += Touch(file_easy_to_remove)
-        self.pbt.batch_accum += Touch(file_no_permissions)
-        self.pbt.batch_accum += Chmod(file_no_permissions, "a-wr")
+        if running_on_Mac:
+            self.pbt.batch_accum += Touch(file_no_permissions)
+            self.pbt.batch_accum += Chmod(file_no_permissions, "a-w")
         self.pbt.batch_accum += Touch(file_locked)
         self.pbt.batch_accum += ChFlags(file_locked,'locked')
         self.pbt.exec_and_capture_output("create files to remove")
         self.assertTrue(file_actually_a_folder.exists(), f"folder was not created '{file_actually_a_folder}'")
         self.assertTrue(file_easy_to_remove.exists(), f"file was not created '{file_easy_to_remove}'")
-        self.assertTrue(file_no_permissions.exists(), f"file was not created '{file_no_permissions}'")
+        if running_on_Mac:
+            self.assertTrue(file_no_permissions.exists(), f"file was not created '{file_no_permissions}'")
         self.assertTrue(file_locked.exists(), f"file was not created '{file_locked}'")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RmFile(file_actually_a_folder)
         self.pbt.batch_accum += RmFile(file_not_existing)
         self.pbt.batch_accum += RmFile(file_easy_to_remove)
-        self.pbt.batch_accum += RmFile(file_no_permissions)
+        if running_on_Mac:
+            self.pbt.batch_accum += RmFile(file_no_permissions)
         self.pbt.batch_accum += RmFile(file_locked)
         self.pbt.exec_and_capture_output("remove files")
         self.assertFalse(file_easy_to_remove.exists(), f"file was not removed '{file_easy_to_remove}'")
-        self.assertFalse(file_no_permissions.exists(), f"file was not removed '{file_no_permissions}'")
+        if running_on_Mac:
+            self.assertFalse(file_no_permissions.exists(), f"file was not removed '{file_no_permissions}'")
         self.assertFalse(file_locked.exists(), f"file was not removed '{file_locked}'")
 
     def test_RmDir_repr(self):
@@ -95,18 +104,22 @@ class TestPythonBatchRemove(unittest.TestCase):
         # some folders to be removed
         folder_not_existing = self.pbt.path_inside_test_folder("folder_not_existing")
         folders_map = {name: self.pbt.path_inside_test_folder(name) for name in ("folder_easy_to_remove", "folder_no_permissions", "folder_locked")}
+        if not running_on_Mac:
+            folders_map.pop("folder_no_permissions")
         for _folder_path in folders_map.values():
             self.assertFalse(_folder_path.exists(), f"file already exists '{_folder_path}'")
 
         self.pbt.batch_accum.clear(section_name="doit")
         for _file_path in files_map.values():
             self.pbt.batch_accum += Touch(_file_path)
-        self.pbt.batch_accum += Chmod(files_map["file_pretending_to_be_a_folder_no_permissions"], "a=r")
+        if running_on_Mac:
+            self.pbt.batch_accum += Chmod(files_map["file_pretending_to_be_a_folder_no_permissions"], "a=r")
         self.pbt.batch_accum += ChFlags(files_map["file_pretending_to_be_a_folder_locked"], 'locked')
 
         for _folder_path in folders_map.values():
             self.pbt.batch_accum += MakeDir(_folder_path)
-        self.pbt.batch_accum += Chmod(folders_map["folder_no_permissions"], "a=r")
+        if running_on_Mac:
+            self.pbt.batch_accum += Chmod(folders_map["folder_no_permissions"], "a=r")
         self.pbt.batch_accum += ChFlags(folders_map["folder_locked"],'locked')
         self.pbt.batch_accum += MakeDir(folder_not_existing)
         self.pbt.exec_and_capture_output("create files and folders to remove")

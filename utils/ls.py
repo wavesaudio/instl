@@ -353,6 +353,20 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             elif format_char == 'p' and root_folder is not None:
                 relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
                 the_parts[format_char] = str(relative_path.as_posix())
+            elif format_char == 'a' or format_char == 'f':
+                import subprocess
+                the_parts[format_char] = "no flags found"
+                completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+                if completed_process.returncode != 0:
+                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                else:
+                    ls_line = utils.unicodify(completed_process.stdout)
+                    flag_matches = re.search("(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
+                    if flag_matches:
+                        flags = "".join(flag_matches.group('attribs').split())
+                        if flags:
+                            the_parts[format_char] = flags
             else:
                 the_parts[format_char] = format_char
 
