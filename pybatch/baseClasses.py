@@ -307,6 +307,7 @@ class PythonBatchCommandBase(abc.ABC):
             'local_time': time.strftime("%Y-%m-%d_%H.%M.%S"),
             'progress_counter': PythonBatchCommandBase.running_progress,
             'current_working_dir': self.current_working_dir,
+            'operating_system': utils.get_os_description(),
              })
 
         for cv in config_vars.get("CONFIG_VARS_FOR_ERROR_REPORT", []).list():

@@ -805,3 +805,12 @@ def iter_grouper(n, iterable):
     while piece:
         yield piece
         piece = list(itertools.islice(i, n))
+
+
+def get_os_description():
+    if sys.platform == 'darwin':
+        retVal = f"macOS {platform.mac_ver()[0]}"
+    elif sys.platform == 'linux':
+        retVal = f"Linux {platform.uname().version}"
+    elif sys.platform == 'win32':
+        retVal = f"Windows {platform.version()}"

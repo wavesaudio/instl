@@ -117,6 +117,7 @@ def instl_own_main(argv):
                     "__CURRENT_OS__": os_family_name,
                     "__CURRENT_OS_SECOND_NAME__": os_second_name,
                     "__CURRENT_OS_NAMES__": current_os_names,
+                    "__CURRENT_OS_DESCRIPTION__": utils.get_os_description(),
                     "__SITE_DATA_DIR__": os.path.normpath(appdirs.site_data_dir()),
                     "__SITE_CONFIG_DIR__": os.path.normpath(appdirs.site_config_dir()),
                     "__USER_DATA_DIR__": os.path.normpath(appdirs.user_data_dir()),
