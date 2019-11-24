@@ -255,19 +255,20 @@ class ShellCommands(PythonBatchCommandBase):
                 shelli()
 
 
-class ParallelRun(PythonBatchCommandBase):
+class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 'shell': False}):
     """ run some shell commands in parallel """
-    def __init__(self, config_file,  shell, **kwargs):
+    def __init__(self, config_file, **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file
-        self.shell = shell
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.config_file))
-        all_args.append(f'''shell={self.shell}''')
+
+    def get_action_name(self):
+        return self.action_name if self.action_name else self.__class__.__name__
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.config_file}'"""
+        return f"""{self.get_action_name()} '{self.config_file}'"""
 
     def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
         pass
@@ -276,7 +277,7 @@ class ParallelRun(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
         resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
-        self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
+        self.doing = f"""{self.get_action_name()} reading config file '{resolved_config_file}'"""
         with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
@@ -284,7 +285,7 @@ class ParallelRun(PythonBatchCommandBase):
                     args = shlex.split(line)
                     commands.append(args)
         try:
-            self.doing = f"""ParallelRun, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
+            self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
         except SystemExit as sys_exit:
             if sys_exit.code != 0:

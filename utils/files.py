@@ -642,3 +642,4 @@ def set_max_open_files(new_max_open_files):
             print(f"failed to increase max open files to {max_files_soft}")
         max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
         print(f"max open files is now {max_files_soft}")
+

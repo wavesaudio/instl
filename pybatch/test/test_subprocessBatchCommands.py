@@ -147,10 +147,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_ParallelRun_repr(self):
         """ validate ParallelRun object recreation with ParallelRun.__repr__() """
-        obj = ParallelRun("/rik/ya/vik", True)
-        obj_recreated = eval(repr(obj))
-        diff_explanation = obj.explain_diff(obj_recreated)
-        self.assertEqual(obj, obj_recreated, f"ParallelRun.repr did not recreate ParallelRun object correctly: {diff_explanation}")
+        self.pbt.reprs_test_runner(ParallelRun("/rik/ya/vik", shell=True),
+                                   ParallelRun("/rik/ya/vik", action_name="pil"))
 
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
