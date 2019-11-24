@@ -180,7 +180,7 @@ class Cd(PythonBatchCommandBase):
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
         if self.resolved_new_path.is_dir():
-            dir_listing = utils.single_disk_item_listing(self.resolved_new_path, "uUgGRT")
+            dir_listing = utils.single_disk_item_listing(self.resolved_new_path)
             self._error_dict['permissions'] = dir_listing
 
 
@@ -266,7 +266,7 @@ class ChFlags(RunProcessBase):
                 if list_of_errors:
                     list_of_listings = list()
                     for _error in list_of_errors:
-                        dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                        dir_listing = utils.single_disk_item_listing(_error, output_format="json")
                         list_of_listings.append(dir_listing)
                     self._error_dict["ls of problem files"] = list_of_listings
         except:  # populating the error dict should continue, even if error_dict_self failed
@@ -365,11 +365,11 @@ class Chown(RunProcessBase, call__call__=True):
                     if list_of_errors:
                         list_of_listings = list()
                         for _error in list_of_errors:
-                            dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                            dir_listing = utils.single_disk_item_listing(_error, output_format="json")
                             list_of_listings.append(dir_listing)
                         self._error_dict["ls of problem files"] = list_of_listings
             else:
-                dir_listing = utils.single_disk_item_listing(self.path, "PuUgGRT", output_format="json")
+                dir_listing = utils.single_disk_item_listing(self.path, output_format="json")
                 self._error_dict["ls of problem file"] = dir_listing
         except:  # populating the error dict should continue, even if error_dict_self failed
             pass
@@ -537,11 +537,11 @@ class Chmod(RunProcessBase):
                     if list_of_errors:
                         list_of_listings = list()
                         for _error in list_of_errors:
-                            dir_listing = utils.single_disk_item_listing(_error, "PuUgGRT", output_format="json")
+                            dir_listing = utils.single_disk_item_listing(_error, output_format="json")
                             list_of_listings.append(dir_listing)
                         self._error_dict["ls of problem files"] = list_of_listings
             else:
-                dir_listing = utils.single_disk_item_listing(self.path, "PuUgGRT", output_format="json")
+                dir_listing = utils.single_disk_item_listing(self.path, output_format="json")
                 self._error_dict["ls of problem file"] = dir_listing
 
         except:  # populating the error dict should continue, even if error_dict_self failed

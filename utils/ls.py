@@ -270,7 +270,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                     if flag_matches:
                         the_parts[format_char] = ",".join(flag_matches)
                     else:
-                        the_parts[format_char] = "no flags found"
+                        the_parts[format_char] = "[no flags found]"
             else:
                 the_parts[format_char] = format_char
 
@@ -355,7 +355,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = str(relative_path.as_posix())
             elif format_char == 'a' or format_char == 'f':
                 import subprocess
-                the_parts[format_char] = "no flags found"
+                the_parts[format_char] = "[no flags found]"
                 completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
                                                    stderr=subprocess.PIPE)
                 if completed_process.returncode != 0:
@@ -429,7 +429,7 @@ def wtar_item_ls_func(item, ls_format):
     return the_parts
 
 
-def single_disk_item_listing(the_path, ls_format, root_folder=None, output_format="text"):
+def single_disk_item_listing(the_path, ls_format="PuUgGRTf", root_folder=None, output_format="text"):
     retVal = None
     if sys.platform in ('darwin', 'linux'):
         item_ls_dict = unix_item_ls(the_path, ls_format, root_folder)

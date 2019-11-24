@@ -30,7 +30,7 @@ class RmFile(PythonBatchCommandBase):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb):
         try:
-            file_listing = utils.single_disk_item_listing(self.path, "PuUgGRTf", output_format="json")
+            file_listing = utils.single_disk_item_listing(self.path, output_format="json")
             self._error_dict["ls"] = file_listing
         except:  # populating the error dict should continue, even if error_dict_self failed
             pass
@@ -83,7 +83,7 @@ class RmDir(PythonBatchCommandBase):
 
     def error_dict_self(self, exc_type, exc_val, exc_tb):
         try:
-            file_listing = utils.single_disk_item_listing(self.path, "PuUgGRTf", output_format="json")
+            file_listing = utils.single_disk_item_listing(self.path, output_format="json")
             self._error_dict["ls"] = file_listing
         except:  # populating the error dict should continue, even if error_dict_self failed
             pass

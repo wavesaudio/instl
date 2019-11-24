@@ -262,7 +262,7 @@ class DBMaster(object):
                 script_file_path = Path(file_name)
             else:
                 script_file_path = self.ddl_files_dir.joinpath(file_name)
-            with open(script_file_path, "r") as rfd:
+            with utils.utf8_open_for_read(script_file_path, "r") as rfd:
                 ddl_text = rfd.read()
                 curs.executescript(ddl_text)
 

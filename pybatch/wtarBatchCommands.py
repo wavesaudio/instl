@@ -195,7 +195,7 @@ class Unwtar(PythonBatchCommandBase):
             ignore = ()
         try:
             self.wtar_file_paths = utils.find_split_files(wtar_file_path)
-            self.wtar_file_paths_details = [utils.single_disk_item_listing(wtar_file_path, "PSRTuUgG") for wtar_file_path in self.wtar_file_paths]
+            self.wtar_file_paths_details = [utils.single_disk_item_listing(wtar_file_path, "PuUgGRTf") for wtar_file_path in self.wtar_file_paths]
 
             log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
 

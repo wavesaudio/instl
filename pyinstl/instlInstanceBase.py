@@ -488,14 +488,15 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         try:
             the_node_stack = kwargs.get('node-stack', "unknown")
             position_in_file = getattr(the_node_stack, "start_mark", "unknown")
-            yaml_read_error = f"""
-yaml_read_error:
-    position-in-file: {position_in_file}
-    exception: {kwargs.get('exception', '')}
-"""
-            original_path_to_file = kwargs.get('original-path-to-file', '')
-            if original_path_to_file not in yaml_read_error:
-                yaml_read_error = f"{yaml_read_error}\n    original-path-to-file: {original_path_to_file}"
-            log.error(yaml_read_error)
+            original_path_to_file = utils.ExpandAndResolvePath(config_vars.resolve_str(kwargs.get('original-path-to-file', '')))
+            yaml_read_errors = list()
+            yaml_read_errors.append("yaml_read_error:")
+            if os.fspath(original_path_to_file) not in position_in_file:
+                yaml_read_errors.append(f"""    path-to-file: {original_path_to_file}""")
+            yaml_read_errors.append(f"""    position-in-file: {position_in_file}""")
+            yaml_read_errors.append(f"""    permissions: {utils.single_disk_item_listing(original_path_to_file)}""")
+            yaml_read_errors.append(f"""    exception: {kwargs.get('exception', '')}""")
+
+            log.error("\n".join(yaml_read_errors))
         except Exception as ex:
             pass

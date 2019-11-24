@@ -344,6 +344,7 @@ class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase):
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(self.file_to_read)
 
+
 class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=True):
     def __init__(self, file_path_to_read, var_name, **kwargs):
         super().__init__(**kwargs)
@@ -359,7 +360,7 @@ class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=T
 
     def __call__(self, *args, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        with open(self.file_path_to_read, 'r') as f:
+        with utils.utf8_open_for_read(self.file_path_to_read, 'r') as f:
             value = f.read()
             value = value.strip()
             config_vars[self.var_name] = value

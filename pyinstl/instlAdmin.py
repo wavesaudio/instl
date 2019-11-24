@@ -700,8 +700,8 @@ class InstlAdmin(InstlInstanceBase):
                 -[a-fA-F0-9]{12})
                 """, re.VERBOSE)
 
-        with open(in_file, "r") as rfd:
-            with open(out_file, "w") as wfd:
+        with utils.utf8_open_for_read(in_file, "r") as rfd:
+            with utils.utf8_open_for_write(out_file, "w") as wfd:
                 for line in rfd.readlines():
                     match = guid_re.search(line)
                     if match:
@@ -967,7 +967,7 @@ class InstlAdmin(InstlInstanceBase):
             copy_of_activated_repo_rev_file_path = config_vars.resolve_str(f"{work_folder}/$(REPO_REV_FILE_BASE_NAME)")
             s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
             log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
-            with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
+            with utils.utf8_open_for_read(copy_of_activated_repo_rev_file_path, "r") as rfd:
                 repo_rev_file_text = rfd.read()
                 match = re.search(r"^REPO_REV:\s+(?P<target_repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
                 if match:

@@ -235,7 +235,7 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
             wzipper()
 
         # add a line to default info map for each non default info_map created above
-        with open(default_info_map_file_path, "a") as wfd:
+        with utils.utf8_open_for_read(default_info_map_file_path, "a") as wfd:
             for file_to_add in files_to_add_to_default_info_map:
                 file_checksum = utils.get_file_checksum(file_to_add)
                 file_size = file_to_add.stat().st_size

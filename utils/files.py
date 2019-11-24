@@ -48,7 +48,20 @@ import utils
 
 
 def utf8_open_for_read(*args, **kwargs) -> TextIO:
-    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    for _try in range(2):
+        try:
+            retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+            break
+        except PermissionError as per_err:
+            if _try == 0:
+                the_path = args[0]
+                from pybatch import FixAllPermissions
+                with FixAllPermissions(the_path, report_own_progress=False) as fixer:
+                    fixer()
+            else:
+                raise
+        except Exception:
+            raise
     return retVal
 
 
@@ -178,12 +191,12 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None, connection_obj=None):
+def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_to_path=None, checksum=None, connection_obj=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
         # calling read_file_or_url
-        return read_file_or_url(save_to_path, config_vars, encoding=encoding)
+        return read_file_or_url_utf8(save_to_path, config_vars)
     match = protocol_header_re.match(os.fspath(in_file_or_url))
     actual_file_path = in_file_or_url
     if not match:  # it's a local file
@@ -196,11 +209,7 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
                 actual_file_path = os.path.realpath(actual_file_path)
         else:
             raise FileNotFoundError(f"Could not locate local file {in_file_or_url}")
-        if encoding is None:
-            read_mod = "rb"
-        else:
-            read_mod = "r"
-        with open(actual_file_path, "r", encoding=encoding) as rdf:
+        with utf8_open_for_read(actual_file_path, "r") as rdf:
             buffer = rdf.read()
     else:
         assert connection_obj, "no connection_obj given"
@@ -630,6 +639,6 @@ def set_max_open_files(new_max_open_files):
                 print(f"increasing to {max_files_soft}")
                 resource.setrlimit(resource.RLIMIT_NOFILE, max_files_soft, max_files_hard)
         except:
-            print(f"failed to increas to {max_files_soft}")
+            print(f"failed to increase max open files to {max_files_soft}")
         max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
         print(f"max open files is now {max_files_soft}")
