@@ -737,12 +737,12 @@ class InstlAdmin(InstlInstanceBase):
             checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
             checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
             checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
-            checkout_folder_short_index_path = checkout_folder_instl_folder_path.joinpath("short-index.yaml")
 
             revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
             revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
             revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
 
+            checkout_folder_short_index_path = revision_instl_folder_path.joinpath("short-index.yaml")
             info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
             info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
             info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")

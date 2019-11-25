@@ -293,7 +293,7 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
                                                explicit_start=True, explicit_end=False,
                                                sort_mappings=True, include_comments=False)
 
-        with utils.utf8_open_for_write(self.short_index_yaml_path) as wfd:
+        with utils.utf8_open_for_write(self.short_index_yaml_path, "w") as wfd:
             aYaml.writeAsYaml(defines_yaml_doc, wfd)
             aYaml.writeAsYaml(index_yaml_doc, wfd)
 

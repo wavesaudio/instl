@@ -212,6 +212,7 @@ class CdStage(Cd, essential=False):
 class ChFlags(RunProcessBase):
     """ Change system flags (not permissions) on files or dirs.
         For changing permissions use chmod.
+        Not implemented for linux
     """
     flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg', 'system': None, 'nosystem': None},
                            'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
@@ -220,9 +221,10 @@ class ChFlags(RunProcessBase):
         super().__init__(**kwargs)
         self.path = path
 
-        for flag in flags:
-            assert flag in self.flags_dict[sys.platform], f"{flag} is not a valid flag"
-        self.flags = sorted(flags)
+        if sys.platform in self.flags_dict:  # ignore
+            for flag in flags:
+                assert flag in self.flags_dict[sys.platform], f"{flag} is not a valid flag"
+            self.flags = sorted(flags)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.path))
@@ -233,14 +235,15 @@ class ChFlags(RunProcessBase):
         return f"""changing flags '{self.flags}' of file '{self.path}"""
 
     def get_run_args(self, run_args) -> None:
-        path = os.fspath(utils.ExpandAndResolvePath(self.path))
-        self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
+        if sys.platform in self.flags_dict:  # avoid linux
+            path = os.fspath(utils.ExpandAndResolvePath(self.path))
+            self.doing = f"""changing flags '{",".join(self.flags)}' of file '{path}"""
 
-        per_system_flags = list(filter(None, [self.flags_dict[sys.platform][flag] for flag in self.flags]))
-        if sys.platform == 'darwin':
-            self._create_run_args_mac(per_system_flags, path, run_args)
-        elif sys.platform == 'win32':
-            self._create_run_args_win(per_system_flags, path, run_args)
+            per_system_flags = list(filter(None, [self.flags_dict[sys.platform][flag] for flag in self.flags]))
+            if sys.platform == 'darwin':
+                self._create_run_args_mac(per_system_flags, path, run_args)
+            elif sys.platform == 'win32':
+                self._create_run_args_win(per_system_flags, path, run_args)
 
     def _create_run_args_win(self, flags, path, run_args) -> None:
         run_args.append("attrib")
@@ -271,6 +274,10 @@ class ChFlags(RunProcessBase):
                     self._error_dict["ls of problem files"] = list_of_listings
         except:  # populating the error dict should continue, even if error_dict_self failed
             pass
+
+    def __call__(self, *args, **kwargs):
+        if sys.platform in self.flags_dict:  # avoid linux
+            PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
 
 class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
@@ -796,7 +803,7 @@ class FixAllPermissions(PythonBatchCommandBase):
         # but you can chflags nouchg on files with a-w set)
         with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False, recursive=self.recursive) as chflager:
             chflager()
-        if sys.platform == 'darwin':
+        if sys.platform in ('darwin', 'linux'):
             with Chmod(path=self.path, mode="a+rwX", report_own_progress=False, recursive=self.recursive) as chmoder:
                 chmoder()
         elif sys.platform == 'win32':
