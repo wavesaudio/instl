@@ -2,6 +2,7 @@ from typing import List, Any
 import os
 import stat
 import zlib
+from collections import defaultdict
 from pathlib import Path
 import logging
 
@@ -259,6 +260,42 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
         from pyinstl import IndexYamlReaderBase
         reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
+
+
+class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
+    def __init__(self, short_index_yaml_path, **kwargs):
+        super().__init__(**kwargs)
+        self.short_index_yaml_path = Path(short_index_yaml_path)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.short_index_yaml_path))
+
+    def progress_msg_self(self) -> str:
+        return f'''write short index.yaml to {self.short_index_yaml_path}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        short_index_data = self.items_table.get_data_for_short_index()  # IID, GUID, NAME, VERSION, generation
+        short_index_dict = defaultdict(dict)
+        for data_line in short_index_data:
+            short_index_dict[data_line[0]]['guid'] = data_line[1]
+            if data_line[4] and data_line[1] != data_line[4]:  # uninstall gui
+                short_index_dict[data_line[0]]['guid'] = list((data_line[1], data_line[4]))
+            if data_line[2]:
+                short_index_dict[data_line[0]]['name'] = data_line[2]
+            if data_line[3] or data_line[4]:
+                short_index_dict[data_line[0]]['version'] = data_line[3]
+
+        defines_dict = config_vars.repr_for_yaml(which_vars=['AUXILIARY_IIDS'], resolve=True, ignore_unknown_vars=False)
+        defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",
+                                                 explicit_start=True, sort_mappings=True)
+
+        index_yaml_doc = aYaml.YamlDumpDocWrap(value=short_index_dict, tag="!index",
+                                               explicit_start=True, explicit_end=False,
+                                               sort_mappings=True, include_comments=False)
+
+        with utils.utf8_open_for_write(self.short_index_yaml_path) as wfd:
+            aYaml.writeAsYaml(defines_yaml_doc, wfd)
+            aYaml.writeAsYaml(index_yaml_doc, wfd)
 
 
 class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):

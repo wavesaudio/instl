@@ -735,7 +735,7 @@ class IndexItemsTable(object):
             retVal[iid] = self.repr_item_for_yaml(iid)
         return retVal
 
-    def versions_report(self, report_only_installed=False):
+    def versions_report(self, report_only_installed=False, progress_callback=None):
         query_text = """
             SELECT *
             FROM 'report_versions_view'
@@ -745,7 +745,7 @@ class IndexItemsTable(object):
             WHERE require_version != '_'
             AND remote_version != '_'
             """
-        results = self.db.select_and_fetchall(query_text, query_params={})
+        results = self.db.select_and_fetchall(query_text, query_params={}, progress_callback=progress_callback)
         retVal = [mm[:6] for mm in results]
         return retVal
 

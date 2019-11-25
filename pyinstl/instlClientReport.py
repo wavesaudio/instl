@@ -49,7 +49,7 @@ class InstlClientReport(InstlClient):
         self.guids_to_ignore = set(list(config_vars.get("MAIN_IGNORED_TARGETS", [])))
 
         report_only_installed =  bool(config_vars["__REPORT_ONLY_INSTALLED__"])
-        report_data = self.items_table.versions_report(report_only_installed=report_only_installed)
+        report_data = self.items_table.versions_report(report_only_installed=report_only_installed, progress_callback=self.progress("calculate versions report"))
 
         self.output_data.extend(report_data)
 

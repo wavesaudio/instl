@@ -737,6 +737,7 @@ class InstlAdmin(InstlInstanceBase):
             checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
             checkout_folder_instl_folder_path = checkout_base_folder.joinpath("instl")
             checkout_folder_index_path = checkout_folder_instl_folder_path.joinpath("index.yaml")
+            checkout_folder_short_index_path = checkout_folder_instl_folder_path.joinpath("short-index.yaml")
 
             revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
             revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
@@ -770,6 +771,7 @@ class InstlAdmin(InstlInstanceBase):
                 sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
             batch_accum += IndexYamlReader(checkout_folder_index_path)
+            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
             batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
             batch_accum += SVNInfoReader(info_map_props_path, format='props')
             batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')

@@ -88,6 +88,7 @@ from .info_mapBatchCommands import SetBaseRevision
 from .info_mapBatchCommands import IndexYamlReader
 from .info_mapBatchCommands import CopySpecificRepoRev
 from .info_mapBatchCommands import CreateRepoRevFile
+from .info_mapBatchCommands import ShortIndexYamlCreator
 
 from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev
