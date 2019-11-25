@@ -374,6 +374,11 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         config_vars["INDEX_CHECKSUM"] = utils.get_file_checksum(index_file_path)
         config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+index_file_name
 
+        short_index_file_name = "short-index.yaml"
+        short_index_file_path = revision_instl_folder_path.joinpath(short_index_file_name)
+        config_vars["SHORT_INDEX_CHECKSUM"] = utils.get_file_checksum(short_index_file_path)
+        config_vars["SHORT_INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+short_index_file_name
+
         config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
         config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
 
