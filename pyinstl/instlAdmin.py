@@ -718,7 +718,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_up_short_index(self):
         repo_rev = int(config_vars['TARGET_REPO_REV'])
-        self.up2s3_repo_rev(repo_rev, self.batch_accum)
+        self.up_short_index_repo_rev(repo_rev, self.batch_accum)
 
     def up_short_index_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
@@ -771,7 +771,8 @@ class InstlAdmin(InstlInstanceBase):
             print(f"up_short_index_repo_rev exception {ex}")
             raise
         finally:
-            self.send_email_from_template_file(config_vars["UP_SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
+            pass
+            #self.send_email_from_template_file(config_vars["UP_SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
 
     def up2s3_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
