@@ -749,7 +749,7 @@ class InstlAdmin(InstlInstanceBase):
             # full checkout might take a long time so checking out to base folder, if done in repo-rev order
             # will only get the files of that repo-rev instead of the whole repository
 
-            skip_some_actions = True  # to save time during debugging
+            skip_some_actions = False  # to save time during debugging
 
             batch_accum += IndexYamlReader(revision_instl_index_path)
             batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
@@ -763,16 +763,15 @@ class InstlAdmin(InstlInstanceBase):
             if bool(config_vars["__RUN_BATCH__"]):
                 self.run_batch_file()
 
-            r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
-            r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.hset(config_vars["UPLOAD_SHORT_INDEX_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_SHORT_INDEX_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             config_vars['UP_SHORT_INDEX_STATUS'] = "Completed"
         except Exception as ex:
             config_vars['UP_SHORT_INDEX_EXCEPTION'] = f"{ex}"
             print(f"up_short_index_repo_rev exception {ex}")
             raise
         finally:
-            pass
-            #self.send_email_from_template_file(config_vars["UP_SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
+            self.send_email_from_template_file(config_vars["SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
 
     def up2s3_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
@@ -859,6 +858,8 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.hset(config_vars["UPLOAD_SHORT_INDEX_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_SHORT_INDEX_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             config_vars['UP2S3_STATUS'] = "Completed"
         except Exception as ex:
             config_vars['UP2S3_EXCEPTION'] = f"{ex}"
