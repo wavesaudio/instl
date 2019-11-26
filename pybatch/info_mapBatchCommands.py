@@ -246,12 +246,14 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
 
 
 class IndexYamlReader(DBManager, PythonBatchCommandBase):
-    def __init__(self, index_yaml_path, **kwargs):
+    def __init__(self, index_yaml_path, resolve_inheritance=True, **kwargs):
         super().__init__(**kwargs)
         self.index_yaml_path = Path(index_yaml_path)
+        self.resolve_inheritance = resolve_inheritance
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.index_yaml_path))
+        all_args.append(self.optional_named__init__param("resolve_inheritance", self.resolve_inheritance, True))
 
     def progress_msg_self(self) -> str:
         return f'''read index.yaml from {self.index_yaml_path}'''
@@ -260,6 +262,8 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
         from pyinstl import IndexYamlReaderBase
         reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
+        if self.resolve_inheritance:
+            self.items_table.resolve_inheritance()
 
 
 class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
