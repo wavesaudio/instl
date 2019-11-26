@@ -260,6 +260,7 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         from pyinstl import IndexYamlReaderBase
+        self.items_table.activate_all_oses()
         reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
         if self.resolve_inheritance:

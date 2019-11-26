@@ -28,7 +28,7 @@ from .curlHelper import CUrlHelper
 log = logging.getLogger()
 
 
-value_ref_re = re.compile("""
+value_ref_re = re.compile(r"""
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
                                 \(                          # (
@@ -235,7 +235,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
             aYaml.writeAsYaml((define_dict, require_dict), wfd)
 
-    internal_identifier_re = re.compile("""
+    internal_identifier_re = re.compile(r"""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
                                         __                  # dunder there
