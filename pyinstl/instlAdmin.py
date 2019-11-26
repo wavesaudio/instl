@@ -716,6 +716,63 @@ class InstlAdmin(InstlInstanceBase):
         repo_rev = int(config_vars['TARGET_REPO_REV'])
         self.up2s3_repo_rev(repo_rev, self.batch_accum)
 
+    def do_up_short_index(self):
+        repo_rev = int(config_vars['TARGET_REPO_REV'])
+        self.up2s3_repo_rev(repo_rev, self.batch_accum)
+
+    def up_short_index_repo_rev(self, repo_rev, batch_accum):
+        assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
+        assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
+        assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
+
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        try:
+
+            config_vars['UP_SHORT_INDEX_STATUS'] = "FAILED"
+            config_vars['UP_SHORT_INDEX_EXCEPTION'] = ""
+            config_vars["REPO_REV"] = str(repo_rev)
+            config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+
+            revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
+            if not revision_folder_path.is_dir():
+                raise FileNotFoundError(f"revision folder does not exist {revision_folder_path}")
+
+            revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
+            checkout_folder_short_index_path = Path(config_vars["UPLOAD_REVISION_SHORT_INDEX_FILE"])
+
+            batch_accum.set_current_section('admin')
+            # checkout specific repo-rev to base folder
+            # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+            # will only get the files of that repo-rev instead of the whole repository
+
+            skip_some_actions = True  # to save time during debugging
+
+            batch_accum += IndexYamlReader(revision_instl_index_path)
+            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
+            base_rev = int(config_vars["BASE_REPO_REV"])
+
+            if not skip_some_actions:
+                with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(checkout_folder_short_index_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--content-type", 'text/plain')
+
+            self.write_batch_file(batch_accum)
+            if bool(config_vars["__RUN_BATCH__"]):
+                self.run_batch_file()
+
+            r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            config_vars['UP_SHORT_INDEX_STATUS'] = "Completed"
+        except Exception as ex:
+            config_vars['UP_SHORT_INDEX_EXCEPTION'] = f"{ex}"
+            print(f"up_short_index_repo_rev exception {ex}")
+            raise
+        finally:
+            self.send_email_from_template_file(config_vars["UP_SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
+
     def up2s3_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
         assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
@@ -871,7 +928,7 @@ class InstlAdmin(InstlInstanceBase):
                     with config_vars.push_scope_context(use_cache=True):
                         try:
                             what_to_do, domain, major_version, repo_rev = value.split(":")
-                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do.lower()]
+                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev", "short-index": "up-short-index" }[what_to_do.lower()]
                             config_vars["TARGET_DOMAIN"] = domain
                             config_vars["TARGET_MAJOR_VERSION"] = major_version
                             config_vars["TARGET_REPO_REV"] = repo_rev
