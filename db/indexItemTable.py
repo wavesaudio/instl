@@ -326,6 +326,29 @@ class IndexItemsTable(object):
         retVal = self.db.select_and_fetchall(query_text, query_params={'iid': params[0], 'detail_name': params[1], "in_os": params[2]})
         return retVal
 
+    def get_resolved_details(self, iid: str, detail_name: str=None, in_os=None):
+        """
+        :param iid: get detail for specific iid or all if None
+        :param detail_name: get detail with specific name or all names if None
+        :param in_os: get detail for os name or for all oses if None
+        :return: list original details in the order they were inserted
+        """
+
+        # params with None are turned to '%'
+        params = [iid, detail_name, in_os]
+        for iparam in range(len(params)):
+            if params[iparam] is None: params[iparam] = '%'
+
+        query_text = """
+                    SELECT * FROM index_item_detail_t
+                    WHERE owner_iid==:iid
+                    AND detail_name LIKE :detail_name
+                    AND os_id LIKE :in_os
+                    ORDER BY _id
+                    """
+        retVal = self.db.select_and_fetchall(query_text, query_params={'iid': params[0], 'detail_name': params[1], "in_os": params[2]})
+        return retVal
+
     def get_resolved_details_for_active_iid(self, iid, detail_name):
         """ get the original and inherited index_item_detail_t's for a specific detail
             for specific iid - but only if detail is in active os
@@ -414,14 +437,24 @@ class IndexItemsTable(object):
     def resolve_inheritance(self) -> None:
         inherit_order, inherit_dict = self.prepare_inherit_order()
         resolve_items_script = ""
-        for iid in inherit_order:
-            resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
-        with self.db.transaction() as curs:
-            curs.executescript(resolve_items_script)
-            curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
-            # creating these indexes did not improve DB performance and added 20s to preparing __ALL_GUIDS__ installation
-            #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_value ON index_item_detail_t(detail_value)""")
-            #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_name ON index_item_detail_t(detail_name)""")
+        if bool(config_vars.get("DEBUG_INDEX_DB", False)):
+            with self.db.transaction() as curs:
+                for iid in inherit_order:
+                    try:
+                        resolve_item_script = self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
+                        curs.executescript(resolve_item_script)
+                    except sqlite3.IntegrityError as ex:
+                        log.info(f"db exception resolving inheritance for {iid}")
+                curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
+        else:
+            for iid in inherit_order:
+                resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
+            with self.db.transaction() as curs:
+                curs.executescript(resolve_items_script)
+                curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
+                # creating these indexes did not improve DB performance and added 20s to preparing __ALL_GUIDS__ installation
+                #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_value ON index_item_detail_t(detail_value)""")
+                #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_name ON index_item_detail_t(detail_name)""")
 
     def prepare_inherit_order(self):
         inherit_order = utils.unique_list()
@@ -704,10 +737,13 @@ class IndexItemsTable(object):
                 details.append({"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": require_by.value})
         return details
 
-    def repr_item_for_yaml(self, iid):
+    def repr_item_for_yaml(self, iid, resolve=False):
         item_details = OrderedDict()
         for os_name, os_num in self.os_names_to_num.items():
-            details_rows = self.get_original_details(iid=iid, in_os=os_num)
+            if resolve:
+                details_rows = self.get_resolved_details(iid=iid)
+            else:
+                details_rows = self.get_original_details(iid=iid, in_os=os_num)
             if len(details_rows) > 0:
                 if os_name == "common":
                     work_on_dict = item_details
@@ -727,12 +763,12 @@ class IndexItemsTable(object):
                         work_on_dict[detail_name].append(details_row['detail_value'])
         return item_details
 
-    def repr_for_yaml(self):
+    def repr_for_yaml(self, resolve=False):
         retVal = OrderedDict()
         the_items = self.get_all_index_items()
         for item in the_items:
             iid = item['iid']
-            retVal[iid] = self.repr_item_for_yaml(iid)
+            retVal[iid] = self.repr_item_for_yaml(iid, resolve)
         return retVal
 
     def versions_report(self, report_only_installed=False, progress_callback=None):

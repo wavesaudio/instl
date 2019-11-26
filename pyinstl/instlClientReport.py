@@ -64,10 +64,11 @@ class InstlClientReport(InstlClient):
 
     def do_read_yaml(self):
         config_vars["OUTPUT_FORMAT"] = "yaml"
+        config_vars["DEBUG_INDEX_DB"] = True
         config_vars_yaml_obj = config_vars.repr_for_yaml()
         config_vars_yaml = aYaml.YamlDumpDocWrap(config_vars_yaml_obj, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
         self.output_data.append(config_vars_yaml)
-        index_yaml_obj = self.items_table.repr_for_yaml()
+        index_yaml_obj = self.items_table.repr_for_yaml(resolve=True)
         index_yaml = aYaml.YamlDumpDocWrap(index_yaml_obj, '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
         self.output_data.append(index_yaml)
 
