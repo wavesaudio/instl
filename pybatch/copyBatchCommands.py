@@ -370,7 +370,8 @@ class RsyncClone(PythonBatchCommandBase):
         log.debug(f"copy folder '{src}' to '{dst}'")
 
         # call MakeDir even if dst already exists, so permissions/ACL (and possibly owner) will be set correctly
-        MakeDir(dst, chowner=(self.copy_owner and self.has_chown), own_progress_count=0)()
+        with MakeDir(dst, chowner=(self.copy_owner and self.has_chown), own_progress_count=0) as dir_maker:
+            dir_maker()
 
         if not self.top_destination_does_not_exist and self.delete_extraneous_files:
             self.remove_extraneous_files(dst, src_file_names+src_dir_names)
@@ -398,14 +399,10 @@ class RsyncClone(PythonBatchCommandBase):
                 errors.append(err.args[0])
             except OSError as why:
                 errors.append((src_item_path, dst_path, str(why)))
-        try:
-            shutil.copystat(src, dst)
-        except OSError as why:
-            # Copying file access times may fail on Windows
-            if getattr(why, 'winerror', None) is None:
-                errors.append((src, dst, str(why)))
+
         if errors:
             raise shutil.Error(errors)
+
         self.top_destination_does_not_exist = save_top_destination_does_not_exist
         return dst
 

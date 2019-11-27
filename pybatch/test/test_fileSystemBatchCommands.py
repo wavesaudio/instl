@@ -58,13 +58,14 @@ class TestPythonBatchFileSystem(unittest.TestCase):
 
     def test_MakeDir_1_simple(self):
         """ test MakeDir. 2 dirs should be created side by side """
-        dir_to_make_1 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_1")
-        dir_to_make_2 = self.pbt.path_inside_test_folder(self.pbt.which_test+"_2")
+        dir_to_make_1 = self.pbt.path_inside_test_folder("dir_to_make_level_1")
+        dir_to_make_2 = self.pbt.path_inside_test_folder("dir_to_make/level_2")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=True)
         self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=True)
         self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=False)  # MakeDir twice should be OK
+        self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=False)  # MakeDir twice should be OK
 
         self.pbt.exec_and_capture_output()
 
@@ -76,9 +77,10 @@ class TestPythonBatchFileSystem(unittest.TestCase):
             A file is created and MakeDir is called to create a directory on the same path.
             Since remove_obstacles=True the file should be removed and directory created in it's place.
         """
-        dir_to_make = self.pbt.path_inside_test_folder("file-that-should-be-dir")
-        touch(dir_to_make)
-        self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file before test")
+        file_that_should_be_dir = self.pbt.path_inside_test_folder("file-that-should-be-dir")
+        dir_to_make = file_that_should_be_dir.joinpath("a/b/c")
+        touch(file_that_should_be_dir)
+        self.assertTrue(file_that_should_be_dir.is_file(), f"{self.pbt.which_test}: {file_that_should_be_dir} should be a file before test")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(dir_to_make, remove_obstacles=True)
@@ -92,16 +94,18 @@ class TestPythonBatchFileSystem(unittest.TestCase):
             A file is created and MakeDir is called to create a directory on the same path.
             Since remove_obstacles=False the file should not be removed and FileExistsError raised.
         """
-        dir_to_make = self.pbt.path_inside_test_folder("file-that-should-not-be-dir")
-        touch(dir_to_make)
-        self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should be a file")
+        file_that_should_be_dir = self.pbt.path_inside_test_folder("file-that-should-be-dir")
+        dir_to_make = file_that_should_be_dir.joinpath("a/b/c")
+        touch(file_that_should_be_dir)
+        self.assertTrue(file_that_should_be_dir.is_file(), f"{self.pbt.which_test}: {file_that_should_be_dir} should be a file before test")
+        self.assertFalse(dir_to_make.exists(), f"{self.pbt.which_test}: {dir_to_make} should not exist before test")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(dir_to_make, remove_obstacles=False)
 
         self.pbt.exec_and_capture_output(expected_exception=FileExistsError)
 
-        self.assertTrue(dir_to_make.is_file(), f"{self.pbt.which_test}: {dir_to_make} should still be a file")
+        self.assertTrue(file_that_should_be_dir.is_file(), f"{self.pbt.which_test}: {file_that_should_be_dir} should still be a file")
 
     def test_Touch_repr(self):
         self.pbt.reprs_test_runner(Touch("/f/g/h"))
@@ -296,10 +300,51 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertEqual(file_stat.st_uid, user_id, f"user should be {user_id} not {file_stat.st_uid}")
         self.assertEqual(file_stat.st_gid, group_id, f"user should be {group_id} not {file_stat.st_gid}")
 
-
     def test_Chmod_repr(self):
         new_mode = stat.S_IMODE(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
         self.pbt.reprs_test_runner(Chmod("a/b/c", new_mode, recursive=True), Chmod("a/b/c", new_mode, recursive=False))
+
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
+    def test_Chmod_big_X(self):
+        """ big X should:
+            for folders: set the exec bit like 'x' would (this is not exactly like unix, it's suitable for instl
+            for files: set the exec for user/group/other ony if the file already has exec bit
+        """
+        TestChmodData = namedtuple("TestChmodData", ["path", "mode_before", "mode_after"])
+        file_with_no_exec = TestChmodData(self.pbt.path_inside_test_folder("file_with_no_exec"), Chmod.all_read_write, Chmod.all_read_write)
+        file_with_exec = TestChmodData(self.pbt.path_inside_test_folder("file_with_exec"), Chmod.all_read_write | Chmod.user_read_write_exec, Chmod.all_read_write_exec)
+        folder_with_no_exec = TestChmodData(self.pbt.path_inside_test_folder("folder_with_no_exec"), Chmod.all_read_write ,Chmod.all_read_write_exec)
+        folder_with_exec = TestChmodData(self.pbt.path_inside_test_folder("folder_with_exec"),Chmod.all_read_write | Chmod.user_read_write_exec, Chmod.all_read_write_exec)
+
+        # create file and folder each with or without exec mode
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(file_with_no_exec.path)
+        self.pbt.batch_accum += Chmod(file_with_no_exec.path, "a=rw")
+        self.pbt.batch_accum += Touch(file_with_exec.path)
+        self.pbt.batch_accum += Chmod(file_with_exec.path, "a=rw")
+        self.pbt.batch_accum += Chmod(file_with_exec.path, "u+x")
+        self.pbt.batch_accum += MakeDir(folder_with_no_exec.path)
+        self.pbt.batch_accum += Chmod(folder_with_no_exec.path, "a=rw")
+        self.pbt.batch_accum += MakeDir(folder_with_exec.path)
+        self.pbt.batch_accum += Chmod(folder_with_exec.path, "a=rw")
+        self.pbt.batch_accum += Chmod(folder_with_exec.path, "u+x")
+        self.pbt.exec_and_capture_output("prepare for test")
+
+        for test_item in (file_with_no_exec, file_with_exec, folder_with_no_exec, folder_with_exec):
+            # check that exec mode was as expected
+            _has_mode = stat.S_IMODE(test_item.path.stat().st_mode)
+            self.assertTrue(_has_mode==test_item.mode_before, f"wrong mode {oct(_has_mode)} for {test_item.path}")
+
+        # change mode with big 'X'
+        self.pbt.batch_accum.clear(section_name="doit")
+        for test_item in (file_with_no_exec, file_with_exec, folder_with_no_exec, folder_with_exec):
+            self.pbt.batch_accum += Chmod(test_item.path, "a+X")
+        self.pbt.exec_and_capture_output("change da mode")
+
+        for test_item in (file_with_no_exec, file_with_exec, folder_with_no_exec, folder_with_exec):
+            # check that exec mode was as expected
+            _has_mode, _has_mode_oct = stat.S_IMODE(test_item.path.stat().st_mode), oct(stat.S_IMODE(test_item.path.stat().st_mode))
+            self.assertTrue(_has_mode==test_item.mode_after, f"wrong mode {oct(_has_mode)} instead of {oct(test_item.mode_after)} for {test_item.path}")
 
     def test_Chmod_non_recursive(self):
         """ test Chmod

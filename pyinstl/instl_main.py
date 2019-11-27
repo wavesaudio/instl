@@ -161,39 +161,35 @@ def instl_own_main(argv):
         instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
-    elif options.mode == "admin":
-        if os_family_name not in ("Linux", "Mac"):
-            raise EnvironmentError("instl admin commands can only run under Mac or Linux")
-        from pyinstl.instlAdmin import InstlAdmin
-        instance = InstlAdmin(initial_vars)
-        instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
-        instance.init_from_cmd_line_options(options)
-        instance.do_command()
-    elif options.mode == "interactive":
-        from pyinstl.instlClient import InstlClient
-        client = InstlClient(initial_vars)
-        client.init_from_cmd_line_options(options)
-        from pyinstl.instlAdmin import InstlAdmin
-        from pyinstl.instlInstanceBase_interactive import go_interactive
-        admin = InstlAdmin(initial_vars)
-        admin.init_from_cmd_line_options(options)
-        go_interactive(client, admin)
     elif options.mode == "do_something":
         from pyinstl.instlMisc import InstlMisc
         instance = InstlMisc(initial_vars, options.__MAIN_COMMAND__)
         instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
         instance.init_from_cmd_line_options(options)
         instance.do_command()
-    elif options.mode == "gui":
-        if getattr(sys, 'frozen', False):
-            print("gui command not available in compiled instl")
-        else:
+    elif not getattr(sys, 'frozen', False):  # these modes are not available in compiled instl to avoid issues such as import errors for users
+        if options.mode == "admin":
+            if os_family_name not in ("Linux", "Mac"):
+                raise EnvironmentError("instl admin commands can only run under Mac or Linux")
+            from pyinstl.instlAdmin import InstlAdmin
+            instance = InstlAdmin(initial_vars)
+            instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
+            instance.init_from_cmd_line_options(options)
+            instance.do_command()
+        elif options.mode == "interactive":
+            from pyinstl.instlClient import InstlClient
+            client = InstlClient(initial_vars)
+            client.init_from_cmd_line_options(options)
+            from pyinstl.instlAdmin import InstlAdmin
+            from pyinstl.instlInstanceBase_interactive import go_interactive
+            admin = InstlAdmin(initial_vars)
+            admin.init_from_cmd_line_options(options)
+            go_interactive(client, admin)
+        elif options.mode == "gui":
             from pyinstl.instlGui import InstlGui
             instance = InstlGui(initial_vars)
             instance.init_from_cmd_line_options(options)
             instance.do_command()
-    else:
-        raise InstlException("incomprehensible command line options:\n", options)
 
     # make sure instance's dispose functions are called
     if instance is not None:

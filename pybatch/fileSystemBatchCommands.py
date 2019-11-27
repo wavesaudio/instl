@@ -105,19 +105,50 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
-        if self.remove_obstacles:
-            if self.path_to_make.is_file():
-                self.doing = f"""removing file that should be a folder '{self.path_to_make}'"""
-                self.path_to_make.unlink()
-        self.doing = f"""creating a folder '{self.path_to_make}'"""
-        self.path_to_make.mkdir(parents=True, mode=0o777, exist_ok=True)
+        parents_stack = list()  # list of non-existing parents
+        _parent_path = self.path_to_make
+        while not _parent_path.is_dir():
+            parents_stack.append(_parent_path)
+            _parent_path = _parent_path.parent
 
-        with FixAllPermissions(self.path_to_make, recursive=self.recursive_chmod, report_own_progress=False) as perm_allower:
-            perm_allower()
-
-        if self.chowner:
-             with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
-                change_user()
+        if parents_stack:
+            parents_stack.reverse()
+            for _dir_to_create in parents_stack:
+                for _try in range(2):
+                    try:
+                        # we know _dir_to_create does not exist
+                        self.doing = f"""creating folder '{_dir_to_create}'"""
+                        _dir_to_create.mkdir(parents=False, mode=0o777, exist_ok=False)
+                        # if dir was created fix it's permissions
+                        with FixAllPermissions(_dir_to_create, recursive=False, report_own_progress=False) as perm_allower:
+                            perm_allower()
+                        if self.chowner:
+                            with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
+                                change_user()
+                        break
+                    except PermissionError as per_err:
+                        if _try == 0:
+                            # if dir was not created fix it's parent permissions, we know _dir_to_create.parent does exist
+                            self.doing = f"""fix permissions for '{_dir_to_create.parent}'"""
+                            with FixAllPermissions(_dir_to_create.parent, recursive=False, report_own_progress=False) as perm_allower:
+                                perm_allower()
+                        else:
+                            raise
+                    except FileExistsError as fe_err:
+                        if _try == 0 and self.remove_obstacles:
+                            if _dir_to_create.is_file():
+                                self.doing = f"""removing file that should be a folder '{_dir_to_create}'"""
+                                with FixAllPermissions(_dir_to_create, recursive=False, report_own_progress=False) as perm_allower:
+                                    perm_allower()
+                                _dir_to_create.unlink()
+                        else:
+                            raise
+        else:  # all folders already exists, just fix permissions
+            with FixAllPermissions(self.path_to_make, recursive=False, report_own_progress=False) as perm_allower:
+                perm_allower()
+            if self.chowner:
+                with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
+                    change_user()
 
 
 class MakeDirs(MakeDir):
@@ -277,7 +308,7 @@ class ChFlags(RunProcessBase):
 
     def __call__(self, *args, **kwargs):
         if sys.platform in self.flags_dict:  # avoid linux
-            PythonBatchCommandBase.__call__(self, *args, **kwargs)
+            RunProcessBase.__call__(self, *args, **kwargs)
 
 
 class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
@@ -420,10 +451,12 @@ class Chmod(RunProcessBase):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
 
-    def parse_symbolic_mode_mac(self, symbolic_mode_str):
+    def parse_symbolic_mode_mac(self, symbolic_mode_str, current_stats):
         """ parse chmod symbolic mode string e.g. uo+xw
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
+            in case of 'X' the required mode depends on existing mode
         """
+        current_mode, current_mode_oct = stat.S_IMODE(current_stats[stat.ST_MODE]), oct(stat.S_IMODE(current_stats[stat.ST_MODE]))
         match = self.symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
@@ -432,10 +465,19 @@ class Chmod(RunProcessBase):
             symbolic_who = 'ugo'
 
         symbolic_perm = match.group('perm')
+        if stat.S_ISDIR(stat.S_IFMT(current_stats[stat.ST_MODE])):
+            symbolic_perm = symbolic_perm.lower()  # for a dir we want X to mean x
+            any_exec_permission = False
+        else:
+            any_exec_permission = current_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         actual_perms = 0
         for w in symbolic_who:
             for p in symbolic_perm:
-                actual_perms |= Chmod.who_2_perm[w][p]
+                if p == 'X':
+                    if any_exec_permission:
+                        actual_perms |= Chmod.who_2_perm[w]['x']
+                else:
+                    actual_perms |= Chmod.who_2_perm[w][p]
         return actual_perms, match.group('operation')
 
     def parse_symbolic_mode_win(self, symbolic_mode_str):
@@ -497,9 +539,9 @@ class Chmod(RunProcessBase):
             else:
                 resolved_path = utils.ExpandAndResolvePath(self.path)
                 path_stats = resolved_path.stat()
-                flags, op = self.parse_symbolic_mode_mac(self.mode)
+                current_mode, current_mode_oct = stat.S_IMODE(path_stats[stat.ST_MODE]), oct(stat.S_IMODE(path_stats[stat.ST_MODE]))
+                flags, op = self.parse_symbolic_mode_mac(self.mode, path_stats)
                 mode_to_set = flags
-                current_mode = stat.S_IMODE(path_stats[stat.ST_MODE])
                 if op == '+':
                     mode_to_set |= current_mode
                 elif op == '-':
