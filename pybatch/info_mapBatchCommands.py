@@ -282,14 +282,17 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         short_index_data = self.items_table.get_data_for_short_index()  # IID, GUID, NAME, VERSION, generation
         short_index_dict = defaultdict(dict)
+        builtin_iids = list(config_vars["SPECIAL_BUILD_IN_IIDS"])
         for data_line in short_index_data:
-            short_index_dict[data_line[0]]['guid'] = data_line[1]
-            if data_line[4] and data_line[1] != data_line[4]:  # uninstall gui
-                short_index_dict[data_line[0]]['guid'] = list((data_line[1], data_line[4]))
-            if data_line[2]:
-                short_index_dict[data_line[0]]['name'] = data_line[2]
-            if data_line[3] or data_line[4]:
-                short_index_dict[data_line[0]]['version'] = data_line[3]
+            IID = data_line[0]
+            if IID not in builtin_iids:
+                short_index_dict[IID]['guid'] = data_line[1]
+                if data_line[4] and data_line[1] != data_line[4]:  # uninstall gui
+                    short_index_dict[IID]['guid'] = list((data_line[1], data_line[4]))
+                if data_line[2]:
+                    short_index_dict[IID]['name'] = data_line[2]
+                if data_line[3] or data_line[4]:
+                    short_index_dict[IID]['version'] = data_line[3]
 
         defines_dict = config_vars.repr_for_yaml(which_vars=['AUXILIARY_IIDS'], resolve=True, ignore_unknown_vars=False)
         defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",

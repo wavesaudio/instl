@@ -1419,12 +1419,12 @@ class IndexItemsTable(object):
                    item_guid_t.detail_value AS GUID,
                    item_name_t.detail_value AS NAME,
                    item_version_t.detail_value AS VERSION,
-                   item_guid_2_t.detail_value AS VERSION,
+                   item_guid_2_t.detail_value AS GUID2,
                    min(item_version_t.generation) AS generation,
                    max(item_guid_2_t.generation) AS generation
             FROM index_item_t
             
-            JOIN index_item_detail_t AS item_guid_t
+            LEFT JOIN index_item_detail_t AS item_guid_t
             ON item_guid_t.owner_iid == index_item_t.iid
             AND item_guid_t.detail_name == 'guid'
             
@@ -1436,7 +1436,7 @@ class IndexItemsTable(object):
             ON item_version_t.owner_iid == index_item_t.iid
             AND item_version_t.detail_name == 'version'
             
-            JOIN index_item_detail_t AS item_guid_2_t
+            LEFT JOIN index_item_detail_t AS item_guid_2_t
             ON item_guid_2_t.owner_iid == index_item_t.iid
             AND item_guid_2_t.detail_name == 'guid'
             
