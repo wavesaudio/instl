@@ -18,6 +18,7 @@ if sys.platform == 'win32':
 import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
+from .removeBatchCommands import RmFile
 from configVar import config_vars
 
 def touch(file_path):
@@ -823,7 +824,8 @@ class JoinFile(PythonBatchCommandBase):
                     wfd.write(rfd.read())
         if self.remove_parts:
             for part_file in files_to_join:
-                os.unlink(part_file)
+                with RmFile(part_file, report_own_progress=False) as part_remover:
+                    part_remover()
 
 
 class FixAllPermissions(PythonBatchCommandBase):

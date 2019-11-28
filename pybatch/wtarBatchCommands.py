@@ -13,6 +13,7 @@ import zlib
 
 from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown
+from .removeBatchCommands import RmDir, RmFile
 
 log = logging.getLogger(__name__)
 
@@ -209,25 +210,22 @@ class Unwtar(PythonBatchCommandBase):
                     tar_total_checksum = tar.pax_headers.get("total_checksum")
                     # log.debug(f"total checksum for tarfile(s) {self.wtar_file_paths} {tar_total_checksum}")
                     if tar_total_checksum:
-                        if destination_path.exists():
-                            with utils.ChangeDirIfExists(destination_folder):
-                                disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-                                # log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
+                        try:
+                            if destination_path.exists():
+                                with utils.ChangeDirIfExists(destination_folder):
+                                    disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+                                    # log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
 
-                            if disk_total_checksum == tar_total_checksum:
-                                do_the_unwtarring = False
-                                log.debug(f"{self.wtar_file_paths[0]} skipping unwtarring because item(s) exist and are identical to archive")
+                                if disk_total_checksum == tar_total_checksum:
+                                    log.debug(f"{self.wtar_file_paths[0]} skipping unwtarring because item(s) exist and are identical to archive")
+                                    do_the_unwtarring = False
+                        except:
+                            # if checking checksum failed for any reason -> do the unwtarring
+                            pass
                     if do_the_unwtarring:
-                        if destination_path.exists():
-                            try:
-                                utils.safe_remove_file_system_object(destination_path, ignore_errors=False)
-                            except PermissionError as pe:
-                                ChmodAndChown(destination_path, "a+rw", int(config_vars.get("ACTING_UID", -1)),
-                                              int(config_vars.get("ACTING_GID", -1)),
-                                              recursive=True, own_progress_count=0)()
-                                log.debug(f"failed to remove {destination_path}, retrying after ChmodAndChow")
-                                utils.safe_remove_file_system_object(destination_path, ignore_errors=True)
-                                log.debug(f"2nd safe_remove_file_system_object on on {destination_path} done")
+                        with RmDir(destination_path, report_own_progress=False, recursive=True) as dir_remover:
+                            # RmDir will also remove a file and will not raise if destination_path does not exist
+                            dir_remover()
                         tar.extractall(destination_folder)
 
                         if copy_owner:
@@ -235,10 +233,12 @@ class Unwtar(PythonBatchCommandBase):
                             first_wtar_file_st = self.wtar_file_paths[0].stat()
                             # log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
                             Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
-
+                    else:
+                        log.info(f"skip uwtar of {destination_path} because it exists and matches wtar file checksum")
             if no_artifacts:
                 for wtar_file in self.wtar_file_paths:
-                    os.remove(wtar_file)
+                    with RmFile(wtar_file, report_own_progress=False) as wtar_remover:
+                        wtar_remover()
 
         except OSError as e:
             log.warning(f"Invalid stream on split file with {self.wtar_file_paths[0]}")

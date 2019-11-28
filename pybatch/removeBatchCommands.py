@@ -136,7 +136,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         try:
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
             resolved_path = utils.ExpandAndResolvePath(self.path)
-            if resolved_path.is_file():
+            if resolved_path.is_symlink() or resolved_path.is_file():
                 self.doing = f"""removing file'{resolved_path}'"""
                 resolved_path.unlink()
             elif resolved_path.is_dir():
