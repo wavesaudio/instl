@@ -15,7 +15,7 @@ from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
 import logging
-from functools import reduce, wraps
+from functools import reduce, wraps, lru_cache
 import itertools
 import tarfile
 import types
@@ -32,21 +32,25 @@ import utils
 log = logging.getLogger()
 
 
+@lru_cache(maxsize=None)
 def Is64Windows():
     """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
     return 'PROGRAMFILES(X86)' in os.environ
 
 
+@lru_cache(maxsize=None)
 def Is64Mac():
     """Check if the installed version of osx is greater than 14 (Mojave).
     such versions cannot run anymore 32 bit apps """
     return int(platform.mac_ver()[0].split('.')[1]) > 14
 
 
+@lru_cache(maxsize=None)
 def Is32Windows():
     return not Is64Windows()
 
 
+@lru_cache(maxsize=None)
 def GetProgramFiles32():
     if Is64Windows():
         return os.environ['PROGRAMFILES(X86)']
@@ -54,6 +58,7 @@ def GetProgramFiles32():
         return os.environ['PROGRAMFILES']
 
 
+@lru_cache(maxsize=None)
 def GetProgramFiles64():
     if Is64Windows():
         return os.environ['PROGRAMW6432']
@@ -61,6 +66,7 @@ def GetProgramFiles64():
         return None
 
 
+@lru_cache(maxsize=None)
 def get_current_os_names() -> Tuple[str, ...]:
     retVal: Tuple[str, ...] = ()
     current_os = platform.system()
@@ -807,6 +813,7 @@ def iter_grouper(n, iterable):
         piece = list(itertools.islice(i, n))
 
 
+@lru_cache(maxsize=None)
 def get_os_description():
     if sys.platform == 'darwin':
         retVal = f"macOS {platform.mac_ver()[0]}"

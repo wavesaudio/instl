@@ -339,7 +339,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
         self.calc_user_cache_dir_var(make_dir)
-        retVal = Path(os.fspath(config_vars["USER_CACHE_DIR"]))
+        retVal = config_vars["USER_CACHE_DIR"].Path()
         if continue_dir:
             retVal = retVal.joinpath(continue_dir)
         return retVal

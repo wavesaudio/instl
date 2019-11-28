@@ -281,6 +281,10 @@ class ConfigVarStack:
         #self.resolve_time += end_time - start_time
         return result
 
+    def is_str_resolved(self, str_to_check):
+        regex = re.compile(r"\$\(.*\)")
+        return regex.search(str_to_check) is None
+
     def resolve_str_to_list(self, val_to_resolve: str) -> List:
         """
             if val_to_resolve is referencing a single configVar
