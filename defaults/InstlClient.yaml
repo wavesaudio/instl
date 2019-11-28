@@ -77,12 +77,6 @@ DEFAULT_IID_VERSION: 0.0.0
 
 OUTPUT_FORMAT: $(__OUTPUT_FORMAT__)
 
-SPECIAL_BUILD_IN_IIDS:
-    - __ALL_ITEMS_IID__
-    - __ALL_GUIDS_IID__
-    - __UPDATE_INSTALLED_ITEMS__
-    - __REPAIR_INSTALLED_ITEMS__
-
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
 

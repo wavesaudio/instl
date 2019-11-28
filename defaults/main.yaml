@@ -98,3 +98,9 @@ EXIT_ON_EXEC_EXCEPTION: False
 # defaults if no acting user/group specifically given
 ACTING_UID: "$(__USER_ID__)"
 ACTING_GID: "$(__GROUP_ID__)"
+
+SPECIAL_BUILD_IN_IIDS:
+    - __ALL_ITEMS_IID__
+    - __ALL_GUIDS_IID__
+    - __UPDATE_INSTALLED_ITEMS__
+    - __REPAIR_INSTALLED_ITEMS__
