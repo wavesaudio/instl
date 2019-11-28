@@ -26,7 +26,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         prerequisite_vars = list(config_vars["__SYNC_PREREQUISITE_VARIABLES__"])
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
-        self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
     # Overridden by InstlInstanceSync_url, or parallel sync classes
     def create_sync_instructions(self):

@@ -24,6 +24,7 @@ class InstlClientCopy(InstlClient):
         self.current_destination_folder: Optional[str] = None
         self.current_iid:  Optional[str] = None
         self.avoid_copy_markers = None
+        self.calc_user_cache_dir_var()
 
     def do_copy(self) -> None:
         self.init_copy_vars()
@@ -38,7 +39,6 @@ class InstlClientCopy(InstlClient):
         self.bytes_to_copy = 0
         # ratio between wtar file and it's uncompressed contents
         self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
-        self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])

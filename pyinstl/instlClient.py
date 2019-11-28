@@ -111,7 +111,6 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
-
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)
@@ -614,6 +613,7 @@ def InstlClientFactory(initial_vars, command):
         class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
             def __init__(self, sc_initial_vars=None) -> None:
                 super().__init__(sc_initial_vars)
+                self.calc_user_cache_dir_var()
 
             def do_synccopy(self):
                 self.do_sync()

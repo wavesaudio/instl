@@ -195,6 +195,7 @@ class ConfigVar:
         if value is not None:
             self.values.append(str(value))
             self.callback_when_value_is_set(self.name, value)
+            self.owner.clear_cache()
 
     def extend(self, values):
         """
@@ -215,7 +216,9 @@ class ConfigVar:
 
     def clear(self):
         """ erase all values """
-        self.values.clear()
+        if self.values:
+            self.values.clear()
+            self.owner.clear_cache()
 
     def raw(self, join_sep: Optional[str] = "") -> Union[str, List[str]]:
         """ return the list of values unresolved"""

@@ -21,6 +21,7 @@ class InstlClientReport(InstlClient):
         self.current_require_yaml_path = None
         self.guids_to_ignore = None
         self.output_data = []
+        self.calc_user_cache_dir_var()
 
     def get_default_out_file(self) -> None:
         pass

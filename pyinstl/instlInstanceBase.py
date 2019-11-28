@@ -270,7 +270,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                                 config_vars=config_vars,
                                                                 in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
-                                                                cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
+                                                                cache_folder=self.get_aux_cache_dir(make_dir=True),
                                                                 expected_checksum=expected_checksum)
                     self.read_yaml_file(file_path, *args, **kwargs)
                 except (FileNotFoundError, urllib.error.URLError):
@@ -318,7 +318,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
         in_batch_accum += PythonDoSomething(f"""log.setLevel({config_vars.get("PYTHON_BATCH_LOG_LEVEL", 20)})""")
 
-    def calc_user_cache_dir_var(self, make_dir=True):
+    def calc_user_cache_dir_var(self):
         if "USER_CACHE_DIR" not in config_vars:
             os_family_name = config_vars["__CURRENT_OS__"].str()
             if os_family_name == "Mac":
@@ -332,16 +332,28 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             else:
                 raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
-            #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
+
+    def get_aux_cache_dir(self, make_dir=True):
+        """ return a path where to download and cache files (but not installation artifacts)
+            return LOCAL_REPO_REV_BOOKKEEPING_DIR if it's fully resolved (meaning we have values for
+            S3_BUCKET_NAME, REPO_NAME, REPO_REV)
+            otherwise return USER_CACHE_DIR
+        """
+        local_repo_rev_bookkeeping_dir = config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"].str()
+        if config_vars.is_str_resolved(local_repo_rev_bookkeeping_dir):
+            aux_cache_dir = Path(local_repo_rev_bookkeeping_dir)
+        else:
+            aux_cache_dir = config_vars["USER_CACHE_DIR"].Path().joinpath("cache")
         if make_dir:
-            user_cache_dir_resolved = os.fspath(config_vars["USER_CACHE_DIR"])
-            os.makedirs(user_cache_dir_resolved, exist_ok=True)
+            aux_cache_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
+        return aux_cache_dir
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
-        self.calc_user_cache_dir_var(make_dir)
         retVal = config_vars["USER_CACHE_DIR"].Path()
         if continue_dir:
             retVal = retVal.joinpath(continue_dir)
+        if make_dir:
+            retVal.mkdir(parents=True, exist_ok=True, mode=0o777)
         return retVal
 
     def relative_sync_folder_for_source(self, source):

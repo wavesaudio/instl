@@ -58,6 +58,9 @@ class ConfigVarStack:
         self.resolve_cache: Dict[str,str] = dict()
         self.max_cached_strings = 0
 
+    def clear_cache(self):
+        self.resolve_cache.clear()
+
     def __len__(self) -> int:
         """ From RafeKettler/magicmethods: Returns the length of the container.
                 Part of the protocol for both immutable and mutable containers.
@@ -115,8 +118,6 @@ class ConfigVarStack:
             config_var.clear()
         finally:
             config_var.extend(values)
-            if self.use_cache:
-                self.resolve_cache.clear()
 
     def update(self, update_dict):
         """ create new ConfigVars from a dict"""
@@ -134,7 +135,7 @@ class ConfigVarStack:
         for var_dict in reversed(self.var_list):
             try:
                 del var_dict[key]
-                self.resolve_cache.clear()
+                self.clear_cache()
                 return
             except KeyError:
                 continue
@@ -202,7 +203,7 @@ class ConfigVarStack:
         """ clear all stack levels"""
         self.var_list.clear()
         self.var_list.append(dict())
-        self.resolve_cache.clear()
+        self.clear_cache()
 
     def variable_params_to_config_vars(self, parser_retVal):
         """ parse positional and/or key word params and create
@@ -362,12 +363,12 @@ class ConfigVarStack:
             self.pop_scope()
 
     def push_scope(self):
+        self.clear_cache()
         self.var_list.append(dict())
 
     def pop_scope(self):
         self.var_list.pop()
-        if self.use_cache:
-            self.resolve_cache.clear()
+        self.clear_cache()
 
     @contextmanager
     def push_scope_context(self, use_cache=True):
