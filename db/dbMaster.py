@@ -13,6 +13,8 @@ from svnTree import SVNTable
 
 """
     todo:
+        - python 3.7/3.8 connection object have backup method, so we can work with memory database and only write to disk in case of error
+            see: https://docs.python.org/3.8/library/sqlite3.html#sqlite3.Connection.backup
         - replace iids in index_item_detail_t with index_item_t._id ?
         - normalize detail_name with table of names?
         - review indexes, do they really improve performance
