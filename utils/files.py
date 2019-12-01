@@ -643,3 +643,20 @@ def set_max_open_files(new_max_open_files):
         max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
         print(f"max open files is now {max_files_soft}")
 
+
+@contextmanager
+def trace_file_open(_callback=None):
+    if _callback:
+        import builtins
+        save_builtin_open = builtins.open
+
+        def open_override(*args, **kwargs):
+            _callback(*args, **kwargs)
+            return save_builtin_open(*args, **kwargs)
+
+        builtins.open = open_override
+
+    yield
+
+    if _callback:
+        builtins.open = save_builtin_open

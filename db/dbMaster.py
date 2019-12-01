@@ -88,7 +88,8 @@ class DBMaster(object):
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def set_db_file_owner(self):
-        utils.chown_chmod_on_path(self.db_file_path)
+        if os.fspath(self.db_file_path) != ':memory:':
+            utils.chown_chmod_on_path(self.db_file_path)
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")

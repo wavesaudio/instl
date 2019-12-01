@@ -81,9 +81,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
-                                             'doit', 'report-versions', 'read-yaml', 'translate-guids',
+                                             'doit', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
                                              'short-index', 'up-short-index']
+    commands_that_need_memory_db = ['report-versions']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -191,6 +192,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_COMMAND__" in config_vars:
             self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
+        if self.the_command in self.commands_that_need_memory_db:
+            config_vars['__MAIN_DB_FILE__'] = ':memory:'
         DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
