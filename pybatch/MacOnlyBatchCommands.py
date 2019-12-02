@@ -30,9 +30,10 @@ class MacDock(PythonBatchCommandBase):
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
+        return f"""{self.__class__.__name__} setting '{self.path_to_item}' as '{self.label_for_item}' (operation disabled and ignored)"""
 
     def __call__(self, *args, **kwargs) -> None:
+        return  # disable all dock operations since they cause crashes on Catalina
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         dock_util_command = list()
         if self.remove:
