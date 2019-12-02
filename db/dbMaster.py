@@ -47,9 +47,14 @@ class Statistic():
 
 
 class DBMaster(object):
-    def __init__(self, db_url: Path, ddl_folder: Path) -> None:
+    def __init__(self, db_url: str, ddl_folder: Path) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
-        self.db_file_path = db_url
+        if db_url == ":memory:":
+            self.memory_db = True
+            self.db_file_path = None
+        else:
+            self.memory_db = False
+            self.db_file_path = Path(db_url)
         self.ddl_files_dir = ddl_folder
         self.__conn = None
         self.__curs = None
@@ -58,12 +63,14 @@ class DBMaster(object):
         self.print_execute_times = False
         self.transaction_depth = 0
 
-    def get_file_path(self) -> Path:
-        return self.db_file_path
+    def get_file_path(self) -> str:
+        if self.memory_db:
+            return ":memory:"
+        else:
+            return os.fspath(self.db_file_path)
 
     def init_from_ddl(self, ddl_files_dir: Path, db_file_path: Path):
         self.ddl_files_dir = ddl_files_dir
-        self.db_file_path: Path = Path(db_file_path)
         self.open()
 
     def init_from_existing_connection(self, conn, curs):
@@ -75,8 +82,12 @@ class DBMaster(object):
 
     def open(self):
         if not self.__conn:
-            create_new_db = not self.db_file_path.is_file()
-            self.__conn = sqlite3.connect(os.fspath(self.db_file_path))
+            try:
+                create_new_db = self.memory_db or not self.db_file_path.is_file()
+            except:
+                create_new_db = True
+            db_path_for_sqlite = ":memory:" if self.memory_db else os.fspath(self.db_file_path)
+            self.__conn = sqlite3.connect(db_path_for_sqlite)
 
             self.__curs = self.__conn.cursor()
             self.configure_db()
@@ -90,7 +101,7 @@ class DBMaster(object):
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def set_db_file_owner(self):
-        if os.fspath(self.db_file_path) != ':memory:':
+        if not self.memory_db and self.db_file_path.is_file():
             utils.chown_chmod_on_path(self.db_file_path)
 
     def configure_db(self):
@@ -118,10 +129,11 @@ class DBMaster(object):
 
     def close_and_delete(self):
         self.close()
-        try:
-            self.db_file_path.unlink()
-        except FileNotFoundError:
-            pass
+        if not self.memory_db:
+            try:
+                self.db_file_path.unlink()
+            except FileNotFoundError:
+                pass
 
     def close(self):
         if self.__conn:
@@ -138,10 +150,6 @@ class DBMaster(object):
                 print("max count:", max_count[0], max_count[1])
                 print("max time:", max_time[0], max_time[1])
                 print("total DB time:", total_DB_time)
-
-    def erase_db(self):
-        self.close()
-        utils.safe_remove_file(self.db_file_path)
 
     def set_db_pragma(self, pragma_name, pragma_value):
         set_pragma_q = f"""PRAGMA {pragma_name} = {pragma_value};"""
@@ -374,7 +382,7 @@ class DBAccess(object):
             self.get_default_db_file()
             db_url = config_vars["__MAIN_DB_FILE__"].Path()
             ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
-            self._db = DBMaster(db_url, ddls_folder)
+            self._db = DBMaster(os.fspath(db_url), ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
         return self._db
 
