@@ -880,7 +880,7 @@ class InstlAdmin(InstlInstanceBase):
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
 
     def print_wait_on_action_trigger_into(self, _redis_host, _redis_port, _waiting_list_redis_key):
-        log.info(f"instl {self.get_version_str(short=False)}")
+        log.info(f"{self.get_version_str(short=False)}")
         log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
         log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
         log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
