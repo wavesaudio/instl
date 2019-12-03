@@ -104,6 +104,11 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
+        """
+            When creating a folder go over each non existing parent directory
+            and try to create it. This gives a chance to handle errors individually for each dir
+            and in case of failure we can reprot the dir place that failed to be created.
+        """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
         parents_stack = list()  # list of non-existing parents
@@ -177,9 +182,10 @@ class Touch(PythonBatchCommandBase):
         if resolved_path.is_dir():
             os.utime(resolved_path)
         else:
-            resolved_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(resolved_path, 'a') as tfd:
-                os.utime(resolved_path, None)
+            with MakeDir(resolved_path.parent, report_own_progress=False) as md:
+                md()
+                with open(resolved_path, 'a') as tfd:
+                    os.utime(resolved_path, None)
 
 
 class Cd(PythonBatchCommandBase):
@@ -795,7 +801,8 @@ class SplitFile(PythonBatchCommandBase):
                     utils.chown_chmod_on_fd(pfd)
                     pfd.write(fts.read(part_size))
         if self.remove_original:
-            self.file_to_split.unlink()
+            with RmFile(self.file_to_split, report_own_progress=False) as rf:
+                rf()
 
 
 class JoinFile(PythonBatchCommandBase):

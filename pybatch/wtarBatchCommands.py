@@ -12,7 +12,7 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown
+from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown, MakeDir
 from .removeBatchCommands import RmDir, RmFile
 
 log = logging.getLogger(__name__)
@@ -111,7 +111,8 @@ class Wtar(PythonBatchCommandBase):
         if resolved_where_to_put_wtar.is_file():
             target_wtar_file = resolved_where_to_put_wtar
         else:  # assuming it's a folder
-            resolved_where_to_put_wtar.mkdir(parents=True, exist_ok=True)
+            with MakeDir(resolved_where_to_put_wtar.parent, report_own_progress=False) as md:
+                md()
             target_wtar_file = resolved_where_to_put_wtar.joinpath(resolved_what_to_wtar.name+".wtar")
 
         # remove previous wtarred files
@@ -357,7 +358,8 @@ class Wzip(PythonBatchCommandBase):
                 target_wzip_file = Path.cwd()
         if not target_wzip_file.is_file():
             # assuming it's a folder
-            target_wzip_file.mkdir(parents=True, exist_ok=True)
+            with MakeDir(target_wzip_file.parent, report_own_progress=False) as md:
+                md()
             target_wzip_file = target_wzip_file.joinpath(resolved_what_to_zip.name+".wzip")
 
         self.doing = f"""wziping '{resolved_what_to_zip}' to '{target_wzip_file}'"""
@@ -392,7 +394,8 @@ class Unwzip(PythonBatchCommandBase):
                 target_unwzip_file = Path.cwd()
         if not target_unwzip_file.is_file():
             # assuming it's a folder
-            target_unwzip_file.mkdir(parents=True, exist_ok=True)
+            with MakeDir(target_unwzip_file.parent, report_own_progress=False) as md:
+                md()
             if resolved_what_to_unwzip.name.endswith(".wzip"):
                 what_to_work_on_leaf = resolved_what_to_unwzip.stem
             target_unwzip_file = os.path.join(target_unwzip_file, what_to_work_on_leaf)

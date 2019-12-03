@@ -7,6 +7,7 @@ from typing import List
 
 
 from .fileSystemBatchCommands import *
+from .removeBatchCommands import RmFileOrDir
 log = logging.getLogger(__name__)
 
 
@@ -184,10 +185,9 @@ class RsyncClone(PythonBatchCommandBase):
             if dst_item.name not in src_item_names and not self.should_ignore_file(dst_item.path):
                 self.last_step, self.last_src, self.last_dst = "remove redundant file", "", os.fspath(dst_item)
                 log.info(f"delete {dst_item.path}")
-                if dst_item.is_symlink() or dst_item.is_file():
-                    self.dry_run or os.unlink(dst_item)
-                else:
-                    self.dry_run or shutil.rmtree(dst_item)
+                if not self.dry_run:
+                    with RmFileOrDir(dst_item, report_own_progress=False, resolve_path=not dst_item.is_symlink()) as rfod:
+                        rfod()
 
     def copy_symlink(self, src_path: Path, dst_path: Path):
         self.last_src, self.last_dst = os.fspath(src_path), os.fspath(dst_path)
@@ -345,7 +345,8 @@ class RsyncClone(PythonBatchCommandBase):
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         if self.top_destination_does_not_exist:
-            dst.mkdir(parents=True, exist_ok=True)
+            with MakeDir(dst, report_own_progress=False) as md:
+                md()
         final_dst = dst.joinpath(src.name)
         retVal = self.copy_file_to_file(src, final_dst, follow_symlinks)
         return retVal
@@ -489,10 +490,8 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
             self.doing = f"""removing contents dir '{self.src}'"""
             if not self.dry_run:
                 for child_item in Path(self.src).iterdir():
-                    if child_item.is_file():
-                        child_item.unlink()
-                    elif child_item.is_dir():
-                        shutil.rmtree(child_item, ignore_errors=self.ignore_if_not_exist)
+                    with RmFileOrDir(child_item, report_own_progress=False) as rf:
+                        rf()
 
 
 class CopyFileToDir(RsyncClone):
@@ -525,7 +524,9 @@ class MoveFileToDir(CopyFileToDir):
             raise
         else:  # do not attempt remove if copy did not work
             self.doing = f"""removing file '{self.src}'"""
-            self.dry_run or Path(self.src).unlink()
+            if not self.dry_run:
+                with RmFile(Path(self.src), report_own_progress=False) as rf:
+                    rf()
 
 
 class CopyFileToFile(RsyncClone):
@@ -539,7 +540,8 @@ class CopyFileToFile(RsyncClone):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_src: Path = utils.ExpandAndResolvePath(self.src)
         resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
-        resolved_dst.parent.mkdir(parents=True, exist_ok=True)
+        with MakeDir(resolved_dst.parent, report_own_progress=False) as md:
+            md()
         self.top_destination_does_not_exist = False
         self.copy_file_to_file(resolved_src, resolved_dst)
 
@@ -559,7 +561,9 @@ class MoveFileToFile(CopyFileToFile):
             raise
         else:  # do not attempt remove if copy did not work
             self.doing = f"""removing file '{self.src}'"""
-            self.dry_run or Path(self.src).unlink()
+            if not self.dry_run:
+                with RmFile(Path(self.src), report_own_progress=False) as rf:
+                    rf()
 
 
 class RenameFile(MoveFileToFile):
@@ -610,7 +614,8 @@ class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
         resolved_destination_dir: Path = utils.ExpandAndResolvePath(self.dst)
         globed_files =  list(resolved_source_dir.glob(self.glob_pattern))
         if globed_files:
-            resolved_destination_dir.mkdir(parents=True, exist_ok=True)
+            with MakeDir(resolved_destination_dir, report_own_progress=False) as md:
+                md()
             kwargs = self.all_kwargs_dict()
             kwargs['own_progress_count'] = 0
             for globed_file in globed_files:

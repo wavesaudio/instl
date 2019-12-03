@@ -7,6 +7,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from .baseClasses import PythonBatchCommandBase
+from .removeBatchCommands import RmDir, RmFile, RmFileOrDir
 import utils
 
 
@@ -81,11 +82,9 @@ class CreateSymlink(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
-        try:
-            path_to_symlink.unlink()
-        except:
-            pass
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
+        with RmFile(path_to_symlink, report_own_progress=False, resolve_path=False) as rf:
+            rf()
         path_to_symlink.symlink_to(path_to_target)
 
 
@@ -112,7 +111,8 @@ class RmSymlink(PythonBatchCommandBase):
         unresolved_path = Path(expanded_path)
         self.doing = f"""removing symlink '{unresolved_path}'"""
         if unresolved_path.is_symlink():
-            unresolved_path.unlink()
+            with RmFile(unresolved_path, report_own_progress=False, resolve_path=False) as rf:
+                rf()
         elif unresolved_path.exists():
             log.warning(f"RmSymlink, not a symlink: {unresolved_path}")
         else:
@@ -143,7 +143,8 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase):
             link_value = os.readlink(symlink_to_convert)
             symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
             symlink_text_path.write_text(link_value)
-            symlink_to_convert.unlink()
+            with RmFile(symlink_to_convert, report_own_progress=False, resolve_path=False) as rf:
+                rf()
 
 
 class SymlinkFileToSymlink(PythonBatchCommandBase):
@@ -170,13 +171,16 @@ class SymlinkFileToSymlink(PythonBatchCommandBase):
         symlink = Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
         it_was = None
         if symlink.is_symlink():
-            symlink.unlink()
+            with RmFile(symlink, report_own_progress=False, resolve_path=False) as rf:
+                rf()
             it_was = "symlink"
         elif symlink.is_file():
-            symlink.unlink()
+            with RmFile(symlink, report_own_progress=False, resolve_path=False) as rf:
+                rf()
             it_was = "file"
         elif symlink.is_dir():
-            shutil.rmtree(symlink)
+            with RmDir(symlink, report_own_progress=False) as rd:
+                rd()
             it_was = "folder"
 
         if symlink.exists():

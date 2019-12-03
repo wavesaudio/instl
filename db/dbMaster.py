@@ -130,10 +130,9 @@ class DBMaster(object):
     def close_and_delete(self):
         self.close()
         if not self.memory_db:
-            try:
-                self.db_file_path.unlink()
-            except FileNotFoundError:
-                pass
+            from pybatch import RmFile
+            with RmFile(self.db_file_path, report_own_progress=False) as rf:
+                rf()
 
     def close(self):
         if self.__conn:

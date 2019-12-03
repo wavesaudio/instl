@@ -348,7 +348,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         else:
             aux_cache_dir = config_vars["USER_CACHE_DIR"].Path().joinpath("cache")
         if make_dir:
-            aux_cache_dir.mkdir(parents=True, exist_ok=True, mode=0o777)
+            with MakeDir(aux_cache_dir, report_own_progress=False) as md:
+                md()
         return aux_cache_dir
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
@@ -356,7 +357,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if continue_dir:
             retVal = retVal.joinpath(continue_dir)
         if make_dir:
-            retVal.mkdir(parents=True, exist_ok=True, mode=0o777)
+            with MakeDir(retVal, report_own_progress=False) as md:
+                md()
         return retVal
 
     def relative_sync_folder_for_source(self, source):
@@ -394,7 +396,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         if out_file:
             out_file = out_file.parent.joinpath(out_file.name+file_name_post_fix)
-            out_file.parent.mkdir(parents=True, exist_ok=True)
+            with MakeDir(out_file.parent, report_own_progress=False) as md:
+                md()
             self.out_file_realpath = os.fspath(out_file)
         else:
             self.out_file_realpath = "stdout"

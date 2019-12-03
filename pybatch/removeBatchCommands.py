@@ -11,7 +11,7 @@ from pybatch import PythonBatchCommandBase
 log = logging.getLogger(__name__)
 
 
-class RmFile(PythonBatchCommandBase):
+class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
     """remove a file
     - if path is symlink - the symlink's target will be removed
     - It's OK is the file does not exist
@@ -37,7 +37,7 @@ class RmFile(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ExpandAndResolvePath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path, resolve_path=self.resolve_path)
         for attempt in range(2):
             try:
                 self.doing = f"""removing file '{resolved_path}'"""

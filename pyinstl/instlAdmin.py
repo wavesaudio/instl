@@ -1063,7 +1063,8 @@ class InstlAdmin(InstlInstanceBase):
 
         repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
-        work_folder.mkdir(parents=True, exist_ok=True)
+        with MakeDir(work_folder, report_own_progress=False) as md:
+            md()
         return work_folder
 
     def send_email_from_template_file(self, path_to_template):

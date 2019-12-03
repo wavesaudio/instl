@@ -324,10 +324,9 @@ def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, tran
         otherwise download the file
         :return: path of the downloaded file
     """
-
-    if cache_folder.is_file():  # happens sometimes...
-        safe_remove_file(cache_folder)
-    cache_folder.mkdir(parents=True, exist_ok=True)
+    from pybatch import MakeDir
+    with MakeDir(cache_folder, report_own_progress=False) as md:
+        md()
 
     url_file_name = last_url_item(in_url)
     cached_file_name = expected_checksum if expected_checksum else url_file_name
@@ -583,15 +582,16 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-def ExpandAndResolvePath(path_to_resolve: os.PathLike) -> Path:
+def ExpandAndResolvePath(path_to_resolve: os.PathLike, resolve_path=True) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """
     expanded_path = os.path.expandvars(path_to_resolve)
     path_path = Path(expanded_path)
-    resolved_path = path_path.resolve()
-    return resolved_path
+    if resolve_path:
+        path_path = path_path.resolve()
+    return path_path
 
 
 def get_main_drive_name():
