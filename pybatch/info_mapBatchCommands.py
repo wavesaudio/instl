@@ -5,6 +5,8 @@ import zlib
 from collections import defaultdict
 from pathlib import Path
 import logging
+import time
+import datetime
 
 log = logging.getLogger(__name__)
 
@@ -407,6 +409,12 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         missing_vars = [var for var in repo_rev_vars if var not in config_vars]
         if missing_vars:
             raise ValueError(f"{missing_vars} are missing cannot write repo rev file")
+
+        # temporary until we have dynamic __NOW__ variable
+        config_vars["REPO_REV_FILE_CREATE_TIME"] = str(datetime.datetime.fromtimestamp(time.time()))
+        repo_rev_vars.append("REPO_REV_FILE_CREATE_TIME")
+        config_vars["REPO_REV_FILE_CREATED_BY"] = "$(__INSTL_VERSION_STR_LONG__)"
+        repo_rev_vars.append("REPO_REV_FILE_CREATED_BY")
 
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)

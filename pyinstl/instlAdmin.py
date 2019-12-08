@@ -760,9 +760,10 @@ class InstlAdmin(InstlInstanceBase):
 
             if not skip_some_actions:
                 with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
-                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(checkout_folder_short_index_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--content-type", 'text/plain')
-                    repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
-                    sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(checkout_folder_short_index_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+checkout_folder_short_index_path.name, "--content-type", 'text/plain')
+                    repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].Path()
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/admin/"+repo_rev_file_path.name, "--content-type", 'text/plain')
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+repo_rev_file_path.name, "--content-type", 'text/plain')
 
             self.write_batch_file(batch_accum)
             if bool(config_vars["__RUN_BATCH__"]):
@@ -853,8 +854,8 @@ class InstlAdmin(InstlInstanceBase):
 
             with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
                 sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")
-                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
-                sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].Path()
+                sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/admin/"+repo_rev_file_path.name, "--content-type", 'text/plain')
             batch_accum += RmDirContents(revision_folder_path, exclude=['instl'])
 
             self.write_batch_file(batch_accum)
