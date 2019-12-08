@@ -888,7 +888,9 @@ class InstlAdmin(InstlInstanceBase):
         log.info(f"{self.get_version_str(short=False)}")
         log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
         log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+        log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
         log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+
         log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
 
     def do_wait_on_action_trigger(self):
