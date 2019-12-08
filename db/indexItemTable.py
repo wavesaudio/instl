@@ -1414,28 +1414,41 @@ class IndexItemsTable(object):
             returns IID, GUID, NAME, VERSION, generation
         """
 
-        query_text = """
+        mac_os_ids = [self.os_names_to_num['common']] + [id for name,id in self.os_names_to_num.items() if name.startswith("Mac")]
+        mac_os_ids_str = ", ".join((str(id) for id in mac_os_ids))
+        win_os_ids = [self.os_names_to_num['common']] + [id for name,id in self.os_names_to_num.items() if name.startswith("Win")]
+        win_os_ids_str = ", ".join((str(id) for id in win_os_ids))
+
+        query_text = f"""
             SELECT index_item_t.iid AS IID,
                    item_guid_t.detail_value AS GUID,
                    item_name_t.detail_value AS NAME,
-                   item_version_t.detail_value AS VERSION,
+                   item_version_mac_t.detail_value AS VERSION_MAC,
+                   item_version_win_t.detail_value AS VERSION_WIN,
                    item_guid_2_t.detail_value AS GUID2,
-                   min(item_version_t.generation) AS generation,
-                   max(item_guid_2_t.generation) AS generation
+                   min(item_version_mac_t.generation) AS generation_mac,
+                   min(item_version_win_t.generation) AS generation_win,
+                   max(item_guid_2_t.generation) AS generation_guid2
             FROM index_item_t
             
             LEFT JOIN index_item_detail_t AS item_guid_t
-            ON item_guid_t.owner_iid == index_item_t.iid
+            ON item_guid_t.original_iid == index_item_t.iid
             AND item_guid_t.detail_name == 'guid'
             
             LEFT JOIN index_item_detail_t AS item_name_t
             ON item_name_t.owner_iid == index_item_t.iid
             AND item_name_t.detail_name == 'name'
             
-            LEFT JOIN index_item_detail_t AS item_version_t
-            ON item_version_t.owner_iid == index_item_t.iid
-            AND item_version_t.detail_name == 'version'
+            LEFT JOIN index_item_detail_t AS item_version_mac_t
+            ON item_version_mac_t.owner_iid == index_item_t.iid
+            AND item_version_mac_t.detail_name == 'version'
+            AND item_version_mac_t.os_id in (SELECT _id FROM active_operating_systems_t WHERE _id in ({mac_os_ids_str}))
             
+            LEFT JOIN index_item_detail_t AS item_version_win_t
+            ON item_version_win_t.owner_iid == index_item_t.iid
+            AND item_version_win_t.detail_name == 'version'
+            AND item_version_win_t.os_id in (SELECT _id FROM active_operating_systems_t WHERE _id in ({win_os_ids_str}))
+           
             LEFT JOIN index_item_detail_t AS item_guid_2_t
             ON item_guid_2_t.owner_iid == index_item_t.iid
             AND item_guid_2_t.detail_name == 'guid'

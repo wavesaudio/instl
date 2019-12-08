@@ -284,15 +284,26 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
         short_index_dict = defaultdict(dict)
         builtin_iids = list(config_vars["SPECIAL_BUILD_IN_IIDS"])
         for data_line in short_index_data:
-            IID = data_line[0]
+            IID = data_line['IID']
             if IID not in builtin_iids:
-                short_index_dict[IID]['guid'] = data_line[1]
-                if data_line[4] and data_line[1] != data_line[4]:  # uninstall gui
-                    short_index_dict[IID]['guid'] = list((data_line[1], data_line[4]))
-                if data_line[2]:
-                    short_index_dict[IID]['name'] = data_line[2]
-                if data_line[3] or data_line[4]:
-                    short_index_dict[IID]['version'] = data_line[3]
+                #data_dict = dict(data_line)
+                if data_line['NAME'] and (data_line['VERSION_MAC'] or data_line['VERSION_WIN']):
+
+                    if data_line['GUID']:
+                        if data_line['GUID2'] != data_line['GUID']:  # found uninstall gui
+                            short_index_dict[IID]['guid'] = list((data_line['GUID'], data_line['GUID2']))
+                        else:
+                            short_index_dict[IID]['guid'] = data_line['GUID']
+
+                    short_index_dict[IID]['name'] = data_line['NAME']
+
+                    if data_line['VERSION_MAC'] == data_line['VERSION_WIN']:
+                        short_index_dict[IID]['version'] = data_line['VERSION_MAC']
+                    else:
+                        if data_line['VERSION_MAC']:
+                            short_index_dict[IID]['Mac'] = {'version': data_line['VERSION_MAC']}
+                        if data_line['VERSION_WIN']:
+                            short_index_dict[IID]['Win'] = {'version': data_line['VERSION_WIN']}
 
         defines_dict = config_vars.repr_for_yaml(which_vars=['AUXILIARY_IIDS'], resolve=True, ignore_unknown_vars=False)
         defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",

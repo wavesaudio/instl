@@ -354,7 +354,9 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
             if nl_before_key:
                 indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
-            indentor.write_extra_chars(out_stream, ": ")
+            indentor.write_extra_chars(out_stream, ":")
+            if not isinstance(pyObj[item], (list, tuple, dict, OrderedDict, YamlDumpWrap)):
+                indentor.write_extra_chars(out_stream, " ")
             indentor += 1
             writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator)
             indentor -= 1
