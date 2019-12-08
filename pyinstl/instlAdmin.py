@@ -754,10 +754,15 @@ class InstlAdmin(InstlInstanceBase):
             batch_accum += IndexYamlReader(revision_instl_index_path)
             batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
             base_rev = int(config_vars["BASE_REPO_REV"])
+            if base_rev > 0:
+                batch_accum += SetBaseRevision(base_rev)
+            batch_accum += CreateRepoRevFile()
 
             if not skip_some_actions:
                 with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
                     sub_accum += Subprocess("aws", "s3", "cp", os.fspath(checkout_folder_short_index_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--content-type", 'text/plain')
+                    repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
+                    sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
 
             self.write_batch_file(batch_accum)
             if bool(config_vars["__RUN_BATCH__"]):
