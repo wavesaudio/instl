@@ -152,6 +152,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return instl_ver_str
 
     def init_default_vars(self, initial_vars):
+        def get_now_date_time(val):
+            return str(datetime.datetime.fromtimestamp(time.time()))
+        config_vars.set_dynamic_var("__NOW__", get_now_date_time)
+
         config_vars.update(initial_vars)
 
         # settings these configVar requires setting global values in files.py as soon as possible
