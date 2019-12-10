@@ -50,7 +50,7 @@ import utils
 def utf8_open_for_read(*args, **kwargs) -> TextIO:
     for _try in range(2):
         try:
-            retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+            retVal = open(*args, encoding='utf-8', errors='backslashreplace', **kwargs)
             break
         except PermissionError as per_err:
             if _try == 0:
@@ -66,7 +66,7 @@ def utf8_open_for_read(*args, **kwargs) -> TextIO:
 
 
 def utf8_open_for_write(*args, **kwargs) -> TextIO:
-    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    retVal = open(*args, encoding='utf-8', errors='backslashreplace', **kwargs)
     chown_chmod_on_fd(retVal)
     return retVal
 

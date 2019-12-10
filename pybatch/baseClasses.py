@@ -416,3 +416,9 @@ class PythonBatchCommandBase(abc.ABC):
         self.enter_timing_measure()
         yield
         self.exit_timing_measure()
+
+    def ExpandAndResolvePath(self, the_path):
+        """ convenient function to save passing resolve_path=self.resolve_path
+            each time we call utils.ExpandAndResolvePath
+        """
+        utils.ExpandAndResolvePath(the_path, resolve_path=self.resolve_path)

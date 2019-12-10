@@ -149,7 +149,7 @@ def unicodify(in_something, encoding='utf-8'):
         if isinstance(in_something, str):
             retVal = in_something
         elif isinstance(in_something, bytes):
-            retVal = in_something.decode(encoding, errors='replace')
+            retVal = in_something.decode(encoding, errors='backslashreplace')
         else:
             retVal = str(in_something)
     else:
