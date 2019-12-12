@@ -73,9 +73,3 @@ class InstlClientReport(InstlClient):
         index_yaml_obj = self.items_table.repr_for_yaml(resolve=True)
         index_yaml = aYaml.YamlDumpDocWrap(index_yaml_obj, '!index', "Installation index", explicit_start=True, sort_mappings=True, include_comments=False)
         self.output_data.append(index_yaml)
-
-    def do_short_index(self):
-        config_vars['__SILENT__'] = True  # disable InstlClientReport from doing output since ShortIndexYamlCreator already does that
-        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
-        with ShortIndexYamlCreator(out_file_path) as short_creator:
-            short_creator()

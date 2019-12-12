@@ -1084,3 +1084,12 @@ class InstlAdmin(InstlInstanceBase):
         except Exception as ex:
             with open(path_to_resolved, "a") as wfd:
                 wfd.write(f"\nFailed to send email\n{traceback.format_exc()}")
+
+    def do_short_index(self):
+        config_vars['__SILENT__'] = True  # disable InstlClientReport from doing output since ShortIndexYamlCreator already does that
+        in_file_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        with IndexYamlReader(in_file_path, report_own_progress=False) as yaml_reader:
+            yaml_reader()
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
+        with ShortIndexYamlCreator(out_file_path, report_own_progress=False) as short_creator:
+            short_creator()

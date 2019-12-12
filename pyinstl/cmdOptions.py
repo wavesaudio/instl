@@ -105,7 +105,6 @@ def prepare_args_parser(in_command):
         'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
         'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
         'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'uninstall previously copied files, considering dependencies'},
-        'short-index':      {'mode': 'client', 'options': {'in', 'out'}, 'help': 'create short version of the index'},
     })
 
     if in_command not in all_command_details:
@@ -148,6 +147,7 @@ def prepare_args_parser(in_command):
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
             'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
+            'short-index':          {'mode': 'admin', 'options': {'in', 'out'}, 'help': 'create short version of the index so report-versions will be faster'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf', 'out'), 'help':  'translate guids to iids'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
             'wtar-staging-folder':  {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'create .wtar files inside staging folder'},

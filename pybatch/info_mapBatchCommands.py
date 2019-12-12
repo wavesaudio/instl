@@ -282,30 +282,30 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
         return f'''write short index.yaml to {self.short_index_yaml_path}'''
 
     def __call__(self, *args, **kwargs) -> None:
-        short_index_data = self.items_table.get_data_for_short_index()  # IID, GUID, NAME, VERSION, generation
+        short_index_data = self.items_table.get_data_for_short_index()  # iid, name, version_mac, version_win, install_guid, remove_guid
         short_index_dict = defaultdict(dict)
         builtin_iids = list(config_vars["SPECIAL_BUILD_IN_IIDS"])
         for data_line in short_index_data:
-            IID = data_line['IID']
+            data_dict = dict(data_line)
+            IID = data_dict['iid']
             if IID not in builtin_iids:
-                #data_dict = dict(data_line)
-                if data_line['NAME'] and (data_line['VERSION_MAC'] or data_line['VERSION_WIN']):
+                if data_dict['name']:
+                    short_index_dict[IID]['name'] = data_dict['name']
 
-                    if data_line['GUID']:
-                        if data_line['GUID2'] != data_line['GUID']:  # found uninstall gui
-                            short_index_dict[IID]['guid'] = list((data_line['GUID'], data_line['GUID2']))
-                        else:
-                            short_index_dict[IID]['guid'] = data_line['GUID']
+                if data_dict['version_mac'] == data_dict['version_win']:
+                    short_index_dict[IID]['version'] = data_dict['version_mac']
+                else:
+                    if data_dict['version_mac']:
+                        short_index_dict[IID]['Mac'] = {'version': data_dict['version_mac']}
+                    if data_dict['version_win']:
+                        short_index_dict[IID]['Win'] = {'version': data_dict['version_win']}
 
-                    short_index_dict[IID]['name'] = data_line['NAME']
-
-                    if data_line['VERSION_MAC'] == data_line['VERSION_WIN']:
-                        short_index_dict[IID]['version'] = data_line['VERSION_MAC']
+                if data_dict['install_guid']:
+                    if data_dict['remove_guid'] != data_dict['install_guid']:  # found uninstall gui
+                        short_index_dict[IID]['guid'] = list((data_dict['install_guid'], data_dict['remove_guid']))
                     else:
-                        if data_line['VERSION_MAC']:
-                            short_index_dict[IID]['Mac'] = {'version': data_line['VERSION_MAC']}
-                        if data_line['VERSION_WIN']:
-                            short_index_dict[IID]['Win'] = {'version': data_line['VERSION_WIN']}
+                        short_index_dict[IID]['guid'] = data_dict['install_guid']
+
 
         defines_dict = config_vars.repr_for_yaml(which_vars=list(config_vars['SHORT_INDEX_FILE_VARS']), resolve=True, ignore_unknown_vars=False)
         defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",
