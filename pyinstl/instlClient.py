@@ -370,7 +370,7 @@ class InstlClient(InstlInstanceBase):
         if output_folder is not None:
             config_vars['SYNC_FOLDER_MANIFEST_FILE'] = output_file_name
             output_file_path = Path(output_folder, output_file_name)
-            retVal += RunInThread(Ls(which_folder_to_manifest, out_file=output_file_path), thread_name="list_sync_folder", daemon=True)
+            retVal += RunInThread(Ls(which_folder_to_manifest, out_file=output_file_path), thread_name="list_sync_folder", daemon=True, ignore_all_errors=True)
         return retVal
 
     def repr_require_for_yaml(self):

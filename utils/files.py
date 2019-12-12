@@ -660,3 +660,20 @@ def trace_file_open(_callback=None):
 
     if _callback:
         builtins.open = save_builtin_open
+
+
+def safe_getcwd(return_on_error="os.getcwd() failed", ignore_exceptions=True):
+    """ weird as it maybe os.getcwd() might fail with FileNotFoundError
+        this will happen if the current working dir was deleted - probably
+        from outside out program.
+    """
+    retVal = None
+    try:
+        retVal = os.getcwd()
+    except FileNotFoundError as fnf:
+        if ignore_exceptions:
+            if return_on_error:
+                retVal = return_on_error
+        else:
+            raise
+    return retVal

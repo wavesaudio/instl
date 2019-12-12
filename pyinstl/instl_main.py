@@ -104,7 +104,7 @@ def instl_own_main(argv):
     options = CommandLineOptions()
     command_names = read_command_line_options(options, argv[1:])
     initial_vars = {"__INSTL_EXE_PATH__": get_path_to_instl_app(),
-                    "__CURR_WORKING_DIR__": os.getcwd(),  # the working directory when instl was launched
+                    "__CURR_WORKING_DIR__": utils.safe_getcwd(),  # the working directory when instl was launched
                     "__INSTL_LAUNCH_COMMAND__": get_instl_launch_command(),
                     "__INSTL_DATA_FOLDER__": get_data_folder(),
                     "__INSTL_DEFAULTS_FOLDER__": "$(__INSTL_DATA_FOLDER__)/defaults",
