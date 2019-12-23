@@ -124,7 +124,7 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
                     try:
                         # we know _dir_to_create does not exist
                         self.doing = f"""creating folder '{_dir_to_create}'"""
-                        _dir_to_create.mkdir(parents=False, mode=0o777, exist_ok=False)
+                        _dir_to_create.mkdir(parents=True, mode=0o777, exist_ok=True)
                         # if dir was created fix it's permissions
                         with FixAllPermissions(_dir_to_create, recursive=False, report_own_progress=False) as perm_allower:
                             perm_allower()
