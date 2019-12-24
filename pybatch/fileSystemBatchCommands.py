@@ -557,7 +557,7 @@ class Chmod(RunProcessBase):
                 elif op == '-':
                     mode_to_set = current_mode & ~flags
                 if mode_to_set != current_mode:
-                    self.doing = f"""change mode of '{resolved_path}' to '{mode_to_set}''"""
+                    self.doing = f"""change mode of '{resolved_path}' to '{self.mode}''"""
                     os.chmod(resolved_path, mode_to_set)
                 else:
                     self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
