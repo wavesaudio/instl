@@ -114,6 +114,9 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         parents_stack = list()  # list of non-existing parents
         _parent_path = self.path_to_make
         while not _parent_path.is_dir():
+            if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
+                with RmFile(_parent_path, resolve_path=False, report_own_progress=False) as remover:
+                    remover()
             parents_stack.append(_parent_path)
             _parent_path = _parent_path.parent
 
