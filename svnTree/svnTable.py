@@ -756,14 +756,15 @@ class SVNTable(object):
 
             path_that_should_stay_q = """
                     INSERT INTO do_not_remove_file_paths_t (path)  
-                    select install_sources_t.detail_value||"%" as __path
-                    from index_item_detail_t AS install_sources_t, index_item_detail_t as info_map_t
-                    where install_sources_t.detail_name == "install_sources"
-                            and info_map_t.detail_name == "info_map"
-                            and info_map_t.owner_iid == install_sources_t.owner_iid
-                    Union
-                    select svn_item_t.path as __path from svn_item_t
-                    order by __path
+                    SELECT install_sources_t.detail_value||"%" as __path
+                    FROM index_item_detail_t AS install_sources_t, index_item_detail_t as info_map_t
+                    WHERE install_sources_t.detail_name == "install_sources"
+                            AND info_map_t.detail_name == "info_map"
+                            AND info_map_t.owner_iid == install_sources_t.owner_iid
+                            AND install_sources_t.detail_value NOT IN (SELECT path FROM svn_item_t)
+                   UNION 
+                    SELECT svn_item_t.path as __path from svn_item_t
+                    ORDER BY __path
                     """
             curs.execute(path_that_should_stay_q)
 
