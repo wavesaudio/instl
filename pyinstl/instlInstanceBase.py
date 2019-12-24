@@ -196,7 +196,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_COMMAND__" in config_vars:
             self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
-        if self.the_command in self.commands_that_need_memory_db:
+        # to do: in python3.8 with the new sqlite.backup function, memory database
+        # can be writen to disk if needed
+        if getattr(sys, 'frozen', False) or self.the_command in self.commands_that_need_memory_db:
             config_vars['__MAIN_DB_FILE__'] = ':memory:'
         DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
 
