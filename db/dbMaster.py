@@ -5,11 +5,15 @@ import datetime
 import inspect
 from pathlib import Path
 from _collections import defaultdict
+import shutil
+import logging
 
 import utils
 from configVar import config_vars
 from db.indexItemTable import IndexItemsTable
 from svnTree import SVNTable
+
+log = logging.getLogger()
 
 """
     todo:
@@ -110,7 +114,7 @@ class DBMaster(object):
         #self.__conn.set_authorizer(self.authorizer_handler_sqlite3)
         #self.__conn.set_progress_handler(self.progress_handler_sqlite3, 8)
         self.__conn.row_factory = sqlite3.Row
-        self.__conn.set_trace_callback(self.trace_handler_sqlite3)
+        self.__conn.set_trace_callback(None)
 
     def authorizer_handler_sqlite3(self, *args, **kwargs):
         """ callback for sqlite3.connection.set_authorizer"""
@@ -119,10 +123,6 @@ class DBMaster(object):
     def set_progress_handler(self, progress_callback, n_instructions):
         """ callback for sqlite3.connection.set_progress_handler"""
         self.__conn.set_progress_handler(progress_callback, n_instructions)
-
-    def trace_handler_sqlite3(self, statement):
-        """ callback for sqlite3.connection.set_trace_callback"""
-        self.logger.debug('DB statement %s' % (statement))
 
     def create_function(self, func_name, num_params, func_ptr):
         self.__conn.create_function(func_name, num_params, func_ptr)
@@ -222,6 +222,10 @@ class DBMaster(object):
                 #if self.print_execute_times:
                 #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
                 #self.statistics[description].add_instance((time2-time1)*1000.0)
+        except sqlite3.OperationalError as s3oo:
+            if not self.memory_db:
+                log.error("database error, disk %s", str(shutil.disk_usage(self.db_file_path.parent)), exc_info=True)
+            self.rollback()
         except:
             self.rollback()
             raise
@@ -401,8 +405,8 @@ class DBAccess(object):
                 # if no output file try next to the input file
                 db_base_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)"))
             else:
-                # as last resort try the Logs folder on desktop if one exists
-                logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
+                # as last resort try the Logs folder
+                logs_dir = utils.get_system_log_folder_path()
                 if logs_dir.is_dir():
                     db_base_path = logs_dir.joinpath(config_vars.resolve_str("instl-$(__MAIN_COMMAND__)"))
 
@@ -418,11 +422,11 @@ class DBAccess(object):
 
 
 class TableAccess(object):
-    def __init__(self, type):
+    def __init__(self, _type):
         self._table = None
         self._owner = None  # for reference and debugging
         self._name = None   # for reference and debugging
-        self._type = type
+        self._type = _type
 
     def __set_name__(self, owner, name):
         self._owner = owner
