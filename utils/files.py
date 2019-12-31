@@ -677,3 +677,36 @@ def safe_getcwd(return_on_error="os.getcwd() failed", ignore_exceptions=True):
         else:
             raise
     return retVal
+
+
+def who_locks_file(in_file_path, in_dll_path):
+    """ windows only function to return the process that locks a file
+        :param in_file_path: file to check
+        :param in_dll_path: path to dll that implements the who_locks_file function
+        :return: dict with lock information for the file
+        :except function never raises exception, field "error" in return value will indicate an error
+    """
+    retVal = dict()
+    try:
+        import ctypes
+        if not Path(in_dll_path).is_file():
+            retVal["error"] = f"DLL no found {in_dll_path}"
+        elif not Path(in_file_path).is_file():
+            retVal["error"] = f"file not found {in_file_path}"
+        else:
+            who_locks_file_dll = ctypes.WinDLL(in_dll_path)
+            replay_max_size = 260 * 128 * 2
+            the_reply = ctypes.create_string_buffer(replay_max_size)  # supposedly enough for two long-form paths: the file and the process
+            file_path_c_wchar_p = ctypes.c_wchar_p(os.fspath(in_file_path))
+            ret_code = who_locks_file_dll.who_locks_file_json(file_path_c_wchar_p, the_reply, replay_max_size)
+            if 0 == ret_code:
+                import json
+                return_value_str = bytes(the_reply.value).decode('utf-8')
+                return_value_json = json.loads(return_value_str)
+                retVal.update(return_value_json)
+            else:
+                retVal["error"] = ret_code
+    except Exception as ex:
+        retVal["error"] = str(ex)
+
+    return retVal

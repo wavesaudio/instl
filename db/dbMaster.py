@@ -416,9 +416,10 @@ class DBAccess(object):
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
 
         if self._owner.refresh_db_file:
-            db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
-            if db_base_path.is_file():
-                utils.safe_remove_file(db_base_path)
+            if config_vars["__MAIN_DB_FILE__"].str() != ":memory:":
+                db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
+                if db_base_path.is_file():
+                    utils.safe_remove_file(db_base_path)
 
 
 class TableAccess(object):
