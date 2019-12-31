@@ -12,7 +12,7 @@ import utils
 import zlib
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import SplitFile, ChmodAndChown, Chmod, Chown, MakeDir
+from .fileSystemBatchCommands import SplitFile, FixAllPermissions, MakeDir
 from .removeBatchCommands import RmDir, RmFile
 
 log = logging.getLogger(__name__)
@@ -127,6 +127,8 @@ class Wtar(PythonBatchCommandBase):
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
         self.doing = f"""wtarring '{resolved_what_to_wtar}' to '{target_wtar_file}''"""
+        with FixAllPermissions(resolved_what_to_wtar, report_own_progress=False, recursive=resolved_what_to_wtar.is_dir()) as perm_fixer:
+            perm_fixer()
         with utils.ChangeDirIfExists(resolved_what_to_wtar.parent):
             pax_headers = {"total_checksum": utils.get_recursive_checksums(resolved_what_to_wtar.name, ignore=ignore_files)["total_checksum"]}
 

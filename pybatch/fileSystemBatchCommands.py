@@ -284,12 +284,20 @@ class ChFlags(RunProcessBase):
             if sys.platform == 'darwin':
                 self._create_run_args_mac(per_system_flags, path, run_args)
             elif sys.platform == 'win32':
-                self._create_run_args_win(per_system_flags, path, run_args)
+                if self.recursive:
+                    self._create_run_args_win_recursive(per_system_flags, path, run_args)
+                else:
+                    self._create_run_args_win_non_recursive(per_system_flags, path, run_args)
 
-    def _create_run_args_win(self, flags, path, run_args) -> None:
+    def _create_run_args_win_recursive(self, flags, path, run_args) -> None:
         run_args.append("attrib")
-        if self.recursive:
-            run_args.extend(('/S', '/D'))
+        run_args.extend(flags)
+        path = os.fspath(path) + r"\*"
+        run_args.extend(('/S', '/D'))
+        run_args.append(path)
+
+    def _create_run_args_win_non_recursive(self, flags, path, run_args) -> None:
+        run_args.append("attrib")
         run_args.extend(flags)
         run_args.append(os.fspath(path))
 
@@ -317,8 +325,19 @@ class ChFlags(RunProcessBase):
             pass
 
     def __call__(self, *args, **kwargs):
-        if sys.platform in self.flags_dict:  # avoid linux
-            RunProcessBase.__call__(self, *args, **kwargs)
+        if sys.platform in self.flags_dict:  # avoid linux for the time being
+            if sys.platform == "win32":
+                if self.recursive:
+                    # on windows calling attrib recursively has to be do in two stages,
+                    # once for the top folder, and once for the child folders and files
+                    self.recursive = False
+                    RunProcessBase.__call__(self, *args, **kwargs)
+                    self.recursive = True
+                    RunProcessBase.__call__(self, *args, **kwargs)
+                else:
+                    RunProcessBase.__call__(self, *args, **kwargs)
+            else:
+                RunProcessBase.__call__(self, *args, **kwargs)
 
 
 class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):

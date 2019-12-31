@@ -40,9 +40,15 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
+        """ Normally list of arguments are calculated by calling self.get_run_args,
+            unless kwargs["run_args"] exists.
+        """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         run_args = list()
-        self.get_run_args(run_args)
+        if "run_args" in kwargs:
+            run_args.extend(kwargs["run_args"])
+        else:
+            self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
         if self.detach:
