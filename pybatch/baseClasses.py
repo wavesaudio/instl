@@ -325,6 +325,20 @@ class PythonBatchCommandBase(abc.ABC):
                 })
         return self._error_dict
 
+    def who_locks_file_error_dict(self, func, path_to_file, exc_info=None):
+        """
+            WINDOWS ONLY - will do nothing on other platforms
+            updates _error_dict with describing who is locking a file - if any
+            function signiture is structured to be suitable to pass to shutil.rmtree onerror param
+        """
+        who_locks_file_dll_path = config_vars.get("__WHO_LOCKS_FILE_DLL_PATH__", None).Path()
+        if who_locks_file_dll_path:
+            locked_file_info = utils.who_locks_file(path_to_file, who_locks_file_dll_path)
+            if locked_file_info:
+                self._error_dict["locked_file_info"] = locked_file_info
+        if exc_info is not None:
+            raise
+
     def enter_self(self) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
             repeating __enter__, but not do any actual work!
