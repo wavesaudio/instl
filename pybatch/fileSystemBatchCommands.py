@@ -13,7 +13,6 @@ import utils
 from .baseClasses import *
 from .subprocessBatchCommands import RunProcessBase
 from .removeBatchCommands import RmFile
-from .copyBatchCommands import MoveFileToFile
 from configVar import config_vars
 
 if sys.platform == 'win32':

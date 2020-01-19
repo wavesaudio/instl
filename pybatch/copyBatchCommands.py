@@ -630,3 +630,27 @@ class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
                 elif not self.only_files:
                     with CopyDirToDir(globed_file, resolved_destination_dir, **kwargs) as copier:
                         copier()
+
+
+class BreakHardLink(PythonBatchCommandBase):
+    def __init__(self, link_to_break, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.link_to_break = Path(link_to_break)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.link_to_break))
+
+    def progress_msg_self(self):
+        the_progress_msg = f"break hardlink {self.link_to_break}"
+        return the_progress_msg
+
+    def __call__(self, *args, **kwargs):
+        temp_extension = '.'+''.join(random.choice(string.ascii_lowercase) for i in range(16))
+        temp_file = self.link_to_break.with_suffix(temp_extension)
+        kwargs_to_inherit = self.all_kwargs_dict(only_non_default_values=False)
+        kwargs_to_inherit["report_own_progress"] = False
+
+        with MoveFileToFile(self.link_to_break, temp_file, hard_links=False, **kwargs_to_inherit) as mv1:
+            mv1()
+        with MoveFileToFile(temp_file, self.link_to_break, hard_links=True, **kwargs_to_inherit) as mv2:
+            mv2()

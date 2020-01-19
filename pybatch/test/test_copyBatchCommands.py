@@ -388,3 +388,40 @@ class TestPythonBatchCopy(unittest.TestCase):
 
         for copied_file in target_dir.glob('*'):
             print(copied_file)
+
+    def test_BreakHardLinkUsingEnvironmentVars(self):
+        original_file = self.pbt.path_inside_test_folder("original")
+        linked_file = self.pbt.path_inside_test_folder("linked")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(original_file)
+        self.pbt.batch_accum += CopyFileToFile(original_file, linked_file, hard_links=True)
+
+        self.pbt.exec_and_capture_output("create hard link")
+        self.assertEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after creating hard-link files do not have not same inode")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += EnvironVarAssign("linked_file_path", os.fspath(linked_file))
+        self.pbt.batch_accum += EnvironVarAssign("temp_file_path", "${linked_file_path}" + "." + str(os.getpid()))
+        self.pbt.batch_accum += MoveFileToFile(linked_file, "${temp_file_path}", hard_links=False)
+        self.pbt.batch_accum += MoveFileToFile("${temp_file_path}", linked_file)
+
+        self.pbt.exec_and_capture_output("break hard link")
+        self.assertNotEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after breaking hard-link files still have not same inode")
+
+    def test_BreakHardLinkUsingBreakHardLink(self):
+        original_file = self.pbt.path_inside_test_folder("original")
+        linked_file = self.pbt.path_inside_test_folder("linked")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(original_file)
+        self.pbt.batch_accum += CopyFileToFile(original_file, linked_file, hard_links=True)
+
+        self.pbt.exec_and_capture_output("create hard link")
+        self.assertEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after creating hard-link files do not have not same inode")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += BreakHardLink(linked_file)
+
+        self.pbt.exec_and_capture_output("break hard link")
+        self.assertNotEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after breaking hard-link files still have not same inode")

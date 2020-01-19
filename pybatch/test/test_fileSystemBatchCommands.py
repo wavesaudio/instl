@@ -579,4 +579,3 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Chmod(the_file, "ugo+rw")
         self.pbt.exec_and_capture_output()
-
