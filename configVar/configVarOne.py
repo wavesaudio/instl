@@ -226,7 +226,7 @@ class ConfigVar:
         elif isinstance(values, os.PathLike):
             self.append(os.fspath(values))
         else:
-            raise TypeError(f"cofigVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
+            raise TypeError(f"configVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
 
     def clear(self):
         """ erase all values """

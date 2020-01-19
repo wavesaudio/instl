@@ -156,4 +156,3 @@ class TestPythonBatchConditional(unittest.TestCase):
         self.assertTrue(file_touched_if_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_var_eq_w_default} should have been created")
         self.assertFalse(file_that_should_not_exist_w_default.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_w_default} should not have been created")
         self.assertTrue(file_touched_if_not_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_not_var_eq_w_default} should have been created")
-

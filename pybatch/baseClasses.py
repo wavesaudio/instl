@@ -310,6 +310,12 @@ class PythonBatchCommandBase(abc.ABC):
             'operating_system': utils.get_os_description(),
              })
 
+        if "INSTL_MINIMAL_VERSION" in config_vars:
+            min_version_as_list = [int(v) for v in config_vars["INSTL_MINIMAL_VERSION"].list()]
+            cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+            if cur_version_as_list < min_version_as_list:
+                self._error_dict['minimal_instl_version'] = min_version_as_list
+
         for cv in config_vars.get("CONFIG_VARS_FOR_ERROR_REPORT", []).list():
             self._error_dict[cv] = str(config_vars.get(cv, "unknown"))
 

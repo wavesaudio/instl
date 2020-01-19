@@ -134,3 +134,16 @@ class TestConfigVar(unittest.TestCase):
         time.sleep(1)
         now_2 = config_vars["DYNA_VAR"].str()
         self.assertNotEqual(now_1, now_2)
+
+    def test_CompareConfigVarsAsList(self):
+        config_vars["__INSTL_VERSION__"] = (2,2,3)
+        config_vars["INSTL_MINIMAL_VERSION"] = (1,2,3)
+        min_version_as_list = [int(v) for v in config_vars["INSTL_MINIMAL_VERSION"].list()]
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(min_version_as_list, cur_version_as_list, f"1 failed {min_version_as_list} <= {cur_version_as_list}")
+        config_vars["__INSTL_VERSION__"] = (1,2,3)
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(min_version_as_list, cur_version_as_list, f"2 failed {min_version_as_list} <= {cur_version_as_list}")
+        config_vars["__INSTL_VERSION__"] = (1,2,2)
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(cur_version_as_list, min_version_as_list, f"3 failed {cur_version_as_list} <= {min_version_as_list}")
