@@ -365,6 +365,7 @@ class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=T
             value = value.strip()
             config_vars[self.var_name] = value
 
+
 class EnvironVarAssign(PythonDoSomething, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ assigns an environment variable
     """

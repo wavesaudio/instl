@@ -587,7 +587,14 @@ def ExpandAndResolvePath(path_to_resolve: os.PathLike, resolve_path=True) -> Pat
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """
+    # repeat calling os.path.expandvars until no change
+    # because os.path.expandvars does not expand recursively
+    before_expand = path_to_resolve
     expanded_path = os.path.expandvars(path_to_resolve)
+    while before_expand != expanded_path:
+        before_expand = expanded_path
+        expanded_path = os.path.expandvars(expanded_path)
+
     path_path = Path(expanded_path)
     if resolve_path:
         path_path = path_path.resolve()

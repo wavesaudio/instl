@@ -9,17 +9,19 @@ import collections
 from typing import List, Any, Optional, Union
 import re
 
+import utils
+from .baseClasses import *
+from .subprocessBatchCommands import RunProcessBase
+from .removeBatchCommands import RmFile
+from .copyBatchCommands import MoveFileToFile
+from configVar import config_vars
+
 if sys.platform == 'win32':
     import getpass
     import win32security
     import ntsecuritycon as con
     from .WinOnlyBatchCommands import FullACLForEveryone
 
-import utils
-from .baseClasses import *
-from .subprocessBatchCommands import RunProcessBase
-from .removeBatchCommands import RmFile
-from configVar import config_vars
 
 def touch(file_path):
     with open(file_path, 'a'):
