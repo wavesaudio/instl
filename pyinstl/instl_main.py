@@ -9,6 +9,7 @@ import datetime
 import logging
 import platform
 from pathlib import Path
+from functools import lru_cache
 
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 from pyinstl.instlException import InstlException
@@ -29,6 +30,7 @@ if len(current_os_names) > 1:
     os_second_name = current_os_names[1]
 
 
+@lru_cache(maxsize=None)
 def get_path_to_instl_app():
     """
     @return: returns the path to this
@@ -41,6 +43,7 @@ def get_path_to_instl_app():
     return application_path
 
 
+@lru_cache(maxsize=None)
 def get_instl_launch_command():
     """
     @return: returns the path to this
@@ -57,6 +60,7 @@ def get_instl_launch_command():
     return launch_command
 
 
+@lru_cache(maxsize=None)
 def get_data_folder():
     """ get the path to where we can find data folders such as defaults or help
         data folder should be the instl folder where either instl (in case running directly form python)
@@ -143,7 +147,8 @@ def instl_own_main(argv):
     else:
         initial_vars.update(
                     {"__USER_ID__": -1,
-                     "__GROUP_ID__": -1})
+                     "__GROUP_ID__": -1,
+                     "__WHO_LOCKS_FILE_DLL_PATH__": "$(__INSTL_DATA_FOLDER__)/who_locks_file.dll"})
 
     instance = None
     if options.__MAIN_COMMAND__ == "command-list":

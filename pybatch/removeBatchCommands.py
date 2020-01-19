@@ -7,6 +7,7 @@ from typing import List
 import logging
 import utils
 from pybatch import PythonBatchCommandBase
+from configVar import config_vars
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
                         with FixAllPermissions(resolved_path, report_own_progress=False) as allower:
                             allower()
                 else:
+                    self.who_locks_file_error_dict(Path.unlink, resolved_path)
                     raise
 
 
@@ -94,7 +96,7 @@ class RmDir(PythonBatchCommandBase):
         for attempt in range(2):
             try:
                 self.doing = f"""removing folder '{resolved_path}'"""
-                shutil.rmtree(resolved_path)
+                shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
                 break
             except FileNotFoundError:
                 break
@@ -141,7 +143,7 @@ class RmFileOrDir(PythonBatchCommandBase):
                 resolved_path.unlink()
             elif resolved_path.is_dir():
                 self.doing = f"""removing folder'{resolved_path}'"""
-                shutil.rmtree(resolved_path)
+                shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
         except Exception as ex:
             if retry:
                 kwargs["retry"] = False

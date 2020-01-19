@@ -304,8 +304,7 @@ class RsyncClone(PythonBatchCommandBase):
                     src_st = src.stat()
                     os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
             except Exception as ex:
-                #if sys.platform == "win32":
-                #    self._error_dict.update(utils.who_locks_file(dst, config_vars.get("WHO_LOCKS_FILE_DLL_PATH", None).str()))
+                self.who_locks_file_error_dict(_fast_copy_file, dst)
                 raise
         else:
             self.statistics['skipped_files'] += 1
@@ -321,26 +320,30 @@ class RsyncClone(PythonBatchCommandBase):
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         if self.should_copy_file_DirEntry(src, dst):
-            if not self.should_hard_link_file_DirEntry(src):
-                log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
-                if not self.dry_run:
-                    _fast_copy_file(src, dst)
-                    shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
-            else:  # try to create hard link
-                try:
-                    self.dry_run or os.link(src, dst)
-                    log.debug(f"hard link file '{self.last_src}' to '{self.last_dst}'")
-                    self.statistics['hard_links'] += 1
-                except OSError as ose:
-                    self.hard_links_failed = True
+            try:
+                if not self.should_hard_link_file_DirEntry(src):
                     log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
-
                     if not self.dry_run:
                         _fast_copy_file(src, dst)
                         shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
-            if self.copy_owner and self.has_chown:
-                src_st = src.stat()  # !
-                os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
+                else:  # try to create hard link
+                    try:
+                        self.dry_run or os.link(src, dst)
+                        log.debug(f"hard link file '{self.last_src}' to '{self.last_dst}'")
+                        self.statistics['hard_links'] += 1
+                    except OSError as ose:
+                        self.hard_links_failed = True
+                        log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
+
+                        if not self.dry_run:
+                            _fast_copy_file(src, dst)
+                            shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
+                if self.copy_owner and self.has_chown:
+                    src_st = src.stat()  # !
+                    os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
+            except Exception as ex:
+                self.who_locks_file_error_dict(_fast_copy_file, self.last_dst)
+                raise
         else:
             self.statistics['skipped_files'] += 1
         return dst
@@ -467,7 +470,7 @@ class MoveDirToDir(CopyDirToDir):
             raise
         else:  # do not attempt remove if copy did not work
             self.doing = f"""removing dir '{self.src}'"""
-            self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist)
+            self.dry_run or shutil.rmtree(self.src, ignore_errors=self.ignore_if_not_exist, onerror=self.who_locks_file_error_dict)
 
 
 class CopyDirContentsToDir(RsyncClone):

@@ -697,11 +697,11 @@ def who_locks_file(in_file_path, in_dll_path):
     try:
         import ctypes
         if not Path(in_dll_path).is_file():
-            retVal["error"] = f"DLL no found {in_dll_path}"
+            retVal["error"] = f"who_locks_file.dll not found {in_dll_path}"
         elif not Path(in_file_path).is_file():
             retVal["error"] = f"file not found {in_file_path}"
         else:
-            who_locks_file_dll = ctypes.WinDLL(in_dll_path)
+            who_locks_file_dll = ctypes.WinDLL(os.fspath(in_dll_path))
             replay_max_size = 260 * 128 * 2
             the_reply = ctypes.create_string_buffer(replay_max_size)  # supposedly enough for two long-form paths: the file and the process
             file_path_c_wchar_p = ctypes.c_wchar_p(os.fspath(in_file_path))
