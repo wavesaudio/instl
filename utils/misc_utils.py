@@ -819,3 +819,4 @@ def get_os_description():
         retVal = f"Linux {platform.uname().version}"
     elif sys.platform == 'win32':
         retVal = f"Windows {platform.version()}"
+    return retVal

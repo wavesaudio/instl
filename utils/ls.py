@@ -289,7 +289,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                     if flag_matches:
                         the_parts[format_char] = ",".join(flag_matches)
                     else:
-                        the_parts[format_char] = "[no flags found]"
+                        the_parts[format_char] = "[]"
 
     except Exception as ex:
         the_error = [the_path_str, ex.strerror]
@@ -381,7 +381,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = str(relative_path.as_posix())
             elif format_char == 'a' or format_char == 'f':
                 import subprocess
-                the_parts[format_char] = "[no flags found]"
+                the_parts[format_char] = "[]"
                 completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
                                                    stderr=subprocess.PIPE)
                 if completed_process.returncode != 0:

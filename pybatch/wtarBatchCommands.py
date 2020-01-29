@@ -176,7 +176,6 @@ class Unwtar(PythonBatchCommandBase):
         self.no_artifacts = no_artifacts
         self.copy_owner = copy_owner
         self.wtar_file_paths = None
-        self.wtar_file_paths_details = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(f'''what_to_unwtar={utils.quoteme_raw_by_type(self.what_to_unwtar)}''')
@@ -191,15 +190,13 @@ class Unwtar(PythonBatchCommandBase):
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
         super().error_dict_self(exc_type, exc_val, exc_tb)
         # replace plain paths with detailed info such as size, permissions, mod date, user, group
-        self.wtar_file_paths = self.wtar_file_paths_details
-        self.wtar_file_paths_details = None
+        self.wtar_file_paths = [utils.single_disk_item_listing(wtar_file_path, "PuUgGRTfC") for wtar_file_path in self.wtar_file_paths]
 
     def unwtar_a_file(self, wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=False):
         if ignore is None:
             ignore = ()
         try:
             self.wtar_file_paths = utils.find_split_files(wtar_file_path)
-            self.wtar_file_paths_details = [utils.single_disk_item_listing(wtar_file_path, "PuUgGRTf") for wtar_file_path in self.wtar_file_paths]
 
             log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
 
