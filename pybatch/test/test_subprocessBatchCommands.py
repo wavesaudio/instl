@@ -304,3 +304,17 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         with self.assertRaises(ProcessTerminatedExternally):
             with assert_timeout(3):
                 run_process(cmd, shell=(sys.platform == 'win32'), abort_file=abort_file)
+
+    def test_KillProcess_repr(self):
+        """ validate KillProcess object recreation with ParallelRun.__repr__() """
+        self.pbt.reprs_test_runner(KillProcess("itsik"),
+                                   KillProcess("moshe", retries=3, sleep_sec=4),
+                                   KillProcess("pesach", retries=5),
+                                   KillProcess("nurit", sleep_sec=0.1))
+
+    def test_KillProcess_repr(self):
+        os.system("""osascript -e 'tell app "Notes.app" to open'""")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += KillProcess("Notes", retries=3, sleep_sec=1)
+        self.pbt.exec_and_capture_output()

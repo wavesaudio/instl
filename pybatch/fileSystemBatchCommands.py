@@ -111,12 +111,18 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
             and in case of failure we can reprot the dir place that failed to be created.
         """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
+        # using all_kwargs_dict will make sure subcommands will inherit args like ignore_all_errors
+        kwargs_for_subcommands = self.all_kwargs_dict()
+        kwargs_for_subcommands['report_own_progress'] = False
+        kwargs_for_subcommands['recursive'] = self.recursive_chmod
+
         self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
         parents_stack = list()  # list of non-existing parents
         _parent_path = self.path_to_make
         while not _parent_path.is_dir():
             if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
-                with RmFile(_parent_path, resolve_path=False, report_own_progress=False) as remover:
+                with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
                     remover()
             parents_stack.append(_parent_path)
             _parent_path = _parent_path.parent
@@ -130,17 +136,17 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
                         self.doing = f"""creating folder '{_dir_to_create}'"""
                         _dir_to_create.mkdir(parents=True, mode=0o777, exist_ok=True)
                         # if dir was created fix it's permissions
-                        with FixAllPermissions(_dir_to_create, recursive=False, report_own_progress=False) as perm_allower:
+                        with FixAllPermissions(_dir_to_create, **kwargs_for_subcommands) as perm_allower:
                             perm_allower()
                         if self.chowner:
-                            with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
+                            with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), **kwargs_for_subcommands) as change_user:
                                 change_user()
                         break
                     except PermissionError as per_err:
                         if _try == 0:
                             # if dir was not created fix it's parent permissions, we know _dir_to_create.parent does exist
                             self.doing = f"""fix permissions for '{_dir_to_create.parent}'"""
-                            with FixAllPermissions(_dir_to_create.parent, recursive=False, report_own_progress=False) as perm_allower:
+                            with FixAllPermissions(_dir_to_create.parent, **kwargs_for_subcommands) as perm_allower:
                                 perm_allower()
                         else:
                             raise
@@ -148,16 +154,16 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
                         if _try == 0 and self.remove_obstacles:
                             if _dir_to_create.is_file():
                                 self.doing = f"""removing file that should be a folder '{_dir_to_create}'"""
-                                with FixAllPermissions(_dir_to_create, recursive=False, report_own_progress=False) as perm_allower:
+                                with FixAllPermissions(_dir_to_create, **kwargs_for_subcommands) as perm_allower:
                                     perm_allower()
                                 _dir_to_create.unlink()
                         else:
                             raise
         else:  # all folders already exists, just fix permissions
-            with FixAllPermissions(self.path_to_make, recursive=False, report_own_progress=False) as perm_allower:
+            with FixAllPermissions(self.path_to_make, **kwargs_for_subcommands) as perm_allower:
                 perm_allower()
             if self.chowner:
-                with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=self.recursive_chmod, report_own_progress=False) as change_user:
+                with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), **kwargs_for_subcommands) as change_user:
                     change_user()
 
 

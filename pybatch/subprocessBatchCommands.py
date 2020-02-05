@@ -9,6 +9,8 @@ import subprocess
 from typing import List
 from threading import Thread
 import utils
+import psutil
+import time
 from .baseClasses import PythonBatchCommandBase
 
 import logging
@@ -472,3 +474,42 @@ class Raise(PythonBatchCommandBase):
         class BogusException(RuntimeError):
             pass
         raise BogusException(f'bogus exception: {self.message}')
+
+
+class KillProcess(PythonBatchCommandBase):
+    def __init__(self, process_name, retries=2, sleep_sec=1, **kwargs):
+        super().__init__(**kwargs)
+        self.process_name = process_name
+        self.retries = retries
+        self.sleep_sec = sleep_sec
+
+    def progress_msg_self(self) -> str:
+        return f'''killing process {self.process_name}'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.process_name))
+        all_args.append(self.optional_named__init__param("retries", self.retries, 2))
+        all_args.append(self.optional_named__init__param("sleep_sec", self.sleep_sec, 1))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        found_process = False
+        for i in range(self.retries):
+            print(f"looking for process named {self.process_name}")
+            for proc in psutil.process_iter():
+                if proc.name() == self.process_name:
+                    print(f"found process named {self.process_name}")
+                    found_process = True
+                    proc.kill()
+                    break
+            else:  # no process by that name was found
+                print(f"no process named {self.process_name}")
+                break
+            time.sleep(self.sleep_sec)
+
+        if found_process:  # make sure it's down
+            for i in range(self.retries):
+                for proc in psutil.process_iter():
+                    if proc.name() == self.process_name:
+                        raise TimeoutError(f"failed to kill process {self.process_name}")
+

@@ -76,6 +76,7 @@ from .subprocessBatchCommands import Subprocess
 from .subprocessBatchCommands import ExternalPythonExec
 from .subprocessBatchCommands import SysExit
 from .subprocessBatchCommands import Raise
+from .subprocessBatchCommands import KillProcess
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
