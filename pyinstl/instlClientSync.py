@@ -10,6 +10,7 @@ class InstlClientSync(InstlClient):
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
         self.read_defaults_file(super().__thisclass__.__name__)
+        self.calc_user_cache_dir_var()
 
     def do_sync(self):
         repo_type = config_vars["REPO_TYPE"].str()

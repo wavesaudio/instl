@@ -5,8 +5,8 @@
 
 import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
-sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
-sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1)
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
+sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
 
 
 from pyinstl.instl_main import instl_own_main, InvocationReporter

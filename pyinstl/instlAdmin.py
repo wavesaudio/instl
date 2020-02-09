@@ -485,7 +485,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_yaml_file(config_vars["STAGING_FOLDER_INDEX"].str())
 
         the_folder = config_vars["STAGING_FOLDER"].str()
-        self.info_map_table.initialize_from_folder(the_folder)
+        self.info_map_table.initialize_from_folder(the_folder, progress_callback=self.progress)
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
 
@@ -645,7 +645,7 @@ class InstlAdmin(InstlInstanceBase):
         files_to_read = list(config_vars["__MAIN_INPUT_FILE__"])
         with self.info_map_table.reading_files_context():
             for f2r in files_to_read:
-                self.info_map_table.read_from_file(f2r)
+                self.info_map_table.read_from_file(f2r, progress_callback=self.progress)
 
     def do_check_instl_folder_integrity(self):
         instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].Path()
@@ -700,8 +700,8 @@ class InstlAdmin(InstlInstanceBase):
                 -[a-fA-F0-9]{12})
                 """, re.VERBOSE)
 
-        with open(in_file, "r") as rfd:
-            with open(out_file, "w") as wfd:
+        with utils.utf8_open_for_read(in_file, "r") as rfd:
+            with utils.utf8_open_for_write(out_file, "w") as wfd:
                 for line in rfd.readlines():
                     match = guid_re.search(line)
                     if match:
@@ -715,6 +715,69 @@ class InstlAdmin(InstlInstanceBase):
     def do_up2s3(self):
         repo_rev = int(config_vars['TARGET_REPO_REV'])
         self.up2s3_repo_rev(repo_rev, self.batch_accum)
+
+    def do_up_short_index(self):
+        repo_rev = int(config_vars['TARGET_REPO_REV'])
+        self.up_short_index_repo_rev(repo_rev, self.batch_accum)
+
+    def up_short_index_repo_rev(self, repo_rev, batch_accum):
+        assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
+        assert repo_rev >= int(config_vars['IGNORE_BELOW_REPO_REV']), f"repo-rev({repo_rev}) < IGNORE_BELOW_REPO_REV({int(config_vars['IGNORE_BELOW_REPO_REV'])})"
+        assert repo_rev not in list(map(int, list(config_vars.get('IGNORE_SPECIFIC_REPO_REV', [])))), f"repo-rev({repo_rev}) is in IGNORE_SPECIFIC_REPO_REV"
+
+        redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
+        redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
+
+        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        try:
+
+            config_vars['UP_SHORT_INDEX_STATUS'] = "FAILED"
+            config_vars['UP_SHORT_INDEX_EXCEPTION'] = ""
+            config_vars["REPO_REV"] = str(repo_rev)
+            config_vars["__CURR_REPO_REV__"] = str(repo_rev)
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+
+            revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
+            if not revision_folder_path.is_dir():
+                raise FileNotFoundError(f"revision folder does not exist {revision_folder_path}")
+
+            revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
+            checkout_folder_short_index_path = Path(config_vars["UPLOAD_REVISION_SHORT_INDEX_FILE"])
+
+            batch_accum.set_current_section('admin')
+            # checkout specific repo-rev to base folder
+            # full checkout might take a long time so checking out to base folder, if done in repo-rev order
+            # will only get the files of that repo-rev instead of the whole repository
+
+            skip_some_actions = False  # to save time during debugging
+
+            batch_accum += IndexYamlReader(revision_instl_index_path)
+            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
+            base_rev = int(config_vars["BASE_REPO_REV"])
+            if base_rev > 0:
+                batch_accum += SetBaseRevision(base_rev)
+            batch_accum += CreateRepoRevFile()
+
+            if not skip_some_actions:
+                with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(checkout_folder_short_index_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+checkout_folder_short_index_path.name, "--content-type", 'text/plain')
+                    repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].Path()
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/admin/"+repo_rev_file_path.name, "--content-type", 'text/plain')
+                    sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+repo_rev_file_path.name, "--content-type", 'text/plain')
+
+            self.write_batch_file(batch_accum)
+            if bool(config_vars["__RUN_BATCH__"]):
+                self.run_batch_file()
+
+            r.hset(config_vars["UPLOAD_SHORT_INDEX_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_SHORT_INDEX_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            config_vars['UP_SHORT_INDEX_STATUS'] = "Completed"
+        except Exception as ex:
+            config_vars['UP_SHORT_INDEX_EXCEPTION'] = f"{ex}"
+            print(f"up_short_index_repo_rev exception {ex}")
+            raise
+        finally:
+            self.send_email_from_template_file(config_vars["SHORT_INDEX_EMAIL_TEMPLATE_PATH"].Path())
 
     def up2s3_repo_rev(self, repo_rev, batch_accum):
         assert repo_rev >= int(config_vars['BASE_REPO_REV']), f"repo-rev({repo_rev}) < BASE_REPO_REV({int(config_vars['BASE_REPO_REV'])})"
@@ -742,6 +805,7 @@ class InstlAdmin(InstlInstanceBase):
             revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
             revision_instl_index_path = Path(config_vars["UPLOAD_REVISION_INDEX_FILE"])
 
+            checkout_folder_short_index_path = revision_instl_folder_path.joinpath("short-index.yaml")
             info_map_info_path = revision_instl_folder_path.joinpath("info_map.info")
             info_map_props_path = revision_instl_folder_path.joinpath("info_map.props")
             info_map_file_sizes_path = revision_instl_folder_path.joinpath("info_map.file-sizes")
@@ -762,14 +826,15 @@ class InstlAdmin(InstlInstanceBase):
 
             batch_accum += SVNCheckout(url=checkout_url, working_copy_path=checkout_base_folder, repo_rev=repo_rev, skip_action=skip_some_actions, stderr_means_err=False)
 
-            batch_accum += MakeDirs(revision_folder_path)  # create specific repo-rev folder
-            batch_accum += MakeDirs(revision_instl_folder_path)  # create specific repo-rev instl folder
+            batch_accum += MakeDir(revision_folder_path)  # create specific repo-rev folder
+            batch_accum += MakeDir(revision_instl_folder_path)  # create specific repo-rev instl folder
             with batch_accum.sub_accum(Cd(checkout_base_folder)) as sub_accum:
                 sub_accum += SVNInfo(url=".", out_file=info_map_info_path, skip_action=skip_some_actions, stderr_means_err=False)
                 sub_accum += SVNPropList(url=".", out_file=info_map_props_path, skip_action=skip_some_actions, stderr_means_err=False)
                 sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
             batch_accum += IndexYamlReader(checkout_folder_index_path)
+            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
             batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
             batch_accum += SVNInfoReader(info_map_props_path, format='props')
             batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
@@ -789,8 +854,8 @@ class InstlAdmin(InstlInstanceBase):
 
             with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
                 sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")
-                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].str()
-                sub_accum += Subprocess("aws", "s3", "cp", repo_rev_file_path, "s3://$(S3_BUCKET_NAME)/admin/", "--content-type", 'text/plain')
+                repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"].Path()
+                sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/admin/"+repo_rev_file_path.name, "--content-type", 'text/plain')
             batch_accum += RmDirContents(revision_folder_path, exclude=['instl'])
 
             self.write_batch_file(batch_accum)
@@ -799,6 +864,8 @@ class InstlAdmin(InstlInstanceBase):
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
             r.set(config_vars["UPLOAD_REPO_REV_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
+            r.hset(config_vars["UPLOAD_SHORT_INDEX_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
+            r.set(config_vars["UPLOAD_SHORT_INDEX_LAST_UPLOADED_REDIS_KEY"].str(), config_vars["TARGET_REPO_REV"].str())
             config_vars['UP2S3_STATUS'] = "Completed"
         except Exception as ex:
             config_vars['UP2S3_EXCEPTION'] = f"{ex}"
@@ -817,6 +884,15 @@ class InstlAdmin(InstlInstanceBase):
             instl_info_dict["python version"] = config_vars["__PYTHON_VERSION__"].str()
             instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
+
+    def print_wait_on_action_trigger_into(self, _redis_host, _redis_port, _waiting_list_redis_key):
+        log.info(f"{self.get_version_str(short=False)}")
+        log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
+        log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+        log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
+        log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+
+        log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
 
     def do_wait_on_action_trigger(self):
 
@@ -843,10 +919,7 @@ class InstlAdmin(InstlInstanceBase):
         self.report_instl_info_to_redis(r)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
-            log.info(f"wait on redis list: {redis_host}:{redis_port} {waiting_list_redis_key}")
-            log.info(f"to upload: lpush {waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
-            log.info(f"to activate: lpush {waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
-            log.info(f"special values: lpush {waiting_list_redis_key} stop|ping|reload-config-files")
+            self.print_wait_on_action_trigger_into(redis_host, redis_port, waiting_list_redis_key)
             r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
@@ -869,7 +942,7 @@ class InstlAdmin(InstlInstanceBase):
                     with config_vars.push_scope_context(use_cache=True):
                         try:
                             what_to_do, domain, major_version, repo_rev = value.split(":")
-                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev"}[what_to_do.lower()]
+                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev", "short-index": "up-short-index" }[what_to_do.lower()]
                             config_vars["TARGET_DOMAIN"] = domain
                             config_vars["TARGET_MAJOR_VERSION"] = major_version
                             config_vars["TARGET_REPO_REV"] = repo_rev
@@ -967,7 +1040,7 @@ class InstlAdmin(InstlInstanceBase):
             copy_of_activated_repo_rev_file_path = config_vars.resolve_str(f"{work_folder}/$(REPO_REV_FILE_BASE_NAME)")
             s3_resource.meta.client.download_file(Bucket=bucket_name, Key=repo_rev_file_activated_key, Filename=copy_of_activated_repo_rev_file_path)
             log.info(f"downloaded activated repo-rev file to {copy_of_activated_repo_rev_file_path}")
-            with open(copy_of_activated_repo_rev_file_path, "r") as rfd:
+            with utils.utf8_open_for_read(copy_of_activated_repo_rev_file_path, "r") as rfd:
                 repo_rev_file_text = rfd.read()
                 match = re.search(r"^REPO_REV:\s+(?P<target_repo_rev>\d+)", repo_rev_file_text, flags=re.MULTILINE)
                 if match:
@@ -998,7 +1071,8 @@ class InstlAdmin(InstlInstanceBase):
 
         repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
-        work_folder.mkdir(parents=True, exist_ok=True)
+        with MakeDir(work_folder, report_own_progress=False) as md:
+            md()
         return work_folder
 
     def send_email_from_template_file(self, path_to_template):
@@ -1010,3 +1084,12 @@ class InstlAdmin(InstlInstanceBase):
         except Exception as ex:
             with open(path_to_resolved, "a") as wfd:
                 wfd.write(f"\nFailed to send email\n{traceback.format_exc()}")
+
+    def do_short_index(self):
+        config_vars['__SILENT__'] = True  # disable InstlClientReport from doing output since ShortIndexYamlCreator already does that
+        in_file_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        with IndexYamlReader(in_file_path, report_own_progress=False) as yaml_reader:
+            yaml_reader()
+        out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
+        with ShortIndexYamlCreator(out_file_path, report_own_progress=False) as short_creator:
+            short_creator()

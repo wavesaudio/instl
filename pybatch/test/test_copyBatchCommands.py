@@ -71,8 +71,8 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -121,8 +121,8 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
         copied_dir_with_ignore = dir_to_copy_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -144,7 +144,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_comp_with_ignore = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_ignore)
         is_identical_dircomp_with_ignore(dir_comp_with_ignore, file_names_to_ignore)
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum.set_current_section("prepare")
 
         self.pbt.batch_accum += CopyDirToDir(dir_to_copy_from, dir_to_copy_to_no_hard_links, hard_links=False)
@@ -203,8 +203,8 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_move_to_with_ignore = self.pbt.path_inside_test_folder("move-target-with-ignore")
         moved_dir_with_ignore = dir_to_move_to_with_ignore.joinpath("copy-resource_source_file").resolve()
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -243,8 +243,8 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
         dir_to_copy_to_with_ignore = self.pbt.path_inside_test_folder("copy-target-with-ignore")
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch("hootenanny")  # add one file with fixed (none random) name
             sub_bc += MakeRandomDirs(num_levels=5, num_dirs_per_level=3, num_files_per_dir=5, file_size=413)
@@ -287,9 +287,9 @@ class TestPythonBatchCopy(unittest.TestCase):
         dir_to_copy_to_no_hard_links = self.pbt.path_inside_test_folder("copy-target-no-hard-links")
         dir_to_copy_to_with_hard_links = self.pbt.path_inside_test_folder("copy-target-with-hard-links")
 
-        self.pbt.batch_accum.clear()
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_to_no_hard_links)
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_to_no_hard_links)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch(file_name)  # add one file
         self.pbt.batch_accum += CopyFileToDir(file_to_copy, dir_to_copy_to_no_hard_links, hard_links=False)
@@ -330,11 +330,11 @@ class TestPythonBatchCopy(unittest.TestCase):
         target_file_different_name_without_hard_links = target_dir_with_different_name.joinpath("Scrooge").resolve()
         target_file_different_name_with_hard_links = target_dir_with_different_name.joinpath("Ebenezer").resolve()
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
 
-        self.pbt.batch_accum += MakeDirs(dir_to_copy_from)
-        self.pbt.batch_accum += MakeDirs(target_dir_no_hard_links)
-        self.pbt.batch_accum += MakeDirs(target_dir_with_hard_links)
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
+        self.pbt.batch_accum += MakeDir(target_dir_no_hard_links)
+        self.pbt.batch_accum += MakeDir(target_dir_with_hard_links)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_from)) as sub_bc:
             sub_bc += Touch(file_name)  # add one file
         self.pbt.batch_accum += CopyFileToFile(file_to_copy, target_file_no_hard_links, hard_links=False)
@@ -380,7 +380,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         target_dir = self.pbt.path_inside_test_folder("some bananas")
         glob_pattern = "*/*/*.banana"
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         for file_to_create in files_to_copy + files_not_to_copy:
             self.pbt.batch_accum += Touch(file_to_create)
         self.pbt.batch_accum += CopyGlobToDir(glob_pattern, self.pbt.test_folder, target_dir)
@@ -388,3 +388,40 @@ class TestPythonBatchCopy(unittest.TestCase):
 
         for copied_file in target_dir.glob('*'):
             print(copied_file)
+
+    def test_BreakHardLinkUsingEnvironmentVars(self):
+        original_file = self.pbt.path_inside_test_folder("original")
+        linked_file = self.pbt.path_inside_test_folder("linked")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(original_file)
+        self.pbt.batch_accum += CopyFileToFile(original_file, linked_file, hard_links=True)
+
+        self.pbt.exec_and_capture_output("create hard link")
+        self.assertEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after creating hard-link files do not have not same inode")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += EnvironVarAssign("linked_file_path", os.fspath(linked_file))
+        self.pbt.batch_accum += EnvironVarAssign("temp_file_path", "${linked_file_path}" + "." + str(os.getpid()))
+        self.pbt.batch_accum += MoveFileToFile(linked_file, "${temp_file_path}", hard_links=False)
+        self.pbt.batch_accum += MoveFileToFile("${temp_file_path}", linked_file)
+
+        self.pbt.exec_and_capture_output("break hard link")
+        self.assertNotEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after breaking hard-link files still have not same inode")
+
+    def test_BreakHardLinkUsingBreakHardLink(self):
+        original_file = self.pbt.path_inside_test_folder("original")
+        linked_file = self.pbt.path_inside_test_folder("linked")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(original_file)
+        self.pbt.batch_accum += CopyFileToFile(original_file, linked_file, hard_links=True)
+
+        self.pbt.exec_and_capture_output("create hard link")
+        self.assertEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after creating hard-link files do not have not same inode")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += BreakHardLink(linked_file)
+
+        self.pbt.exec_and_capture_output("break hard link")
+        self.assertNotEqual(original_file.stat().st_ino, linked_file.stat().st_ino, f"after breaking hard-link files still have not same inode")

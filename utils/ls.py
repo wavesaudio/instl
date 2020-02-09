@@ -1,11 +1,13 @@
 #!/usr/bin/env python3.6
 
+import sys
 import os
 import time
 import datetime
 import stat
 import json
 import tarfile
+import re
 from pathlib import Path, PurePath
 
 import utils
@@ -43,7 +45,7 @@ def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='tex
          Win: Not applicable
     'U': Mac: User name or uid if name not found
          Win: domain+"\\"+user name
-    'W': Not implemented yet. List contents of wtar files
+    'W': for wtar files only, total checksum
     '*' if ls_format contains only '*' it is and alias to the default and means:
         Mac: MIRLUGSTCPE
         Win: MTDSUGCP
@@ -55,43 +57,53 @@ def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='tex
     item_ls_func = None
     if "Mac" in os_names:
         if ls_format == '*':
-            ls_format = 'WMIRLUGSTCPE'
+            ls_format = 'MIRLUGSTCPE'
         folder_ls_func = unix_folder_ls
         item_ls_func = unix_item_ls
     elif "Win" in os_names:
         if ls_format == '*':
-            ls_format = 'WMTDSUGCP'
+            ls_format = 'MTDSUGCP'
         folder_ls_func = win_folder_ls
         item_ls_func = win_item_ls
 
     if 'f' not in ls_format and 'd' not in ls_format:
         ls_format += 'fd'
     add_remarks = 'M' in ls_format
+    ls_format = ls_format.replace('M', '')
 
-    total_list = list()
     listing_items = list()
+    error_items = list()
     opening_remarks = list()
+
     if add_remarks:
         opening_remarks.append(f"""# {datetime.datetime.today().isoformat()} listing of {files_or_folder_to_list}""")
 
     if utils.is_first_wtar_file(files_or_folder_to_list):
-        listing_items.extend(wtar_ls_func(files_or_folder_to_list, ls_format=ls_format))
+        listing_items, error_items = wtar_ls_func(files_or_folder_to_list, ls_format=ls_format)
     elif files_or_folder_to_list.is_dir():
-        listing_items.extend(folder_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=files_or_folder_to_list))
+        listing_items, error_items = folder_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=files_or_folder_to_list)
     elif files_or_folder_to_list.is_file() and 'f' in ls_format:
         root_folder, _ = os.path.split(files_or_folder_to_list)
-        listing_items.append(item_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=root_folder))
+        listings, errors = item_ls_func(files_or_folder_to_list, ls_format=ls_format, root_folder=root_folder)
+        listing_items.append(listings)
+        error_items.append(errors)
     else:
         opening_remarks.append(f"""# folder was not found {files_or_folder_to_list}""")
+    if error_items:
+        opening_remarks.append(f"error listing {len(error_items)} of {len(listing_items)+len(error_items)} items")
 
+    total_list = list()
     if output_format == 'text':
         total_list.extend(opening_remarks)
+        total_list.extend("Error: " + ", ".join(error) for error in error_items)
         total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
         total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
     elif output_format == 'dicts':
+        total_list.extend("Error: " + ", ".join(error) for error in error_items)
         for item in listing_items:
             total_list.append(translate_item_dict_to_be_keyed_by_path(item))
     elif output_format == 'json':
+        total_list.extend({"Error": + ", ".join(error) for error in error_items})
         total_list.append({os.fspath(files_or_folder_to_list): translate_json_key_names(listing_items)})
 
     if output_format == 'text':
@@ -137,9 +149,11 @@ def list_of_dicts_describing_disk_items_to_text_lines(items_list, ls_format):
 
 
 format_char_to_json_key = {
+    'a': 'attribs',  # sames as f - flags
     'C': 'checksum',
     'D': 'DIR',
     'g': 'gid',
+    'f': 'flags',  # sames as a - attribs
     'G': 'group',
     'I': 'inode',
     'L': 'num links',
@@ -148,7 +162,7 @@ format_char_to_json_key = {
     'R': 'permissions',
     'S': 'size',
     'T': 'modification time',
-    'W': 'total_checksum',
+    'W': 'total_checksum',  # for wtars only
     'u': 'uid',
     'U': 'user'
 }
@@ -163,22 +177,30 @@ def translate_json_key_names(items_list):
 
 def unix_folder_ls(the_path, ls_format, root_folder=None):
     listing_lines = list()
-
+    error_lines = list()
     try:
         for root_path, dirs, files in os.walk(the_path, followlinks=False):
             dirs = sorted(dirs, key=lambda s: s.lower())
             if 'd' in ls_format:
-                listing_lines.append(unix_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
+                listings, errors = unix_item_ls(root_path, ls_format=ls_format, root_folder=root_folder)
+                if errors:
+                    error_lines.append(errors)
+                else:
+                    listing_lines.append(listings)
             if 'f' in ls_format:
                 files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
                 for file_to_list in files_to_list:
                     full_path = os.path.join(root_path, file_to_list)
-                    listing_lines.append(unix_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
+                    listings, errors = unix_item_ls(full_path, ls_format=ls_format, root_folder=root_folder)
+                    if errors:
+                        error_lines.append(errors)
+                    else:
+                        listing_lines.append(listings)
 
     except Exception as ex:
-        pass
+        error_lines.append([the_path, ex.strerror])
 
-    return listing_lines
+    return listing_lines, error_lines
 
 
 def unix_item_ls(the_path, ls_format, root_folder=None):
@@ -186,8 +208,12 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
     import pwd
 
     the_parts = dict()
-    if 'p' in ls_format or 'P' in ls_format:
-        the_parts['p'] = the_path
+    the_error = None
+    the_path_str = os.fspath(the_path)
+    if 'p' in ls_format:
+        the_parts['p'] = the_path_str
+    elif 'P' in ls_format:
+        the_parts['P'] = the_path_str
 
     try:
         the_stats = os.lstat(the_path)
@@ -233,7 +259,7 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                 else:
                     the_parts[format_char] = ""
             elif format_char == 'P' or format_char == 'p':
-                path_to_return = the_path
+                path_to_return = the_path_str
                 if format_char == 'p' and root_folder is not None:
                     path_to_return = os.path.relpath(the_path, start=root_folder)
 
@@ -252,39 +278,63 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
                         path_to_return += '|'
 
                 the_parts[format_char] = path_to_return
+            elif format_char == 'a' or format_char == 'f':
+                import subprocess
+                completed_process = subprocess.run(f'ls -lO "{the_path_str}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if completed_process.returncode != 0:
+                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                else:
+                    ls_line = utils.unicodify(completed_process.stdout)
+                    flag_matches = re.findall("arch|archived|opaque|nodump|sappnd|sappend|schg|schange|simmutable|uappnd|uappend|uchg|uchange|uimmutable|hidden", ls_line)
+                    if flag_matches:
+                        the_parts[format_char] = ",".join(flag_matches)
+                    else:
+                        the_parts[format_char] = "[]"
 
     except Exception as ex:
-        pass
+        the_error = [the_path_str, ex.strerror]
 
-    return the_parts
+    return the_parts, the_error
 
 
 def win_folder_ls(the_path, ls_format, root_folder=None):
     listing_lines = list()
-
+    error_lines = list()
     try:
         for root_path, dirs, files in os.walk(the_path, followlinks=False):
             dirs = sorted(dirs, key=lambda s: s.lower())
             if 'd' in ls_format:
-                listing_lines.append(win_item_ls(root_path, ls_format=ls_format, root_folder=root_folder))
+                listings, errors = win_item_ls(root_path, ls_format=ls_format, root_folder=root_folder)
+                if errors:
+                    error_lines.append(errors)
+                else:
+                    listing_lines.append(listings)
             if 'f' in ls_format:
                 files_to_list = sorted(files + [slink for slink in dirs if os.path.islink(os.path.join(root_path, slink))], key=lambda s: s.lower())
                 for file_to_list in files_to_list:
                     full_path = os.path.join(root_path, file_to_list)
-                    listing_lines.append(win_item_ls(full_path, ls_format=ls_format, root_folder=root_folder))
+                    listings, errors = win_item_ls(full_path, ls_format=ls_format, root_folder=root_folder)
+                    if errors:
+                        error_lines.append(errors)
+                    else:
+                        listing_lines.append(listings)
 
     except Exception as ex:
-        pass
+        error_lines.append([the_path, ex.strerror])
 
-    return listing_lines
+    return listing_lines, error_lines
 
 
 # noinspection PyUnresolvedReferences
 def win_item_ls(the_path, ls_format, root_folder=None):
     import win32security
     the_parts = dict()
-    if 'p' in ls_format or 'P' in ls_format:
-        the_parts['p'] = the_path
+    the_error = None
+    the_path_str = os.fspath(the_path)
+    if 'p' in ls_format:
+        the_parts['p'] = the_path_str
+    elif 'P' in ls_format:
+        the_parts['P'] = the_path_str
 
     try:
         the_stats = os.lstat(the_path)
@@ -302,7 +352,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                 the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
             elif format_char == 'U':
                 try:
-                    sd = win32security.GetFileSecurity(the_path, win32security.OWNER_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(the_path_str, win32security.OWNER_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorOwner()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # user
@@ -311,7 +361,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
 
             elif format_char == 'G':
                 try:
-                    sd = win32security.GetFileSecurity(the_path, win32security.GROUP_SECURITY_INFORMATION)
+                    sd = win32security.GetFileSecurity(the_path_str, win32security.GROUP_SECURITY_INFORMATION)
                     owner_sid = sd.GetSecurityDescriptorGroup()
                     name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                     the_parts[format_char] = domain+"\\"+name  # group
@@ -329,16 +379,30 @@ def win_item_ls(the_path, ls_format, root_folder=None):
             elif format_char == 'p' and root_folder is not None:
                 relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
                 the_parts[format_char] = str(relative_path.as_posix())
+            elif format_char == 'a' or format_char == 'f':
+                import subprocess
+                the_parts[format_char] = "[]"
+                completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+                if completed_process.returncode != 0:
+                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                else:
+                    ls_line = utils.unicodify(completed_process.stdout)
+                    flag_matches = re.search("(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
+                    if flag_matches:
+                        flags = "".join(flag_matches.group('attribs').split())
+                        if flags:
+                            the_parts[format_char] = flags
 
     except Exception as ex:
-        pass
+        the_error = [the_path_str, ex.strerror]
 
-    return the_parts
+    return the_parts, the_error
 
 
 def wtar_ls_func(root_file_or_folder_path, ls_format):
     listing_lines = list()
-
+    error_lines = list()
     try:
         what_to_work_on = utils.find_split_files(root_file_or_folder_path)
         with utils.MultiFileReader("br", what_to_work_on) as fd:
@@ -350,9 +414,9 @@ def wtar_ls_func(root_file_or_folder_path, ls_format):
                 listing_lines.append({'W': pax_headers.get("total_checksum", "no-total-checksum")})
 
     except Exception as ex:
-        pass
+        error_lines.append([root_file_or_folder_path, ex.strerror])
 
-    return listing_lines
+    return listing_lines, error_lines
 
 
 def wtar_item_ls_func(item, ls_format):
@@ -389,14 +453,19 @@ def wtar_item_ls_func(item, ls_format):
     return the_parts
 
 
-if __name__ == "__main__":
+def single_disk_item_listing(the_path, ls_format="PuUgGRTf", root_folder=None, output_format="text"):
+    retVal = None
+    if sys.platform in ('darwin', 'linux'):
+        item_ls_dict, the_error = unix_item_ls(the_path, ls_format, root_folder)
+    elif sys.platform == 'win32':
+        item_ls_dict, the_error = win_item_ls(the_path, ls_format, root_folder)
 
-    path_list = ('/Users/shai/Desktop/wlc.app',
-                 '/p4client/dev_main/ProAudio/Products/Release/Plugins/CODEX.bundle/Contents/sample.tar.PAX_FORMAT.wtar.aa')
-    ls_format = "WMIRLUGSTCpE"  # 'MIRLUGSTCPE'
-    for out_format in ('text', 'dicts', 'json'):
-        for a_path in path_list:
-            listing = disk_item_listing(a_path, ls_format=ls_format, output_format=out_format)
-            with utils.utf8_open_for_write("ls."+out_format, "w") as wfd:
-                print(listing, file=wfd)
-                print(os.path.realpath(wfd.name))
+    if output_format == "text":
+        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+        retVal = item_ls_lines[0]
+    elif output_format == "json":
+        item_ls_lines= translate_json_key_names([item_ls_dict])
+        retVal = item_ls_lines[0]
+    elif output_format == 'dicts':
+        retVal = translate_item_dict_to_be_keyed_by_path(item_ls_dict)
+    return retVal

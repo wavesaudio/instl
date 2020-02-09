@@ -126,7 +126,7 @@ def enqueue_output(a_process):
             time.sleep(0)  # Releasing thread to yield other threads to do work
             if a_process.poll() is not None:
                 break
-            b = out.read(128).decode('utf-8', errors='replace')  # Reading stream to buffer
+            b = out.read(128).decode('utf-8', errors='backslashreplace')  # Reading stream to buffer
             if b:
                 buffer += b
                 if '\n' in buffer:

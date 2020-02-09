@@ -19,7 +19,8 @@ class InstlClient(InstlInstanceBase):
     """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
     def __init__(self, initial_vars) -> None:
         super().__init__(initial_vars)
-        self.total_self_progress: int = 30000
+        self.total_self_progress: int = 15000
+        self.internal_progress = int(self.total_self_progress / 100) * 2
         self.read_defaults_file(super().__thisclass__.__name__)
         self.action_type_to_progress_message = None
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
@@ -67,7 +68,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars))
+        self.read_yaml_file(main_input_file_path, connection_obj=connection_factory(config_vars), progress_callback=self.progress)
 
         self.db.set_db_file_owner()
 
@@ -110,7 +111,6 @@ class InstlClient(InstlInstanceBase):
             self.run_batch_file()
 
     def init_default_client_vars(self):
-
         if "SYNC_BASE_URL" in config_vars:
             resolved_sync_base_url = config_vars["SYNC_BASE_URL"].str()
             url_main_item = utils.main_url_item(resolved_sync_base_url)
@@ -212,7 +212,9 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["main"],
-                main_iids)
+                main_iids,
+                progress_callback=self.progress)
+
 
         # find dependant of main install items
         main_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["main"])
@@ -220,14 +222,17 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["depend"],
-            main_iids_and_dependents)
+            main_iids_and_dependents,
+            progress_callback=self.progress)
 
         # mark update install items, but only those not already marked as main or depend
         update_iids = list(config_vars["__MAIN_UPDATE_IIDS__"])
         self.items_table.change_status_of_iids_to_another_status(
                 self.items_table.install_status["none"],
                 self.items_table.install_status["update"],
-                update_iids)
+                update_iids,
+                progress_callback=self.progress)
+
 
         # find dependants of update install items
         update_iids_and_dependents = self.items_table.get_recursive_dependencies(look_for_status=self.items_table.install_status["update"])
@@ -235,7 +240,8 @@ class InstlClient(InstlInstanceBase):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["depend"],
-            update_iids_and_dependents)
+            update_iids_and_dependents,
+            progress_callback=self.progress)
 
         all_items_to_install = self.items_table.get_iids_by_status(
             self.items_table.install_status["main"],
@@ -336,7 +342,7 @@ class InstlClient(InstlInstanceBase):
 
         require_yaml = self.repr_require_for_yaml()
         if require_yaml:
-            os.makedirs(new_require_file_path.parent, exist_ok=True)
+            MakeDir(new_require_file_path.parent, remove_obstacles=True, chowner=True, recursive_chmod=False, own_progress_count=0)()
             self.write_require_file(new_require_file_path, require_yaml)
             # Copy the new require file over the old one, if copy fails the old file remains.
             self.batch_accum += Chmod(new_require_file_path, "a+rw", ignore_all_errors=True)
@@ -364,7 +370,7 @@ class InstlClient(InstlInstanceBase):
         if output_folder is not None:
             config_vars['SYNC_FOLDER_MANIFEST_FILE'] = output_file_name
             output_file_path = Path(output_folder, output_file_name)
-            retVal += RunInThread(Ls(which_folder_to_manifest, out_file=output_file_path), thread_name="list_sync_folder", daemon=True)
+            retVal += RunInThread(Ls(which_folder_to_manifest, out_file=output_file_path), thread_name="list_sync_folder", daemon=True, ignore_all_errors=True)
         return retVal
 
     def repr_require_for_yaml(self):
@@ -444,7 +450,6 @@ class InstlClient(InstlInstanceBase):
         local_repo_sync_dir = os.fspath(config_vars["LOCAL_REPO_SYNC_DIR"])
         config_vars.setdefault("ALL_SYNC_DIRS", local_repo_sync_dir)
         for iid, direct_sync_indicator, source, source_tag, install_folder in sync_and_source:
-            log.debug(f'Marking for download - {iid}, {source} -> {install_folder}')
             direct_sync = self.get_direct_sync_status_from_indicator(direct_sync_indicator)
             resolved_source_parts = source.split("/")
             if install_folder:
@@ -465,6 +470,7 @@ class InstlClient(InstlInstanceBase):
                     if need_to_sync:
                         config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                         item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
+                        self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
                         if source_tag == '!dir':
                             source_parent = "/".join(resolved_source_parts[:-1])
                             for item in item_paths:
@@ -485,6 +491,7 @@ class InstlClient(InstlInstanceBase):
 
                 else:
                     item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
+                    self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
                     for item in item_paths:
                         items_to_update.append({"_id": item['_id'],
                                                 "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
@@ -492,6 +499,7 @@ class InstlClient(InstlInstanceBase):
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
+                self.progress(f"mark for download {len(items_for_file)} files of {iid}/{source}")
                 if direct_sync:
                     config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                     for item in items_for_file:
@@ -605,6 +613,7 @@ def InstlClientFactory(initial_vars, command):
         class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
             def __init__(self, sc_initial_vars=None) -> None:
                 super().__init__(sc_initial_vars)
+                self.calc_user_cache_dir_var()
 
             def do_synccopy(self):
                 self.do_sync()

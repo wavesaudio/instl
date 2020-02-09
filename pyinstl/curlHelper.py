@@ -91,7 +91,7 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), num_config_files)))
             if self.urls_to_download_last:
                 actual_num_config_files += 1
-            num_digits = len(str(actual_num_config_files))
+            num_digits = max(len(str(actual_num_config_files)), 2)
             file_name_list = ["-".join((os.fspath(curl_config_file_path), str(file_i).zfill(num_digits))) for file_i in range(actual_num_config_files)]
 
             # open the files make sure they have r/w permissions and are utf-8
@@ -121,7 +121,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 {cookie_text}
-write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}
+write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}"
 
 
 """

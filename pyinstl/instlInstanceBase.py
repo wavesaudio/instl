@@ -28,7 +28,7 @@ from .curlHelper import CUrlHelper
 log = logging.getLogger()
 
 
-value_ref_re = re.compile("""
+value_ref_re = re.compile(r"""
                             (?P<varref_pattern>
                                 (?P<varref_marker>[$])      # $
                                 \(                          # (
@@ -81,9 +81,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     # some commands need a fresh db file, so existing one will be erased,
     # other commands rely on the db file to exist. default is to not refresh
     commands_that_need_to_refresh_db_file = ['copy', 'sync', 'synccopy', 'uninstall', 'remove',
-                                             'doit', 'report-versions', 'read-yaml', 'translate-guids',
+                                             'doit', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
-                                             'short-index']
+                                             'short-index', 'up-short-index']
+    commands_that_need_memory_db = ['report-versions']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -118,7 +119,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if self.total_self_progress:
             self.internal_progress += 1
             if self.internal_progress >= self.total_self_progress:
-                self.total_self_progress += 30000
+                self.total_self_progress *= 5
             log.info(f"""Progress: {self.internal_progress} of {self.total_self_progress}; {" ".join(str(mes) for mes in messages)}""")
 
     def init_specific_doc_readers(self):
@@ -151,6 +152,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         return instl_ver_str
 
     def init_default_vars(self, initial_vars):
+        def get_now_date_time(val):
+            return str(datetime.datetime.fromtimestamp(time.time()))
+        config_vars.set_dynamic_var("__NOW__", get_now_date_time)
+
         config_vars.update(initial_vars)
 
         # settings these configVar requires setting global values in files.py as soon as possible
@@ -191,6 +196,10 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         if "__MAIN_COMMAND__" in config_vars:
             self.the_command = str(config_vars["__MAIN_COMMAND__"])
             self.fixed_command = self.the_command.replace('-', '_')
+        # to do: in python3.8 with the new sqlite.backup function, memory database
+        # can be writen to disk if needed
+        if getattr(sys, 'frozen', False) or self.the_command in self.commands_that_need_memory_db:
+            config_vars['__MAIN_DB_FILE__'] = ':memory:'
         DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
@@ -235,7 +244,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
             aYaml.writeAsYaml((define_dict, require_dict), wfd)
 
-    internal_identifier_re = re.compile("""
+    internal_identifier_re = re.compile(r"""
                                         __                  # dunder here
                                         (?P<internal_identifier>\w*)
                                         __                  # dunder there
@@ -270,7 +279,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                                 config_vars=config_vars,
                                                                 in_target_path=None,
                                                                 translate_url_callback=connectionBase.translate_url,
-                                                                cache_folder=self.get_default_sync_dir(continue_dir="cache", make_dir=True),
+                                                                cache_folder=self.get_aux_cache_dir(make_dir=True),
                                                                 expected_checksum=expected_checksum)
                     self.read_yaml_file(file_path, *args, **kwargs)
                 except (FileNotFoundError, urllib.error.URLError):
@@ -289,7 +298,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                             checksums_match = utils.check_file_checksum(file_path=destination_file_resolved_path, expected_checksum=expected_checksum)
                             need_to_copy = not checksums_match
                         if need_to_copy:
-                            self.batch_accum += MakeDirs(destination_file_resolved_path.parent)
+                            self.batch_accum += MakeDir(destination_file_resolved_path.parent, chowner=True)
                             self.batch_accum += CopyFileToFile(file_path, destination_file_resolved_path, hard_links=False, copy_owner=True)
 
     def create_variables_assignment(self, in_batch_accum):
@@ -318,7 +327,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         in_batch_accum += PythonDoSomething(f'''RemoveEmptyFolders.set_a_kwargs_default("files_to_ignore", config_vars.get("REMOVE_EMPTY_FOLDERS_IGNORE_FILES", []).list())''')
         in_batch_accum += PythonDoSomething(f"""log.setLevel({config_vars.get("PYTHON_BATCH_LOG_LEVEL", 20)})""")
 
-    def calc_user_cache_dir_var(self, make_dir=True):
+    def calc_user_cache_dir_var(self):
         if "USER_CACHE_DIR" not in config_vars:
             os_family_name = config_vars["__CURRENT_OS__"].str()
             if os_family_name == "Mac":
@@ -332,16 +341,30 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             else:
                 raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
-            #var_stack.get_configVar_obj("USER_CACHE_DIR").freeze_values_on_first_resolve = True
+
+    def get_aux_cache_dir(self, make_dir=True):
+        """ return a path where to download and cache files (but not installation artifacts)
+            return LOCAL_REPO_REV_BOOKKEEPING_DIR if it's fully resolved (meaning we have values for
+            S3_BUCKET_NAME, REPO_NAME, REPO_REV)
+            otherwise return USER_CACHE_DIR
+        """
+        local_repo_rev_bookkeeping_dir = config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"].str()
+        if config_vars.is_str_resolved(local_repo_rev_bookkeeping_dir):
+            aux_cache_dir = Path(local_repo_rev_bookkeeping_dir)
+        else:
+            aux_cache_dir = config_vars["USER_CACHE_DIR"].Path().joinpath("cache")
         if make_dir:
-            user_cache_dir_resolved = os.fspath(config_vars["USER_CACHE_DIR"])
-            os.makedirs(user_cache_dir_resolved, exist_ok=True)
+            with MakeDir(aux_cache_dir, report_own_progress=False) as md:
+                md()
+        return aux_cache_dir
 
     def get_default_sync_dir(self, continue_dir=None, make_dir=True):
-        self.calc_user_cache_dir_var(make_dir)
-        retVal = Path(os.fspath(config_vars["USER_CACHE_DIR"]))
+        retVal = config_vars["USER_CACHE_DIR"].Path()
         if continue_dir:
             retVal = retVal.joinpath(continue_dir)
+        if make_dir:
+            with MakeDir(retVal, report_own_progress=False) as md:
+                md()
         return retVal
 
     def relative_sync_folder_for_source(self, source):
@@ -368,6 +391,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
 
+        in_batch_accum.initial_progress = self.internal_progress
         self.create_variables_assignment(in_batch_accum)
         self.init_python_batch(in_batch_accum)
 
@@ -378,7 +402,8 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         if out_file:
             out_file = out_file.parent.joinpath(out_file.name+file_name_post_fix)
-            out_file.parent.mkdir(parents=True, exist_ok=True)
+            with MakeDir(out_file.parent, report_own_progress=False) as md:
+                md()
             self.out_file_realpath = os.fspath(out_file)
         else:
             self.out_file_realpath = "stdout"
@@ -487,14 +512,15 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         try:
             the_node_stack = kwargs.get('node-stack', "unknown")
             position_in_file = getattr(the_node_stack, "start_mark", "unknown")
-            yaml_read_error = f"""
-yaml_read_error:
-    position-in-file: {position_in_file}
-    exception: {kwargs.get('exception', '')}
-"""
-            original_path_to_file = kwargs.get('original-path-to-file', '')
-            if original_path_to_file not in yaml_read_error:
-                yaml_read_error = f"{yaml_read_error}\n    original-path-to-file: {original_path_to_file}"
-            log.error(yaml_read_error)
+            original_path_to_file = utils.ExpandAndResolvePath(config_vars.resolve_str(kwargs.get('original-path-to-file', '')))
+            yaml_read_errors = list()
+            yaml_read_errors.append("yaml_read_error:")
+            if os.fspath(original_path_to_file) not in position_in_file:
+                yaml_read_errors.append(f"""    path-to-file: {original_path_to_file}""")
+            yaml_read_errors.append(f"""    position-in-file: {position_in_file}""")
+            yaml_read_errors.append(f"""    permissions: {utils.single_disk_item_listing(original_path_to_file)}""")
+            yaml_read_errors.append(f"""    exception: {kwargs.get('exception', '')}""")
+
+            log.error("\n".join(yaml_read_errors))
         except Exception as ex:
             pass

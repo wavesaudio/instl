@@ -15,7 +15,7 @@ from pathlib import Path, PurePath
 from timeit import default_timer
 from decimal import Decimal
 import logging
-from functools import reduce, wraps
+from functools import reduce, wraps, lru_cache
 import itertools
 import tarfile
 import types
@@ -32,21 +32,25 @@ import utils
 log = logging.getLogger()
 
 
+@lru_cache(maxsize=None)
 def Is64Windows():
     """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
     return 'PROGRAMFILES(X86)' in os.environ
 
 
+@lru_cache(maxsize=None)
 def Is64Mac():
     """Check if the installed version of osx is greater than 14 (Mojave).
     such versions cannot run anymore 32 bit apps """
     return int(platform.mac_ver()[0].split('.')[1]) > 14
 
 
+@lru_cache(maxsize=None)
 def Is32Windows():
     return not Is64Windows()
 
 
+@lru_cache(maxsize=None)
 def GetProgramFiles32():
     if Is64Windows():
         return os.environ['PROGRAMFILES(X86)']
@@ -54,6 +58,7 @@ def GetProgramFiles32():
         return os.environ['PROGRAMFILES']
 
 
+@lru_cache(maxsize=None)
 def GetProgramFiles64():
     if Is64Windows():
         return os.environ['PROGRAMW6432']
@@ -61,6 +66,7 @@ def GetProgramFiles64():
         return None
 
 
+@lru_cache(maxsize=None)
 def get_current_os_names() -> Tuple[str, ...]:
     retVal: Tuple[str, ...] = ()
     current_os = platform.system()
@@ -691,22 +697,15 @@ def get_wtar_total_checksum(wtar_file_path):
 
 
 def extra_json_serializer(obj):
+    """ json module does not know to encode deque, PurePath,... """
     if isinstance(obj, (collections.deque,)):
         return list(obj)
-    elif isinstance(obj, PurePath):
+    elif hasattr(obj, "__fspath__"):  # mainly for pathlib.PurePath
         return os.fspath(obj)
+    elif hasattr(obj, "__repr__"):
+        return repr(obj)
     else:
         raise TypeError(f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
-
-
-class JsonExtraTypesEncoder(json.JSONEncoder):
-    """ json module does not know to encode deque """
-    def default(self, obj):
-        if isinstance(obj, (collections.deque,)):
-            return list(obj)
-        elif isinstance(obj, PurePath):
-            return os.fspath(obj)
-        return json.JSONEncoder.default(self, obj)
 
 
 class JsonExtraTypesDecoder(json.JSONDecoder):
@@ -717,23 +716,28 @@ class JsonExtraTypesDecoder(json.JSONDecoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_system_log_file_path():
-    '''if Desktop/Logs exists put the file there, otherwise in the user's folder'''
-    logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
-    if logs_dir.is_dir():
-        folder_to_write_in = logs_dir
+def get_system_log_folder_path():
+    """ if Desktop/Logs exists put the file there, otherwise in the user's folder
+    """
+    # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
+    vendor_name = os.environ["VENDOR_NAME"]
+    app_name = os.environ["APPLICATION_NAME"]
+
+    if sys.platform == 'win32':
+        folder_to_write_in = Path(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
     else:
-        # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
-        vendor_name = os.environ["VENDOR_NAME"]
-        app_name = os.environ["APPLICATION_NAME"]
+        folder_to_write_in = Path(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
 
-        if sys.platform == 'win32':
-            folder_to_write_in = Path(appdirs.user_data_dir(app_name, vendor_name, roaming=True), 'Logs')
-        else:
-            folder_to_write_in = Path(appdirs.user_data_dir(vendor_name), app_name, 'Logs')
-
-    system_log_file_path = folder_to_write_in.joinpath('instl', "instl.log")
+    system_log_file_path = folder_to_write_in.joinpath('instl')
     return system_log_file_path
+
+
+def get_system_log_file_path():
+    """ if Desktop/Logs exists put the file there, otherwise in the user's folder
+    """
+    # os.environ["VENDOR_NAME"], os.environ["APPLICATION_NAME"] should have been set by InvocationReporter
+    retVal = get_system_log_folder_path().joinpath("instl.log")
+    return retVal
 
 
 def iter_complete_to_longest(*list_of_lists):
@@ -805,3 +809,14 @@ def iter_grouper(n, iterable):
     while piece:
         yield piece
         piece = list(itertools.islice(i, n))
+
+
+@lru_cache(maxsize=None)
+def get_os_description():
+    if sys.platform == 'darwin':
+        retVal = f"macOS {platform.mac_ver()[0]}"
+    elif sys.platform == 'linux':
+        retVal = f"Linux {platform.uname().version}"
+    elif sys.platform == 'win32':
+        retVal = f"Windows {platform.version()}"
+    return retVal

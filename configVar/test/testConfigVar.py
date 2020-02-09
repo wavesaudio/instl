@@ -4,6 +4,7 @@ import sys
 import os
 import unittest
 from pathlib import Path
+import time, datetime
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
@@ -93,7 +94,7 @@ class TestConfigVar(unittest.TestCase):
         out_file_path = Path(__file__).parent.joinpath("test_out.yaml")
         expected_file_path = Path(__file__).parent.joinpath("expected_output.yaml")
 
-        reader = ConfigVarYamlReader()
+        reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(input_file_path)
         variables_as_yaml = config_vars.repr_for_yaml()
         yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
@@ -101,9 +102,12 @@ class TestConfigVar(unittest.TestCase):
         with open(out_file_path, "w") as wfd:
             aYaml.writeAsYaml(yaml_doc, wfd)
 
-        out_lines = normalize_yaml_lines(out_file_path)
-        expected_lines = normalize_yaml_lines(expected_file_path)
+        with open(out_file_path, "r") as r_out:
+            out_lines = r_out.readlines()
+        with open(expected_file_path, "r") as r_expected:
+            expected_lines = r_expected.readlines()
 
+        self.assertEqual.__self__.maxDiff = None
         self.assertEqual(out_lines, expected_lines)
 
     def test_resolve_time(self):
@@ -120,7 +124,26 @@ class TestConfigVar(unittest.TestCase):
 
         print(str(config_vars["MANDOLIN"]))
 
-    def test_Plist_for_native_instruments(self):
-        config_vars["Plist_for_native_instruments"] = r'''ShellCommand('"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" $(__Plist_for_native_instruments_1__) $(__Plist_for_native_instruments_2__)', ignore_all_errors=True)'''
-        o = config_vars.resolve_str('$(Plist_for_native_instruments<"Aphex Vintage Exciter", "/Applications/Waves/Data/NKS FX/">)')
-        print(o)
+    def test_dynamic_config_var(self):
+        def get_now_date_time(val):
+            return str(datetime.datetime.fromtimestamp(time.time()))
+        config_vars.set_dynamic_var("__NOW__", get_now_date_time)
+
+        config_vars["DYNA_VAR"] = "$(__NOW__)"
+        now_1 = config_vars["DYNA_VAR"].str()
+        time.sleep(1)
+        now_2 = config_vars["DYNA_VAR"].str()
+        self.assertNotEqual(now_1, now_2)
+
+    def test_CompareConfigVarsAsList(self):
+        config_vars["__INSTL_VERSION__"] = (2,2,3)
+        config_vars["INSTL_MINIMAL_VERSION"] = (1,2,3)
+        min_version_as_list = [int(v) for v in config_vars["INSTL_MINIMAL_VERSION"].list()]
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(min_version_as_list, cur_version_as_list, f"1 failed {min_version_as_list} <= {cur_version_as_list}")
+        config_vars["__INSTL_VERSION__"] = (1,2,3)
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(min_version_as_list, cur_version_as_list, f"2 failed {min_version_as_list} <= {cur_version_as_list}")
+        config_vars["__INSTL_VERSION__"] = (1,2,2)
+        cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
+        self.assertLessEqual(cur_version_as_list, min_version_as_list, f"3 failed {cur_version_as_list} <= {min_version_as_list}")

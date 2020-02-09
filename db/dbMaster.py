@@ -5,14 +5,20 @@ import datetime
 import inspect
 from pathlib import Path
 from _collections import defaultdict
+import shutil
+import logging
 
 import utils
 from configVar import config_vars
 from db.indexItemTable import IndexItemsTable
 from svnTree import SVNTable
 
+log = logging.getLogger()
+
 """
     todo:
+        - python 3.7/3.8 connection object have backup method, so we can work with memory database and only write to disk in case of error
+            see: https://docs.python.org/3.8/library/sqlite3.html#sqlite3.Connection.backup
         - replace iids in index_item_detail_t with index_item_t._id ?
         - normalize detail_name with table of names?
         - review indexes, do they really improve performance
@@ -45,9 +51,14 @@ class Statistic():
 
 
 class DBMaster(object):
-    def __init__(self, db_url: Path, ddl_folder: Path) -> None:
+    def __init__(self, db_url: str, ddl_folder: Path) -> None:
         self.top_user_version = 1  # user_version is a standard pragma tha defaults to 0
-        self.db_file_path = db_url
+        if db_url == ":memory:":
+            self.memory_db = True
+            self.db_file_path = None
+        else:
+            self.memory_db = False
+            self.db_file_path = Path(db_url)
         self.ddl_files_dir = ddl_folder
         self.__conn = None
         self.__curs = None
@@ -56,12 +67,14 @@ class DBMaster(object):
         self.print_execute_times = False
         self.transaction_depth = 0
 
-    def get_file_path(self) -> Path:
-        return self.db_file_path
+    def get_file_path(self) -> str:
+        if self.memory_db:
+            return ":memory:"
+        else:
+            return os.fspath(self.db_file_path)
 
     def init_from_ddl(self, ddl_files_dir: Path, db_file_path: Path):
         self.ddl_files_dir = ddl_files_dir
-        self.db_file_path: Path = Path(db_file_path)
         self.open()
 
     def init_from_existing_connection(self, conn, curs):
@@ -73,8 +86,12 @@ class DBMaster(object):
 
     def open(self):
         if not self.__conn:
-            create_new_db = not self.db_file_path.is_file()
-            self.__conn = sqlite3.connect(os.fspath(self.db_file_path))
+            try:
+                create_new_db = self.memory_db or not self.db_file_path.is_file()
+            except:
+                create_new_db = True
+            db_path_for_sqlite = ":memory:" if self.memory_db else os.fspath(self.db_file_path)
+            self.__conn = sqlite3.connect(db_path_for_sqlite)
 
             self.__curs = self.__conn.cursor()
             self.configure_db()
@@ -88,7 +105,8 @@ class DBMaster(object):
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def set_db_file_owner(self):
-        utils.chown_chmod_on_path(self.db_file_path)
+        if not self.memory_db and self.db_file_path.is_file():
+            utils.chown_chmod_on_path(self.db_file_path)
 
     def configure_db(self):
         self.set_db_pragma("foreign_keys", "ON")
@@ -96,29 +114,25 @@ class DBMaster(object):
         #self.__conn.set_authorizer(self.authorizer_handler_sqlite3)
         #self.__conn.set_progress_handler(self.progress_handler_sqlite3, 8)
         self.__conn.row_factory = sqlite3.Row
-        self.__conn.set_trace_callback(self.trace_handler_sqlite3)
+        self.__conn.set_trace_callback(None)
 
     def authorizer_handler_sqlite3(self, *args, **kwargs):
         """ callback for sqlite3.connection.set_authorizer"""
         return sqlite3.SQLITE_OK
 
-    def progress_handler_sqlite3(self):
+    def set_progress_handler(self, progress_callback, n_instructions):
         """ callback for sqlite3.connection.set_progress_handler"""
-        self.logger.debug('DB progress')
-
-    def trace_handler_sqlite3(self, statement):
-        """ callback for sqlite3.connection.set_trace_callback"""
-        self.logger.debug('DB statement %s' % (statement))
+        self.__conn.set_progress_handler(progress_callback, n_instructions)
 
     def create_function(self, func_name, num_params, func_ptr):
         self.__conn.create_function(func_name, num_params, func_ptr)
 
     def close_and_delete(self):
         self.close()
-        try:
-            self.db_file_path.unlink()
-        except FileNotFoundError:
-            pass
+        if not self.memory_db:
+            from pybatch import RmFile
+            with RmFile(self.db_file_path, report_own_progress=False) as rf:
+                rf()
 
     def close(self):
         if self.__conn:
@@ -135,10 +149,6 @@ class DBMaster(object):
                 print("max count:", max_count[0], max_count[1])
                 print("max time:", max_time[0], max_time[1])
                 print("total DB time:", total_DB_time)
-
-    def erase_db(self):
-        self.close()
-        utils.safe_remove_file(self.db_file_path)
 
     def set_db_pragma(self, pragma_name, pragma_value):
         set_pragma_q = f"""PRAGMA {pragma_name} = {pragma_value};"""
@@ -174,61 +184,89 @@ class DBMaster(object):
     def curs(self):
         return self.__curs
 
+    class ProgressCallBacker:
+        def __init__(self, db_master, _description, _progress_callback):
+            self.db_master = db_master
+            self.description = _description
+            self.progress_callback = _progress_callback
+            self.counter = 0
+
+        def __enter__(self):
+            if self.progress_callback:
+                self.progress_callback(f"{self.description} {self.counter}")
+                self.db_master.set_progress_handler(self, 50 * 1024 * 1024)
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self.progress_callback:
+                self.db_master.set_progress_handler(None, 0)
+
+        def __call__(self, *args, **kwargs):
+            self.counter += 1
+            self.progress_callback(f"{self.description} {self.counter}")
+
     @contextmanager
-    def transaction(self, description=None):
+    def transaction(self, description=None, progress_callback=None):
         try:
+
             if not description:
                 try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
                     description = inspect.stack()[2][3]
                 except IndexError as ex:
                     description = "unknown"
-            #time1 = time.perf_counter()
-            self.begin()
-            yield self.__curs
-            self.commit()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                self.begin()
+                yield self.__curs
+                self.commit()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
+        except sqlite3.OperationalError as s3oo:
+            if not self.memory_db:
+                log.error("database error, disk %s", str(shutil.disk_usage(self.db_file_path.parent)), exc_info=True)
+            self.rollback()
         except:
             self.rollback()
             raise
 
     @contextmanager
-    def selection(self, description=None):
+    def selection(self, description=None, progress_callback=None):
         """ returns a cursor for SELECT queries.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            #time1 = time.perf_counter()
-            yield self.__conn.cursor()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    if not description:
-            #        description = inspect.stack()[2][3]
-            #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                yield self.__conn.cursor()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    if not description:
+                #        description = inspect.stack()[2][3]
+                #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
     @contextmanager
-    def temp_transaction(self, description=None):
+    def temp_transaction(self, description=None, progress_callback=None):
         """ returns a cursor for working with CREATE TEMP TABLE.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            #time1 = time.perf_counter()
-            yield self.__conn.cursor()
-            #time2 = time.perf_counter()
-            #if self.print_execute_times:
-            #    if not description:
-            #        description = inspect.stack()[2][3]
-            #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-            #self.statistics[description].add_instance((time2-time1)*1000.0)
+            with self.ProgressCallBacker(self, description, progress_callback):
+                #time1 = time.perf_counter()
+                yield self.__conn.cursor()
+                #time2 = time.perf_counter()
+                #if self.print_execute_times:
+                #    if not description:
+                #        description = inspect.stack()[2][3]
+                #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
+                #self.statistics[description].add_instance((time2-time1)*1000.0)
         except Exception as ex:
             raise
 
@@ -238,11 +276,11 @@ class DBMaster(object):
                 script_file_path = Path(file_name)
             else:
                 script_file_path = self.ddl_files_dir.joinpath(file_name)
-            with open(script_file_path, "r") as rfd:
+            with utils.utf8_open_for_read(script_file_path, "r") as rfd:
                 ddl_text = rfd.read()
                 curs.executescript(ddl_text)
 
-    def select_and_fetchone(self, query_text, query_params=None):
+    def select_and_fetchone(self, query_text, query_params=None, progress_callback=None):
         """
             execute a select statement and convert the returned list
             of tuples to a list of values.
@@ -256,7 +294,7 @@ class DBMaster(object):
                 description = inspect.stack()[1][3]
             else:
                 description = None
-            with self.selection(description) as curs:
+            with self.selection(description=description, progress_callback=progress_callback) as curs:
                 curs.execute(query_text, query_params)
                 one_result = curs.fetchone()
                 if one_result:
@@ -268,7 +306,7 @@ class DBMaster(object):
             raise
         return retVal
 
-    def select_and_fetchall(self, query_text, query_params=None):
+    def select_and_fetchall(self, query_text, query_params=None, progress_callback=None):
         """
             execute a select statement and convert the returned list
             of tuples to a list of values.
@@ -282,7 +320,7 @@ class DBMaster(object):
                 description = inspect.stack()[1][3]
             else:
                 description = None
-            with self.selection(description) as curs:
+            with self.selection(description=description, progress_callback=progress_callback) as curs:
                 curs.execute(query_text, query_params)
                 all_results = curs.fetchall()
                 if all_results:
@@ -347,7 +385,7 @@ class DBAccess(object):
             self.get_default_db_file()
             db_url = config_vars["__MAIN_DB_FILE__"].Path()
             ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
-            self._db = DBMaster(db_url, ddls_folder)
+            self._db = DBMaster(os.fspath(db_url), ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
         return self._db
 
@@ -367,8 +405,8 @@ class DBAccess(object):
                 # if no output file try next to the input file
                 db_base_path = Path(config_vars.resolve_str("$(__MAIN_INPUT_FILE__)-$(__MAIN_COMMAND__)"))
             else:
-                # as last resort try the Logs folder on desktop if one exists
-                logs_dir = Path(os.path.expanduser("~"), "Desktop", "Logs")
+                # as last resort try the Logs folder
+                logs_dir = utils.get_system_log_folder_path()
                 if logs_dir.is_dir():
                     db_base_path = logs_dir.joinpath(config_vars.resolve_str("instl-$(__MAIN_COMMAND__)"))
 
@@ -378,17 +416,18 @@ class DBAccess(object):
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
 
         if self._owner.refresh_db_file:
-            db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
-            if db_base_path.is_file():
-                utils.safe_remove_file(db_base_path)
+            if config_vars["__MAIN_DB_FILE__"].str() != ":memory:":
+                db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
+                if db_base_path.is_file():
+                    utils.safe_remove_file(db_base_path)
 
 
 class TableAccess(object):
-    def __init__(self, type):
+    def __init__(self, _type):
         self._table = None
         self._owner = None  # for reference and debugging
         self._name = None   # for reference and debugging
-        self._type = type
+        self._type = _type
 
     def __set_name__(self, owner, name):
         self._owner = owner

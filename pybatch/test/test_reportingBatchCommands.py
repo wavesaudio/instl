@@ -60,7 +60,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.reprs_test_runner(RaiseException(the_exception, the_message))
 
     def test_RaiseException(self):
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += RaiseException(ValueError, "la la la")
         self.pbt.exec_and_capture_output(expected_exception=ValueError)
 
@@ -137,7 +137,7 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.reprs_test_runner(ConfigVarPrint("Avi Balali $(NIKMAT_HATRACTOR)"))
 
     def test_ConfigVarPrint(self):
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
         config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
         config_vars["SOME_VAR_TO_PRINT"] = -12345
@@ -176,7 +176,7 @@ STEVE: Jobs
         resolved_text = "li li li, hamizvada lu sheli Rama!, Jobs!"
         with unresolved_file.open("w") as wfd:
             wfd.write(unresolved_text)
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
         self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file, config_file=config_file)
         self.pbt.exec_and_capture_output()
@@ -196,9 +196,23 @@ STEVE: Jobs
         if var_name in os.environ:  # del value from previous test run
             del os.environ[var_name]
 
-        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += EnvironVarAssign(var_name, var_value)
         self.pbt.exec_and_capture_output()
 
         self.assertTrue(var_name in os.environ, f"EnvironVarAssign.repr did not set environment variable '{var_name}' at all")
         self.assertEqual(os.environ[var_name], var_value, f"EnvironVarAssign.repr did not set environment variable '{var_name}' correctly")
+
+    def test_ReadConfigVarValueFromTextFile(self):
+        var_name = 'BUILD_NUMBER'
+        var_value = "1234"
+
+        config_file = self.pbt.path_inside_test_folder("config_file")
+        config_text = var_value
+        with config_file.open("w") as wfd:
+            wfd.write(config_text)
+
+        self.pbt.batch_accum.clear()
+        self.pbt.batch_accum += ReadConfigVarValueFromTextFile(config_file.absolute(), var_name)
+        self.pbt.exec_and_capture_output()
+        self.assertEqual(config_vars[var_name].values[0] , var_value, f"ReadConfigVarValueFromTextFile did not set environment variable '{var_name}' correctly")

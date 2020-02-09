@@ -1,3 +1,5 @@
+# Note: this file was renamed email_utils because when it was named email.py python module importer sometimes gets confused with e builtin email module
+
 import os
 import re
 import smtplib
@@ -5,6 +7,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
 
 def send_email(subject, content, sender, recipients, smtp_server, smtp_port):
 
@@ -36,12 +39,12 @@ mandatory_template_fields= ('subject', 'sender', 'recipients', 'content')
 def send_email_from_template_file(path_to_template):
     import configVar  # helps avoid circular imports
 
-    with open(path_to_template, 'r') as rfd:
+    with open(path_to_template, 'r', encoding='utf-8', errors='backslashreplace') as rfd:
         template_text = rfd.read()
         template_dict = eval(template_text)
 
     for name in mandatory_template_fields:
-        assert name in template_dict.keys(), f"mandatory field {name} was not found in template {resolved_path_to_template}"
+        assert name in template_dict.keys(), f"mandatory field {name} was not found in template {path_to_template}"
 
     senderrs = send_email(**template_dict)
     return senderrs

@@ -26,7 +26,6 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         prerequisite_vars = list(config_vars["__SYNC_PREREQUISITE_VARIABLES__"])
         self.instlObj.check_prerequisite_var_existence(prerequisite_vars)
-        self.instlObj.calc_user_cache_dir_var() # this will set USER_CACHE_DIR if it was not explicitly defined
 
     # Overridden by InstlInstanceSync_url, or parallel sync classes
     def create_sync_instructions(self):
@@ -66,8 +65,8 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 cache_folder=self.instlObj.get_default_sync_dir(continue_dir="cache", make_dir=True),
                                                 expected_checksum=info_map_file_expected_checksum)
 
-                self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out)
                 self.instlObj.progress(f"read info_map {info_map_file_url}")
+                self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out, progress_callback=self.instlObj.progress)
 
                 additional_info_maps = self.instlObj.items_table.get_details_for_active_iids("info_map", unique_values=True)
                 for additional_info_map in additional_info_maps:
@@ -91,11 +90,12 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
                                                 cache_folder=self.instlObj.get_default_sync_dir("cache", make_dir=True),
                                                 expected_checksum=checksum)
 
-                    self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out)
                     self.instlObj.progress(f"read info_map {info_map_file_url}")
+                    self.instlObj.info_map_table.read_from_file(local_copy_of_info_map_out, progress_callback=self.instlObj.progress)
 
                 new_have_info_map_path = os.fspath(config_vars["NEW_HAVE_INFO_MAP_PATH"])
-                self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'))
+                self.instlObj.progress(f"write info_map {new_have_info_map_path}")
+                self.instlObj.info_map_table.write_to_file(new_have_info_map_path, field_to_write=('path', 'flags', 'revision', 'checksum', 'size'), progress_callback=self.instlObj.progress)
         except Exception:
             log.error(f"""Exception reading info_map: {info_map_file_url}""")
             raise
@@ -105,7 +105,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
             Folders containing these these files are also marked.
             All required items are written to required_info_map.txt for reference.
         """
-        self.instlObj.info_map_table.mark_required_files_for_active_items()
+        self.instlObj.info_map_table.mark_required_files_for_active_items(progress_callback=self.instlObj.progress)
         required_file_path = os.fspath(config_vars["REQUIRED_INFO_MAP_PATH"])
         required_items_list = self.instlObj.info_map_table.get_required_items()
         self.instlObj.info_map_table.write_to_file(in_file=required_file_path, items_list=required_items_list)
@@ -120,10 +120,10 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         self.instlObj.progress("create list of files to download")
         self.instlObj.set_sync_locations_for_active_items()
         self.instlObj.progress("check checksum of existing required files ...")
-        self.instlObj.info_map_table.mark_need_download()
+        self.instlObj.info_map_table.mark_need_download(progress_callback=self.instlObj.progress)
         need_download_file_path = os.fspath(config_vars["TO_SYNC_INFO_MAP_PATH"])
         need_download_items_list = self.instlObj.info_map_table.get_download_items()
-        self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list)
+        self.instlObj.info_map_table.write_to_file(in_file=need_download_file_path, items_list=need_download_items_list, progress_callback=self.instlObj.progress)
 
     # syncers that download from urls (url, boto) need to prepare a list of all the individual files that need updating.
     # syncers that use configuration management tools (p4, svn) do not need since the tools takes care of that.

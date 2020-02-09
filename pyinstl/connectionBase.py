@@ -15,7 +15,7 @@ from typing import Dict
 
 have_boto = True
 try:
-    import boto
+    import boto3
 except Exception:
     have_boto = False
 
@@ -103,7 +103,7 @@ if have_boto:
 
         def open_connection(self, credentials):
             in_access_key, in_secret_key, in_bucket = credentials
-            self.boto_conn = boto.connect_s3(in_access_key, in_secret_key)
+            self.boto_conn = boto3.connect_s3(in_access_key, in_secret_key)
             self.open_bucket = self.boto_conn.get_bucket(in_bucket, validate=False)
             self.config_vars["S3_BUCKET_NAME"] = in_bucket
 

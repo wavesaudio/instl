@@ -2,9 +2,9 @@
 
 PARALLEL_SYNC: 16
 CURL_CONFIG_FILE_NAME: dl
-CURL_CONNECT_TIMEOUT: 32 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
-CURL_MAX_TIME: 300       # Maximum time in seconds that you allow the whole operation to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
-CURL_RETRIES: 6          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
+CURL_CONNECT_TIMEOUT: 64 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
+CURL_MAX_TIME: 420       # Maximum time in seconds that you allow the whole operation to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
+CURL_RETRIES: 12          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
 
@@ -77,12 +77,6 @@ DEFAULT_IID_VERSION: 0.0.0
 
 OUTPUT_FORMAT: $(__OUTPUT_FORMAT__)
 
-SPECIAL_BUILD_IN_IIDS:
-    - __ALL_ITEMS_IID__
-    - __ALL_GUIDS_IID__
-    - __UPDATE_INSTALLED_ITEMS__
-    - __REPAIR_INSTALLED_ITEMS__
-
 # should index items under "previous_sources" be removed?
 REMOVE_PREVIOUS_SOURCES: yes
 
@@ -91,6 +85,8 @@ CONFIG_VARS_FOR_ERROR_REPORT:
     - REPO_REV
     - REQUIRE_REPO_REV
     - BASE_LINKS_URL
+    - S3_BUCKET_NAME
+    - REPO_NAME
 
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:

@@ -9,13 +9,15 @@ import subprocess
 from typing import List
 from threading import Thread
 import utils
+import psutil
+import time
 from .baseClasses import PythonBatchCommandBase
 
 import logging
 log = logging.getLogger(__name__)
 
 
-class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, is_context_manager=True,
+class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
@@ -40,9 +42,15 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
+        """ Normally list of arguments are calculated by calling self.get_run_args,
+            unless kwargs["run_args"] exists.
+        """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         run_args = list()
-        self.get_run_args(run_args)
+        if "run_args" in kwargs:
+            run_args.extend(kwargs["run_args"])
+        else:
+            self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
         if self.detach:
@@ -80,7 +88,7 @@ class RunProcessBase(PythonBatchCommandBase, essential=True, call__call__=True, 
             in_stream = None
             err_stream = subprocess.PIPE
 
-            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell)
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell, bufsize=0)
 
             if need_to_close_out_file:
                 out_stream.close()
@@ -170,7 +178,7 @@ class CUrl(RunProcessBase):
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
 
 
-class ShellCommand(RunProcessBase, essential=True):
+class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
 
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -207,7 +215,7 @@ class ScriptCommand(ShellCommand):
         super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
 
 
-class ShellCommands(PythonBatchCommandBase, essential=True):
+class ShellCommands(PythonBatchCommandBase):
     """ run some shells commands in a shell """
 
     def __init__(self, shell_command_list, message, **kwargs):
@@ -255,25 +263,29 @@ class ShellCommands(PythonBatchCommandBase, essential=True):
                 shelli()
 
 
-class ParallelRun(PythonBatchCommandBase, essential=True):
+class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 'shell': False}):
     """ run some shell commands in parallel """
-    def __init__(self, config_file,  shell, **kwargs):
+    def __init__(self, config_file, **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file
-        self.shell = shell
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(utils.quoteme_raw_by_type(self.config_file))
-        all_args.append(f'''shell={self.shell}''')
+
+    def get_action_name(self):
+        return self.action_name if self.action_name else self.__class__.__name__
 
     def progress_msg_self(self):
-        return f"""{self.__class__.__name__} '{self.config_file}'"""
+        return f"""{self.get_action_name()} '{self.config_file}'"""
+
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        pass
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         commands = list()
         resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
-        self.doing = f"""ParallelRun reading config file '{resolved_config_file}'"""
+        self.doing = f"""{self.get_action_name()} reading config file '{resolved_config_file}'"""
         with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
             for line in rfd:
                 line = line.strip()
@@ -281,14 +293,16 @@ class ParallelRun(PythonBatchCommandBase, essential=True):
                     args = shlex.split(line)
                     commands.append(args)
         try:
-            self.doing = f"""ParallelRun, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
+            self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 raise
+        finally:
+            self.increment_progress()
 
 
-class Exec(PythonBatchCommandBase, essential=True):
+class Exec(PythonBatchCommandBase):
     def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
@@ -318,7 +332,7 @@ class Exec(PythonBatchCommandBase, essential=True):
             exec(py_compiled, globals())
 
 
-class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'report_own_progress': False}):
+class RunInThread(PythonBatchCommandBase):
     """
         run another python-batch command in a thread
     """
@@ -326,15 +340,13 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         PythonBatchCommandBase.__init__(self, **kwargs)
         self.what_to_run = what_to_run
         self.thread_name = thread_name
-        self.daemon = daemon  # remember: 1 the thread is not daemon only of daemon is None, daemon have any value, including False the thread will be daemonize
-                              #           2 daemon means the thread will be termnated when the process is terminated, it has nothing to do with daemon process
-        self.own_progress_count += self.what_to_run.total_progress_count()
+        self.daemon = daemon  # remember: 1 the thread is not daemonize only if self.daemon is None, if self.daemon has any value, including False the thread will be daemonize
+                              #           2 daemon means the thread will be terminated when the process is terminated, it has nothing to do with daemon process
+        self.own_progress_count = self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
         # what_to_run should not increment or report progress because there is no way to know when it will happen
         # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
-        self.what_to_run.own_progress_count = 0
-        self.what_to_run.report_own_progress = False
         all_args.append(repr(self.what_to_run))
         all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
         all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
@@ -343,10 +355,14 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
         return f''''''
 
     def run_with(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         with self.what_to_run as rit:
             rit()
 
     def run_without(self):
+        self.what_to_run.own_progress_count = 0
+        self.what_to_run.report_own_progress = False
         self.what_to_run()
 
     def __call__(self, *args, **kwargs) -> None:
@@ -364,7 +380,7 @@ class RunInThread(PythonBatchCommandBase, essential=True, kwargs_defaults={'repo
             thread_thingy.start()
 
 
-class Subprocess(RunProcessBase, essential=True):
+class Subprocess(RunProcessBase):
     """ run a single command NOT in a shell """
 
     def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
@@ -423,7 +439,7 @@ class ExternalPythonExec(Subprocess):
             run_args.insert(0, arg)
 
 
-class SysExit(PythonBatchCommandBase, essential=True):
+class SysExit(PythonBatchCommandBase):
     def __init__(self, exit_code=17, **kwargs):
         super().__init__(**kwargs)
         self.exit_code = exit_code
@@ -440,7 +456,7 @@ class SysExit(PythonBatchCommandBase, essential=True):
         sys.exit(self.exit_code)
 
 
-class Raise(PythonBatchCommandBase, essential=True):
+class Raise(PythonBatchCommandBase):
     def __init__(self, message=None, **kwargs):
         super().__init__(**kwargs)
         self.message = message
@@ -458,3 +474,42 @@ class Raise(PythonBatchCommandBase, essential=True):
         class BogusException(RuntimeError):
             pass
         raise BogusException(f'bogus exception: {self.message}')
+
+
+class KillProcess(PythonBatchCommandBase):
+    def __init__(self, process_name, retries=2, sleep_sec=1, **kwargs):
+        super().__init__(**kwargs)
+        self.process_name = process_name
+        self.retries = retries
+        self.sleep_sec = sleep_sec
+
+    def progress_msg_self(self) -> str:
+        return f'''killing process {self.process_name}'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.process_name))
+        all_args.append(self.optional_named__init__param("retries", self.retries, 2))
+        all_args.append(self.optional_named__init__param("sleep_sec", self.sleep_sec, 1))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        found_process = False
+        for i in range(self.retries):
+            print(f"looking for process named {self.process_name}")
+            for proc in psutil.process_iter():
+                if proc.name() == self.process_name:
+                    print(f"found process named {self.process_name}")
+                    found_process = True
+                    proc.kill()
+                    break
+            else:  # no process by that name was found
+                print(f"no process named {self.process_name}")
+                break
+            time.sleep(self.sleep_sec)
+
+        if found_process:  # make sure it's down
+            for i in range(self.retries):
+                for proc in psutil.process_iter():
+                    if proc.name() == self.process_name:
+                        raise TimeoutError(f"failed to kill process {self.process_name}")
+

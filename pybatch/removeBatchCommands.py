@@ -7,11 +7,12 @@ from typing import List
 import logging
 import utils
 from pybatch import PythonBatchCommandBase
+from configVar import config_vars
 
 log = logging.getLogger(__name__)
 
 
-class RmFile(PythonBatchCommandBase, essential=True):
+class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
     """remove a file
     - if path is symlink - the symlink's target will be removed
     - It's OK is the file does not exist
@@ -28,15 +29,44 @@ class RmFile(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""Remove file '{self.path}'"""
 
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            file_listing = utils.single_disk_item_listing(self.path, output_format="json")
+            self._error_dict["ls"] = file_listing
+        except:  # populating the error dict should continue, even if error_dict_self failed
+            pass
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.exists():
-            self.doing = f"""removing file '{resolved_path}'"""
-            resolved_path.unlink()
+        resolved_path = utils.ExpandAndResolvePath(self.path, resolve_path=self.resolve_path)
+        for attempt in range(2):
+            try:
+                self.doing = f"""removing file '{resolved_path}'"""
+                resolved_path.unlink()
+                break
+            except FileNotFoundError:
+                break
+            except PermissionError as pex:
+                if attempt == 0:
+                    # calling unlink on a folder raises PermissionError
+                    if resolved_path.is_dir():
+                        kwargs_for_rm_dir = self.all_kwargs_dict()
+                        kwargs_for_rm_dir['report_own_progress'] = False
+                        kwargs_for_rm_dir['recursive'] = True
+                        with RmDir(resolved_path, **kwargs_for_rm_dir) as dir_remover:
+                            dir_remover()
+                        break
+                    else:
+                        log.info(f"Fixing permission for removing {resolved_path}")
+                        from pybatch import FixAllPermissions
+                        with FixAllPermissions(resolved_path, report_own_progress=False) as allower:
+                            allower()
+                else:
+                    self.who_locks_file_error_dict(Path.unlink, resolved_path)
+                    raise
 
 
-class RmDir(PythonBatchCommandBase, essential=True):
+class RmDir(PythonBatchCommandBase):
     """ remove a directory.
         - it's OK if the directory does not exist.
         - all files and directory under path will be removed recursively
@@ -53,21 +83,41 @@ class RmDir(PythonBatchCommandBase, essential=True):
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
 
-    def on_rm_error(self, func, path, exc_info):
-        # path contains the path of the file that couldn't be removed
-        # let's just assume that it's read-only and unlink it.
-        os.chmod(path, stat.S_IWRITE)
-        os.unlink(path)
+    def error_dict_self(self, exc_type, exc_val, exc_tb):
+        try:
+            file_listing = utils.single_disk_item_listing(self.path, output_format="json")
+            self._error_dict["ls"] = file_listing
+        except:  # populating the error dict should continue, even if error_dict_self failed
+            pass
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.exists():
-            self.doing = f"""removing folder '{resolved_path}'"""
-            shutil.rmtree(resolved_path, onerror=self.on_rm_error)
+        for attempt in range(2):
+            try:
+                self.doing = f"""removing folder '{resolved_path}'"""
+                shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
+                break
+            except FileNotFoundError:
+                break
+            except NotADirectoryError:
+                kwargs_for_rm_file = self.all_kwargs_dict()
+                kwargs_for_rm_file['report_own_progress'] = False
+                kwargs_for_rm_file['recursive'] = False
+                with RmFile(resolved_path, **kwargs_for_rm_file) as file_remover:
+                    file_remover()
+                break
+            except PermissionError:
+                if attempt == 0:
+                    log.info(f"Fixing permission for removing {resolved_path}")
+                    from pybatch import FixAllPermissions
+                    with FixAllPermissions(resolved_path, report_own_progress=False, recursive=True) as allower:
+                        allower()
+                else:
+                    raise
 
 
-class RmFileOrDir(PythonBatchCommandBase, essential=True):
+class RmFileOrDir(PythonBatchCommandBase):
     """ remove a file or directory.
     - it's OK if the path does not exist.
     - all files and directory under path will be removed recursively
@@ -84,17 +134,29 @@ class RmFileOrDir(PythonBatchCommandBase, essential=True):
         return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.is_file():
-            self.doing = f"""removing file'{resolved_path}'"""
-            resolved_path.unlink()
-        elif resolved_path.is_dir():
-            self.doing = f"""removing folder'{resolved_path}'"""
-            shutil.rmtree(resolved_path)
+        retry = kwargs.get("retry", True)
+        try:
+            PythonBatchCommandBase.__call__(self, *args, **kwargs)
+            resolved_path = utils.ExpandAndResolvePath(self.path)
+            if resolved_path.is_symlink() or resolved_path.is_file():
+                self.doing = f"""removing file'{resolved_path}'"""
+                resolved_path.unlink()
+            elif resolved_path.is_dir():
+                self.doing = f"""removing folder'{resolved_path}'"""
+                shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
+        except Exception as ex:
+            if retry:
+                kwargs["retry"] = False
+                log.info(f"Fixing permission for removing {resolved_path}")
+                from pybatch import FixAllPermissions
+                with FixAllPermissions(resolved_path, recursive=True, report_own_progress=False) as allower:
+                    allower()
+                self.__call__(*args, **kwargs)
+            else:
+                raise
 
 
-class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults={"files_to_ignore": []}):
+class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_ignore": []}):
     """ remove all empty directories under and including 'folder_to_remove'
     - it's OK if the path does not exist.
     - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
@@ -145,7 +207,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, essential=True, kwargs_defaults
                         log.warning(f"""failed to remove {root_path}, {ex}""")
 
 
-class RmGlob(PythonBatchCommandBase, essential=True):
+class RmGlob(PythonBatchCommandBase):
     """ remove files matching a pattern
         - all files and folders matching the pattern will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
@@ -175,7 +237,7 @@ class RmGlob(PythonBatchCommandBase, essential=True):
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
-class RmGlobs(PythonBatchCommandBase, essential=True):
+class RmGlobs(PythonBatchCommandBase):
     """ remove files matching any pattern in the given list
         - all files and folders matching the patterns will be removed
         - pattern matching is done with https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
@@ -209,7 +271,7 @@ class RmGlobs(PythonBatchCommandBase, essential=True):
 #def named__init__param(self, name, value):
 #def optional_named__init__param(self, name, value, default=None):
 
-class RmDirContents(PythonBatchCommandBase, essential=True):
+class RmDirContents(PythonBatchCommandBase):
     """ remove all items in a folder (unless item is excluded)
         but leave the folder itself
     """

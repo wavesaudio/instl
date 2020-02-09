@@ -7,6 +7,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from .baseClasses import PythonBatchCommandBase
+from .removeBatchCommands import RmDir, RmFile, RmFileOrDir
 import utils
 
 
@@ -30,9 +31,10 @@ class MacDock(PythonBatchCommandBase):
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} '{self.path_to_item}' as '{self.label_for_item}'"""
+        return f"""{self.__class__.__name__} setting '{self.path_to_item}' as '{self.label_for_item}' (operation disabled and ignored)"""
 
     def __call__(self, *args, **kwargs) -> None:
+        return  # disable all dock operations since they cause crashes on Catalina
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         dock_util_command = list()
         if self.remove:
@@ -62,7 +64,7 @@ class MacDock(PythonBatchCommandBase):
         utils.dock_util(dock_util_command)
 
 
-class CreateSymlink(PythonBatchCommandBase, essential=True):
+class CreateSymlink(PythonBatchCommandBase):
     """ create a symbolic link (MacOS only)"""
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -80,15 +82,13 @@ class CreateSymlink(PythonBatchCommandBase, essential=True):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
-        try:
-            path_to_symlink.unlink()
-        except:
-            pass
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
+        with RmFile(path_to_symlink, report_own_progress=False, resolve_path=False) as rf:
+            rf()
         path_to_symlink.symlink_to(path_to_target)
 
 
-class RmSymlink(PythonBatchCommandBase, essential=True):
+class RmSymlink(PythonBatchCommandBase):
     """remove a symlink not it's target
     - It's OK is the symlink or the target does not exist
     - but exception will be raised if path is a folder
@@ -111,14 +111,15 @@ class RmSymlink(PythonBatchCommandBase, essential=True):
         unresolved_path = Path(expanded_path)
         self.doing = f"""removing symlink '{unresolved_path}'"""
         if unresolved_path.is_symlink():
-            unresolved_path.unlink()
+            with RmFile(unresolved_path, report_own_progress=False, resolve_path=False) as rf:
+                rf()
         elif unresolved_path.exists():
             log.warning(f"RmSymlink, not a symlink: {unresolved_path}")
         else:
             log.warning(f"RmSymlink, not found: {unresolved_path}")
 
 
-class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
+class SymlinkToSymlinkFile(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -142,10 +143,11 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase, essential=True):
             link_value = os.readlink(symlink_to_convert)
             symlink_text_path = symlink_to_convert.with_name(f"{symlink_to_convert.name}.symlink")
             symlink_text_path.write_text(link_value)
-            symlink_to_convert.unlink()
+            with RmFile(symlink_to_convert, report_own_progress=False, resolve_path=False) as rf:
+                rf()
 
 
-class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
+class SymlinkFileToSymlink(PythonBatchCommandBase):
     """ replace a file with extension '.symlink' to a real symlink.
         the '.symlink' should contain the text of the target of the symlink. And was created with SymlinkToSymlinkFile.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -169,13 +171,16 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink = Path(symlink_file_to_convert.parent, symlink_file_to_convert.stem)
         it_was = None
         if symlink.is_symlink():
-            symlink.unlink()
+            with RmFile(symlink, report_own_progress=False, resolve_path=False) as rf:
+                rf()
             it_was = "symlink"
         elif symlink.is_file():
-            symlink.unlink()
+            with RmFile(symlink, report_own_progress=False, resolve_path=False) as rf:
+                rf()
             it_was = "file"
         elif symlink.is_dir():
-            shutil.rmtree(symlink)
+            with RmDir(symlink, report_own_progress=False) as rd:
+                rd()
             it_was = "folder"
 
         if symlink.exists():
@@ -185,7 +190,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase, essential=True):
         symlink_file_to_convert.unlink()
 
 
-class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class CreateSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -219,7 +224,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
                         log.warning(f"failed to convert {item_path}")
 
 
-class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
+class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
     """ replace a symlink with a file with te same name + the extension '.symlink'
         the '.symlink' will contain the text of the target of the symlink.
         This will allow uploading symlinks to cloud storage does not support symlinks
@@ -229,7 +234,6 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase, essential=True):
         super().__init__(**kwargs)
         self.folder_to_convert = folder_to_convert
         self.last_symlink_file = None
-        self.report_own_progress = False
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_convert))

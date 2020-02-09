@@ -336,8 +336,11 @@ class FullACLForEveryone(RunProcessBase):
         self.path = utils.ExpandAndResolvePath(self.path)
         run_args.extend(["icacls",
                          os.fspath(self.path),
+                         "/remove:d",  # remove all denied rights
+                         "*S-1-1-0",  # for group everyone
                          "/grant",
-                         "*S-1-1-0:(OI)(CI)F",
-                         "/q"])
+                         "*S-1-1-0:(OI)(CI)F",  # grant all possible rights to group everyone, these right will be inherited
+                         "/Q",                  # indicates that icacls should suppress success messages. message is displayed anyway however.
+                         "/C"])                 # indicates that this operation will continue on all file errors
         if self.recursive:
-            run_args.append("/t")
+            run_args.append("/T")

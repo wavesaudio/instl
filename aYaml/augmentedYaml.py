@@ -297,9 +297,9 @@ def isSequence(item):
 
 
 def isScalar(item):
-    retVal = True
-    if isinstance(item, (list, tuple, dict)):
-        retVal = False
+    retVal = False
+    if isinstance(item, (str, int, float, complex, bool, bytes, type(None))):
+        retVal = True
     elif isinstance(item, YamlDumpWrap):
         retVal = item.isScalar()
     return retVal
@@ -354,7 +354,9 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
             if nl_before_key:
                 indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
-            indentor.write_extra_chars(out_stream, ": ")
+            indentor.write_extra_chars(out_stream, ":")
+            if isScalar(pyObj[item]):
+                indentor.write_extra_chars(out_stream, " ")
             indentor += 1
             writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator)
             indentor -= 1

@@ -37,6 +37,7 @@ from .reportingBatchCommands import RaiseException
 from .reportingBatchCommands import PythonDoSomething
 from .reportingBatchCommands import ResolveConfigVarsInFile
 from .reportingBatchCommands import ReadConfigVarsFromFile
+from .reportingBatchCommands import ReadConfigVarValueFromTextFile
 from .reportingBatchCommands import EnvironVarAssign
 from .reportingBatchCommands import PatchPyBatchWithTimings
 
@@ -53,7 +54,7 @@ from .fileSystemBatchCommands import Cd
 from .fileSystemBatchCommands import ChFlags
 from .fileSystemBatchCommands import Chmod
 from .fileSystemBatchCommands import Chown
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import MakeRandomDirs
 from .fileSystemBatchCommands import MakeRandomDataFile
 from .fileSystemBatchCommands import touch
@@ -62,6 +63,7 @@ from .fileSystemBatchCommands import Unlock
 from .fileSystemBatchCommands import Ls
 from .fileSystemBatchCommands import FileSizes
 from .fileSystemBatchCommands import SplitFile
+from .fileSystemBatchCommands import FixAllPermissions
 
 from .subprocessBatchCommands import ParallelRun
 from .subprocessBatchCommands import ShellCommands
@@ -74,6 +76,7 @@ from .subprocessBatchCommands import Subprocess
 from .subprocessBatchCommands import ExternalPythonExec
 from .subprocessBatchCommands import SysExit
 from .subprocessBatchCommands import Raise
+from .subprocessBatchCommands import KillProcess
 
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
 
@@ -86,6 +89,7 @@ from .info_mapBatchCommands import SetBaseRevision
 from .info_mapBatchCommands import IndexYamlReader
 from .info_mapBatchCommands import CopySpecificRepoRev
 from .info_mapBatchCommands import CreateRepoRevFile
+from .info_mapBatchCommands import ShortIndexYamlCreator
 
 from .svnBatchCommands import SVNClient
 from .svnBatchCommands import SVNLastRepoRev

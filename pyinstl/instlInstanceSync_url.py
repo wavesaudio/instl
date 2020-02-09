@@ -28,7 +28,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         create_sync_folders_commands = AnonymousAccum()
 
-        create_sync_folders_commands += Progress("Create folders ...")
         need_download_dirs_num = self.instlObj.info_map_table.num_items(item_filter="need-download-dirs")
         create_sync_folders_commands += CreateSyncFolders()
 
@@ -83,7 +82,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
         curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
-        MakeDirs(curl_config_folder)()
+        MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
         curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
@@ -102,7 +101,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
             parallel_run_config_file_path = curl_config_folder.joinpath(config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, own_progress_count=num_files_to_download, report_own_progress=False)
+            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, action_name="Downloading", own_progress_count=num_files_to_download, report_own_progress=False)
 
             if num_files_to_download > 1:
                 dl_end_message = f"Downloading {num_files_to_download} files done"
@@ -129,8 +128,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
-        check_checksum_instructions_accum += Progress("Check checksum ...", own_progress_count=num_files)
-        check_checksum_instructions_accum += CheckDownloadFolderChecksum()
+        check_checksum_instructions_accum += Progress("Check checksum ...")
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files)
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 
@@ -140,20 +139,24 @@ class InstlInstanceSync_url(InstlInstanceSync):
             as it appears in the info_map db. The list is processed against the db which returns the indexes of the redundant
             files. The full path versions of the indexed files is used to create remove instructions
         """
-        self.instlObj.progress("removing redundant files from sync folder")
         pure_local_sync_dir = PurePath(self.local_sync_dir)
         files_to_check = list()
-        for root, dirs, files in os.walk(self.local_sync_dir, followlinks=False):
-            try: dirs.remove("bookkeeping")
-            except Exception: pass # todo: use FOLDER_EXCLUDE_REGEX
-            try: files.remove(".DS_Store")
-            except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
-            for disk_item in files:
-                item_full_path = PurePath(root, disk_item)
-                item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
-                files_to_check.append(item_partial_path)
+        for scan_folder_top_item in os.scandir(path=self.local_sync_dir):
+            if scan_folder_top_item.name in ("bookkeeping", ".DS_Store"):
+                continue
+            if scan_folder_top_item.is_dir():
+                self.instlObj.progress(f"check for redundant files in sync folder {scan_folder_top_item.path}")
+                for root, dirs, files in os.walk(scan_folder_top_item.path, followlinks=False):
+                    try: dirs.remove("bookkeeping")
+                    except Exception: pass # todo: use FOLDER_EXCLUDE_REGEX
+                    try: files.remove(".DS_Store")
+                    except Exception: pass  # todo: use FILE_EXCLUDE_REGEX
+                    for disk_item in files:
+                        item_full_path = PurePath(root, disk_item)
+                        item_partial_path = item_full_path.relative_to(pure_local_sync_dir).as_posix()
+                        files_to_check.append(item_partial_path)
         files_to_check.sort()
-        redundant_files = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check)
+        redundant_files = self.instlObj.info_map_table.get_files_that_should_be_removed_from_sync_folder(files_to_check, progress_callback=self.instlObj.progress)
         rm_commands = AnonymousAccum()
         for f in redundant_files:
             item_full_path = pure_local_sync_dir.joinpath(f)
@@ -202,7 +205,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         with self.instlObj.batch_accum.sub_accum(Stage("download", "$(SYNC_BASE_URL)")) as sync_accum:
             self.prepare_list_of_sync_items()
 
-            sync_accum += MakeDirs("$(LOCAL_REPO_SYNC_DIR)")
+            sync_accum += MakeDir("$(LOCAL_REPO_SYNC_DIR)", chowner=True)
 
             with sync_accum.sub_accum(Cd("$(LOCAL_REPO_SYNC_DIR)")) as local_repo_sync_dir_accum:
                 with local_repo_sync_dir_accum.sub_accum(Stage("remove_redundant_files_in_sync_folder")) as rrfisf:

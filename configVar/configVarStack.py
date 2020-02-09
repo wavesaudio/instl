@@ -36,27 +36,29 @@ class ConfigVarStack:
         ConfigVarStack represent a stack of ConfigVar dicts.
         this allows to override a ConfigVar by an inner context
 
-        caching:
-        ConfigVarStack maintains a cache of resolved strings.
-        This proved to save resolve time, however at the cost of some complexity
-        Whenever a ConfigVar is added, removed or changed the cache needs to be
-        cleared.
-        But resolving a ConfigVar with params is done by adding a level to the stack
-        and adding temporary variables - which would invalidate the cache.
-        Since this is done a lot it would make the number of cache hits very small.
-        To overcome this self.use_cache is set to False when resolving
-        a ConfigVar with params. When self.use_cache is False cache is not used
-        while resolving and cache is not purged
+        caching: (removed in version 2.1.6.0)
+            ConfigVarStack used to maintains a cache of resolved strings.
+            This proved to save very little resolve time (-9% ~100ms for large installations),
+            at the cost of much complexity:
+            Whenever a ConfigVar is added, removed or changed the cache needs to be
+            cleared.
+            But resolving a ConfigVar with params is done by adding a level to the stack
+            and adding temporary variables - which would invalidate the cache.
+            Since this is done a lot it would make the number of cache hits very small.
+            To overcome this self.use_cache is set to False when resolving
+            a ConfigVar with params. When self.use_cache is False cache is not used
+            while resolving and cache is not purged
+            also with the introduction of dynamic configVars maintain a cache becomes more complicated, as these cannot be cached
+            last version with cache was 2.1.5.5 9/12/2019
+        simple resolve:
+            when a string to resolve does not contain '$' it need not go through parsing
+            this proved to save relatively a lot of resolve time (-60% ~500ms for large installations) - much more than caching
     """
     def __init__(self) -> None:
         self.var_list: List[Dict] = [dict()]
-        self.use_cache = True
         self.resolve_counter: int = 0
         self.simple_resolve_counter: int = 0
-        self.resolve_cache_hits: int = 0
         self.resolve_time: float = 0.0
-        self.resolve_cache: Dict[str,str] = dict()
-        self.max_cached_strings = 0
 
     def __len__(self) -> int:
         """ From RafeKettler/magicmethods: Returns the length of the container.
@@ -115,8 +117,13 @@ class ConfigVarStack:
             config_var.clear()
         finally:
             config_var.extend(values)
-            if self.use_cache:
-                self.resolve_cache.clear()
+
+    def set_dynamic_var(self, key, callback_func, initial_value=None):
+        if initial_value is None:
+            self.__setitem__(key, callback_func.__name__)  # there must be a dummy value so callback will be called
+        else:
+            self.__setitem__(key, initial_value)
+        self[key].set_callback_when_value_is_get(callback_func)
 
     def update(self, update_dict):
         """ create new ConfigVars from a dict"""
@@ -134,7 +141,6 @@ class ConfigVarStack:
         for var_dict in reversed(self.var_list):
             try:
                 del var_dict[key]
-                self.resolve_cache.clear()
                 return
             except KeyError:
                 continue
@@ -191,7 +197,7 @@ class ConfigVarStack:
         if not isinstance(key, str):
             raise TypeError(f"'key' param of setdefault() should be str not {type(key)},  '{key}'")
         if key not in self:
-            new_config_var = ConfigVar(self, key, callback_when_value_is_set)
+            new_config_var = ConfigVar(owner=self, name=key, callback_when_value_is_set=callback_when_value_is_set)
             if default:
                 new_config_var.append(default)
             self.var_list[-1][key] = new_config_var
@@ -202,7 +208,6 @@ class ConfigVarStack:
         """ clear all stack levels"""
         self.var_list.clear()
         self.var_list.append(dict())
-        self.resolve_cache.clear()
 
     def variable_params_to_config_vars(self, parser_retVal):
         """ parse positional and/or key word params and create
@@ -264,22 +269,18 @@ class ConfigVarStack:
             # strings without $ do not need resolving
             result = val_to_resolve
             self.simple_resolve_counter += 1
-        elif self.use_cache and val_to_resolve in self.resolve_cache:
-            result = self.resolve_cache[val_to_resolve]
-            self.resolve_cache_hits += 1
         else:
             res_list, num_literals, num_variables = self.resolve_str_to_list_with_statistics(val_to_resolve)
             result = "".join(res_list)
-            if self.use_cache:
-                self.resolve_cache[val_to_resolve] = result
-                self.max_cached_strings = max(self.max_cached_strings, len(self.resolve_cache))
-            else:
-                self.resolve_cache.pop(val_to_resolve, None)
 
         #end_time = time.perf_counter()
         self.resolve_counter += 1
         #self.resolve_time += end_time - start_time
         return result
+
+    def is_str_resolved(self, str_to_check):
+        regex = re.compile(r"\$\(.*\)")
+        return regex.search(str_to_check) is None
 
     def resolve_str_to_list(self, val_to_resolve: str) -> List:
         """
@@ -362,17 +363,12 @@ class ConfigVarStack:
 
     def pop_scope(self):
         self.var_list.pop()
-        if self.use_cache:
-            self.resolve_cache.clear()
 
     @contextmanager
     def push_scope_context(self, use_cache=True):
-        save_use_cache = self.use_cache
-        self.use_cache = use_cache
         self.push_scope()
         yield self
         self.pop_scope()
-        self.use_cache = save_use_cache
 
     def read_environment(self, vars_to_read_from_environ=None):
         """ Get values from environment. Get all values if regex is None.
@@ -405,14 +401,11 @@ class ConfigVarStack:
         return retVal
 
     def print_statistics(self):
-        if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", "False")):
+        if bool(self.get("PRINT_CONFIG_VAR_STATISTICS", False)):
             print(f"{len(self)} ConfigVars")
             print(f"{self.resolve_counter} resolves")
             print(f"{self.simple_resolve_counter} simple resolves")
-            print(f"{len(self.resolve_cache)} cached strings ({self.max_cached_strings} max)")
-            print(f"{self.resolve_cache_hits} cache hits")
-            print(f"{self.resolve_cache_hits/len(self.resolve_cache):.3} hits per cached string")
-            average_resolve_ms = (self.resolve_time / self.resolve_counter)*1000
+            average_resolve_ms = (self.resolve_time / self.resolve_counter)*1000 if self.resolve_counter else 0.0
             print(f"{average_resolve_ms:.4}ms per resolve")
             print(f"{self.resolve_time:.3}sec total resolve time")
 

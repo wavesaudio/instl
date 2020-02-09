@@ -48,12 +48,25 @@ import utils
 
 
 def utf8_open_for_read(*args, **kwargs) -> TextIO:
-    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    for _try in range(2):
+        try:
+            retVal = open(*args, encoding='utf-8', errors='backslashreplace', **kwargs)
+            break
+        except PermissionError as per_err:
+            if _try == 0:
+                the_path = args[0]
+                from pybatch import FixAllPermissions
+                with FixAllPermissions(the_path, report_own_progress=False) as fixer:
+                    fixer()
+            else:
+                raise
+        except Exception:
+            raise
     return retVal
 
 
 def utf8_open_for_write(*args, **kwargs) -> TextIO:
-    retVal = open(*args, encoding='utf-8', errors='namereplace', **kwargs)
+    retVal = open(*args, encoding='utf-8', errors='backslashreplace', **kwargs)
     chown_chmod_on_fd(retVal)
     return retVal
 
@@ -181,12 +194,12 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='utf-8', save_to_path=None, checksum=None, connection_obj=None):
+def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_to_path=None, checksum=None, connection_obj=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
         # calling read_file_or_url
-        return read_file_or_url(save_to_path, config_vars, encoding=encoding)
+        return read_file_or_url_utf8(save_to_path, config_vars)
     match = protocol_header_re.match(os.fspath(in_file_or_url))
     actual_file_path = in_file_or_url
     if not match:  # it's a local file
@@ -199,11 +212,7 @@ def read_file_or_url(in_file_or_url, config_vars, path_searcher=None, encoding='
                 actual_file_path = os.path.realpath(actual_file_path)
         else:
             raise FileNotFoundError(f"Could not locate local file {in_file_or_url}")
-        if encoding is None:
-            read_mod = "rb"
-        else:
-            read_mod = "r"
-        with open(actual_file_path, "r", encoding=encoding) as rdf:
+        with utf8_open_for_read(actual_file_path, "r") as rdf:
             buffer = rdf.read()
     else:
         assert connection_obj, "no connection_obj given"
@@ -318,10 +327,9 @@ def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, tran
         otherwise download the file
         :return: path of the downloaded file
     """
-
-    if cache_folder.is_file():  # happens sometimes...
-        safe_remove_file(cache_folder)
-    cache_folder.mkdir(parents=True, exist_ok=True)
+    from pybatch import MakeDir
+    with MakeDir(cache_folder, report_own_progress=False) as md:
+        md()
 
     url_file_name = last_url_item(in_url)
     cached_file_name = expected_checksum if expected_checksum else url_file_name
@@ -577,15 +585,23 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-def ExpandAndResolvePath(path_to_resolve: os.PathLike) -> Path:
+def ExpandAndResolvePath(path_to_resolve: os.PathLike, resolve_path=True) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
     """
+    # repeat calling os.path.expandvars until no change
+    # because os.path.expandvars does not expand recursively
+    before_expand = path_to_resolve
     expanded_path = os.path.expandvars(path_to_resolve)
+    while before_expand != expanded_path:
+        before_expand = expanded_path
+        expanded_path = os.path.expandvars(expanded_path)
+
     path_path = Path(expanded_path)
-    resolved_path = path_path.resolve()
-    return resolved_path
+    if resolve_path:
+        path_path = path_path.resolve()
+    return path_path
 
 
 def get_main_drive_name():
@@ -617,3 +633,90 @@ def append_suffix(in_path: Path, new_suffix: str):
     new_name = in_path.stem + "".join(suffixes)
     new_path = in_path.parent.joinpath(new_name)
     return new_path
+
+
+def set_max_open_files(new_max_open_files):
+    # doe nto work yet...
+    if sys.platform == 'darwin':
+        # on Mac resource.setrlimit returns hard limit of 9223372036854775807 which means unlimited
+        # however there is some secret (no API) maximum on the soft limit, so increasing must be done gradually
+        try:
+            import resource
+            max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            print(f"max open files was {max_files_soft}")
+            while new_max_open_files > max_files_soft:
+                max_files_soft += min(1, new_max_open_files - max_files_soft)
+                print(f"increasing to {max_files_soft}")
+                resource.setrlimit(resource.RLIMIT_NOFILE, max_files_soft, max_files_hard)
+        except:
+            print(f"failed to increase max open files to {max_files_soft}")
+        max_files_soft, max_files_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        print(f"max open files is now {max_files_soft}")
+
+
+@contextmanager
+def trace_file_open(_callback=None):
+    if _callback:
+        import builtins
+        save_builtin_open = builtins.open
+
+        def open_override(*args, **kwargs):
+            _callback(*args, **kwargs)
+            return save_builtin_open(*args, **kwargs)
+
+        builtins.open = open_override
+
+    yield
+
+    if _callback:
+        builtins.open = save_builtin_open
+
+
+def safe_getcwd(return_on_error="os.getcwd() failed", ignore_exceptions=True):
+    """ weird as it maybe os.getcwd() might fail with FileNotFoundError
+        this will happen if the current working dir was deleted - probably
+        from outside out program.
+    """
+    retVal = None
+    try:
+        retVal = os.getcwd()
+    except FileNotFoundError as fnf:
+        if ignore_exceptions:
+            if return_on_error:
+                retVal = return_on_error
+        else:
+            raise
+    return retVal
+
+
+def who_locks_file(in_file_path, in_dll_path):
+    """ windows only function to return the process that locks a file
+        :param in_file_path: file to check
+        :param in_dll_path: path to dll that implements the who_locks_file function
+        :return: dict with lock information for the file
+        :except function never raises exception, field "error" in return value will indicate an error
+    """
+    retVal = dict()
+    try:
+        import ctypes
+        if not Path(in_dll_path).is_file():
+            retVal["error"] = f"who_locks_file.dll not found {in_dll_path}"
+        elif not Path(in_file_path).is_file():
+            retVal["error"] = f"file not found {in_file_path}"
+        else:
+            who_locks_file_dll = ctypes.WinDLL(os.fspath(in_dll_path))
+            replay_max_size = 260 * 128 * 2
+            the_reply = ctypes.create_string_buffer(replay_max_size)  # supposedly enough for two long-form paths: the file and the process
+            file_path_c_wchar_p = ctypes.c_wchar_p(os.fspath(in_file_path))
+            ret_code = who_locks_file_dll.who_locks_file_json(file_path_c_wchar_p, the_reply, replay_max_size)
+            if 0 == ret_code:
+                import json
+                return_value_str = bytes(the_reply.value).decode('utf-8')
+                return_value_json = json.loads(return_value_str)
+                retVal.update(return_value_json)
+            else:
+                retVal["error"] = ret_code
+    except Exception as ex:
+        retVal["error"] = str(ex)
+
+    return retVal

@@ -62,7 +62,10 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                     elif self._allow_reading_of_internal_vars or not internal_identifier_re.match(
                             identifier):  # do not read internal state identifiers
                         values = self.read_values_for_config_var(contents, identifier, **kwargs)
-                        self.config_vars[identifier] = values
+                        the_config_var = self.config_vars.setdefault(key=identifier, default=None, callback_when_value_is_set=None)
+                        if contents.tag != "!+=":
+                            the_config_var.clear()
+                        the_config_var.extend(values)
 
     def read_defines_if_not_exist(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node

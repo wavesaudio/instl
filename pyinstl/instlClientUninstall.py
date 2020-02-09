@@ -14,6 +14,7 @@ class InstlClientUninstall(InstlClientRemove):
         super().__init__(initial_vars)
         # noinspection PyUnresolvedReferences
         self.read_defaults_file(super().__thisclass__.__name__)
+        self.calc_user_cache_dir_var()
 
     def do_uninstall(self):
         self.init_uninstall_vars()
@@ -21,7 +22,6 @@ class InstlClientUninstall(InstlClientRemove):
 
     def init_uninstall_vars(self):
         self.init_remove_vars()
-        self.calc_user_cache_dir_var()
 
     def calculate_install_items(self):
         self.calculate_main_install_items()
@@ -92,7 +92,8 @@ class InstlClientUninstall(InstlClientRemove):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["remove"],
-            all_uninstall_items)
+            all_uninstall_items,
+            progress_callback=self.progress)
         self.sort_all_items_by_target_folder(consider_direct_sync=False)
 
     def create_uninstall_instructions(self):
@@ -173,5 +174,6 @@ class InstlClientUninstall(InstlClientRemove):
         self.items_table.change_status_of_iids_to_another_status(
             self.items_table.install_status["none"],
             self.items_table.install_status["remove"],
-            all_uninstall_items)
+            all_uninstall_items,
+            progress_callback=self.progress)
         self.sort_all_items_by_target_folder(consider_direct_sync=False)

@@ -2,8 +2,11 @@ from typing import List, Any
 import os
 import stat
 import zlib
+from collections import defaultdict
 from pathlib import Path
 import logging
+import time
+import datetime
 
 log = logging.getLogger(__name__)
 
@@ -13,7 +16,7 @@ import utils
 
 
 from .baseClasses import PythonBatchCommandBase
-from .fileSystemBatchCommands import MakeDirs
+from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
@@ -46,11 +49,18 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
 
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
         for file_item in dl_file_items:
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
+            self.doing = f"""check checksum for '{file_item.download_path}'"""
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
@@ -106,6 +116,7 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     """
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
@@ -113,15 +124,22 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
+    def increment_and_output_progress(self):
+        """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
+        """
+        pass
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
-            self.doing = f"""creating sync folder '{dl_dir}'"""
-            if dl_dir.download_path:  # direct_sync items have absolute path in member .download_path
-                MakeDirs(dl_dir.download_path)()
-            else:  # cache items have relative path in member .path
-                MakeDirs(dl_dir.path)()
+            # direct_sync items have absolute path in member .download_path
+            # cache items have relative path in member .path
+            path_to_create = dl_dir.download_path if dl_dir.download_path else dl_dir.path
+            super().increment_and_output_progress(increment_by=1, prog_msg=f"create sync folder {path_to_create}")
+            self.doing = f"""creating sync folder '{path_to_create}'"""
+            with MakeDir(path_to_create, report_own_progress=False) as dir_maker:
+                dir_maker()
 
 
 class SetBaseRevision(DBManager, PythonBatchCommandBase):
@@ -221,7 +239,7 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
             wzipper()
 
         # add a line to default info map for each non default info_map created above
-        with open(default_info_map_file_path, "a") as wfd:
+        with utils.utf8_open_for_read(default_info_map_file_path, "a") as wfd:
             for file_to_add in files_to_add_to_default_info_map:
                 file_checksum = utils.get_file_checksum(file_to_add)
                 file_size = file_to_add.stat().st_size
@@ -231,20 +249,75 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
 
 
 class IndexYamlReader(DBManager, PythonBatchCommandBase):
-    def __init__(self, index_yaml_path, **kwargs):
+    def __init__(self, index_yaml_path, resolve_inheritance=True, **kwargs):
         super().__init__(**kwargs)
         self.index_yaml_path = Path(index_yaml_path)
+        self.resolve_inheritance = resolve_inheritance
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.index_yaml_path))
+        all_args.append(self.optional_named__init__param("resolve_inheritance", self.resolve_inheritance, True))
 
     def progress_msg_self(self) -> str:
         return f'''read index.yaml from {self.index_yaml_path}'''
 
     def __call__(self, *args, **kwargs) -> None:
         from pyinstl import IndexYamlReaderBase
+        self.items_table.activate_all_oses()
         reader = IndexYamlReaderBase(config_vars)
         reader.read_yaml_file(self.index_yaml_path)
+        if self.resolve_inheritance:
+            self.items_table.resolve_inheritance()
+
+
+class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
+    def __init__(self, short_index_yaml_path, **kwargs):
+        super().__init__(**kwargs)
+        self.short_index_yaml_path = Path(short_index_yaml_path)
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.short_index_yaml_path))
+
+    def progress_msg_self(self) -> str:
+        return f'''write short index.yaml to {self.short_index_yaml_path}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        short_index_data = self.items_table.get_data_for_short_index()  # iid, name, version_mac, version_win, install_guid, remove_guid
+        short_index_dict = defaultdict(dict)
+        builtin_iids = list(config_vars["SPECIAL_BUILD_IN_IIDS"])
+        for data_line in short_index_data:
+            data_dict = dict(data_line)
+            IID = data_dict['iid']
+            if IID not in builtin_iids:
+                if data_dict['name']:
+                    short_index_dict[IID]['name'] = data_dict['name']
+
+                if data_dict['version_mac'] == data_dict['version_win']:
+                    short_index_dict[IID]['version'] = data_dict['version_mac']
+                else:
+                    if data_dict['version_mac']:
+                        short_index_dict[IID]['Mac'] = {'version': data_dict['version_mac']}
+                    if data_dict['version_win']:
+                        short_index_dict[IID]['Win'] = {'version': data_dict['version_win']}
+
+                if data_dict['install_guid']:
+                    if data_dict['remove_guid'] != data_dict['install_guid']:  # found uninstall gui
+                        short_index_dict[IID]['guid'] = list((data_dict['install_guid'], data_dict['remove_guid']))
+                    else:
+                        short_index_dict[IID]['guid'] = data_dict['install_guid']
+
+
+        defines_dict = config_vars.repr_for_yaml(which_vars=list(config_vars['SHORT_INDEX_FILE_VARS']), resolve=True, ignore_unknown_vars=False)
+        defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",
+                                                 explicit_start=True, sort_mappings=True)
+
+        index_yaml_doc = aYaml.YamlDumpDocWrap(value=short_index_dict, tag="!index",
+                                               explicit_start=True, explicit_end=False,
+                                               sort_mappings=True, include_comments=False)
+
+        with utils.utf8_open_for_write(self.short_index_yaml_path, "w") as wfd:
+            aYaml.writeAsYaml(defines_yaml_doc, wfd)
+            aYaml.writeAsYaml(index_yaml_doc, wfd)
 
 
 class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
@@ -322,6 +395,11 @@ class CreateRepoRevFile(PythonBatchCommandBase):
 
         config_vars["INDEX_CHECKSUM"] = utils.get_file_checksum(index_file_path)
         config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+index_file_name
+
+        short_index_file_name = "short-index.yaml"
+        short_index_file_path = revision_instl_folder_path.joinpath(short_index_file_name)
+        config_vars["SHORT_INDEX_CHECKSUM"] = utils.get_file_checksum(short_index_file_path)
+        config_vars["SHORT_INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+short_index_file_name
 
         config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
         config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"

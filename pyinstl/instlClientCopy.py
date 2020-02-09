@@ -24,6 +24,7 @@ class InstlClientCopy(InstlClient):
         self.current_destination_folder: Optional[str] = None
         self.current_iid:  Optional[str] = None
         self.avoid_copy_markers = None
+        self.calc_user_cache_dir_var()
 
     def do_copy(self) -> None:
         self.init_copy_vars()
@@ -38,10 +39,10 @@ class InstlClientCopy(InstlClient):
         self.bytes_to_copy = 0
         # ratio between wtar file and it's uncompressed contents
         self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
-        self.calc_user_cache_dir_var()  # this will set USER_CACHE_DIR if it was not explicitly defined
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
+        self.win_current_and_target = 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Win' in list(config_vars["TARGET_OS"])
 
     def write_copy_debug_info(self) -> None:
         try:
@@ -56,8 +57,12 @@ class InstlClientCopy(InstlClient):
 
     def create_create_folders_instructions(self, folder_list: List[str]) -> None:
         with self.batch_accum.sub_accum(Stage("create folders")) as create_folders_section:
+            kwargs_defaults = {'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}
+            third_party_folders = [utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(p))) for p in config_vars.get("THIRD_PARTY_FOLDERS", []).list()]
             for target_folder_path in folder_list:
-                create_folders_section += MakeDirs(target_folder_path)
+                target_folder_path = utils.ExpandAndResolvePath(config_vars.resolve_str(os.fspath(target_folder_path)))
+                our_folder = next((False for p in third_party_folders if p == target_folder_path), True)
+                create_folders_section += MakeDir(target_folder_path, chowner=our_folder, recursive_chmod=False)
 
     def create_copy_instructions(self) -> None:
         self.progress("create copy instructions ...")
@@ -107,7 +112,7 @@ class InstlClientCopy(InstlClient):
         # for reference. But when preparing offline installers the site location is the same as the sync location
         # so copy should be avoided.
         if os.fspath(config_vars["HAVE_INFO_MAP_PATH"]) != os.fspath(config_vars["SITE_HAVE_INFO_MAP_PATH"]):
-            self.batch_accum += MakeDirsWithOwner("$(SITE_REPO_BOOKKEEPING_DIR)")
+            self.batch_accum += MakeDir("$(SITE_REPO_BOOKKEEPING_DIR)", chowner=True)
             self.batch_accum += CopyFileToFile("$(HAVE_INFO_MAP_PATH)", "$(SITE_HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
         self.create_require_file_instructions()
@@ -235,7 +240,6 @@ class InstlClientCopy(InstlClient):
             source_path_dir, source_path_name = os.path.split(source_path)
 
             if self.mac_current_and_target:
-                retVal += ChmodAndChown(path=source_path_name, mode="a+rw", user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True, ignore_all_errors=True) # all copied files and folders should be rw
                 for source_item in source_items:
                     if not source_item.is_wtar_file() and source_item.isExecutable():
                         source_path_relative_to_current_dir = source_item.path_starting_from_dir(source_path_dir)
@@ -336,7 +340,7 @@ class InstlClientCopy(InstlClient):
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                     for source in resolved_sources_for_iid:
-                        self.progress(f"copy {source[0]} to {config_vars.resolve_str(target_folder_path)}")
+                        self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                         with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
                             source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item", message=None)

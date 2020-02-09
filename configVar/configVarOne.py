@@ -40,11 +40,13 @@ class ConfigVar:
              name is useful for debugging, but in runtime ConfigVar has
              no (and should have no) use for it's own name
     """
-    __slots__ = ("owner", "name", "values", "callback_when_value_is_set")
+    __slots__ = ("owner", "name", "values", "callback_when_value_is_set", "callback_when_value_is_get", "dynamic")
 
-    def __init__(self, owner, name: str, *values, callback_when_value_is_set=None) -> None:
+    def __init__(self, owner, name: str, *values, callback_when_value_is_set=None, callback_when_value_is_get=None) -> None:
         self.owner = owner
         self.name = name
+        self.dynamic = False
+        self.set_callback_when_value_is_get(callback_when_value_is_get)
         self.set_callback_when_value_is_set(callback_when_value_is_set)
         self.values: List[str] = list()
         self.extend(values)  # extend will flatten hierarchical lists
@@ -57,6 +59,13 @@ class ConfigVar:
             self.callback_when_value_is_set = self._do_nothing_callback_when_value_is_set
         else:
             self.callback_when_value_is_set = new_callback_when_value_is_set
+
+    def set_callback_when_value_is_get(self, new_callback_when_value_is_get):
+        if new_callback_when_value_is_get is None:
+            self.callback_when_value_is_get = self.owner.resolve_str
+        else:
+            self.callback_when_value_is_get = new_callback_when_value_is_get
+            self.dynamic = True
 
     def __len__(self) -> int:
         """ :return: number of values """
@@ -80,11 +89,15 @@ class ConfigVar:
         return retVal
 
     def __contains__(self, val: str) -> bool:
-        retVal = val in (self.owner.resolve_str(val) for val in self.values)
+        retVal = val in self.resolve_values()
         return retVal
 
+    def resolve_values(self) -> List:
+        resolved_values = [self.callback_when_value_is_get(val) for val in self.values]
+        return resolved_values
+
     def join(self, sep: str) -> str:
-        retVal = sep.join((self.owner.resolve_str(val) for val in self.values))
+        retVal = sep.join(val for val in self.resolve_values())
         return retVal
 
     def __str__(self) -> str:
@@ -114,7 +127,7 @@ class ConfigVar:
         retVal = os.fspath(PurePath(self.str()))
         return retVal
 
-    def Path(self, resolve: bool=False) -> Path:
+    def Path(self, resolve: bool=False) -> Optional[Path]:
         retVal = None
         if self.values and self.values[0]:
             if resolve:
@@ -125,7 +138,7 @@ class ConfigVar:
                 retVal = Path(self.str())
         return retVal
 
-    def PurePath(self) -> PurePath:
+    def PurePath(self) -> Optional[PurePath]:
         retVal = None
         if self.values and self.values[0]:
             retVal = PurePath(self.str())
@@ -153,6 +166,8 @@ class ConfigVar:
         :return: iterator on resolved representation of the values
         """
         for val in self.values:
+            if self.dynamic:
+                val = self.callback_when_value_is_get(val)
             yield from self.owner.resolve_str_to_list(val)
 
     def str(self) -> str:
@@ -183,7 +198,7 @@ class ConfigVar:
             b
         :return: resolved representation of one of the values
         """
-        retVal = self.owner.resolve_str(self.values[index])
+        retVal = self.callback_when_value_is_get(self.values[index])
         return retVal
 
     def append(self, value):
@@ -211,13 +226,14 @@ class ConfigVar:
         elif isinstance(values, os.PathLike):
             self.append(os.fspath(values))
         else:
-            raise TypeError(f"cofigVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
+            raise TypeError(f"configVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
 
     def clear(self):
         """ erase all values """
-        self.values.clear()
+        if self.values:
+            self.values.clear()
 
-    def raw(self, join_sep: Optional[str]="") -> Union[str, List[str]]:
+    def raw(self, join_sep: Optional[str] = "") -> Union[str, List[str]]:
         """ return the list of values unresolved"""
         if join_sep is None:
             return self.values
