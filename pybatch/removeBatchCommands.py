@@ -162,24 +162,24 @@ class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_igno
     - 'files_to_ignore' is a list of file names will be ignored, i.e. if a folder contains only these files
     it will be considered empty and will be removed
     """
-    def __init__(self, folder_to_remove: os.PathLike, **kwargs) -> None:
+    def __init__(self, folder_to_check: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.folder_to_remove = folder_to_remove
+        self.folder_to_check = folder_to_check
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''{utils.quoteme_raw_by_type(self.folder_to_remove)}''')
+        all_args.append(f'''{utils.quoteme_raw_by_type(self.folder_to_check)}''')
 
     def progress_msg_self(self) -> str:
-        return f"""Remove empty directory '{self.folder_to_remove}'"""
+        return f"""Remove empty directory '{self.folder_to_check}'"""
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_folder_to_remove = utils.ExpandAndResolvePath(self.folder_to_remove)
+        resolved_folder_to_check = utils.ExpandAndResolvePath(self.folder_to_check)
 
         # addition of "a^" to make sure empty self.files_to_ignore does not ignore any file
         files_to_ignore_regex = re.compile("|".join(self.files_to_ignore+["a^"]))
 
-        for root_path, dir_names, file_names in os.walk(resolved_folder_to_remove, topdown=False, onerror=None, followlinks=False):
+        for root_path, dir_names, file_names in os.walk(resolved_folder_to_check, topdown=False, onerror=None, followlinks=False):
             # when topdown=False os.walk creates dir_names for each root_path at the beginning and has
             # no knowledge if a directory has already been deleted.
             existing_dirs = [dir_name for dir_name in dir_names if os.path.isdir(os.path.join(root_path, dir_name))]
