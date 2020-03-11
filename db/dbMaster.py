@@ -185,16 +185,17 @@ class DBMaster(object):
         return self.__curs
 
     class ProgressCallBacker:
-        def __init__(self, db_master, _description, _progress_callback):
+        def __init__(self, db_master, _description, _progress_callback, _n_instructions):
             self.db_master = db_master
             self.description = _description
             self.progress_callback = _progress_callback
+            self.n_instructions = _n_instructions
             self.counter = 0
 
         def __enter__(self):
             if self.progress_callback:
                 self.progress_callback(f"{self.description} {self.counter}")
-                self.db_master.set_progress_handler(self, 50 * 1024 * 1024)
+                self.db_master.set_progress_handler(self, self.n_instructions)
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if self.progress_callback:
@@ -205,7 +206,7 @@ class DBMaster(object):
             self.progress_callback(f"{self.description} {self.counter}")
 
     @contextmanager
-    def transaction(self, description=None, progress_callback=None):
+    def transaction(self, description=None, progress_callback=None, progress_callback_n_instructions=50*1024*1024):
         try:
 
             if not description:
@@ -213,7 +214,7 @@ class DBMaster(object):
                     description = inspect.stack()[2][3]
                 except IndexError as ex:
                     description = "unknown"
-            with self.ProgressCallBacker(self, description, progress_callback):
+            with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
                 #time1 = time.perf_counter()
                 self.begin()
                 yield self.__curs
@@ -231,14 +232,14 @@ class DBMaster(object):
             raise
 
     @contextmanager
-    def selection(self, description=None, progress_callback=None):
+    def selection(self, description=None, progress_callback=None, progress_callback_n_instructions=50*1024*1024):
         """ returns a cursor for SELECT queries.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            with self.ProgressCallBacker(self, description, progress_callback):
+            with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
                 #time1 = time.perf_counter()
                 yield self.__conn.cursor()
                 #time2 = time.perf_counter()
@@ -251,14 +252,14 @@ class DBMaster(object):
             raise
 
     @contextmanager
-    def temp_transaction(self, description=None, progress_callback=None):
+    def temp_transaction(self, description=None, progress_callback=None, progress_callback_n_instructions=50*1024*1024):
         """ returns a cursor for working with CREATE TEMP TABLE.
             no commit is done
         """
         try:
             if not description:
                 description = inspect.stack()[2][3]
-            with self.ProgressCallBacker(self, description, progress_callback):
+            with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
                 #time1 = time.perf_counter()
                 yield self.__conn.cursor()
                 #time2 = time.perf_counter()

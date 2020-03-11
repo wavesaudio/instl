@@ -31,7 +31,7 @@ from db import DBManager
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder
     """
-    def __init__(self, print_report=False, raise_on_bad_checksum=False, **kwargs) -> None:
+    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_tolerate=16, **kwargs) -> None:
         super().__init__(**kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
@@ -41,10 +41,12 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         self.missing_files_list = list()
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
+        self.max_bad_files_to_tolerate = max_bad_files_to_tolerate
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
+        all_args.append(self.optional_named__init__param("max_bad_files_to_tolerate", self.max_bad_files_to_tolerate, 16))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
@@ -64,9 +66,16 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
+                    super().increment_and_output_progress(increment_by=0, prog_msg=f"Bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
                     self.bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
+                    self.max_bad_files_to_tolerate -= 1
             else:
+                super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
                 self.missing_files_list.append(" ".join((file_item.download_path, "was not found")))
+                self.max_bad_files_to_tolerate -= 1
+            if self.max_bad_files_to_tolerate == 0:
+                break
+
         if not self.is_checksum_ok():
             report_lines = self.report()
             if self.print_report:

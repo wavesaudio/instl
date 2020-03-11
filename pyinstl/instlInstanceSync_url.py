@@ -162,6 +162,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             item_full_path = pure_local_sync_dir.joinpath(f)
             #log.info(f"remove redundant {item_full_path}")
             rm_commands += RmFile(f)
+        if redundant_files:
+            rm_commands += RemoveEmptyFolders(self.local_sync_dir)
         return rm_commands
 
     def create_download_instructions(self):

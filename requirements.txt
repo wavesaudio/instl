@@ -3,7 +3,7 @@ future>=0.17.1
 networkx>=2.2
 packaging>=18.0
 psutil>=5.4.8
-#pyinstaller>=3.4
+PyInstaller==3.4
 PyYAML>=3.13
 requests>=2.21.0
 six>=1.12.0

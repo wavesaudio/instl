@@ -1186,7 +1186,7 @@ class SVNTable(object):
             AND fileFlag == 1
             AND need_to_download_file(download_path, checksum)
             """
-        with self.db.transaction("mark_need_download", progress_callback=progress_callback) as curs:
+        with self.db.transaction("mark_need_download", progress_callback=progress_callback, progress_callback_n_instructions=1024*10) as curs:
             curs.execute(query_text)
         # mark folders of files that need download
         query_text = """
