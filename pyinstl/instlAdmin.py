@@ -52,6 +52,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
         self.config_vars_stack_size_before_reading_config_files = None
+        self.wait_info_counter = 0  # incremented when printing wait info
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
@@ -886,13 +887,17 @@ class InstlAdmin(InstlInstanceBase):
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
 
     def print_wait_on_action_trigger_into(self, _redis_host, _redis_port, _waiting_list_redis_key):
-        log.info(f"{self.get_version_str(short=False)}")
-        log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
-        log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
-        log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
-        log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+        if self.wait_info_counter == 0:
+            log.info(f"{self.get_version_str(short=False)}")
+            log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
+            log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+            log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
+            log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
 
-        log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
+            log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
+
+        self.wait_info_counter += 1
+        self.wait_info_counter = self.wait_info_counter % 30
 
     def do_wait_on_action_trigger(self):
 
