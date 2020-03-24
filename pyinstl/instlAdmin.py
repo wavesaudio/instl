@@ -886,7 +886,7 @@ class InstlAdmin(InstlInstanceBase):
             instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
 
-    def print_wait_on_action_trigger_into(self, _redis_host, _redis_port, _waiting_list_redis_key):
+    def print_wait_on_action_trigger_info(self, _redis_host, _redis_port, _waiting_list_redis_key):
         if self.wait_info_counter == 0:
             log.info(f"{self.get_version_str(short=False)}")
             log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
@@ -924,7 +924,7 @@ class InstlAdmin(InstlInstanceBase):
         self.report_instl_info_to_redis(r)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
-            self.print_wait_on_action_trigger_into(redis_host, redis_port, waiting_list_redis_key)
+            self.print_wait_on_action_trigger_info(redis_host, redis_port, waiting_list_redis_key)
             r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
