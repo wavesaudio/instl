@@ -493,21 +493,6 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.info("Could not load installItemGraph")
             return None
 
-    def repo_rev_to_folder_hierarchy(self, repo_rev):
-        retVal = str(repo_rev)
-        try:
-            if self.num_digits_repo_rev_hierarchy is None:
-                self.num_digits_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_REPO_REV_HIERARCHY"])
-            if self.num_digits_per_folder_repo_rev_hierarchy is None:
-                self.num_digits_per_folder_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"])
-            if self.num_digits_repo_rev_hierarchy > 0 and self.num_digits_per_folder_repo_rev_hierarchy > 0:
-                zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
-                by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
-                retVal = "/".join(by_groups)
-        except Exception as ex:
-            pass
-        return retVal
-
     def handle_yaml_read_error(self, **kwargs):
         try:
             the_node_stack = kwargs.get('node-stack', "unknown")

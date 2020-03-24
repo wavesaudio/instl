@@ -10,6 +10,7 @@ import csv
 import sqlite3
 from contextlib import contextmanager
 from typing import Dict, Generator, List, Tuple
+from functools import lru_cache
 
 
 import utils
@@ -292,6 +293,8 @@ class SVNTable(object):
         self.files_read_list: List[os.PathLike] = list()
         self.files_written_list: List[os.PathLike] = list()
         self.comments: List[str] = list()
+        self.num_digits_repo_rev_hierarchy=None
+        self.num_digits_per_folder_repo_rev_hierarchy=None
 
     def __repr__(self) -> str:
         return "\n".join([item.__repr__() for item in self.get_items()])
@@ -1507,28 +1510,50 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
-    def get_sync_base_url_for_iid(self, iid: str, default_url: str, cache: Dict) -> str:
+    @lru_cache(maxsize=None)
+    def get_sync_base_url_for_iid(self, iid: str, default_url: str) -> str:
         """ find the base url for downloading files belonging to a specific iid
             if not found return the default_url.
             results are cached to avoid calling the database for each file
         """
-        sync_base_url = cache.get(iid, None)
-        if sync_base_url is None:
-            query_text = f"""
-                SELECT index_item_detail_t.detail_value AS the_url, min(index_item_detail_t.generation) AS gen FROM index_item_detail_t
-                WHERE
-                        index_item_detail_t.owner_iid == "{iid}"
-                    AND
-                        index_item_detail_t.detail_name == "sync_base_url"
-                LIMIT 1
-            """
-            # sqlite execute will return 1 row with empty values if nothing was found. Not sure why.
-            base_url_rows = self.db.select_and_fetchall(query_text)
-            if len(base_url_rows) > 0 and len(base_url_rows[0]) > 0 and base_url_rows[0][0] is not None:
-                sync_base_url = base_url_rows[0]['the_url']
-            else:
-                sync_base_url = default_url
-            sync_base_url = config_vars.resolve_str(sync_base_url)
-            cache[iid] = sync_base_url
+        query_text = f"""
+            SELECT index_item_detail_t.detail_value AS the_url, min(index_item_detail_t.generation) AS gen FROM index_item_detail_t
+            WHERE
+                    index_item_detail_t.owner_iid == "{iid}"
+                AND
+                    index_item_detail_t.detail_name == "sync_base_url"
+            LIMIT 1
+        """
+        # sqlite execute will return 1 row with empty values if nothing was found. Not sure why.
+        base_url_rows = self.db.select_and_fetchall(query_text)
+        if len(base_url_rows) > 0 and len(base_url_rows[0]) > 0 and base_url_rows[0][0] is not None:
+            sync_base_url = base_url_rows[0]['the_url']
+        else:
+            sync_base_url = default_url
+        sync_base_url = config_vars.resolve_str(sync_base_url)
 
         return sync_base_url
+
+    @lru_cache(maxsize=None)
+    def repo_rev_to_folder_hierarchy(self, repo_rev):
+        retVal = str(repo_rev)
+        try:
+            if self.num_digits_repo_rev_hierarchy is None:
+                self.num_digits_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_REPO_REV_HIERARCHY"])
+            if self.num_digits_per_folder_repo_rev_hierarchy is None:
+                self.num_digits_per_folder_repo_rev_hierarchy=int(config_vars["NUM_DIGITS_PER_FOLDER_REPO_REV_HIERARCHY"])
+            if self.num_digits_repo_rev_hierarchy > 0 and self.num_digits_per_folder_repo_rev_hierarchy > 0:
+                zero_pad_repo_rev = str(repo_rev).zfill(self.num_digits_repo_rev_hierarchy)
+                by_groups = [zero_pad_repo_rev[i:i+self.num_digits_per_folder_repo_rev_hierarchy] for i in range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
+                retVal = "/".join(by_groups)
+        except Exception as ex:
+            pass
+        return retVal
+
+    def get_sync_url_for_file_item(self, file_item: SVNRow):
+        retVal = file_item.url
+        if retVal is None:
+            repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(file_item.revision)
+            sync_base_url = self.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)")
+            retVal = '/'.join(utils.make_one_list(sync_base_url, repo_rev_folder_hierarchy, file_item.path))
+        return retVal

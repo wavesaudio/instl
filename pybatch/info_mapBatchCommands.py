@@ -103,7 +103,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
     """ set execute permissions for files that need such permission  in the download folder """
-    def __init__(self, info_map_file=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -133,7 +133,7 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
-    def increment_and_output_progress(self):
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
         """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
         """
         pass
@@ -174,11 +174,11 @@ class InfoMapFullWriter(DBManager, PythonBatchCommandBase):
     def __init__(self, out_file, in_format='text', **kwargs):
         super().__init__(**kwargs)
         self.out_file = Path(out_file)
-        self.format = format
+        self.format = in_format
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.out_file))
-        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+        all_args.append(self.optional_named__init__param("in_format", self.format, 'text'))
 
     def progress_msg_self(self) -> str:
         return f'''Create full info_map file'''
@@ -194,11 +194,11 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
     def __init__(self, work_folder, in_format='text', **kwargs):
         super().__init__(**kwargs)
         self.work_folder = Path(work_folder)
-        self.format = format
+        self.format = in_format
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.work_folder))
-        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+        all_args.append(self.optional_named__init__param("in_format", self.format, 'text'))
 
     def progress_msg_self(self) -> str:
         return f'''Create split info_map files'''
