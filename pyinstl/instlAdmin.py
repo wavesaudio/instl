@@ -736,7 +736,7 @@ class InstlAdmin(InstlInstanceBase):
             config_vars['UP_SHORT_INDEX_EXCEPTION'] = ""
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.info_map_table.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
             revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
             if not revision_folder_path.is_dir():
@@ -795,7 +795,7 @@ class InstlAdmin(InstlInstanceBase):
             config_vars['UP2S3_EXCEPTION'] = ""
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.info_map_table.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
             checkout_url = str(config_vars['SVN_REPO_URL'])
             checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
@@ -1074,7 +1074,7 @@ class InstlAdmin(InstlInstanceBase):
             assign the path to configVar
         """
 
-        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
+        repo_rev_work_folder = self.info_map_table.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
         with MakeDir(work_folder, report_own_progress=False) as md:
             md()
