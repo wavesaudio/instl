@@ -1,3 +1,4 @@
+from http.cookies import SimpleCookie
 from typing import List, Any
 import os
 import stat
@@ -5,12 +6,14 @@ import zlib
 from collections import defaultdict
 from pathlib import Path
 import logging
+import requests
 import time
 import datetime
 
 log = logging.getLogger(__name__)
 
 from configVar import config_vars
+
 import aYaml
 import utils
 
@@ -20,6 +23,8 @@ from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
+from .downloadBatchCommands import DownloadBatchCommands
+from svnTree.svnTable import SVNTable
 
 from db import DBManager
 
@@ -38,10 +43,12 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         if not self.raise_on_bad_checksum:
             self.exceptions_to_ignore.append(ValueError)
         self.bad_checksum_list = list()
+        self.bad_files_to_download = list()
         self.missing_files_list = list()
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
         self.max_bad_files_to_tolerate = max_bad_files_to_tolerate
+        self.retrys = 1
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
@@ -59,7 +66,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
-
+        testfunc = False
         for file_item in dl_file_items:
             super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
             self.doing = f"""check checksum for '{file_item.download_path}'"""
@@ -68,24 +75,43 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
                     super().increment_and_output_progress(increment_by=0, prog_msg=f"Bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
                     self.bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
+                    self.bad_files_to_download.append(file_item)
+
                     self.max_bad_files_to_tolerate -= 1
             else:
                 super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
                 self.missing_files_list.append(" ".join((file_item.download_path, "was not found")))
                 self.max_bad_files_to_tolerate -= 1
+                self.bad_files_to_download.append(file_item)
             if self.max_bad_files_to_tolerate == 0:
                 break
-
-        if not self.is_checksum_ok():
+            # TODO: remove this code later, mocking an issue with cksum
+            # if  "Info.xml" in file_item.download_path:
+            #     self.bad_files_to_download.append(file_item)
+            #     testfunc = True
+        while not self.is_checksum_ok() and self.retrys > 0 or testfunc:
             report_lines = self.report()
             if self.print_report:
                 print("\n".join(report_lines))
-            if self.raise_on_bad_checksum:
+            # run redownload here
+            # testfunc = False
+            self.retrys -= 1
+            DownloadBatchCommands.re_download_bad_files(self.bad_files_to_download, self.info_map_table)
+            # recheck cksum
+            for idx in range(len(self.bad_files_to_download) -1, -1, -1):
+                file_item = self.bad_files_to_download[idx]
+                file_checksum = utils.get_file_checksum(file_item.download_path)
+                if utils.compare_checksums(file_checksum, file_item.checksum):
+                    del(self.bad_files_to_download[idx])
+
+            if self.raise_on_bad_checksum and False:
                 exception_message = "\n".join((self.bad_checksum_list_exception_message, self.missing_files_exception_message))
                 raise ValueError(exception_message)
 
+
     def is_checksum_ok(self) -> bool:
         retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
+        retVal = len(self.bad_files_to_download) == 0 or retVal
         return retVal
 
     def report(self):
