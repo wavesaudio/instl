@@ -23,7 +23,7 @@ from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
-from .downloadBatchCommands import DownloadBatchCommands
+from .downloadBatchCommands import DownloadFileAndCheckChecksum
 from svnTree.svnTable import SVNTable
 
 from db import DBManager
@@ -48,7 +48,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
         self.max_bad_files_to_tolerate = max_bad_files_to_tolerate
-        self.retrys = 1
+        self.report_lines = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
@@ -85,29 +85,49 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 self.bad_files_to_download.append(file_item)
             if self.max_bad_files_to_tolerate == 0:
                 break
-            # TODO: remove this code later, mocking an issue with cksum
+            # TODO: remove this code later, mocking an issue with checksum
             # if  "Info.xml" in file_item.download_path:
             #     self.bad_files_to_download.append(file_item)
             #     testfunc = True
-        while not self.is_checksum_ok() and self.retrys > 0 or testfunc:
+        if not self.is_checksum_ok():
             report_lines = self.report()
+
+            if self.max_bad_files_to_tolerate > 0:
+                try:
+                    self.re_download_bad_files()
+                except:
+                    # ...
+                    raise
+            else:
+                if self.raise_on_bad_checksum:
+                    exception_message = "\n".join(
+                        (self.bad_checksum_list_exception_message, self.missing_files_exception_message))
+                    raise ValueError(exception_message)
+
             if self.print_report:
                 print("\n".join(report_lines))
-            # run redownload here
-            # testfunc = False
-            self.retrys -= 1
-            DownloadBatchCommands.re_download_bad_files(self.bad_files_to_download, self.info_map_table)
-            # recheck cksum
-            for idx in range(len(self.bad_files_to_download) -1, -1, -1):
-                file_item = self.bad_files_to_download[idx]
-                file_checksum = utils.get_file_checksum(file_item.download_path)
-                if utils.compare_checksums(file_checksum, file_item.checksum):
-                    del(self.bad_files_to_download[idx])
 
-            if self.raise_on_bad_checksum and False:
-                exception_message = "\n".join((self.bad_checksum_list_exception_message, self.missing_files_exception_message))
-                raise ValueError(exception_message)
+    def re_download_bad_files(self):
+        cookies = self.get_cookie_dict_from_str()
+        # Oren: find out how to assign the cookies to the session
+        with requests.Session() as dl_session:
+            for file_item in self.bad_files_to_download:
+                download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
+                with DownloadFileAndCheckChecksum(download_url, file_item.download_path, file_item.checksum) as dler:
+                    dler(session=dl_session)
+                    # Oren: add line to report_lines indicating the file was re-downloaded OK
 
+    @staticmethod
+    def get_cookie_dict_from_str(self, cookie_str):
+        cookie_str = config_vars["COOKIE_JAR"].str()
+        cookie = SimpleCookie()
+        cookie.load(cookie_str)
+        cookies = {}
+        for key, morsel in cookie.items():
+            if ":" in key:
+                key = key.split(":")[1]
+            cookies[key] = morsel.value
+        return cookies
 
     def is_checksum_ok(self) -> bool:
         retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
