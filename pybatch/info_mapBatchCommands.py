@@ -1,6 +1,8 @@
 from http.cookies import SimpleCookie
+from requests.cookies import cookiejar_from_dict
 from typing import List, Any
 import os
+import sys
 import stat
 import zlib
 from collections import defaultdict
@@ -94,10 +96,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
             if self.max_bad_files_to_tolerate > 0:
                 try:
-                    self.re_download_bad_files()
-                except:
-                    # ...
-                    raise
+                    report_lines.append(self.re_download_bad_files())
+                except Exception as e:
+                    raise ValueError(e)
             else:
                 if self.raise_on_bad_checksum:
                     exception_message = "\n".join(
@@ -109,16 +110,21 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
     def re_download_bad_files(self):
         cookies = self.get_cookie_dict_from_str()
-        # Oren: find out how to assign the cookies to the session
         with requests.Session() as dl_session:
+            dl_session.cookies = cookiejar_from_dict(cookies)
             for file_item in self.bad_files_to_download:
                 download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
+                #plan an error for testing:
+                # download_url += 'aa'
                 with DownloadFileAndCheckChecksum(download_url, file_item.download_path, file_item.checksum) as dler:
-                    dler(session=dl_session)
-                    # Oren: add line to report_lines indicating the file was re-downloaded OK
+                    try:
+                        dl_msg = dler(session=dl_session)
+                        return dl_msg
+                    except requests.exceptions.RequestException as e:
+                        raise e
 
     @staticmethod
-    def get_cookie_dict_from_str(self, cookie_str):
+    def get_cookie_dict_from_str():
         cookie_str = config_vars["COOKIE_JAR"].str()
         cookie = SimpleCookie()
         cookie.load(cookie_str)
@@ -130,8 +136,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         return cookies
 
     def is_checksum_ok(self) -> bool:
-        retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
-        retVal = len(self.bad_files_to_download) == 0 or retVal
+        # retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
+        retVal = len(self.bad_files_to_download) == 0
         return retVal
 
     def report(self):
