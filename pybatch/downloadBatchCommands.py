@@ -28,8 +28,10 @@ class DownloadFileAndCheckChecksum(PythonBatchCommandBase):
         session = kwargs['session']
         with open(self.path, "wb") as fo:
             read_data = session.get(self.url)
-            read_data.raise_for_status() # must raise in case of an error. Server might return json/xml with error details, we do not want that
+            read_data.raise_for_status()  # must raise in case of an error. Server might return json/xml with error details, we do not want that
             fo.write(read_data.content)
         checksum_ok = utils.check_file_checksum(self.path, self.checksum)
-        if not checksum_ok: # Oren: is this the correct place to raise?
+        if not checksum_ok:  # Oren: is this the correct place to raise?
             raise ValueError(f"bad checksum for {self.path} even after re-download")
+        else:
+            return "file " + self.path + " was re downloaded successfully "
