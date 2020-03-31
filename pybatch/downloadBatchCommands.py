@@ -33,5 +33,3 @@ class DownloadFileAndCheckChecksum(PythonBatchCommandBase):
         checksum_ok = utils.check_file_checksum(self.path, self.checksum)
         if not checksum_ok:  # Oren: is this the correct place to raise?
             raise ValueError(f"bad checksum for {self.path} even after re-download")
-        else:
-            return "file " + self.path + " was re downloaded successfully "
