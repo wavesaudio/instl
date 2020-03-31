@@ -1,16 +1,21 @@
+from http.cookies import SimpleCookie
+from requests.cookies import cookiejar_from_dict
 from typing import List, Any
 import os
+import sys
 import stat
 import zlib
 from collections import defaultdict
 from pathlib import Path
 import logging
+import requests
 import time
 import datetime
 
 log = logging.getLogger(__name__)
 
 from configVar import config_vars
+
 import aYaml
 import utils
 
@@ -20,6 +25,8 @@ from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
+from .downloadBatchCommands import DownloadFileAndCheckChecksum
+from svnTree.svnTable import SVNTable
 
 from db import DBManager
 
@@ -38,10 +45,14 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         if not self.raise_on_bad_checksum:
             self.exceptions_to_ignore.append(ValueError)
         self.bad_checksum_list = list()
+        self.bad_files_to_download = list()
         self.missing_files_list = list()
+        self.retried_files_list = list()
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
+        self.retried_files_exception_message = ""
         self.max_bad_files_to_tolerate = max_bad_files_to_tolerate
+        self.report_lines = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
@@ -63,29 +74,77 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         for file_item in dl_file_items:
             super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
             self.doing = f"""check checksum for '{file_item.download_path}'"""
+
+            # if file_item.checksum.endswith("0"):
+            #     if os.path.isfile(file_item.download_path):
+            #         os.unlink(file_item.download_path)
+
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
+                #if file_checksum.endswith("1"):
+                #    file_checksum = file_checksum.replace(file_checksum[len(file_checksum) - 1], '7')
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
                     super().increment_and_output_progress(increment_by=0, prog_msg=f"Bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
                     self.bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
+                    self.bad_files_to_download.append(file_item)
+
                     self.max_bad_files_to_tolerate -= 1
             else:
                 super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
                 self.missing_files_list.append(" ".join((file_item.download_path, "was not found")))
                 self.max_bad_files_to_tolerate -= 1
+                self.bad_files_to_download.append(file_item)
             if self.max_bad_files_to_tolerate == 0:
                 break
 
         if not self.is_checksum_ok():
+
+            if self.max_bad_files_to_tolerate > 0:
+                self.re_download_bad_files()
+
             report_lines = self.report()
             if self.print_report:
                 print("\n".join(report_lines))
-            if self.raise_on_bad_checksum:
-                exception_message = "\n".join((self.bad_checksum_list_exception_message, self.missing_files_exception_message))
+
+            if not self.is_checksum_ok():  # some files still not OK after re_download_bad_files
+                if self.raise_on_bad_checksum:
+                    exception_message = "\n".join(
+                        (self.bad_checksum_list_exception_message, self.missing_files_exception_message, self.retried_files_exception_message))
                 raise ValueError(exception_message)
 
+    def re_download_bad_files(self):
+        try:
+            download_path = None
+            cookies = self.get_cookie_dict_from_str()
+            with requests.Session() as dl_session:
+                dl_session.cookies = cookiejar_from_dict(cookies)
+                for file_item in self.bad_files_to_download:
+                    download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
+                    download_path = file_item.download_path
+                    #plan an error for testing:
+                    # download_url += 'aa'
+                    with DownloadFileAndCheckChecksum(download_url, download_path, file_item.checksum, report_own_progress=False) as dler:
+                        dler(session=dl_session)
+                        self.retried_files_list.append(f"Redownloaded {file_item.download_path}")
+                else:
+                    self.bad_files_to_download = []  # this will signal __call__ not to raise exception
+        except Exception as ex:
+            log.error(f"""Exception while redownloading {download_path}, {ex}""")
+
+    @staticmethod
+    def get_cookie_dict_from_str():
+        cookie_str = config_vars["COOKIE_JAR"].str()
+        cookie = SimpleCookie()
+        cookie.load(cookie_str)
+        cookies = {}
+        for key, morsel in cookie.items():
+            if ":" in key:
+                key = key.split(":")[1]
+            cookies[key] = morsel.value
+        return cookies
+
     def is_checksum_ok(self) -> bool:
-        retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
+        retVal = len(self.bad_files_to_download) == 0
         return retVal
 
     def report(self):
@@ -98,6 +157,11 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             report_lines.extend(self.missing_files_list)
             self.missing_files_exception_message = f"Missing {len(self.missing_files_list)} files"
             report_lines.append(self.missing_files_exception_message)
+        if self.retried_files_list:
+            report_lines.extend(self.retried_files_list)
+            self.missing_files_exception_message = f"Retried {len(self.retried_files_list)} files"
+            report_lines.append(self.retried_files_exception_message)
+
         return report_lines
 
 

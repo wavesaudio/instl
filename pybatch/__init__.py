@@ -103,6 +103,8 @@ from .svnBatchCommands import SVNSetProp
 from .svnBatchCommands import SVNDelProp
 from .svnBatchCommands import SVNCleanup
 
+from .downloadBatchCommands import DownloadFileAndCheckChecksum
+
 if sys.platform == "win32":
     from .WinOnlyBatchCommands import WinShortcut
     from .WinOnlyBatchCommands import BaseRegistryKey
