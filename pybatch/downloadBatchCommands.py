@@ -27,7 +27,8 @@ class DownloadFileAndCheckChecksum(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         session = kwargs['session']
         with open(self.path, "wb") as fo:
-            read_data = session.get(self.url)
+            timeout_seconds = int(config_vars.get("CURL_MAX_TIME", 480))
+            read_data = session.get(self.url, timeout=timeout_seconds)
             read_data.raise_for_status()  # must raise in case of an error. Server might return json/xml with error details, we do not want that
             fo.write(read_data.content)
         checksum_ok = utils.check_file_checksum(self.path, self.checksum)
