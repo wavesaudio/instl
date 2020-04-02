@@ -717,3 +717,17 @@ def who_locks_file(in_file_path, in_dll_path):
         retVal["error"] = str(ex)
 
     return retVal
+
+def wait_for_break_file_to_be_removed(path_to_break_file, progress_callback=None):
+    """ while path_to_break_file exist, sleep 1 second and call progress_callback"""
+    if progress_callback is None:
+        progress_callback = print
+    path_to_break_file = Path(path_to_break_file)
+    num_sleeps = 0
+    while path_to_break_file.is_file():
+        num_sleeps += 1
+        progress_callback(f"{num_sleeps} found break file: {path_to_break_file}")
+        time.sleep(1)
+    if num_sleeps > 0:
+        progress_callback(f"break file is gone {path_to_break_file}")
+

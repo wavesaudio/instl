@@ -38,7 +38,7 @@ from db import DBManager
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder
     """
-    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=16, **kwargs) -> None:
+    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
@@ -55,7 +55,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
-        all_args.append(self.optional_named__init__param("max_bad_files_to_tolerate", self.max_bad_files_to_redownload, 16))
+        all_args.append(self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload, None))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
@@ -90,12 +90,12 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
                 self.lists_of_files["missing_files"].append(" ".join((file_item.download_path, "was not found")))
                 self.lists_of_files["to redownload"].append(file_item)
-            if self.num_bad_files > self.max_bad_files_to_redownload:
+            if self.max_bad_files_to_redownload is not None and self.num_bad_files > self.max_bad_files_to_redownload:
                 super().increment_and_output_progress(increment_by=0, prog_msg=f"stopping checksum check too many bad or missing files found")
                 break
 
         if not self.is_checksum_ok():
-            if self.num_bad_files <= self.max_bad_files_to_redownload:
+            if self.max_bad_files_to_redownload is not None and self.num_bad_files <= self.max_bad_files_to_redownload:
                 utils.wait_for_break_file_to_be_removed(
                     config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_REDOWNLOAD"),
                     self.break_file_callback)

@@ -124,7 +124,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         check_checksum_instructions_accum = AnonymousAccum()
 
         check_checksum_instructions_accum += Progress("Check checksum ...")
-        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files)
+        max_bad_files_to_redownload = int(config_vars.get("MAX_BAD_FILES_TO_REDOWNLOAD", 16))
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files, max_bad_files_to_redownload=max_bad_files_to_redownload)
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 
