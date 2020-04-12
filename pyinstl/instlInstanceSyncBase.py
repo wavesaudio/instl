@@ -47,7 +47,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
 
                 if "INSTL_FOLDER_BASE_URL" not in config_vars:
                     if "REPO_REV_FOLDER_HIERARCHY" not in config_vars:
-                        config_vars["REPO_REV_FOLDER_HIERARCHY"] = self.instlObj.repo_rev_to_folder_hierarchy(config_vars["REPO_REV"].str())
+                        config_vars["REPO_REV_FOLDER_HIERARCHY"] = self.instlObj.info_map_table.repo_rev_to_folder_hierarchy(config_vars["REPO_REV"].str())
                     config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(REPO_REV_FOLDER_HIERARCHY)/instl"
 
                 if "INFO_MAP_FILE_URL" not in config_vars:

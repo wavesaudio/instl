@@ -575,7 +575,11 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(are_files_the_same, f"{self.pbt.which_test}: before split and after join fies are not the same")
 
     def test_something(self):
-        the_file = "C:\\ProgramData\\Waves Audio\\Central\\V10\\new_require.yaml"
-        self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += Chmod(the_file, "ugo+rw")
+        the_folder = Path("C:\\Program Files (x86)\\Common Files\\WPAPI")
+        # self.pbt.batch_accum.clear(section_name="doit")
+        # self.pbt.batch_accum += RmDir(the_folder)
+        self.pbt.batch_accum += MakeDir(the_folder, chowner=True)
         self.pbt.exec_and_capture_output()
+
+        self.assertTrue(the_folder.is_dir(), f"folder {the_folder} was not created")
+

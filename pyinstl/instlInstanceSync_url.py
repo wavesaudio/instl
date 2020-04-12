@@ -59,13 +59,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
-        url_start_cache = dict()
         for file_item in in_file_list:
-            source_url = file_item.url
-            if source_url is None:
-                repo_rev_folder_hierarchy = self.instlObj.repo_rev_to_folder_hierarchy(file_item.revision)
-                sync_base_url = self.instlObj.info_map_table.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)", url_start_cache)
-                source_url = '/'.join(utils.make_one_list(sync_base_url, repo_rev_folder_hierarchy, file_item.path))
+            source_url = self.instlObj.info_map_table.get_sync_url_for_file_item(file_item)
             self.instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=file_item.size, download_last=source_url.endswith('Info.xml'))
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
@@ -129,7 +124,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         check_checksum_instructions_accum = AnonymousAccum()
 
         check_checksum_instructions_accum += Progress("Check checksum ...")
-        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files)
+        max_bad_files_to_redownload = int(config_vars.get("MAX_BAD_FILES_TO_REDOWNLOAD", 16))
+        check_checksum_instructions_accum += CheckDownloadFolderChecksum(own_progress_count=num_files, max_bad_files_to_redownload=max_bad_files_to_redownload)
         self.instlObj.progress(f"created checksum checks {num_files} files")
         return check_checksum_instructions_accum
 

@@ -1,16 +1,21 @@
+from http.cookies import SimpleCookie
+from requests.cookies import cookiejar_from_dict
 from typing import List, Any
 import os
+import sys
 import stat
 import zlib
 from collections import defaultdict
 from pathlib import Path
 import logging
+import requests
 import time
 import datetime
 
 log = logging.getLogger(__name__)
 
 from configVar import config_vars
+
 import aYaml
 import utils
 
@@ -20,6 +25,8 @@ from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
+from .downloadBatchCommands import DownloadFileAndCheckChecksum
+from svnTree.svnTable import SVNTable
 
 from db import DBManager
 
@@ -31,22 +38,24 @@ from db import DBManager
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder
     """
-    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_tolerate=16, **kwargs) -> None:
+    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
         if not self.raise_on_bad_checksum:
             self.exceptions_to_ignore.append(ValueError)
-        self.bad_checksum_list = list()
-        self.missing_files_list = list()
+        self.lists_of_files = defaultdict(list)
         self.bad_checksum_list_exception_message = ""
         self.missing_files_exception_message = ""
-        self.max_bad_files_to_tolerate = max_bad_files_to_tolerate
+        self.retried_files_exception_message = ""
+        self.num_bad_files = 0
+        self.max_bad_files_to_redownload = max_bad_files_to_redownload
+        self.report_lines = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
-        all_args.append(self.optional_named__init__param("max_bad_files_to_tolerate", self.max_bad_files_to_tolerate, 16))
+        all_args.append(self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload, None))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
@@ -56,54 +65,86 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         """
         pass
 
+    def break_file_callback(self, msg):
+        super().increment_and_output_progress(increment_by=0, prog_msg=msg)
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
+        utils.wait_for_break_file_to_be_removed(config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"), self.break_file_callback)
+
         for file_item in dl_file_items:
-            super().increment_and_output_progress(increment_by=1, prog_msg=f"check checksum for '{file_item.download_path}'")
             self.doing = f"""check checksum for '{file_item.download_path}'"""
+            super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
+
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
-                    super().increment_and_output_progress(increment_by=0, prog_msg=f"Bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
-                    self.bad_checksum_list.append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
-                    self.max_bad_files_to_tolerate -= 1
+                    self.num_bad_files += 1
+                    super().increment_and_output_progress(increment_by=0, prog_msg=f"bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
+                    self.lists_of_files["bad_checksum"].append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
+                    self.lists_of_files["to redownload"].append(file_item)
             else:
+                self.num_bad_files += 1
                 super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
-                self.missing_files_list.append(" ".join((file_item.download_path, "was not found")))
-                self.max_bad_files_to_tolerate -= 1
-            if self.max_bad_files_to_tolerate == 0:
+                self.lists_of_files["missing_files"].append(" ".join((file_item.download_path, "was not found")))
+                self.lists_of_files["to redownload"].append(file_item)
+            if self.max_bad_files_to_redownload is not None and self.num_bad_files > self.max_bad_files_to_redownload:
+                super().increment_and_output_progress(increment_by=0, prog_msg=f"stopping checksum check too many bad or missing files found")
                 break
 
         if not self.is_checksum_ok():
-            report_lines = self.report()
-            if self.print_report:
-                print("\n".join(report_lines))
+            if self.max_bad_files_to_redownload is not None and self.num_bad_files <= self.max_bad_files_to_redownload:
+                utils.wait_for_break_file_to_be_removed(
+                    config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_REDOWNLOAD"),
+                    self.break_file_callback)
+                self.re_download_bad_files()
+
+        if not self.is_checksum_ok():  # some files still not OK after re_download_bad_files
             if self.raise_on_bad_checksum:
-                exception_message = "\n".join((self.bad_checksum_list_exception_message, self.missing_files_exception_message))
-                raise ValueError(exception_message)
+                exception_message = "\n".join(
+                    (f'Bad checksum for {len(self.lists_of_files["bad_checksum"])} files',
+                     f'Missing {len(self.lists_of_files["missing_files"])} files'))
+            raise ValueError(exception_message)
+
+    def re_download_bad_files(self):
+        try:
+            download_path = None
+            cookies = self.get_cookie_dict_from_str()
+            with requests.Session() as dl_session:
+                dl_session.cookies = cookiejar_from_dict(cookies)
+                for file_item in self.lists_of_files["to redownload"]:
+                    download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
+                    download_path = file_item.download_path
+                    with DownloadFileAndCheckChecksum(download_url, download_path, file_item.checksum, report_own_progress=False) as dler:
+                        dler(session=dl_session)
+                        super().increment_and_output_progress(increment_by=0, prog_msg=f"redownloaded {file_item.download_path}")
+                        self.num_bad_files -=1
+        except Exception as ex:
+            log.error(f"""Exception while redownloading {download_path}, {ex}""")
+            super().increment_and_output_progress(increment_by=0, prog_msg=f"""Exception while redownloading {download_path}, {ex}""")
+
+    @staticmethod
+    def get_cookie_dict_from_str():
+        cookie_str = config_vars["COOKIE_JAR"].str()
+        cookie = SimpleCookie()
+        cookie.load(cookie_str)
+        cookies = {}
+        for key, morsel in cookie.items():
+            if ":" in key:
+                key = key.split(":")[1]
+            cookies[key] = morsel.value
+        return cookies
 
     def is_checksum_ok(self) -> bool:
-        retVal = len(self.bad_checksum_list) + len(self.missing_files_list) == 0
+        retVal = self.num_bad_files == 0
         return retVal
-
-    def report(self):
-        report_lines = list()
-        if self.bad_checksum_list:
-            report_lines.extend(self.bad_checksum_list)
-            self.bad_checksum_list_exception_message = f"Bad checksum for {len(self.bad_checksum_list)} files"
-            report_lines.append(self.bad_checksum_list_exception_message)
-        if self.missing_files_list:
-            report_lines.extend(self.missing_files_list)
-            self.missing_files_exception_message = f"Missing {len(self.missing_files_list)} files"
-            report_lines.append(self.missing_files_exception_message)
-        return report_lines
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
     """ set execute permissions for files that need such permission  in the download folder """
-    def __init__(self, info_map_file=None, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -133,7 +174,7 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def progress_msg_self(self) -> str:
         return f'''Create download directories'''
 
-    def increment_and_output_progress(self):
+    def increment_and_output_progress(self, increment_by=None, prog_counter_msg=None, prog_msg=None):
         """ override PythonBatchCommandBase.increment_and_output_progress so progress can be reported for each file
         """
         pass
@@ -174,11 +215,11 @@ class InfoMapFullWriter(DBManager, PythonBatchCommandBase):
     def __init__(self, out_file, in_format='text', **kwargs):
         super().__init__(**kwargs)
         self.out_file = Path(out_file)
-        self.format = format
+        self.format = in_format
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.out_file))
-        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+        all_args.append(self.optional_named__init__param("in_format", self.format, 'text'))
 
     def progress_msg_self(self) -> str:
         return f'''Create full info_map file'''
@@ -194,11 +235,11 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
     def __init__(self, work_folder, in_format='text', **kwargs):
         super().__init__(**kwargs)
         self.work_folder = Path(work_folder)
-        self.format = format
+        self.format = in_format
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.work_folder))
-        all_args.append(self.optional_named__init__param("format", self.format, 'text'))
+        all_args.append(self.optional_named__init__param("in_format", self.format, 'text'))
 
     def progress_msg_self(self) -> str:
         return f'''Create split info_map files'''
