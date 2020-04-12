@@ -12,5 +12,20 @@ sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1, e
 from pyinstl.instl_main import instl_own_main, InvocationReporter
 
 if __name__ == "__main__":
-    with InvocationReporter(argv=sys.argv):
-        instl_own_main(argv=sys.argv)
+    if 'run_this' in sys.argv:
+        sys.argv.remove('run_this')
+        with InvocationReporter(argv=sys.argv):
+            instl_own_main(argv=sys.argv)
+    else:
+        sys.argv.append('run_this')
+        command = "'" +"' '".join(sys.argv)+"'"
+        from subprocess import Popen, PIPE
+        scpt = f'''
+                set shCmds to "{command}"
+                do shell script shCmds with administrator privileges  
+        '''
+        p = Popen(['osascript', '-', ], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = p.communicate(scpt.encode())
+        return_code = p.returncode
+        print(return_code)
+        print(stderr)
