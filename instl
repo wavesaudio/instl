@@ -13,8 +13,10 @@ from pyinstl.instl_main import instl_own_main, InvocationReporter
 
 
 if __name__ == "__main__":
-    if 'run_this' in sys.argv or any([i for i in sys.argv if 'Build-index.yaml' in i]) :
-        sys.argv.remove('run_this')
+    from_sudo = 'run_this' in sys.argv
+    if from_sudo or any([i for i in sys.argv if 'Build-index.yaml' in i]) :
+        if from_sudo:
+            sys.argv.remove('run_this')
         with InvocationReporter(argv=sys.argv):
             instl_own_main(argv=sys.argv)
     else:
