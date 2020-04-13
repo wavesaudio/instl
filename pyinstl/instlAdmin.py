@@ -52,6 +52,7 @@ class InstlAdmin(InstlInstanceBase):
         self.read_defaults_file(super().__thisclass__.__name__)
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
         self.config_vars_stack_size_before_reading_config_files = None
+        self.wait_info_counter = 0  # incremented when printing wait info
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
@@ -735,7 +736,7 @@ class InstlAdmin(InstlInstanceBase):
             config_vars['UP_SHORT_INDEX_EXCEPTION'] = ""
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.info_map_table.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
             revision_folder_path = Path(config_vars["UPLOAD_REVISION_FOLDER"])
             if not revision_folder_path.is_dir():
@@ -794,7 +795,7 @@ class InstlAdmin(InstlInstanceBase):
             config_vars['UP2S3_EXCEPTION'] = ""
             config_vars["REPO_REV"] = str(repo_rev)
             config_vars["__CURR_REPO_REV__"] = str(repo_rev)
-            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
+            config_vars["__CURR_REPO_FOLDER_HIERARCHY__"] = self.info_map_table.repo_rev_to_folder_hierarchy(repo_rev)  # e.g. 345 -> 03/45
 
             checkout_url = str(config_vars['SVN_REPO_URL'])
             checkout_base_folder = Path(config_vars['UPLOAD_BASE_CHECKOUT_FOLDER'])
@@ -885,14 +886,18 @@ class InstlAdmin(InstlInstanceBase):
             instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
 
-    def print_wait_on_action_trigger_into(self, _redis_host, _redis_port, _waiting_list_redis_key):
-        log.info(f"{self.get_version_str(short=False)}")
-        log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
-        log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
-        log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
-        log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
+    def print_wait_on_action_trigger_info(self, _redis_host, _redis_port, _waiting_list_redis_key):
+        if self.wait_info_counter == 0:
+            log.info(f"{self.get_version_str(short=False)}")
+            log.info(f"wait on redis list: {_redis_host}:{_redis_port} {_waiting_list_redis_key}")
+            log.info(f"to upload: lpush {_waiting_list_redis_key} upload:domain:version:repo-rev (e.g. upload:test:V10:333)")
+            log.info(f"to create and upload only short index: lpush {_waiting_list_redis_key} short-index:domain:version:repo-rev (e.g. short-index:test:V12:17)")
+            log.info(f"to activate: lpush {_waiting_list_redis_key} activate:domain:version:repo-rev (e.g. activate:test:V10:333)")
 
-        log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
+            log.info(f"special values: lpush {_waiting_list_redis_key} stop|ping|reload-config-files")
+
+        self.wait_info_counter += 1
+        self.wait_info_counter = self.wait_info_counter % 30
 
     def do_wait_on_action_trigger(self):
 
@@ -919,7 +924,7 @@ class InstlAdmin(InstlInstanceBase):
         self.report_instl_info_to_redis(r)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
-            self.print_wait_on_action_trigger_into(redis_host, redis_port, waiting_list_redis_key)
+            self.print_wait_on_action_trigger_info(redis_host, redis_port, waiting_list_redis_key)
             r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             poped = r.brpop(trigger_keys_to_wait_on, timeout=30)
             if poped is not None:
@@ -1069,7 +1074,7 @@ class InstlAdmin(InstlInstanceBase):
             assign the path to configVar
         """
 
-        repo_rev_work_folder = self.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
+        repo_rev_work_folder = self.info_map_table.repo_rev_to_folder_hierarchy(config_vars["TARGET_REPO_REV"])
         work_folder: Path = config_vars["UPLOAD_WORK_AREA"].Path().joinpath(config_vars["TARGET_DOMAIN"].str(), config_vars["TARGET_MAJOR_VERSION"].str(), repo_rev_work_folder)
         with MakeDir(work_folder, report_own_progress=False) as md:
             md()
