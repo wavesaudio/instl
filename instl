@@ -13,7 +13,7 @@ from pyinstl.instl_main import instl_own_main, InvocationReporter
 
 
 if __name__ == "__main__":
-
+    # comment here ya dear
     from_sudo = 'run_this' in sys.argv
     if from_sudo or any([i for i in sys.argv if 'Build-index.yaml' in i]) :
         if from_sudo:
