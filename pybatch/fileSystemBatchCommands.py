@@ -120,12 +120,23 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
         self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
         parents_stack = list()  # list of non-existing parents
         _parent_path = self.path_to_make
-        while not _parent_path.is_dir():
-            if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
-                with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
-                    remover()
-            parents_stack.append(_parent_path)
-            _parent_path = _parent_path.parent
+
+        for _tries in range(2):
+            while True:
+                try:
+                    _is_dir = _parent_path.is_dir()
+                except Exception:
+                    with FixAllPermissions(self.path_to_make.parent, **kwargs_for_subcommands) as perm_allower:
+                        perm_allower()
+                        _is_dir = _parent_path.is_dir()
+                if not _is_dir:
+                    if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
+                        with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
+                            remover()
+                            parents_stack.append(_parent_path)
+                            _parent_path = _parent_path.parent
+                else:
+                    break
 
         if parents_stack:
             parents_stack.reverse()
