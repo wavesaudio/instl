@@ -1,4 +1,0 @@
---- !define
-
-DOWNLOAD_TOOL_PATH: p4
-LOCAL_REPO_SYNC_DIR: $(P4_SYNC_DIR)

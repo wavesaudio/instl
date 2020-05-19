@@ -234,7 +234,7 @@ class InstlClientCopy(InstlClient):
             wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
             ignores = list(wtar_base_names)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, ignore_patterns=ignores)
+            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, ignore_patterns=ignores, delete_extraneous_files=True)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)

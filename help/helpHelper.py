@@ -158,7 +158,7 @@ class HelpHelper(object):
     def defaults_help(self, var_name=None):
         defaults_folder_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
         for yaml_file in os.listdir(defaults_folder_path):
-            if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
+            if fnmatch.fnmatch(yaml_file, '*.yaml'):
                 self.instlObj.read_yaml_file(defaults_folder_path.joinpath(yaml_file))
         defaults_list = [("Variable name", "Raw value", "Resolved value"),
                          ("_____________", "_________", "______________")]
