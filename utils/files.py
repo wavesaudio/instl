@@ -352,6 +352,7 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
         download a file from url and place it on a target path. Possibly also decompressed .wzip files.
         """
 
+    final_file_path = None
     cached_file_path = download_and_cache_file_or_url(in_url=in_url, config_vars=config_vars, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
     if not in_target_path:
         in_target_path = cache_folder
