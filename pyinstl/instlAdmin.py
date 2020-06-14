@@ -490,7 +490,17 @@ class InstlAdmin(InstlInstanceBase):
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
 
+        self.verify_actions()
         self.verify_index_to_repo()
+
+    def verify_actions(self):
+        # get all actions from database
+        # get all pybatch commands names
+        # for each action:
+        #   call resolve_str_to_list (how to check for apostrophes?)
+        #   call EvalShellCommand
+        #   warning should be printed for shell commands that should be pybatch but are not
+        pass
 
     def verify_index_to_repo(self):
         """ helper function for verify-repo and verify-index commands
