@@ -14,6 +14,7 @@ from .conditionalBatchCommands import IsConfigVarEq
 from .conditionalBatchCommands import IsConfigVarNotEq
 from .conditionalBatchCommands import IsEnvironVarEq
 from .conditionalBatchCommands import IsEnvironVarNotEq
+from .conditionalBatchCommands import IsConfigVarDefined
 
 from .copyBatchCommands import CopyDirContentsToDir
 from .copyBatchCommands import CopyDirToDir
@@ -40,6 +41,7 @@ from .reportingBatchCommands import ReadConfigVarsFromFile
 from .reportingBatchCommands import ReadConfigVarValueFromTextFile
 from .reportingBatchCommands import EnvironVarAssign
 from .reportingBatchCommands import PatchPyBatchWithTimings
+from .reportingBatchCommands import Print
 
 from .removeBatchCommands import RmDir
 from .removeBatchCommands import RmFile

@@ -99,7 +99,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         opening_code_lines.append(f"""from pybatch import *""")
         opening_code_lines.append(f"""PythonBatchCommandBase.total_progress = {PythonBatchCommandBase.total_progress+self.initial_progress}""")
         opening_code_lines.append(f"""PythonBatchCommandBase.running_progress = {PythonBatchCommandBase.running_progress+self.initial_progress}""")
-        opening_code_lines.append(f"""if __name__ is '__main__':""")
+        opening_code_lines.append(f"""if __name__ == '__main__':""")
         opening_code_lines.append(f"""    from utils import log_utils""")
         opening_code_lines.append(f"""    log_utils.config_logger()""")
 

@@ -156,3 +156,30 @@ class TestPythonBatchConditional(unittest.TestCase):
         self.assertTrue(file_touched_if_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_var_eq_w_default} should have been created")
         self.assertFalse(file_that_should_not_exist_w_default.exists(), f"{self.pbt.which_test}: {file_that_should_not_exist_w_default} should not have been created")
         self.assertTrue(file_touched_if_not_var_eq_w_default.exists(), f"{self.pbt.which_test}: {file_touched_if_not_var_eq_w_default} should have been created")
+
+    def test_IsConfigVarDefined_repr(self):
+        self.pbt.reprs_test_runner(IsConfigVarDefined("MAMA_MIA"))
+
+    def test_IsConfigVarDefined(self):
+        """ define a configVar "MAMA_MIA" and create a file if "MAMA_MIA" is defined and different file if not
+            DO NOT define a configVar "PILPEL" and create a file if "PILPEL" is defined and different file if not
+            Check that the correct files exist
+        """
+        MAMA_MIA_is_defined_file = self.pbt.path_inside_test_folder("MAMA_MIA_is_defined")
+        MAMA_MIA_is_not_defined_file = self.pbt.path_inside_test_folder("MAMA_MIA_is_not_defined")
+        PILPEL_is_defined_file = self.pbt.path_inside_test_folder("PILPEL_is_defined")
+        PILPEL_is_not_defined_file = self.pbt.path_inside_test_folder("PILPEL_is_not_defined")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += ConfigVarAssign("MAMA_MIA", "ABBA")
+        self.pbt.batch_accum += If(IsConfigVarDefined("MAMA_MIA"),
+                                   if_true=Touch(MAMA_MIA_is_defined_file),
+                                   if_false=Touch(MAMA_MIA_is_not_defined_file))
+        self.pbt.batch_accum += If(IsConfigVarDefined("PILPEL"),
+                                   if_true=Touch(PILPEL_is_defined_file),
+                                   if_false=Touch(PILPEL_is_not_defined_file))
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(MAMA_MIA_is_defined_file.exists(), f"{self.pbt.which_test}: {MAMA_MIA_is_defined_file} should have been created")
+        self.assertFalse(MAMA_MIA_is_not_defined_file.exists(), f"{self.pbt.which_test}: {MAMA_MIA_is_not_defined_file} should have not been created")
+        self.assertFalse(PILPEL_is_defined_file.exists(), f"{self.pbt.which_test}: {PILPEL_is_defined_file} should have not been created")
+        self.assertTrue(PILPEL_is_not_defined_file.exists(), f"{self.pbt.which_test}: {PILPEL_is_not_defined_file} should have been created")
