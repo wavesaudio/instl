@@ -102,16 +102,9 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_v
 
     fileLogHandler.setFormatter(formatter)
     top_logger.addHandler(fileLogHandler)
-#     with open("/data/instl/log-of-logging.log", 'a') as lofl:
-#         lofl.write(f"setup_file_logging to  {log_file_path}\n")
-#         if config_vars is not None:
-#             config_vars.setdefault("OPEN_LOG_FILES", [])
-#             config_vars["OPEN_LOG_FILES"].append(log_file_path)
-#             lofl.write(f"OPEN_LOG_FILES: {config_vars['OPEN_LOG_FILES']}\n")
-#         else:
-#             lofl.write(f"NO OPEN_LOG_FILES\n")
-#         lofl.write(f"off\n")
-#         lofl.flush()
+    if config_vars is not None:
+        config_vars.setdefault("OPEN_LOG_FILES", [])
+        config_vars["OPEN_LOG_FILES"].append(log_file_path)
 
 
 

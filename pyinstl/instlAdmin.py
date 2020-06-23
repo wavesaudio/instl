@@ -983,11 +983,11 @@ class InstlAdmin(InstlInstanceBase):
                                 aYaml.writeAsYaml(define_dict, wfd)
 
                             work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
-                            mp.set_start_method("spawn")
                             log_files = config_vars.get("OPEN_LOG_FILES", []).list()
                             log_files.append(work_log_file)
                             log_files = [os.fspath(log_file) for log_file in log_files]
-                            up2s3_process = mp.Process (target=instl_own_main,
+                            mp_context = mp.get_context("spawn")
+                            up2s3_process = mp_context.Process (target=instl_own_main,
                                                         name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
                                                         args=([str(config_vars["__INSTL_EXE_PATH__"]),
                                                               instl_command_name,
