@@ -130,7 +130,7 @@ class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True,
                         perm_allower()
                         _is_dir = _parent_path.is_dir()
                 if not _is_dir:
-                    if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
+                    if _parent_path.is_symlink() or _parent_path.is_file() or os.path.islink(_parent_path) and self.remove_obstacles:  # yes that can happen
                         with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
                             remover()
                             parents_stack.append(_parent_path)
