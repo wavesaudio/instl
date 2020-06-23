@@ -415,12 +415,19 @@ class DBAccess(object):
                 # set the proper extension
                 db_base_path = db_base_path.parent.joinpath(db_base_path.name+config_vars.resolve_str(".$(DB_FILE_EXT)"))
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
-
+        log.info(f'DB FILE: {config_vars["__MAIN_DB_FILE__"].str()}')
         if self._owner.refresh_db_file:
             if config_vars["__MAIN_DB_FILE__"].str() != ":memory:":
                 db_base_path = config_vars["__MAIN_DB_FILE__"].Path()
                 if db_base_path.is_file():
                     utils.safe_remove_file(db_base_path)
+                    log.info(f'DB FILE REMOVED: {config_vars["__MAIN_DB_FILE__"].str()}')
+                else:
+                    log.info(f'DB FILE DOES NOT EXIST: {config_vars["__MAIN_DB_FILE__"].str()}')
+
+
+
+
 
 
 class TableAccess(object):
