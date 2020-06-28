@@ -28,6 +28,23 @@ class RsyncClone(PythonBatchCommandBase):
         tries to mimic rsync behaviour
     """
 
+    options_doc_str = """
+intermediate folders will be created as needed, see docs for MakeDir on how folders are created.  
+options:
+ignore_if_not_exist: if True will not raise exception if source does not exist; default: False
+symlinks_as_symlink: if True will create a symlink in the destination instead of copying what the symlink links to; default: True
+ignore_dangling_symlinks: if True a symlink pointing to non existing file or folder will not be copied and will not fail the whole copy; default: False
+delete_extraneous_files: when copying folders, and if destination already exists, files in the destination that are not in the source will be removed; default: False
+copy_owner; if True chown will be called on destination with source user and group (MacOS only) default: False
+dry_run: if True will report which files and folders will be copied and will not actually copy; default: False,
+copy_stat: if True file/folder stats will be copied from source to destination, using shutil.copystat; default: False
+ignore_patterns: files and folders matching these patterns will not be copied.
+hard_links: if True will attempt to create hard links to original files instead of making a copy; default: True
+no_hard_link_patterns: files and folders matching this patterns will not be hard-linked even if hard_links=True
+no_flags_patterns: if a file matching one of these patterns exists in the destination, it's flags (hidden, system, read-only) will be removed
+"""
+
+
     __global_ignore_patterns = list()        # files and folders matching these patterns will not be copied. Applicable for all instances of RsyncClone
     __global_no_hard_link_patterns = list()  # files and folders matching these patterns will not be hard-linked. Applicable for all instances of RsyncClone
     __global_avoid_copy_markers = list()     # if a file with one of these names exists in the folders and is identical to destination, copy will be avoided
@@ -441,7 +458,7 @@ class RsyncClone(PythonBatchCommandBase):
 
 class CopyDirToDir(RsyncClone):
     """ copy a folder into another
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -457,7 +474,7 @@ class CopyDirToDir(RsyncClone):
 
 class MoveDirToDir(CopyDirToDir):
     """ copy a folder into another and erase the source
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -475,7 +492,7 @@ class MoveDirToDir(CopyDirToDir):
 
 class CopyDirContentsToDir(RsyncClone):
     """ copy the contents of a folder into another
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -483,7 +500,7 @@ class CopyDirContentsToDir(RsyncClone):
 
 class MoveDirContentsToDir(CopyDirContentsToDir):
     """ copy the contents of a folder into another and erase the sources
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -504,8 +521,9 @@ class MoveDirContentsToDir(CopyDirContentsToDir):
 
 class CopyFileToDir(RsyncClone):
     """ copy a file into a folder
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
+
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
@@ -519,7 +537,6 @@ class CopyFileToDir(RsyncClone):
 
 class MoveFileToDir(CopyFileToDir):
     """ copy a file into a folder and erase the source
-        intermediate folders will be created as needed
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -538,8 +555,8 @@ class MoveFileToDir(CopyFileToDir):
 
 
 class CopyFileToFile(RsyncClone):
-    """ copy a file into another location
-        intermediate folders will be created as needed
+    """ copy a file src to dst, dst is a full path to the destination file
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
@@ -556,7 +573,7 @@ class CopyFileToFile(RsyncClone):
 
 class MoveFileToFile(CopyFileToFile):
     """ copy a file into another location and erase the source
-        intermediate folders will be created as needed
+        {options_doc_str}
     """
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
