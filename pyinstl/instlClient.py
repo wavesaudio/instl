@@ -125,9 +125,6 @@ class InstlClient(InstlInstanceBase):
                 second_name = target_os_names[1]
             config_vars["TARGET_OS_SECOND_NAME"] = second_name
 
-        if "REPO_TYPE" in config_vars:  # some commands do not need to have REPO_TYPE
-            self.read_defaults_file(str(config_vars["REPO_TYPE"]))
-
         # AUXILIARY_IIDS are iids that are not real products such as UNINSTALL_AS_... iids
         if "AUXILIARY_IIDS" not in config_vars:
             log.warning(f"could not find configVar 'AUXILIARY_IIDS'")

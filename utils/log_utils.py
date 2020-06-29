@@ -25,9 +25,10 @@ from utils import misc_utils as utils
 top_logger = logging.getLogger()
 
 
-def config_logger(argv=None):
+def config_logger(argv=None, config_vars=None):
     if argv is None:
         argv = sys.argv
+
     if '--no-stdout' not in argv:
         setup_stream_hdlr()
     # command line options relating to logging are parsed here, as soon as possible
@@ -37,14 +38,14 @@ def config_logger(argv=None):
             for i_log_file in range(log_option_index+1, len(argv)):
                 log_file_path = argv[i_log_file]
                 if not log_file_path.startswith('-'):
-                    setup_file_logging(log_file_path, rotate=False)
+                    setup_file_logging(log_file_path, rotate=False, config_vars=config_vars)
                 else:
                     break
         except:
             pass
     elif '--no-system-log' not in argv:
         system_log_file_path = utils.get_system_log_file_path()
-        setup_file_logging(system_log_file_path)
+        setup_file_logging(system_log_file_path, config_vars=config_vars)
 
 
 def setup_stream_hdlr():
@@ -84,8 +85,8 @@ class PerLevelFormatter(logging.Formatter):
         return result
 
 
-def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
-    '''Setting up a logging handler'''
+def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_vars=None):
+    ''' Setting up a file logging handler '''
     log_file_path = Path(log_file_path).resolve()
     log_file_folder = log_file_path.parent
     os.makedirs(log_file_path.parent, exist_ok=True)
@@ -101,7 +102,10 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True):
 
     fileLogHandler.setFormatter(formatter)
     top_logger.addHandler(fileLogHandler)
-    print(f"logging to  {log_file_path}")
+    if config_vars is not None:
+        config_vars.setdefault("OPEN_LOG_FILES", [])
+        config_vars["OPEN_LOG_FILES"].append(log_file_path)
+
 
 
 class ParentLogFilter(logging.Filter):

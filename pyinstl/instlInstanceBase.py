@@ -268,6 +268,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                 self.read_include_node(sub_i_node, *args, **kwargs)
         elif i_node.isMapping():
             if "url" in i_node:
+                file_was_downloaded_and_read = False
                 kwargs['original-path-to-file'] = i_node["url"].value
                 resolved_file_url = config_vars.resolve_str(i_node["url"].value)
                 expected_checksum = None
@@ -282,6 +283,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                                                 cache_folder=self.get_aux_cache_dir(make_dir=True),
                                                                 expected_checksum=expected_checksum)
                     self.read_yaml_file(file_path, *args, **kwargs)
+                    file_was_downloaded_and_read = True
                 except (FileNotFoundError, urllib.error.URLError):
                     ignore = kwargs.get('ignore_if_not_exist', False)
                     if ignore:
@@ -289,7 +291,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                     else:
                         raise
 
-                if "copy" in i_node:
+                if "copy" in i_node and file_was_downloaded_and_read:
                     self.batch_accum.set_current_section('post')
                     for copy_destination in i_node["copy"]:
                         need_to_copy = True

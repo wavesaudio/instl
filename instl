@@ -9,8 +9,7 @@ sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1, e
 sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
 
 
-from pyinstl.instl_main import instl_own_main, InvocationReporter
+from pyinstl.instl_main import instl_own_main
 
 if __name__ == "__main__":
-    with InvocationReporter(argv=sys.argv):
-        instl_own_main(argv=sys.argv)
+    instl_own_main(argv=sys.argv)

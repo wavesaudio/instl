@@ -87,7 +87,9 @@ class MakeRandomDirs(PythonBatchCommandBase):
 
 
 class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}):
-    """ Create one dir
+    """ Create a folder. Parent folders are created as needed.
+options:
+remove_obstacles:
         when remove_obstacles==True if one of the paths is a file it will be removed, and permissions/owner adjusted
         when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
         it it always OK for a dir to already exists

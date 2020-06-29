@@ -69,11 +69,28 @@ class HelpItemObj(HelpItemBase):
         self.obj = obj
 
     def get_help_texts(self):
+        def get_full_dict_strings(obj):
+            """ get class members that are strings from obj's class in super classes """
+            retVal = dict()
+            for cls in obj.mro():
+                if cls.__name__ != "object":
+                    for k, v in cls.__dict__.items():
+                        if isinstance(v, str):
+                            retVal[k] = v.strip()
+            return retVal
+
+        def prepare_doc_string(doc_str):
+            lines = list(filter(None, [line.strip() for line in doc_str.split("\n")]))
+            retVal = "\n".join(lines)
+            return retVal
+
         sig = str(inspect.signature(self.obj.__init__)).replace('self, ', '').replace(' -> None', '').replace(', **kwargs', '')
-        doc_for_class = self.obj.__doc__.split("\n")
-        doc_list = list(filter(None, (dfc.strip() for dfc in doc_for_class)))
+        #doc_for_class = self.obj.__doc__.split("\n")
+        #doc_list = list(filter(None, (dfc.strip() for dfc in doc_for_class)))
         self.texts['short'] = f"{self.obj.__name__}{sig}"
-        self.texts['long'] = "\n".join(doc_list)
+        dict_o_strings = get_full_dict_strings(self.obj)
+        long_text = prepare_doc_string(self.obj.__doc__).format(**dict_o_strings)
+        self.texts['long'] = long_text
 
 
 class HelpHelper(object):
@@ -148,17 +165,15 @@ class HelpHelper(object):
                                                        subsequent_indent='    ') for line in
                                          item.long_text().splitlines()])
             retVal = "\n".join((
-                item.name + ": " + item.short_text(),
-                "",
-                long_formatted,
-                ""
+                item.name + ":\n" + item.short_text(),
+                item.long_text(),
             ))
         return retVal
 
     def defaults_help(self, var_name=None):
         defaults_folder_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
         for yaml_file in os.listdir(defaults_folder_path):
-            if fnmatch.fnmatch(yaml_file, '*.yaml') and yaml_file != "P4.yaml":  # hack to not read the P4 defaults
+            if fnmatch.fnmatch(yaml_file, '*.yaml'):
                 self.instlObj.read_yaml_file(defaults_folder_path.joinpath(yaml_file))
         defaults_list = [("Variable name", "Raw value", "Resolved value"),
                          ("_____________", "_________", "______________")]

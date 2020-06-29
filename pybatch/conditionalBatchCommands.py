@@ -1,4 +1,5 @@
 from typing import List
+import collections.abc
 from .fileSystemBatchCommands import *
 from configVar import config_vars
 
@@ -41,18 +42,25 @@ class If(PythonBatchCommandBase):
             condition_result = bool(condition)
 
         if condition_result:
-            to_do_obj = self.if_true
+            what_to_do = self.if_true
         else:
-            to_do_obj = self.if_false
+            what_to_do = self.if_false
 
-        if callable(to_do_obj):
-            self.doing = f"""condition is {condition_result} calling '{repr(to_do_obj)}'"""
-            if isinstance(to_do_obj, PythonBatchCommandBase) and to_do_obj.is_context_manager:
-                to_do_obj.own_progress_count = 0
-                with to_do_obj as it:
-                    it()
-            else:
-                to_do_obj()
+        to_do_obj_list = list()
+        if isinstance(what_to_do, collections.abc.Iterable) and not isinstance(what_to_do, str):
+            to_do_obj_list.extend(what_to_do)
+        else:
+            to_do_obj_list.append(what_to_do)
+
+        for to_do_obj in to_do_obj_list:
+            if callable(to_do_obj):
+                self.doing = f"""condition is {condition_result} calling '{repr(to_do_obj)}'"""
+                if isinstance(to_do_obj, PythonBatchCommandBase) and to_do_obj.is_context_manager:
+                    to_do_obj.own_progress_count = 0
+                    with to_do_obj as it:
+                        it()
+                else:
+                    to_do_obj()
 
 
 class IsFile(object):
@@ -249,3 +257,22 @@ class IsEnvironVarNotEq(IsEnvironVarEq):
         retVal = not super().__call__()
         return retVal
 
+
+class IsConfigVarDefined:
+    """ return True if a configVar is defined regardless of it's value or lack thereof.
+    """
+    def __init__(self, var_name) -> None:
+        self.var_name = var_name
+
+    def __repr__(self) -> str:
+        the_repr = f'''{self.__class__.__name__}({utils.quoteme_raw_string(self.var_name)})'''
+        return the_repr
+
+    def __call__(self, *args, **kwargs) -> bool:
+        retVal = self.var_name in config_vars
+        return retVal
+
+    def __eq__(self, other) -> bool:
+        # is one IsConfigVarDefined equal to another?
+        retVal = self.var_name == other.var_name
+        return retVal

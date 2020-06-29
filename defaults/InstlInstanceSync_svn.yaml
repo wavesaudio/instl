@@ -1,6 +1,0 @@
---- !define
-
-__SYNC_PREREQUISITE_VARIABLES__:
-    - SYNC_BASE_URL
-    - DOWNLOAD_TOOL_PATH
-    - REPO_REV

@@ -114,6 +114,7 @@ class Progress(pybatch.PythonBatchCommandBase, essential=False, call__call__=Tru
 
 class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
     """ issue a message without increasing progress count
+        !! message is printed in the prepare stage NOT when running the created python !!
     """
     def __init__(self, message, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -128,6 +129,24 @@ class Echo(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, 
 
     def __call__(self, *args, **kwargs) -> None:
         pass
+
+
+class Print(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
+    """ issue a message without increasing progress count
+        !! message is printed when running the created python NOT in the prepare stage !!
+    """
+    def __init__(self, message, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.message = message
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.message))
+
+    def progress_msg_self(self) -> str:
+        return f''''''
+
+    def __call__(self, *args, **kwargs) -> None:
+        print(self.message)
 
 
 class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
