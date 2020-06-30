@@ -26,13 +26,13 @@ a = Analysis(['instl'],
              win_private_assemblies=None,
              cipher=block_cipher)
 
-
-instl_addition_path = os.path.join("c:/windows/system32/")
+windows_dir = os.environ['WINDIR']
+instl_addition_path = os.path.join(windows_dir+"/system32/")
 for file in os.listdir(instl_addition_path):
 	if  fnmatch.fnmatch(file, '*kernel32.dll*') or fnmatch.fnmatch(file, '*ucrtbase.dll*'):
 		a.binaries += [(file, os.path.join(instl_addition_path, file),"BINARY")]
 
-instl_addition_path = os.path.join("C:\Windows\System32\downlevel")
+instl_addition_path = os.path.join(windows_dir+"/System32/downlevel")
 for file in os.listdir(instl_addition_path):
 	if fnmatch.fnmatch(file, '*api-ms-win-core-*') or fnmatch.fnmatch(file, '*api-ms-win-crt-*'):
 		a.binaries += [(file, os.path.join(instl_addition_path, file), "BINARY")]
