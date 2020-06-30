@@ -32,7 +32,7 @@ dos_escape_regex = re.compile("""(?<!\^)([<|&>])""", re.MULTILINE)
 
 
 def escape_me_dos_callback(match_obj):
-    replacement = "^"+match_obj.group(1)
+    replacement = "^" + match_obj.group(1)
     return replacement
 
 
@@ -51,7 +51,8 @@ class MakeRandomDirs(PythonBatchCommandBase):
         Will create in current working directory a hierarchy of folders and files with random names so we can test copying
     """
 
-    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int, **kwargs) -> None:
+    def __init__(self, num_levels: int, num_dirs_per_level: int, num_files_per_dir: int, file_size: int,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         self.num_levels = num_levels
         self.num_dirs_per_level = num_dirs_per_level
@@ -78,7 +79,7 @@ class MakeRandomDirs(PythonBatchCommandBase):
                 os.makedirs(random_dir_name, mode=0o777, exist_ok=False)
                 save_cwd = os.getcwd()
                 os.chdir(random_dir_name)
-                self.make_random_dirs_recursive(num_levels-1)
+                self.make_random_dirs_recursive(num_levels - 1)
                 os.chdir(save_cwd)
 
     def __call__(self, *args, **kwargs):
@@ -86,7 +87,8 @@ class MakeRandomDirs(PythonBatchCommandBase):
         self.make_random_dirs_recursive(self.num_levels)
 
 
-class MakeDir(PythonBatchCommandBase, kwargs_defaults={'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}):
+class MakeDir(PythonBatchCommandBase,
+              kwargs_defaults={'remove_obstacles': True, 'chowner': False, 'recursive_chmod': False}):
     """ Create a folder. Parent folders are created as needed.
 options:
 remove_obstacles:
@@ -94,6 +96,7 @@ remove_obstacles:
         when remove_obstacles==False if one of the paths is a file 'FileExistsError: [Errno 17] File exists' will raise
         it it always OK for a dir to already exists
     """
+
     def __init__(self, path_to_make, **kwargs) -> None:
         """ MakeDir(path_to_make, remove_obstacles) """
         super().__init__(**kwargs)
@@ -122,23 +125,12 @@ remove_obstacles:
         self.path_to_make = utils.ExpandAndResolvePath(self.path_to_make)
         parents_stack = list()  # list of non-existing parents
         _parent_path = self.path_to_make
-
-        for _tries in range(2):
-            while True:
-                try:
-                    _is_dir = _parent_path.is_dir()
-                except Exception:
-                    with FixAllPermissions(self.path_to_make.parent, **kwargs_for_subcommands) as perm_allower:
-                        perm_allower()
-                        _is_dir = _parent_path.is_dir()
-                if not _is_dir:
-                    if _parent_path.is_symlink() or _parent_path.is_file() or os.path.islink(_parent_path) and self.remove_obstacles:  # yes that can happen
-                        with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
-                            remover()
-                            parents_stack.append(_parent_path)
-                            _parent_path = _parent_path.parent
-                else:
-                    break
+        while not _parent_path.is_dir():
+            if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
+                with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
+                    remover()
+            parents_stack.append(_parent_path)
+            _parent_path = _parent_path.parent
 
         if parents_stack:
             parents_stack.reverse()
@@ -152,7 +144,9 @@ remove_obstacles:
                         with FixAllPermissions(_dir_to_create, **kwargs_for_subcommands) as perm_allower:
                             perm_allower()
                         if self.chowner:
-                            with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), **kwargs_for_subcommands) as change_user:
+                            with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)),
+                                       group_id=int(config_vars.get("ACTING_GID", -1)),
+                                       **kwargs_for_subcommands) as change_user:
                                 change_user()
                         break
                     except PermissionError as per_err:
@@ -176,12 +170,14 @@ remove_obstacles:
             with FixAllPermissions(self.path_to_make, **kwargs_for_subcommands) as perm_allower:
                 perm_allower()
             if self.chowner:
-                with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), **kwargs_for_subcommands) as change_user:
+                with Chown(path=self.path_to_make, user_id=int(config_vars.get("ACTING_UID", -1)),
+                           group_id=int(config_vars.get("ACTING_GID", -1)), **kwargs_for_subcommands) as change_user:
                     change_user()
 
 
 class MakeDirs(MakeDir):
     """ for compatibility with older index.yaml's that might have MakeDirs in them"""
+
     def __init__(self, *args, **kwargs) -> None:
         """ MakeDirs(path_to_make) """
         super().__init__(path_to_make=args[0], **kwargs)
@@ -189,7 +185,8 @@ class MakeDirs(MakeDir):
 
 class Touch(PythonBatchCommandBase):
     """ Create an empty file if it does not already exist or update modification time to now if file exist"""
-    def __init__(self, path: os.PathLike,**kwargs) -> None:
+
+    def __init__(self, path: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
 
@@ -215,6 +212,7 @@ class Cd(PythonBatchCommandBase):
     """ change current working directory to 'path'
         when called as a context manager (with statement), previous working directory will be restored on __exit__
     """
+
     def __init__(self, path: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.new_path: os.PathLike = path
@@ -249,6 +247,7 @@ class CdStage(Cd, essential=False):
     """ change current working directory to 'path' and enter a new Stage
         when called as a context manager (with statement), previous working directory will be restored on __exit__
     """
+
     def __init__(self, stage_name: str, path: os.PathLike, *titles, **kwargs) -> None:
         super().__init__(path, **kwargs)
         self.stage_name = stage_name
@@ -275,8 +274,10 @@ class ChFlags(RunProcessBase):
         For changing permissions use chmod.
         Not implemented for linux
     """
-    flags_dict = {'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg', 'system': None, 'nosystem': None},
-                           'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
+    flags_dict = {
+        'darwin': {'hidden': 'hidden', 'nohidden': 'nohidden', 'locked': 'uchg', 'unlocked': 'nouchg', 'system': None,
+                   'nosystem': None},
+        'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
 
     def __init__(self, path, *flags: List[str], **kwargs) -> None:
         super().__init__(**kwargs)
@@ -364,6 +365,7 @@ class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
     """ Remove the system's read-only flag (not permissions).
         For changing permissions use chmod.
     """
+
     def __init__(self, path, **kwargs):
         super().__init__(path, "unlocked", **kwargs)
 
@@ -376,14 +378,15 @@ class Unlock(ChFlags, kwargs_defaults={"ignore_all_errors": True}):
 
 class AppendFileToFile(PythonBatchCommandBase):
     """ append the content of 'source_file' to 'target_file'"""
+
     def __init__(self, source_file, target_file, **kwargs):
         super().__init__(**kwargs)
         self.source_file = source_file
         self.target_file = target_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""source_file={utils.quoteme_raw_by_type(self.source_file)}""")
-        all_args.append( f"""target_file={utils.quoteme_raw_by_type(self.target_file)}""")
+        all_args.append(f"""source_file={utils.quoteme_raw_by_type(self.source_file)}""")
+        all_args.append(f"""target_file={utils.quoteme_raw_by_type(self.target_file)}""")
 
     def progress_msg_self(self):
         the_progress_msg = f"Append {self.source_file} to {self.target_file}"
@@ -403,17 +406,18 @@ class Chown(RunProcessBase, call__call__=True):
     """ change owner (either user, group or both) of file or folder
         if 'path' is a folder and recursive==True, ownership will be changed recursively
     """
+
     def __init__(self, path: os.PathLike, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
         super().__init__(**kwargs)
         self.path = path
-        self.user_id: int  = int(user_id)   if user_id  else -1
-        self.group_id: int = int(group_id)  if group_id else -1
+        self.user_id: int = int(user_id) if user_id else -1
+        self.group_id: int = int(group_id) if group_id else -1
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
-        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
+        all_args.append(f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append(f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append(f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def get_run_args(self, run_args) -> None:
         run_args.append("chown")
@@ -481,8 +485,8 @@ class Chmod(RunProcessBase):
                   'o': {'r': stat.S_IROTH, 'w': stat.S_IWOTH, 'x': stat.S_IXOTH, 'X': stat.S_IXOTH}}
     if sys.platform == 'win32':
         win_perms = {'r': con.FILE_GENERIC_READ,
-                 'w': con.FILE_GENERIC_WRITE|con.FILE_GENERIC_READ,
-                 'x': con.FILE_GENERIC_EXECUTE}
+                     'w': con.FILE_GENERIC_WRITE | con.FILE_GENERIC_READ,
+                     'x': con.FILE_GENERIC_EXECUTE}
 
     def __init__(self, path, mode, **kwargs):
         super().__init__(**kwargs)
@@ -490,12 +494,12 @@ class Chmod(RunProcessBase):
         self.mode = mode
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append(f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        all_args.append( f"""mode={the_mode}""")
+        all_args.append(f"""mode={the_mode}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
@@ -505,7 +509,8 @@ class Chmod(RunProcessBase):
             return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
             in case of 'X' the required mode depends on existing mode
         """
-        current_mode, current_mode_oct = stat.S_IMODE(current_stats[stat.ST_MODE]), oct(stat.S_IMODE(current_stats[stat.ST_MODE]))
+        current_mode, current_mode_oct = stat.S_IMODE(current_stats[stat.ST_MODE]), oct(
+            stat.S_IMODE(current_stats[stat.ST_MODE]))
         match = self.symbolic_mode_re.match(symbolic_mode_str)
         if not match:
             raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
@@ -572,7 +577,7 @@ class Chmod(RunProcessBase):
             if 'w' in self.mode:
                 run_args.append("-R")
             if self.recursive:
-                run_args.append(the_path+"\\**")
+                run_args.append(the_path + "\\**")
                 run_args.append('/S')
             else:
                 run_args.append(the_path)
@@ -588,7 +593,8 @@ class Chmod(RunProcessBase):
             else:
                 resolved_path = utils.ExpandAndResolvePath(self.path)
                 path_stats = resolved_path.stat()
-                current_mode, current_mode_oct = stat.S_IMODE(path_stats[stat.ST_MODE]), oct(stat.S_IMODE(path_stats[stat.ST_MODE]))
+                current_mode, current_mode_oct = stat.S_IMODE(path_stats[stat.ST_MODE]), oct(
+                    stat.S_IMODE(path_stats[stat.ST_MODE]))
                 flags, op = self.parse_symbolic_mode_mac(self.mode, path_stats)
                 mode_to_set = flags
                 if op == '+':
@@ -631,7 +637,8 @@ class Chmod(RunProcessBase):
             if self.recursive:
                 if sys.platform == 'darwin':
                     # parse macOs's error message
-                    list_of_errors = re.findall("Unable to change file mode on (?P<_path>.+): Operation not permitted", self.stderr)
+                    list_of_errors = re.findall("Unable to change file mode on (?P<_path>.+): Operation not permitted",
+                                                self.stderr)
                     if list_of_errors:
                         list_of_listings = list()
                         for _error in list_of_errors:
@@ -649,23 +656,24 @@ class Chmod(RunProcessBase):
 class ChmodAndChown(PythonBatchCommandBase):
     """ change mode and owner for file or folder"""
 
-    def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
+    def __init__(self, path: os.PathLike, mode, user_id: Union[int, str, None], group_id: Union[int, str, None],
+                 **kwargs):
         super().__init__(**kwargs)
         self.path = path
         self.mode = mode
-        self.user_id: Union[int, str]  = user_id   if user_id  else -1
-        self.group_id: Union[int, str] = group_id  if group_id else -1
+        self.user_id: Union[int, str] = user_id if user_id else -1
+        self.group_id: Union[int, str] = group_id if group_id else -1
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append(f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
         the_mode = self.mode
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
-        all_args.append( f"""mode={the_mode}""")
+        all_args.append(f"""mode={the_mode}""")
 
-        all_args.append( f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
-        all_args.append( f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
+        all_args.append(f"""user_id={utils.quoteme_raw_by_type(self.user_id)}""")
+        all_args.append(f"""group_id={utils.quoteme_raw_by_type(self.group_id)}""")
 
     def progress_msg_self(self):
         return f"""Chmod and Chown {self.mode} '{self.path}' {self.user_id}:{self.group_id}"""
@@ -674,7 +682,8 @@ class ChmodAndChown(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
-        with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive, own_progress_count=0) as owner_chaner:
+        with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive,
+                   own_progress_count=0) as owner_chaner:
             owner_chaner()
         with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0) as mode_changer:
             mode_changer()
@@ -682,6 +691,7 @@ class ChmodAndChown(PythonBatchCommandBase):
 
 class Ls(PythonBatchCommandBase, kwargs_defaults={"work_folder": None}):
     """ create a listing for one or more folders, similar to unix ls command"""
+
     def __init__(self, folder_to_list, out_file=None, ls_format='*', out_file_append=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_list = Path(folder_to_list)
@@ -740,9 +750,12 @@ class FileSizes(PythonBatchCommandBase):
                 file_size = os.path.getsize(self.folder_to_scan)
                 wfd.write(f"{self.folder_to_scan}, {file_size}\n")
             else:
-                folder_to_scan_name_len = len(self.folder_to_scan)+1 # +1 for the last '\'
+                folder_to_scan_name_len = len(self.folder_to_scan) + 1  # +1 for the last '\'
                 if not self.compiled_forbidden_folder_regex.search(self.folder_to_scan):
-                    for root, dirs, files in utils.excluded_walk(self.folder_to_scan, file_exclude_regex=self.compiled_forbidden_file_regex, dir_exclude_regex=self.compiled_forbidden_folder_regex, followlinks=False):
+                    for root, dirs, files in utils.excluded_walk(self.folder_to_scan,
+                                                                 file_exclude_regex=self.compiled_forbidden_file_regex,
+                                                                 dir_exclude_regex=self.compiled_forbidden_folder_regex,
+                                                                 followlinks=False):
                         for a_file in files:
                             full_path = os.path.join(root, a_file)
                             file_size = os.path.getsize(full_path)
@@ -774,7 +787,8 @@ class MakeRandomDataFile(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         with open(self.file_path, "w") as wfd:
             utils.chown_chmod_on_fd(wfd)
-            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase) for i in range(self.file_size)))
+            wfd.write(
+                ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase) for i in range(self.file_size)))
 
 
 class SplitFile(PythonBatchCommandBase):
@@ -784,11 +798,12 @@ class SplitFile(PythonBatchCommandBase):
         if remove_original is true the original file is removed
         if max_size is 0, the file is just renamed with extension .aa
     """
+
     def __init__(self, file_to_split, max_size=0, remove_original=True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.file_to_split = Path(file_to_split)
         self.max_size = max_size
-        self. remove_original = remove_original
+        self.remove_original = remove_original
         self.num_parts = 0
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -814,7 +829,7 @@ class SplitFile(PythonBatchCommandBase):
         # calc how many char the extension (.aa, .ab,...) should be
         # minimum is 2, but there can be more if number of parts > 26*26
         extension_length = 2
-        num_ext_combinations = len(string.ascii_lowercase)**extension_length
+        num_ext_combinations = len(string.ascii_lowercase) ** extension_length
         while num_ext_combinations < self.num_parts:
             num_ext_combinations *= len(string.ascii_lowercase)
             extension_length += 1
@@ -835,7 +850,8 @@ class SplitFile(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         original_size = self.file_to_split.stat().st_size
         splits = self.calc_splits(original_size)
-        print(f"original: {original_size}, max_size: {self.max_size}, self.num_parts: {len(splits)}, part_size: {splits[0][0]} naive total {len(splits)*splits[0][0]}")
+        print(
+            f"original: {original_size}, max_size: {self.max_size}, self.num_parts: {len(splits)}, part_size: {splits[0][0]} naive total {len(splits) * splits[0][0]}")
         print("\n   ".join(str(s[1]) for s in splits))
         with open(self.file_to_split, "rb") as fts:
             for part_size, part_path in splits:
@@ -884,7 +900,7 @@ class FixAllPermissions(PythonBatchCommandBase):
         self.path = path
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append( f"""path={utils.quoteme_raw_by_type(self.path)}""")
+        all_args.append(f"""path={utils.quoteme_raw_by_type(self.path)}""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.path}'"""
@@ -894,7 +910,8 @@ class FixAllPermissions(PythonBatchCommandBase):
         self.doing = f"""allowing all permissions for'{self.path}'"""
         # chflags first since (at least on Mac) it has higher priority (e.g. you cannot chmod a-w on files with flags uchg set,
         # but you can chflags nouchg on files with a-w set)
-        with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False, recursive=self.recursive) as chflager:
+        with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False,
+                     recursive=self.recursive) as chflager:
             chflager()
         if sys.platform in ('darwin', 'linux'):
             with Chmod(path=self.path, mode="a+rwX", report_own_progress=False, recursive=self.recursive) as chmoder:
