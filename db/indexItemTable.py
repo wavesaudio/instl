@@ -444,7 +444,7 @@ class IndexItemsTable(object):
                         resolve_item_script = self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
                         curs.executescript(resolve_item_script)
                     except sqlite3.IntegrityError as ex:
-                        log.info(f"db exception resolving inheritance for {iid}")
+                        log.info(f"db exception resolving inheritance for {iid}, {ex}")
                 curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
         else:
             for iid in inherit_order:
