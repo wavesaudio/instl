@@ -10,9 +10,10 @@ A_IID:
             pre_copy:
                 - CopyFileToDir(r"""$(STR_WITH_APOSTROF)""", r"""$(STR_WITH_APOSTROF)""")  # right
                 - CopyFileToFile(r'$(STR_WITH_APOSTROF)', r"""$(STR_WITH_APOSTROF)""")  # wrong
+                - CopyFileToFile("a")  # wrong
 B_IID:
     Mac:
         actions:
             post_copy:
                 - CopyFileToDir(r"""c:\a\b\c\\""", r"""c:\a\b\c""")  # right
-                - CopyFileToFile("c:\a\b\c\", "c:\a\b\c")  # wrong
+                - CopyFileToFile("c:\a\b\c"\, "c:\a\b\c")  # wrong

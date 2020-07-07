@@ -146,7 +146,7 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
             assumed_command_name = action_str[:action_str.find('(')]
             if assumed_command_name in python_batch_names:
                 if raise_on_error:
-                    raise ValueError(message)
+                    raise ValueError()
                 else:
                     log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
 
