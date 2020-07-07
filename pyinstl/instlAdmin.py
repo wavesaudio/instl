@@ -456,6 +456,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_index(self):
         self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path())
         self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].Path(), disable_indexes_during_read=True)
+        self.verify_actions()
         self.verify_index_to_repo()
 
     def do_depend(self):
@@ -492,15 +493,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.verify_actions()
         self.verify_index_to_repo()
-
-    def verify_actions(self):
-        # get all actions from database
-        # get all pybatch commands names
-        # for each action:
-        #   call resolve_str_to_list (how to check for apostrophes?)
-        #   call EvalShellCommand
-        #   warning should be printed for shell commands that should be pybatch but are not
-        pass
 
     def verify_index_to_repo(self):
         """ helper function for verify-repo and verify-index commands

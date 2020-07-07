@@ -511,3 +511,18 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             log.error("\n".join(yaml_read_errors))
         except Exception as ex:
             pass
+
+    def verify_actions(self):
+
+        self.items_table.activate_all_oses()
+        actions_list = self.items_table.get_all_actions_from_index()
+        all_pybatch_commands = self.python_batch_names
+        # Each row has: original_iid, detail_name, detail_value, os_id, _id
+        for row in actions_list:
+            actions = config_vars.resolve_str_to_list(row['detail_value'])
+            if actions:  # it's OK for action to have None value, but no need to check them
+                for action in actions:
+                    try:
+                        EvalShellCommand(action, None, all_pybatch_commands, raise_on_error=True)
+                    except ValueError as ve:
+                        logging.error(f"action error in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")

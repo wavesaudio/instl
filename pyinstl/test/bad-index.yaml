@@ -1,0 +1,34 @@
+# index with intentionally bad actions, to test index-verification
+
+--- !define
+STR_WITH_APOSTROF: ab ' cd
+
+--- !index
+A_IID:
+    Mac:
+        actions:
+            pre_copy:
+                - CopyFileToDir(r"""$(STR_WITH_APOSTROF)""", r"""$(STR_WITH_APOSTROF)""")  # right
+                - CopyFileToFile(r'$(STR_WITH_APOSTROF)', r"""$(STR_WITH_APOSTROF)""")  # wrong
+                - MoveDirToDir(r"""\Users'''\smoop""",r"\Users\smoop1")  # right
+                - CopyFileToFile(r""\"\Users'''\f1'as"'""\"",r"\Users\f2")  # wrong
+                - CopyFileToFile(r""\"\Users'''\f1'as"'""\"")  # wrong
+                - CopyFileToFile(r""\\"\Users'''\f3'as"'""\\"",r"\Users\f2")  # wrong
+                - Chmod(r"""\Users\f1""")  # wrong
+                - Chmod(r"""\Users\f1""","""a+w""")  # right
+                - Chmod(r"""\Users\f1""","""a+w\""")  # wrong
+                - Chmod(r"""\Users\f1""","""a+w\"""")  # right
+                - Chmod(r'''\Users\f1''','''a+w''')  # right
+                - Chmod(r'''\'Users'\f1''','''a+w''')  # right
+                - Chmod(r''\'\Users\f0''','''a+w''')  # wrong
+                - Chmod(r'\Users\f0','a+w')  # right
+                - Chmod(r'\Users\f0','\ua+w')  # wrong
+                - Chmod(r'\Users\f0',r'\ua+w')  # right
+                - Chmod(r'\Users\f0','\za+w') #right
+
+B_IID:
+    Mac:
+        actions:
+            post_copy:
+                - CopyFileToDir(r"""c:\a\b\c\\""", r"""c:\a\b\c""")  # right
+                - CopyFileToFile("c:\a\b\c"\, "c:\a\b\c")  # wrong
