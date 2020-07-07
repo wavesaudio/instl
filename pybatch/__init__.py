@@ -131,7 +131,7 @@ if sys.platform == "darwin":
 from .new_batchCommands import *
 
 
-def EvalShellCommand(action_str: str, message: str, python_batch_names=None) -> PythonBatchCommandBase:
+def EvalShellCommand(action_str: str, message: str, python_batch_names=None, raise_on_error=False) -> PythonBatchCommandBase:
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)
@@ -145,6 +145,9 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None) -> 
         if python_batch_names:
             assumed_command_name = action_str[:action_str.find('(')]
             if assumed_command_name in python_batch_names:
-                log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
+                if raise_on_error:
+                    raise ValueError(message)
+                else:
+                    log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
 
     return retVal

@@ -67,6 +67,7 @@ class InstlClientReport(InstlClient):
     def do_read_yaml(self):
         config_vars["OUTPUT_FORMAT"] = "yaml"
         config_vars["DEBUG_INDEX_DB"] = True
+        self.verify_actions()
         config_vars_yaml_obj = config_vars.repr_for_yaml()
         config_vars_yaml = aYaml.YamlDumpDocWrap(config_vars_yaml_obj, '!define', "Definitions", explicit_start=True, sort_mappings=True, include_comments=False)
         self.output_data.append(config_vars_yaml)

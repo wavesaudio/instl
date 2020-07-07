@@ -1570,20 +1570,3 @@ class SVNTable(object):
             sync_base_url = self.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)")
             retVal = '/'.join(utils.make_one_list(sync_base_url, repo_rev_folder_hierarchy, file_item.path))
         return retVal
-
-    def get_all_actions_from_index(self, action_list=None):
-        if action_list is None:
-            action_list = ['pre_remove_item', 'pre_remove_from_folder', 'pre_remove', 'pre_copy_to_folder',
-                           'pre_copy_item', 'pre_copy',
-                           'post_remove_item', 'post_remove_from_folder', 'post_remove', 'post_copy_to_folder',
-                           'post_copy_item', 'post_copy', 'direct_sync']
-        separator = "','"
-        action_string = separator.join(action_list)
-        action_string = "'" + action_string + "'"
-        query = f""" SELECT detail_name, detail_value,os_id, _id
-                    FROM index_item_detail_t
-                    WHERE detail_name IN ({action_string}) 
-                """
-        ret_val = self.db.curs.execute(query)
-        return ret_val
-q

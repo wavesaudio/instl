@@ -456,6 +456,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_verify_index(self):
         self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path())
         self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].Path(), disable_indexes_during_read=True)
+        self.verify_actions()
         self.verify_index_to_repo()
 
     def do_depend(self):
@@ -492,21 +493,6 @@ class InstlAdmin(InstlInstanceBase):
 
         self.verify_actions()
         self.verify_index_to_repo()
-
-    def verify_actions(self):
-
-        self.items_table.activate_all_oses()
-        actions_list = self.info_map_table.get_all_actions_from_index()
-        all_pybatch_commands = self.python_batch_names
-        # 0 detail_name,1 detail value, 2 os
-        for row in actions_list:
-            action_name = row[0]
-            action_detail = f"{row[1]}"
-            actions = config_vars.resolve_str_to_list(action_detail)
-            if actions:
-                for action in actions:
-                    message = f"evaluating {action_name}-{action_detail} {row[3]}"
-                    ret_val = EvalShellCommand(action, message, all_pybatch_commands)
 
     def verify_index_to_repo(self):
         """ helper function for verify-repo and verify-index commands

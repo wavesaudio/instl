@@ -1,0 +1,18 @@
+# index with intentionally bad actions, to test index-verification
+
+--- !define
+STR_WITH_APOSTROF: ab ' cd
+
+--- !index
+A_IID:
+    Mac:
+        actions:
+            pre_copy:
+                - CopyFileToDir(r"""$(STR_WITH_APOSTROF)""", r"""$(STR_WITH_APOSTROF)""")  # right
+                - CopyFileToFile(r'$(STR_WITH_APOSTROF)', r"""$(STR_WITH_APOSTROF)""")  # wrong
+B_IID:
+    Mac:
+        actions:
+            post_copy:
+                - CopyFileToDir(r"""c:\a\b\c\\""", r"""c:\a\b\c""")  # right
+                - CopyFileToFile("c:\a\b\c\", "c:\a\b\c")  # wrong

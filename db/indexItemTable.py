@@ -1425,3 +1425,13 @@ class IndexItemsTable(object):
 
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
+
+    def get_all_actions_from_index(self):
+        action_string = "','".join(self.action_types)
+        action_string = "'" + action_string + "'"
+        query_text = f""" SELECT original_iid, detail_name, detail_value, os_id, _id
+                    FROM index_item_detail_t
+                    WHERE detail_name IN ({action_string}) 
+                """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
