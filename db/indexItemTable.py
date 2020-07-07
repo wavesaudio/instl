@@ -1432,6 +1432,7 @@ class IndexItemsTable(object):
         query_text = f""" SELECT original_iid, detail_name, detail_value, os_id, _id
                     FROM index_item_detail_t
                     WHERE detail_name IN ({action_string}) 
+                    ORDER BY _id    
                 """
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
