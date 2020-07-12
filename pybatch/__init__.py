@@ -128,6 +128,20 @@ if sys.platform == "darwin":
     from .MacOnlyBatchCommands import SymlinkFileToSymlink
     from .MacOnlyBatchCommands import SymlinkToSymlinkFile
 
+    class PythonBatchCommandDummy(PythonBatchCommandBase):
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+        def __call__(self, *args, **kwargs) -> None:
+            pass
+        def progress_msg_self(self, *args, **kwargs):
+            pass
+
+    class WinShortcut(PythonBatchCommandDummy):
+        pass
+
+    class CreateRegistryValues(PythonBatchCommandDummy):
+        pass
+
 from .new_batchCommands import *
 
 

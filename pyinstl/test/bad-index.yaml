@@ -17,3 +17,12 @@ B_IID:
             post_copy:
                 - CopyFileToDir(r"""c:\a\b\c\\""", r"""c:\a\b\c""")  # right
                 - CopyFileToFile("c:\a\b\c"\, "c:\a\b\c")  # wrong
+
+C_IID:
+    Win:
+        actions:
+            pre_copy_item:
+                - If("z" == "x", if_true=CopyFileToDir(r"""x""", r"""z"""), if_false=CopyFileToDir(r"""a""", r"""b"""))
+                - If(IsFile(r"desktop.ini"), if_true=ChFlags(r"desktop.ini", "nohidden", "nosystem"))
+                - If(IsFile(r"$(MACOS_WAVESHELL_VST_DIR)/WaveShell9-VST 11.0.vst/Contents/Info.plist"), if_true=Touch(r"$(MACOS_WAVESHELL_VST_DIR)/WaveShell9-VST 11.0.vst/Contents/Info.plist"))
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"$(__USER_DESKTOP_DIR__)/SoundGrid Inventory.lnk", r"$(WAVES_SOUNDGRID_FOR_VENUE_DIR)/SoundGrid Inventory.exe", ignore_all_errors=True))
