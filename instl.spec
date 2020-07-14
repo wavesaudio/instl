@@ -26,7 +26,6 @@ a = Analysis(['instl'],
              win_private_assemblies=None,
              cipher=block_cipher)
 
-
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml') or fnmatch.fnmatch(defaults_file, '*.ddl'):

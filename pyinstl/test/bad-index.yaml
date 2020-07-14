@@ -4,6 +4,7 @@
 STR_WITH_APOSTROF: ab ' cd
 
 --- !index
+#TODO spplit test to different IID accroding the relvant command
 A_IID:
     Mac:
         actions:
@@ -32,3 +33,52 @@ B_IID:
             post_copy:
                 - CopyFileToDir(r"""c:\a\b\c\\""", r"""c:\a\b\c""")  # right
                 - CopyFileToFile("c:\a\b\c"\, "c:\a\b\c")  # wrong
+
+C_IID:
+    Win:
+        actions:
+            pre_copy_item:
+                - If("z" == "x", if_true=CopyFileToDir(r"""x""", r"""z"""), if_false=CopyFileToDir(r"""a""", r"""b"""))
+                - If(IsFile(r"desktop.ini"), if_true=ChFlags(r"desktop.ini", "nohidden", "nosystem"))
+                - If(IsFile(r"$(MACOS_WAVESHELL_VST_DIR)/WaveShell9-VST 11.0.vst/Contents/Info.plist"), if_true=Touch(r"$(MACOS_WAVESHELL_VST_DIR)/WaveShell9-VST 11.0.vst/Contents/Info.plist"))
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"$(__USER_DESKTOP_DIR__)/SoundGrid Inventory.lnk", r"$(WAVES_SOUNDGRID_FOR_VENUE_DIR)/SoundGrid Inventory.exe", ignore_all_errors=True))
+
+D_IID:
+    Mac:
+        actions:
+            post_copy_to_folder:
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"/Users/orenc/Desktop/SuperRack.lnk", r"/Applications/Waves/SuperRack/SuperRack.exe", ignore_all_errors=True)) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"\'\'\', if_true=WinShortcut(r"$(ALLUSERSPROFILE)\\Microsoft\\Windows\\Start Menu\\Electric Grand 80.lnk", r"/Applications/Waves/Applications V11\\Electric Grand 80.exe")) #wrong
+                - DeleteRegistryValues("aֿֿֿֿ"") #wrong
+                - DeleteRegistryValues("aֿֿֿֿ") #right
+                - DeleteRegistryKey('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Active Setup\Installed Components\Waves Pivot', reg_num_bits=64) #right
+                - DeleteRegistryKey(''HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Active Setup\Installed Components\Waves Pivot', reg_num_bits=64) #wrong
+                - CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves', {'LocationV11':r"$(WAVES_PLUGINS_DIR)"}) #right
+                - CreateRegistryValues('HKEY_LOCAL_MACHINE', r'SOFTWARE\Waves', {'LocationV11':r"$(WAVES_PLUGINS_DIR)""}) #wrong
+                - CreateRegistryValues('HKEY_LOCAL_MACHINE') #right?
+                - ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Waves SoundGrid Drivers_is1', 'UninstallString', reg_num_bits=64, ignore_if_not_exist=True, reply_environ_var="SGDRIVERUNINSTALLER") #right
+                - ReadRegistryValue('HKEY_LOCAL_MACHINE', r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Waves SoundGrid Drivers_is1'', 'UninstallString', reg_num_bits=64, ignore_if_not_exist=True, reply_environ_var="SGDRIVERUNINSTALLER") #wrong
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)\MultiRack.lnk""", r"""$(WAVES_MULTIRACK_DIR)\MultiRack.exe""", ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)\MultiRack SoundGrid.lnk""", r"""$(WAVES_MULTIRACK_DIR)\MultiRack SoundGrid.exe""", ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)\SoundGrid Studio.lnk""", r"""$(WAVES_SOUNDGRID_STUDIO_DIR)\SoundGrid Studio.exe""", ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)\eMotion LV1.lnk""", r"""$(WAVES_EMOTION_LV1_DIR)/eMotion LV1.exe""", run_as_admin=True, ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)/SuperRack SoundGrid.lnk""", r"""$(WAVES_SUPERRACK_DIR)/SuperRack SoundGrid.exe""", ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)/SuperRack.lnk""", r"""$(WAVES_SUPERRACK_DIR)/SuperRack.exe""", ignore_all_errors=True)) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\OVox.lnk""", r"""$(WAVES_APPS_DIR)\OVox.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\CODEX.lnk""", r"""$(WAVES_APPS_DIR)\CODEX.exe""")) #right
+                - If(r''''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Bass Fingers.lnk""", r"""$(WAVES_APPS_DIR)\Bass Fingers.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Bass Slapper.lnk""", r"""$(WAVES_APPS_DIR)\Bass Slapper.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Clavinet.lnk""", r"""$(WAVES_APPS_DIR)\Clavinet.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Grand Rhapsody.lnk""", r"""$(WAVES_APPS_DIR)\Grand Rhapsody.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Electric Grand 80.lnk""", r"""$(WAVES_APPS_DIR)\Electric Grand 80.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Electric200.lnk""", r"""$(WAVES_APPS_DIR)\Electric200.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Electric88.lnk""", r"""$(WAVES_APPS_DIR)\Electric88.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Element.lnk""", r"""$(WAVES_APPS_DIR)\Element.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\Flow Motion.lnk""", r"""$(WAVES_APPS_DIR)\Flow Motion.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\GTRSolo 3.5.lnk""", r"""$(WAVES_APPS_DIR)\GTRSolo 3.5.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\GTR 3.5.lnk""", r"""$(WAVES_APPS_DIR)\GTR 3.5.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\PRS Archon.lnk""", r"""$(WAVES_APPS_DIR)\PRS Archon.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\PRS Dallas.lnk""", r"""$(WAVES_APPS_DIR)\PRS Dallas.exe""")) #right
+                - If(r'''"$(JEX_HOST_TYPE)" != "venue"''', if_true=WinShortcut(r"""$(ALLUSERSPROFILE)\Microsoft\Windows\Start Menu\PRS V9.lnk""", r"""$(WAVES_APPS_DIR)\PRS V9.exe""")) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"""$(_USER_DESKTOP_DIR_)/SoundGrid Inventory.lnk""", r"""$(WAVES_SOUNDGRID_FOR_VENUE_DIR)/SoundGrid Inventory.exe""", ignore_all_errors=True)) #right
+                - If(IsConfigVarEq("CREATE_APP_SHORTCUTS", "yes", "yes"), if_true=WinShortcut(r"\""$(_USER_DESKTOP_DIR_)/SoundGrid Inventory.lnk""", r"""$(WAVES_SOUNDGRID_FOR_VENUE_DIR)/SoundGrid Inventory.exe""", ignore_all_errors=True)) #wrong

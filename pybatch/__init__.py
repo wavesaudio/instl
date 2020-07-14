@@ -128,6 +128,37 @@ if sys.platform == "darwin":
     from .MacOnlyBatchCommands import SymlinkFileToSymlink
     from .MacOnlyBatchCommands import SymlinkToSymlinkFile
 
+    #Added for test purposes, without those classes verify_actions gives false positives/negatives
+    class PythonBatchCommandDummy(PythonBatchCommandBase):
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+        def __call__(self, *args, **kwargs) -> None:
+            pass
+        def progress_msg_self(self, *args, **kwargs):
+            pass
+
+    class WinShortcut(PythonBatchCommandDummy):
+        pass
+
+    class CreateRegistryValues(PythonBatchCommandDummy):
+        pass
+
+    class ReadRegistryValue(PythonBatchCommandDummy):
+        pass
+
+    class CreateRegistryKey(PythonBatchCommandDummy):
+        pass
+
+    class DeleteRegistryKey(PythonBatchCommandDummy):
+        pass
+
+    class DeleteRegistryValues(PythonBatchCommandDummy):
+        pass
+
+    class ResHackerCompileResource(PythonBatchCommandDummy):#??
+        pass
+
+
 from .new_batchCommands import *
 
 
@@ -151,3 +182,4 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
                     log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
 
     return retVal
+
