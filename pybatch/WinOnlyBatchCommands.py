@@ -12,13 +12,14 @@ from .subprocessBatchCommands import RunProcessBase
 import utils
 
 
-class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False}):
+class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False, 'command_line_options': False}):
     """ create a shortcut (windows only)"""
-    def __init__(self, shortcut_path: os.PathLike, target_path: os.PathLike, run_as_admin=False, **kwargs) -> None:
+    def __init__(self, shortcut_path: os.PathLike, target_path: os.PathLike, run_as_admin=False, command_line_options=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.shortcut_path = shortcut_path
         self.target_path = target_path
         self.run_as_admin = run_as_admin
+        self.command_line_options = command_line_options
         self.exceptions_to_ignore.append(AttributeError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -39,6 +40,9 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
         shortcut_obj.SetPath(target_path)
         shortcut_obj.SetWorkingDirectory(working_directory)
+        if self.command_line_options:
+            shortcut_obj.SetArguments(self.command_line_options)
+
         persist_file.Save(shortcut_path, 0)
 
         if self.run_as_admin:
