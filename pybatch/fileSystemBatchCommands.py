@@ -488,10 +488,11 @@ class Chmod(RunProcessBase):
                      'w': con.FILE_GENERIC_WRITE | con.FILE_GENERIC_READ,
                      'x': con.FILE_GENERIC_EXECUTE}
 
-    def __init__(self, path, mode, **kwargs):
+    def __init__(self, path, mode, ignore_if_not_exist=False, **kwargs):
         super().__init__(**kwargs)
         self.path = path
         self.mode = mode
+        self.ignore_if_not_exist = ignore_if_not_exist
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(f"""path={utils.quoteme_raw_by_type(self.path)}""")
@@ -500,6 +501,8 @@ class Chmod(RunProcessBase):
         if isinstance(the_mode, str):
             the_mode = utils.quoteme_double(the_mode)
         all_args.append(f"""mode={the_mode}""")
+        if self.ignore_if_not_exist:
+            all_args.append(f"""ignore_if_not_exist=True""")
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} {self.mode} '{self.path}'"""
@@ -585,13 +588,16 @@ class Chmod(RunProcessBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        resolved_path = utils.ExpandAndResolvePath(self.path)
+        if self.ignore_if_not_exist and not resolved_path.exists():
+            self.doing = f"""skip change mode of '{resolved_path}' - does not exist'"""
+            return
         if sys.platform == 'darwin':
             # os.chmod is not recursive so call the system's chmod
             if self.recursive:
-                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}'"""
                 return super().__call__(args, kwargs)
             else:
-                resolved_path = utils.ExpandAndResolvePath(self.path)
                 path_stats = resolved_path.stat()
                 current_mode, current_mode_oct = stat.S_IMODE(path_stats[stat.ST_MODE]), oct(
                     stat.S_IMODE(path_stats[stat.ST_MODE]))
@@ -602,20 +608,19 @@ class Chmod(RunProcessBase):
                 elif op == '-':
                     mode_to_set = current_mode & ~flags
                 if mode_to_set != current_mode:
-                    self.doing = f"""change mode of '{resolved_path}' to '{self.mode}''"""
+                    self.doing = f"""change mode of '{resolved_path}' to '{self.mode}'"""
                     os.chmod(resolved_path, mode_to_set)
                 else:
-                    self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}''"""
+                    self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}'"""
 
         elif sys.platform == 'win32':
             if self.recursive:
-                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}''"""
+                self.doing = f"""change mode (recursive) of '{self.path}' to '{self.mode}'"""
                 self.shell = True
                 return super().__call__(args, kwargs)
             else:
-                resolved_path = utils.ExpandAndResolvePath(self.path)
                 who, perms, operation = self.parse_symbolic_mode_win(self.mode)
-                self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}''"""
+                self.doing = f"""change mode of '{resolved_path}' to '{who}, {perms}, {operation}'"""
 
                 # on windows uncheck the read-only flag
                 if 'w' in self.mode:
