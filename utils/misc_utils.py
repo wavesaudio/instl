@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Set, Tuple
 import utils
 
 log = logging.getLogger()
+doing_stack = []
 
 
 @lru_cache(maxsize=None)
@@ -89,6 +90,7 @@ class write_to_list(object):
     """ list that behaves like a file. For each call to write
         another item is added to the list.
     """
+
     def __init__(self) -> None:
         self.the_list: List = list()
 
@@ -156,7 +158,7 @@ class unique_list(list):
                 if prev_index_for_item < index:
                     super().__delitem__(prev_index_for_item)
                 else:
-                    super().__delitem__(prev_index_for_item+1)
+                    super().__delitem__(prev_index_for_item + 1)
         else:
             super().insert(index, item)
             self.__attendance.add(item)
@@ -188,6 +190,7 @@ class unique_list(list):
 
 class set_with_order(unique_list):
     """ Just another name for unique_list """
+
     def __init__(self, initial_list=()) -> None:
         super().__init__(initial_list)
 
@@ -196,7 +199,7 @@ class set_with_order(unique_list):
 def print_var(var_name):
     calling_frame = sys._getframe().f_back
     var_val = calling_frame.f_locals.get(var_name, calling_frame.f_globals.get(var_name, None))
-    print(var_name+':', str(var_val))
+    print(var_name + ':', str(var_val))
 
 
 def deprecated(deprecated_func):
@@ -237,7 +240,7 @@ def gen_col_format(width_list, align_list=None, sep=' '):
 
     retVal = list()
     retVal.append("")  # for formatting a list of len 0
-    for i in range(1, len(format_list)+1):
+    for i in range(1, len(format_list) + 1):
         retVal.append(sep.join(format_list[0:i]))
     return retVal
 
@@ -250,7 +253,8 @@ def format_by_width(list_of_lists, string_align='<', numbers_align='>'):
     width_list, align_list = max_widths(list_of_lists, string_align=string_align, numbers_align=numbers_align)
     col_formats = gen_col_format(width_list, align_list)
     for a_line in list_of_lists:
-        clean_line = [a if a is not None else "" for a in a_line]  # replace None values with empty str, since Nones cannot have alignment format
+        clean_line = [a if a is not None else "" for a in
+                      a_line]  # replace None values with empty str, since Nones cannot have alignment format
         formatted_str = col_formats[len(clean_line)].format(*[str(item) for item in clean_line])
         yield formatted_str
 
@@ -343,7 +347,6 @@ def need_to_download_file(file_path, file_checksum):
     return retVal
 
 
-
 guid_re = re.compile("""
                 [a-f0-9]{8}
                 (-[a-f0-9]{4}){3}
@@ -413,7 +416,7 @@ def replace_all_from_dict(in_text, *in_replace_only_these, **in_replacement_dic)
 #               The default is to compare as integers.
 # return_string: If true (the default) return a string in the format: "1-3, 4-5, 6, 8-9"
 #                If false return a list of sequences
-def find_sequences(in_sorted_list, is_next_func=lambda a, b: int(a)+1 == int(b), return_string=True):
+def find_sequences(in_sorted_list, is_next_func=lambda a, b: int(a) + 1 == int(b), return_string=True):
     sequences = [[in_sorted_list[0]]]
 
     for item in in_sorted_list[1:]:
@@ -428,7 +431,7 @@ def find_sequences(in_sorted_list, is_next_func=lambda a, b: int(a)+1 == int(b),
             if len(sequence) == 1:
                 sequence_strings.append(str(sequence[0]))
             else:
-                sequence_strings.append(str(sequence[0])+"-"+str(sequence[-1]))
+                sequence_strings.append(str(sequence[0]) + "-" + str(sequence[-1]))
         retVal = ", ".join(sequence_strings)
         return retVal
     else:
@@ -443,10 +446,11 @@ def timing(f):
         ret = f(*args, **kwargs)
         time2 = time.perf_counter()
         if time1 != time2:
-            print('%s function took %0.3f ms' % (f.__name__, (time2-time1)*1000.0))
+            print('%s function took %0.3f ms' % (f.__name__, (time2 - time1) * 1000.0))
         else:
             print('%s function took apparently no time at all' % f.__name__)
         return ret
+
     return wrap
 
 
@@ -470,7 +474,8 @@ def compile_regex_list_ORed(regex_list, verbose=False):
     return retVal
 
 
-oct_digit_to_perm_chars = {'7': 'rwx', '6': 'rw-', '5': 'r-x', '4': 'r--', '3': '-wx', '2': '-w-', '1': '--x', '0': '---'}
+oct_digit_to_perm_chars = {'7': 'rwx', '6': 'rw-', '5': 'r-x', '4': 'r--', '3': '-wx', '2': '-w-', '1': '--x',
+                           '0': '---'}
 
 
 def unix_permissions_to_str(the_mod):
@@ -485,7 +490,6 @@ def unix_permissions_to_str(the_mod):
     return retVal
 
 
-
 class DictDiffer(object):
     """
     Calculate the difference between two dictionaries as:
@@ -494,6 +498,7 @@ class DictDiffer(object):
     (3) keys same in both but changed values
     (4) keys same in both and unchanged values
     """
+
     def __init__(self, current_dict, past_dict) -> None:
         self.current_dict, self.past_dict = current_dict, past_dict
         self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
@@ -642,7 +647,7 @@ def get_recursive_checksums(some_path, ignore=None):
     some_path_dir, some_path_leaf = os.path.split(some_path)
     if some_path_leaf not in ignore:
         if os.path.isfile(some_path):
-                retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
+            retVal[some_path_leaf] = get_file_checksum(some_path, follow_symlinks=False)
         elif os.path.isdir(some_path):
             for item in utils.scandir_walk(some_path, report_dirs=False):
                 item_path_dir, item_path_leaf = os.path.split(item.path)
@@ -705,11 +710,13 @@ def extra_json_serializer(obj):
     elif hasattr(obj, "__repr__"):
         return repr(obj)
     else:
-        raise TypeError(f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
+        raise TypeError(
+            f"object of type {type(obj)} is not serializable. Add code to utils.extra_json_serializer to make it json compatible.")
 
 
 class JsonExtraTypesDecoder(json.JSONDecoder):
     """ json module does not know to decode deque """
+
     def default(self, obj):
         if isinstance(obj, (collections.deque,)):
             return list(obj)
@@ -754,6 +761,7 @@ def iter_complete_to_longest(*list_of_lists):
 def clock(func):
     '''A decorator that measures the time it takes to run the original function that was decorated.
        The decorator will print a debug log msg with 8 decimal points, and will work even if an exception was raised.'''
+
     @wraps(func)
     def clocked(*args, **kwargs):
         name = func.__name__
@@ -776,9 +784,10 @@ def clock(func):
             elapsed = time.perf_counter() - t0
             msg = '[{elapsed:0.8f}s] {name}({args_str})'.format(**locals())
             if not caught_exception:
-                msg += ' -> {}' .format(result)
+                msg += ' -> {}'.format(result)
             log.debug(msg)
         return result
+
     return clocked
 
 
@@ -820,3 +829,38 @@ def get_os_description():
     elif sys.platform == 'win32':
         retVal = f"Windows {platform.version()}"
     return retVal
+
+
+def add_to_actions_stack(action: str):
+    doing_stack.append(action)
+
+
+def get_latest_action_from_stack():
+    return doing_stack.pop()
+
+
+# TODO: Shai, is this the best place for this type of function?
+def get_curl_err_msg(key: int) -> str:
+    """
+        helper function for error monitoring, since the one of the most common errors we get are curl related
+        we needed a more accurate description of what went wrong during the download
+        note: I have written the most common curl errors below, more can be added if needed
+    """
+    curl_lookup_error = {
+        3: 'URL malformed',
+        5: 'Couldnt resolve proxy',
+        6: "Couldn't resolve host",
+        7: "Failed to connect to host",
+        18: "Partial file. Only a part of the file was transferred",
+        21: "Quote error. A quote command returned an error from the server",
+        22: "HTTP page not retrieved. The requested url was not found or returned another error",
+        23: "Write error. Curl could not write data to a local filesystem",
+        28: "Operation timeout. The specified time-out period was reached according to the conditions",
+        52: "Nothing was returned from the server",
+        55: "Failure while sending network data",
+        56: "Failure while receiving network data"
+    }
+    if curl_lookup_error and curl_lookup_error[key]:
+        return "curl error code: " + str(key) + ": " + curl_lookup_error[key]
+    else:
+        return "please check curl error key: " + key + " online "
