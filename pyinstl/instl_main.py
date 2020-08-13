@@ -10,9 +10,11 @@ import logging
 import platform
 from pathlib import Path
 from functools import lru_cache
-
+import json
 from configVar import config_vars
+from pybatch import PythonBatchRuntime
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
+
 from pyinstl.instlException import InstlException
 import utils
 
@@ -72,13 +74,15 @@ def get_data_folder():
     return data_folder
 
 
-class InvocationReporter(object):
-    def __init__(self, argv) -> None:
+class InvocationReporter(PythonBatchRuntime):
+
+    def __init__(self, argv, **kwargs) -> None:
+        super().__init__(name="InvocationReporter", **kwargs) #TODO: ask Shai about the name arg
         self.start_time = datetime.datetime.now()
         self.random_invocation_name = ''.join(random.choice(string.ascii_lowercase) for i in range(16))
         self.argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
 
-    def __enter__(self):
+    def enter_self(self) -> None:
         try:
             vendor_name = os.environ.setdefault("VENDOR_NAME", "Waves Audio")
             app_name = os.environ.setdefault("APPLICATION_NAME", "Waves Central")
@@ -90,22 +94,15 @@ class InvocationReporter(object):
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            end_time = datetime.datetime.now()
-            #if exc_val:
-            #    log.exception("InvocationReporter.__exit__:", exc_info=exc_val)
-            log.debug(f"Run time: {end_time-self.start_time}")
-            log.debug(f"End: {end_time}")
-            log.debug(f"===== {self.random_invocation_name} =====")
-        except Exception as e:
-            log.warning(f'InvocationReporter.__exit__ internal exception - {e}')
-
+    def exit_self(self) -> None:
+        self.doing = self.doing if self.doing else utils.get_latest_action_from_stack()
+        #exit remvoed will be inhertied from base clase
+        #TODO: check functionallity diffrence and add it to exit_self method
 
 def instl_own_main(argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
-    with InvocationReporter(argv):
+    with InvocationReporter(argv): # catches exeptions
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()
@@ -157,12 +154,13 @@ def instl_own_main(argv):
         if options.__MAIN_COMMAND__ == "command-list":
             from pyinstl.instlCommandList import run_commands_from_file
             run_commands_from_file(initial_vars, options)
-        elif options.mode == "client":
+        elif options.mode == "client": #shai, maybe add a log here?  before all imports
+            log.debug("begin, importing instl object") #added by oren
             from pyinstl.instlClient import InstlClientFactory
             instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
             instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
             instance.init_from_cmd_line_options(options)
-            instance.do_command()
+            instance.do_command()# after all preprartion is done, we execute the command itself
         elif options.mode == "doit":
             from pyinstl.instlDoIt import InstlDoIt
             instance = InstlDoIt(initial_vars)
