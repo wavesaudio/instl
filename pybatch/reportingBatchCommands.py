@@ -286,6 +286,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.exit_self()
         suppress_exception = False
         if exc_val:
             self.log_error(exc_type, exc_val, exc_tb)
@@ -301,7 +302,10 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):
-        error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
+        if hasattr(exc_val, 'raising_obj'):
+            error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
+        else:
+            error_dict = self.error_dict(exc_type, exc_val, exc_tb)
         error_json = json.dumps(error_dict, separators=(',', ':'), sort_keys=True, default=utils.extra_json_serializer)
         log.error(f"---\n{error_json}\n...\n")
 
