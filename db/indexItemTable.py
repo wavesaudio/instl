@@ -435,6 +435,7 @@ class IndexItemsTable(object):
         return retVal
 
     def resolve_inheritance(self) -> None:
+        utils.add_to_actions_stack("resolving inheritance")
         inherit_order, inherit_dict = self.prepare_inherit_order()
         resolve_items_script = ""
         if bool(config_vars.get("DEBUG_INDEX_DB", False)):
@@ -448,13 +449,14 @@ class IndexItemsTable(object):
                 curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
         else:
             for iid in inherit_order:
-                resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid])
+                resolve_items_script += self.get_resolve_item_query_for_iid(iid, inherit_dict[iid]) #created a massive script, inserting  index_item_detail_t
             with self.db.transaction() as curs:
-                curs.executescript(resolve_items_script)
+                curs.executescript(resolve_items_script) #to imporove perofrmance we first execute, then create the index
                 curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_owner_iid ON index_item_detail_t(owner_iid)""")
                 # creating these indexes did not improve DB performance and added 20s to preparing __ALL_GUIDS__ installation
                 #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_value ON index_item_detail_t(detail_value)""")
                 #curs.execute("""CREATE INDEX IF NOT EXISTS ix_svn_index_item_detail_t_name ON index_item_detail_t(detail_name)""")
+
 
     def prepare_inherit_order(self):
         inherit_order = utils.unique_list()
