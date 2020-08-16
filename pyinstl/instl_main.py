@@ -94,15 +94,21 @@ class InvocationReporter(PythonBatchRuntime):
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
-    def exit_self(self) -> None:
+    def exit_self(self, exit_return) -> None:
         self.doing = self.doing if self.doing else utils.get_latest_action_from_stack()
-        #exit remvoed will be inhertied from base clase
-        #TODO: check functionallity diffrence and add it to exit_self method
+        try:
+            end_time = datetime.datetime.now()
+            log.debug(f"Run time: {self.command_time_sec}")
+            log.debug(f"End: {end_time}")
+            log.debug(f"===== {self.random_invocation_name} =====")
+        except Exception as e:
+            log.warning(f'InvocationReporter.__exit__ internal exception - {e}')
+
 
 def instl_own_main(argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
-    with InvocationReporter(argv): # catches exeptions
+    with InvocationReporter(argv):
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()

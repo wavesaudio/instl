@@ -286,7 +286,6 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.exit_self()
         suppress_exception = False
         if exc_val:
             self.log_error(exc_type, exc_val, exc_tb)
@@ -298,6 +297,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds)}")
         pybatch.PythonBatchCommandBase.stage_stack.pop()
+        self.exit_self(suppress_exception)
 
         return suppress_exception
 
