@@ -215,6 +215,15 @@ class FrameController:
         else:
             log.info(f"""{path_to_yaml} read OK""")
 
+    def prompt_msg_on_err(self, return_code, resolved_command_line_parts, err_msg=''):
+
+        if return_code != 0:
+            match = re.findall(r"{.+[:,].+}|\[.+[,:].+\]", err_msg)
+            result = json.loads(match[0]) if match else ''
+            exception_sir = result['exception_str'] if result and result['exception_str'] else ''
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+            messagebox.showwarning(message="Procces finnished with errors:" + exception_sir)
+
 
 class ClientFrameController(FrameController):
     def __init__(self, instl_obj):
@@ -347,15 +356,6 @@ class ClientFrameController(FrameController):
         self.prompt_msg_on_err(client_process.returncode, resolved_command_line_parts,err_msg=err_str)
 
         print("...")
-
-    def prompt_msg_on_err(self, return_code, resolved_command_line_parts, err_msg=''):
-
-        if return_code != 0:
-            match = re.findall(r"{.+[:,].+}|\[.+[,:].+\]", err_msg)
-            result = json.loads(match[0]) if match else ''
-            exception_sir = result['exception_str'] if result and result['exception_str'] else ''
-            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
-            messagebox.showwarning(message="Procces finnished with errors:" + exception_sir)
 
 
 class AdminFrameController(FrameController):
