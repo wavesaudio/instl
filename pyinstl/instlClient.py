@@ -66,7 +66,7 @@ class InstlClient(InstlInstanceBase):
     def do_command(self):
         active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
 
-        utils.add_to_actions_stack(f"""updating DB: active oses'""")
+        # utils.add_to_actions_stack(f"""updating DB: active oses'""")
         self.items_table.activate_specific_oses(*active_oses)
 
         main_input_file_path: str = os.fspath(config_vars["__MAIN_INPUT_FILE__"]) #usualy the YAML file generated from central
@@ -109,7 +109,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.config_var_list_to_db(config_vars)
 
     def command_output(self):
-        utils.add_to_actions_stack("writing batch file..")
+        # utils.add_to_actions_stack("writing batch file..")
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
@@ -184,7 +184,7 @@ class InstlClient(InstlInstanceBase):
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
-        utils.add_to_actions_stack("calculating main items to install")
+        # utils.add_to_actions_stack("calculating main items to install")
         if "MAIN_INSTALL_TARGETS" not in config_vars:
             raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
 
@@ -205,7 +205,7 @@ class InstlClient(InstlInstanceBase):
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # mark ignored iids, so all subsequent operations not act on these iids
-        utils.add_to_actions_stack("calculate install items")
+        # utils.add_to_actions_stack("calculate install items")
         ignored_iids = list(config_vars.get("MAIN_IGNORED_TARGETS", []))
         self.items_table.set_ignore_iids(ignored_iids)
 
@@ -401,7 +401,7 @@ class InstlClient(InstlInstanceBase):
         return retVal
 
     def get_version_of_installed_binaries(self):
-        utils.add_to_actions_stack("getting version of installed binaries")
+        # utils.add_to_actions_stack("getting version of installed binaries")
         binaries_version_list = list()
         try:
 

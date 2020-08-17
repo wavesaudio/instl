@@ -335,7 +335,7 @@ class SVNTable(object):
             the properties are added to existing sub items.
             raises ValueError is a_format is not supported.
         """
-        utils.add_to_actions_stack(f"""reading file {in_file}'""")
+        # utils.add_to_actions_stack(f"""reading file {in_file}'""")
         if in_file in self.files_read_list:
             log.info(f"SVNTable.read_from_file skipping '{in_file}': file was already read")
             return

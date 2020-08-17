@@ -435,7 +435,7 @@ class IndexItemsTable(object):
         return retVal
 
     def resolve_inheritance(self) -> None:
-        utils.add_to_actions_stack("resolving inheritance")
+        # utils.add_to_actions_stack("resolving inheritance")
         inherit_order, inherit_dict = self.prepare_inherit_order()
         resolve_items_script = ""
         if bool(config_vars.get("DEBUG_INDEX_DB", False)):
