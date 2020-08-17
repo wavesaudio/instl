@@ -335,6 +335,7 @@ class SVNTable(object):
             the properties are added to existing sub items.
             raises ValueError is a_format is not supported.
         """
+        # utils.add_to_actions_stack(f"""reading file {in_file}'""")
         if in_file in self.files_read_list:
             log.info(f"SVNTable.read_from_file skipping '{in_file}': file was already read")
             return
@@ -737,6 +738,7 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
+    #oren TODO: perhaps we can do this actions on the previous walk on this folder
     def get_files_that_should_be_removed_from_sync_folder(self, files_to_check, progress_callback=None) -> List[int]:
         """
         :param files_to_check: a list of tuples [(partial_path, full_path), ...]
@@ -1564,7 +1566,7 @@ class SVNTable(object):
         return retVal
 
     def get_sync_url_for_file_item(self, file_item: SVNRow):
-        retVal = file_item.url
+        retVal = file_item.url #TODO: figure out when this value is set
         if retVal is None:
             repo_rev_folder_hierarchy = self.repo_rev_to_folder_hierarchy(file_item.revision)
             sync_base_url = self.get_sync_base_url_for_iid(file_item.needed_for_iid, "$(SYNC_BASE_URL)")

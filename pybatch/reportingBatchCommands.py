@@ -297,11 +297,15 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         minutes, seconds = divmod(remainder, 60)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds)}")
         pybatch.PythonBatchCommandBase.stage_stack.pop()
+        self.exit_self(suppress_exception)
 
         return suppress_exception
 
     def log_error(self, exc_type, exc_val, exc_tb):
-        error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
+        if hasattr(exc_val, 'raising_obj'):
+            error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
+        else:
+            error_dict = self.error_dict(exc_type, exc_val, exc_tb)
         error_json = json.dumps(error_dict, separators=(',', ':'), sort_keys=True, default=utils.extra_json_serializer)
         log.error(f"---\n{error_json}\n...\n")
 

@@ -93,6 +93,7 @@ class YamlReader(object):
             allow_reading_of_internal_vars = kwargs.get('allow_reading_of_internal_vars', False)
             with self.allow_reading_of_internal_vars(allow=allow_reading_of_internal_vars):
                 self.file_read_stack.append(os.fspath(file_path))
+                # utils.add_to_actions_stack(f"""reading yaml file: {file_path}'""")
                 buffer, actual_file_path = utils.read_file_or_url_utf8(file_path, config_vars=self.config_vars, path_searcher=self.path_searcher, connection_obj=kwargs.get('connection_obj', None))
                 self.config_vars["READ_YAML_FILES"].append(os.fspath(actual_file_path))
                 prog_message = f"reading {os.fspath(file_path)}"
@@ -132,7 +133,7 @@ class YamlReader(object):
                     log.error(f"{ex.__class__.__name__} reading file: {read_file_history}")
                     self.exception_printed = True
                 raise
-        except Exception as ex:
+        except Exception as ex: #TODO: oren - change logs?
             if not self.exception_printed:      # avoid recursive printing of error message
                 read_file_history = "\n->\n".join(self.file_read_stack)
                 log.error(f"""Exception reading file: {read_file_history}""")

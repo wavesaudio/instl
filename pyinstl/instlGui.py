@@ -3,6 +3,7 @@
 
 
 import sys
+import json
 import os
 import subprocess
 import functools
@@ -336,14 +337,24 @@ class ClientFrameController(FrameController):
         resolved_command_line_parts = config_vars.resolve_list_to_list(command_line_parts)
 
         if getattr(os, "setsid", None):
-            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
+            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid,  stderr=subprocess.PIPE)  # Unix
         else:
-            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False)  # Windows
+            client_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # Windows
         unused_stdout, unused_stderr = client_process.communicate()
-        return_code = client_process.returncode
-        if return_code != 0:
-            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+        err_str = unused_stderr.decode()
+
+        self.prompt_msg_on_err(client_process.returncode, resolved_command_line_parts,err_msg=err_str)
+
         print("...")
+
+    def prompt_msg_on_err(self, return_code, resolved_command_line_parts, err_msg=''):
+
+        if return_code != 0:
+            match = re.findall(r"{.+[:,].+}|\[.+[,:].+\]", err_msg)
+            result = json.loads(match[0]) if match else ''
+            exception_sir = result['exception_str'] if result and result['exception_str'] else ''
+            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
+            messagebox.showwarning(message="Procces finnished with errors:" + exception_sir)
 
 
 class AdminFrameController(FrameController):
@@ -506,14 +517,13 @@ class AdminFrameController(FrameController):
         resolved_command_line_parts = [shlex.quote(p) for p in config_vars.resolve_list_to_list(command_line_parts)]
 
         if getattr(os, "setsid", None):
-            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid)  # Unix
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid, stderr=subprocess.PIPE)  # Unix
         else:
-            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False)  # Windows
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, stderr=subprocess.PIPE)  # Windows
         unused_stdout, unused_stderr = admin_process.communicate()
-        return_code = admin_process.returncode
-        if return_code != 0:
-            log.info(f"""{" ".join(resolved_command_line_parts)} returned exit code {return_code}""")
-        print("...")
+        err_str = unused_stderr.decode()
+
+        self.prompt_msg_on_err(admin_process.returncode, resolved_command_line_parts, err_msg=err_str)
 
 
 class ActivateFrameController(FrameController):

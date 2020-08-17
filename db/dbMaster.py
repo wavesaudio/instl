@@ -105,6 +105,7 @@ class DBMaster(object):
                 #self.progress(f"reused existing db file {db_base_self.db_file_path}")
 
     def set_db_file_owner(self):
+        # utils.add_to_actions_stack(f"""chmod db path {self.db_file_path} '""")
         if not self.memory_db and self.db_file_path.is_file():
             utils.chown_chmod_on_path(self.db_file_path)
 
