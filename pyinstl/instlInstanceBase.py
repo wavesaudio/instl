@@ -24,8 +24,24 @@ from db import DBManager
 from pybatch import *
 
 from .curlHelper import CUrlHelper
+import functools
 
 log = logging.getLogger()
+
+
+if False:
+    # decorator to set the correct "doing" message
+    class DoingDecorator:
+        def __init__(self, message):
+            self.message = message
+
+        def __call__(self, func):
+            def decorated_func(*args, **kwargs):
+                print(f"going in {self.message}")
+                retVal = func(*args, **kwargs)
+                print(f"going out {self.message}")
+            return decorated_func
+
 
 
 value_ref_re = re.compile(r"""
@@ -175,11 +191,13 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
 
         self.read_user_config()
 
+    #@DoingDecorator("read_defaults_file")
     def read_defaults_file(self, file_name, allow_reading_of_internal_vars=True, ignore_if_not_exist=True):
         """ read class specific file from defaults/class_name.yaml """
         name_specific_defaults_file_path = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path().joinpath(file_name + ".yaml").resolve()
         self.read_yaml_file(name_specific_defaults_file_path, ignore_if_not_exist=ignore_if_not_exist, allow_reading_of_internal_vars=allow_reading_of_internal_vars)
 
+    #@DoingDecorator("read_user_config")
     def read_user_config(self):
         user_config_path = config_vars["__USER_CONFIG_FILE_PATH__"].str()
         self.read_yaml_file(user_config_path, ignore_if_not_exist=True, allow_reading_of_internal_vars=True)
@@ -190,6 +208,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
             msg = "Prerequisite variables were not defined: " + ", ".join(missing_vars)
             raise ValueError(msg)
 
+    #@DoingDecorator("init_from_cmd_line_options")
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
 
