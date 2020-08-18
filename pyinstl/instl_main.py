@@ -108,7 +108,7 @@ class InvocationReporter(PythonBatchRuntime):
 def instl_own_main(argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
-    with InvocationReporter(argv):
+    with InvocationReporter(argv, report_own_progress=False):
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()
