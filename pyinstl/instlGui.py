@@ -341,7 +341,6 @@ class ClientFrameController(FrameController):
         return retVal
 
     def run_client(self):
-
         self.update_state(who="ClientFrameController.run_client")
         command_line_parts = self.create_client_command_line()
         resolved_command_line_parts = config_vars.resolve_list_to_list(command_line_parts)
@@ -525,6 +524,7 @@ class AdminFrameController(FrameController):
         err_str = unused_stderr.decode()
 
         self.prompt_msg_on_err(admin_process.returncode, resolved_command_line_parts, err_msg=err_str)
+
 
 class ActivateFrameController(FrameController):
     def __init__(self, instl_obj):
