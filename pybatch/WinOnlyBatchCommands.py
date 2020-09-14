@@ -23,8 +23,8 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         self.exceptions_to_ignore.append(AttributeError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
-        all_args.append(self.unnamed__init__param(os.fspath(self.target_path)))
+        all_args.append(self.unnamed__init__param(self.shortcut_path))
+        all_args.append(self.unnamed__init__param(self.target_path))
 
     def progress_msg_self(self) -> str:
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""

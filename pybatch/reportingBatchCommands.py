@@ -320,7 +320,14 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_files=None, **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False, **kwargs):
+        """
+        read a file and resolve all references to config_vars.
+        :param unresolved_file: file to resolve
+        :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
+        :param config_files: additional files to read config_vars definitions from
+        :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
+        """
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
         if resolved_file:
@@ -328,12 +335,14 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         else:
             self.resolved_file = self.unresolved_file
         self.config_files = config_files
+        self.raise_if_unresolved = raise_if_unresolved
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
+        all_args.append(self.unnamed__init__param(self.unresolved_file))
         if self.resolved_file != self.unresolved_file:
-            all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
+            all_args.append(self.unnamed__init__param(self.resolved_file))
         all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
+        all_args.append(self.optional_named__init__param("raise_if_unresolved", self.raise_if_unresolved, False))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
@@ -347,6 +356,12 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
+        if self.raise_if_unresolved:
+            unresolved_re = re.compile(r"""\$\(.*?\)""")
+            all_unresolved = unresolved_re.findall(resolved_text)
+            if all_unresolved:
+                unresolved_references = ", ".join(list(set(all_unresolved)))
+                raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
         with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
             wfd.write(resolved_text)
 

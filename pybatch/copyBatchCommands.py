@@ -119,8 +119,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
 
     def repr_own_args(self, all_args: List[str]) -> None:
         params = list()
-        params.append(self.unnamed__init__param(os.fspath(self.src)))
-        params.append(self.unnamed__init__param(os.fspath(self.dst)))
+        params.append(self.unnamed__init__param(self.src))
+        params.append(self.unnamed__init__param(self.dst))
         if not self.ignore_all_errors:
             params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))
@@ -613,8 +613,8 @@ class CopyBundle(RsyncClone):
         self.unwtar = unwtar
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(os.fspath(self.source)))
-        all_args.append(self.unnamed__init__param(os.fspath(self.destination)))
+        all_args.append(self.unnamed__init__param(self.source))
+        all_args.append(self.unnamed__init__param(self.destination))
         all_args.append(self.optional_named__init__param("unwtar", self.unwtar, "False"))
 
     def progress_msg_self(self) -> str:

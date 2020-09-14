@@ -163,7 +163,7 @@ class SVNAdd(SVNClient):
         self.file_to_add = file_to_add
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.named__init__param("file_to_add", os.fspath(self.file_to_add)))
+        all_args.append(self.named__init__param("file_to_add", self.file_to_add))
 
     def get_run_args(self, run_args) -> None:
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())

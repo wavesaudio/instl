@@ -348,8 +348,8 @@ class RunInThread(PythonBatchCommandBase):
         # what_to_run should not increment or report progress because there is no way to know when it will happen
         # so RunInThread takes over what_to_run's progress and reports it as if it is already done.
         all_args.append(repr(self.what_to_run))
-        all_args.append(self.optional_named__init__param('thread_name', self.thread_name, None))
-        all_args.append(self.optional_named__init__param('daemon', self.daemon, None))
+        all_args.append(self.optional_named__init__param('thread_name', self.thread_name))
+        all_args.append(self.optional_named__init__param('daemon', self.daemon))
 
     def progress_msg_self(self) -> str:
         return f''''''
@@ -420,18 +420,18 @@ class Subprocess(RunProcessBase):
 
 
 class ExternalPythonExec(Subprocess):
-    '''A class that enables running python processes under the native python installed on the machine'''
+    """ A class that enables running python processes under the native python installed on the machine"""
     def __init__(self, *subprocess_args, **kwargs):
         '''Setting subprocess_exe to an empty string to exclude it from the repr'''
         super().__init__('', *subprocess_args, **kwargs)
 
     def repr_own_args(self, all_args: List[str]):
-        '''Removing subprocess_exe from the repr'''
+        """ Removing subprocess_exe from the repr"""
         super().repr_own_args(all_args)
         all_args.pop(0)  # Removing empty string
 
     def get_run_args(self, run_args) -> None:
-        '''Injecting the relevant OS python process into the run args instead of the empty string'''
+        """ Injecting the relevant OS python process into the run args instead of the empty string"""
         super().get_run_args(run_args)
         python_executables = {'win32': ['py',  '-3.6'], 'darwin': ['python3.6']}
         run_args.pop(0)  # Removing empty string
@@ -465,7 +465,7 @@ class Raise(PythonBatchCommandBase):
         return f'''raising BogusException({self.message})'''
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param("message", self.message, None))
+        all_args.append(self.optional_named__init__param("message", self.message))
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)

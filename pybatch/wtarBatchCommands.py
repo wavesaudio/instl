@@ -178,11 +178,9 @@ class Unwtar(PythonBatchCommandBase):
         self.wtar_file_paths = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''what_to_unwtar={utils.quoteme_raw_by_type(self.what_to_unwtar)}''')
-        if self.where_to_unwtar:
-            all_args.append(f'''where_to_unwtar={utils.quoteme_raw_by_type(self.where_to_unwtar)}''')
-        if self.no_artifacts:
-            all_args.append(f'''no_artifacts=True''')
+        all_args.append(self.named__init__param("what_to_unwtar", self.what_to_unwtar))
+        all_args.append(self.optional_named__init__param("where_to_unwtar", self.where_to_unwtar, None))
+        all_args.append(self.optional_named__init__param("no_artifacts", self.no_artifacts, False))
 
     def progress_msg_self(self) -> str:
         return f"""Expand '{self.what_to_unwtar}' to '{self.where_to_unwtar}'"""

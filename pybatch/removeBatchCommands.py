@@ -286,8 +286,7 @@ class RmDirContents(PythonBatchCommandBase):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.path_to_folder))
-        if self.exclude:
-            all_args.append(self.named__init__param("exclude", self.exclude))
+        all_args.append(self.optional_named__init__param("exclude", self.exclude, []))
 
     def progress_msg_self(self):
         return f"""Remove Dir Contents {self.path_to_folder}"""
