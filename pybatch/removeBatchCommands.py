@@ -24,7 +24,7 @@ class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"""Remove file '{self.path}'"""
@@ -78,7 +78,7 @@ class RmDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
@@ -128,7 +128,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"""Remove '{self.path}'"""
@@ -167,7 +167,7 @@ class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_igno
         self.folder_to_check = folder_to_check
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''{utils.quoteme_raw_by_type(self.folder_to_check)}''')
+        all_args.append(self.unnamed__init__param(self.folder_to_check))
 
     def progress_msg_self(self) -> str:
         return f"""Remove empty directory '{self.folder_to_check}'"""
@@ -220,8 +220,8 @@ class RmGlob(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path_to_folder))
-        all_args.append(utils.quoteme_raw_by_type(self.pattern))
+        all_args.append(self.unnamed__init__param(self.path_to_folder))
+        all_args.append(self.unnamed__init__param(self.pattern))
 
     def progress_msg_self(self):
         return f"""Remove pattern '{self.pattern}' from {self.path_to_folder}"""
@@ -237,6 +237,7 @@ class RmGlob(PythonBatchCommandBase):
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
+
 class RmGlobs(PythonBatchCommandBase):
     """ remove files matching any pattern in the given list
         - all files and folders matching the patterns will be removed
@@ -250,9 +251,9 @@ class RmGlobs(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path_to_folder))
+        all_args.append(self.unnamed__init__param(self.path_to_folder))
         for pattern in self.patterns:
-            all_args.append(utils.quoteme_raw_by_type(pattern))
+            all_args.append(self.unnamed__init__param(pattern))
 
     def progress_msg_self(self):
         return f"""Remove patterns '{self.patterns}' from {self.path_to_folder}"""

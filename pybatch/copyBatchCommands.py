@@ -424,7 +424,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             except shutil.Error as err:
                 errors.append(err.args[0])
             except OSError as why:
-                errors.append((src_item_path, dst_path, str(why)))
+                errors.append((os.fspath(src_item_path), os.fspath(dst_path), str(why)))
 
         if errors:
             raise shutil.Error(errors)

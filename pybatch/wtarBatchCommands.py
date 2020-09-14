@@ -39,11 +39,9 @@ class Wtar(PythonBatchCommandBase):
         self.split_threshold = split_threshold
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''what_to_wtar={utils.quoteme_raw_by_type(self.what_to_wtar)}''')
-        if self.where_to_put_wtar:
-            all_args.append(f'''where_to_put_wtar={utils.quoteme_raw_by_type(self.where_to_put_wtar)}''')
-        if self.split_threshold > 0:
-            all_args.append(f'''split_threshold={utils.quoteme_raw_by_type(self.split_threshold)}''')
+        all_args.append(self.named__init__param("what_to_wtar", self.what_to_wtar))
+        all_args.append(self.optional_named__init__param("where_to_put_wtar", self.where_to_put_wtar))
+        all_args.append(self.optional_named__init__param("split_threshold", self.split_threshold, 0))
 
     def progress_msg_self(self) -> str:
         return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
@@ -333,9 +331,8 @@ class Wzip(PythonBatchCommandBase):
         self.where_to_put_wzip = os.fspath(where_to_put_wzip) if where_to_put_wzip else None
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.what_to_wzip))
-        if self.where_to_put_wzip:
-            all_args.append(utils.quoteme_raw_by_type(self.where_to_put_wzip))
+        all_args.append(self.unnamed__init__param(self.what_to_wzip))
+        all_args.append(self.optional_named__init__param("where_to_put_wzip", self.where_to_put_wzip))
 
     def progress_msg_self(self) -> str:
         if self.where_to_put_wzip:
@@ -374,9 +371,8 @@ class Unwzip(PythonBatchCommandBase):
         self.target_unwzip_file = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.what_to_unwzip))
-        if self.where_to_put_unwzip:
-            all_args.append(utils.quoteme_raw_by_type(self.where_to_put_unwzip))
+        all_args.append(self.unnamed__init__param(self.what_to_unwzip))
+        all_args.append(self.optional_named__init__param("where_to_put_unwzip", self.where_to_put_unwzip))
 
     def progress_msg_self(self) -> str:
         return f"""Unzip '{self.what_to_unwzip}' to '{self.where_to_put_unwzip}'"""

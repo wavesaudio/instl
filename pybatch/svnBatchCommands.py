@@ -178,7 +178,7 @@ class SVNRemove(SVNClient, kwargs_defaults={"depth": None}):
         self.file_to_remove = file_to_remove
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.named__init__param("file_to_remove", os.fspath(self.file_to_remove)))
+        all_args.append(self.named__init__param("file_to_remove", self.file_to_remove))
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)

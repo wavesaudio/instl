@@ -47,6 +47,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     runtime_duration_by_progress = dict()
     ignore_progress = False           # set to True when using batch commands out side python batch file
+    config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__90
 
     # defaults for __init__ of derived classes. Members how's value has not changed from these values
     # can be skipped when __repr__ recreates the object
@@ -140,7 +141,7 @@ class PythonBatchCommandBase(abc.ABC):
         """
         kwdict = self.all_kwargs_dict(only_non_default_values=True)
         for kwarg_name, kwarg_value in kwdict.items():
-            all_args.append(f"""{kwarg_name}={utils.quoteme_raw_by_type(kwarg_value)}""")
+            all_args.append(self.named__init__param(kwarg_name, kwarg_value))
 
     #@abc.abstractmethod
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -201,18 +202,18 @@ class PythonBatchCommandBase(abc.ABC):
             raise PythonBatchCommandBase.SkipActionException()
 
     def unnamed__init__param(self, value):
-        value_str = utils.quoteme_raw_by_type(value)
+        value_str = utils.quoteme_raw_by_type(value, PythonBatchCommandBase.config_vars_for_repr)
         return value_str
 
     def named__init__param(self, name, value):
-        value_str = utils.quoteme_raw_by_type(value)
+        value_str = utils.quoteme_raw_by_type(value, PythonBatchCommandBase.config_vars_for_repr)
         param_repr = f"{name}={value_str}"
         return param_repr
 
     def optional_named__init__param(self, name, value, default=None):
         param_repr = None
         if value != default:
-            value_str = utils.quoteme_raw_by_type(value)
+            value_str = utils.quoteme_raw_by_type(value, PythonBatchCommandBase.config_vars_for_repr)
             param_repr = f"{name}={value_str}"
         return param_repr
 

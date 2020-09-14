@@ -100,7 +100,7 @@ class RmSymlink(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"""Remove symlink '{self.path}'"""

@@ -49,7 +49,7 @@ class RaiseException(pybatch.PythonBatchCommandBase):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.exception_type_name)
-        all_args.append(utils.quoteme_raw_by_type(self.exception_message))
+        all_args.append(self.unnamed__init__param(self.exception_message))
 
     def progress_msg_self(self) -> str:
         return f'''Raising exception {self.exception_type.__name__}("{self.exception_message}")'''
@@ -68,9 +68,9 @@ class Stage(pybatch.PythonBatchCommandBase, essential=False, call__call__=False,
         self.stage_extra = stage_extra
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.stage_name))
+        all_args.append(self.unnamed__init__param(self.stage_name))
         if self.stage_extra:
-            all_args.append(utils.quoteme_raw_by_type(self.stage_extra))
+            all_args.append(self.unnamed__init__param(self.stage_extra))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}"""
@@ -102,7 +102,7 @@ class Progress(pybatch.PythonBatchCommandBase, essential=False, call__call__=Tru
         self.message = message
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.message))
+        all_args.append(self.unnamed__init__param(self.message))
 
     def progress_msg_self(self) -> str:
         return self.message
@@ -268,7 +268,7 @@ class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_conte
         self.var_name = var_name
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.var_name))
+        all_args.append(self.unnamed__init__param(self.var_name))
 
     def progress_msg_self(self) -> str:
         resolved = config_vars[self.var_name].str()
@@ -310,7 +310,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         log.error(f"---\n{error_json}\n...\n")
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''"{self.name}"''')
+        all_args.append(self.unnamed__init__param(self.name))
 
     def progress_msg_self(self) -> str:
         return f''''''
@@ -431,7 +431,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
         self.path_to_py_batch = utils.ExpandAndResolvePath(path_to_py_batch)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path_to_py_batch))
+        all_args.append(self.unnamed__init__param(self.path_to_py_batch))
 
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message

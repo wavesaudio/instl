@@ -148,13 +148,13 @@ class CUrl(RunProcessBase):
         self.retry_delay = retry_delay
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""src={utils.quoteme_raw_by_type(self.src)}""")
-        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
-        all_args.append(f"""curl_path={utils.quoteme_raw_by_type(self.curl_path)}""")
-        all_args.append(f"""connect_time_out={self.connect_time_out}""")
-        all_args.append(f"""max_time={self.max_time}""")
-        all_args.append(f"""retires={self.retires}""")
-        all_args.append(f"""retry_delay={self.retry_delay}""")
+        all_args.append(self.named__init__param("src", self.src))
+        all_args.append(self.named__init__param("trg", self.trg))
+        all_args.append(self.named__init__param("curl_path", self.curl_path))
+        all_args.append(self.named__init__param("connect_time_out", self.connect_time_out))
+        all_args.append(self.named__init__param("max_time", self.max_time))
+        all_args.append(self.named__init__param("retires", self.retires))
+        all_args.append(self.named__init__param("retry_delay", self.retry_delay))
 
     def progress_msg_self(self):
         return f"""Download '{self.src}' to '{self.trg}'"""
@@ -188,14 +188,13 @@ class ShellCommand(RunProcessBase):
         self.message = message
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.shell_command))
-        if self.message:
-            all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
+        all_args.append(self.unnamed__init__param(self.shell_command))
+        all_args.append(self.optional_named__init__param("message", self.message))
         if self.ignore_specific_exit_codes:
             if len(self.ignore_specific_exit_codes,) == 1:
-                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+                all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
             else:
-                all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
+                all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
 
     def progress_msg_self(self):
         if self.message:
@@ -232,7 +231,7 @@ class ShellCommands(PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
         quoted_shell_commands_list = utils.quoteme_raw_if_list(self.shell_command_list)
         all_args.append(f"""shell_command_list={quoted_shell_commands_list}""")
-        all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
+        all_args.append(self.named__init__param("message", self.message))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__}"""
@@ -270,7 +269,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
         self.config_file = config_file
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.config_file))
+        all_args.append(self.unnamed__init__param(self.config_file))
 
     def get_action_name(self):
         return self.action_name if self.action_name else self.__class__.__name__
@@ -310,11 +309,10 @@ class Exec(PythonBatchCommandBase):
         self.reuse_db = reuse_db
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.python_file))
+        all_args.append(self.unnamed__init__param(self.python_file))
         if self.config_files:
-            all_args.append(utils.quoteme_raw_by_type(self.config_files))
-        if not self.reuse_db:
-            all_args.append(f"reuse_db={self.reuse_db}")
+            all_args.append(self.unnamed__init__param(self.config_files))
+        all_args.append(self.optional_named__init__param("reuse_db", self.reuse_db, True))
 
     def progress_msg_self(self):
         return f"""Executing '{self.python_file}'"""
@@ -392,16 +390,15 @@ class Subprocess(RunProcessBase):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         try:
-            all_args.append(utils.quoteme_raw_by_type(self.subprocess_exe))
+            all_args.append(self.unnamed__init__param(self.subprocess_exe))
             for arg in self.subprocess_args:
-                all_args.append(utils.quoteme_raw_by_type(arg))
-            if self.message:
-                all_args.append(f"""message={utils.quoteme_raw_by_type(self.message)}""")
+                all_args.append(self.unnamed__init__param(arg))
+            all_args.append(self.optional_named__init__param("message", self.message))
             if self.ignore_specific_exit_codes:
                 if len(self.ignore_specific_exit_codes,) == 1:
-                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes[0]}""")
+                    all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
                 else:
-                    all_args.append(f"""ignore_specific_exit_codes={self.ignore_specific_exit_codes}""")
+                    all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
         except TypeError as te:
             pass
 
@@ -448,7 +445,7 @@ class SysExit(PythonBatchCommandBase):
         return f'''sys.exit({self.exit_code})'''
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.exit_code))
+        all_args.append(self.unnamed__init__param(self.exit_code))
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
