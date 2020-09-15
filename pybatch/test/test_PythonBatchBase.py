@@ -181,7 +181,6 @@ class TestPythonBatch(object):
             test_name = self.which_test
         test_name = f"{self.sub_test_counter}_{test_name}"
 
-
         self.python_batch_file_path = os.fspath(self.path_inside_test_folder(test_name+".py"))
         config_vars["__MAIN_OUT_FILE__"] = self.python_batch_file_path
         config_vars["__MAIN_COMMAND__"] = f"{self.which_test} test #{self.sub_test_counter};"

@@ -574,6 +574,62 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         are_files_the_same = filecmp.cmp(file_to_split_before, file_to_split, shallow=False)
         self.assertTrue(are_files_the_same, f"{self.pbt.which_test}: before split and after join fies are not the same")
 
+    def test_Glober_repr(self):
+        self.pbt.reprs_test_runner(Glober('rumba/*', Print, "shoshana"),
+                                   Glober('rumba/*', Print, "shoshana", "banana"),
+                                   Glober('rumba/*', Print, "shoshana", "dana", "banana"),
+                                   Glober('rumba/*', Print, "shoshana", arg_one=1, arg_two=2),
+                                   Glober('rumba/*', Print, "shoshana", "dana", "banana", arg_one=1, arg_two=2)
+                                   )
+
+    def test_Glober(self):
+        file_to_remove_1: Path = self.pbt.path_inside_test_folder("file_to_remove_1")
+        file_to_remove_2: Path = self.pbt.path_inside_test_folder("file_to_remove_2")
+        file_to_stay_1: Path = self.pbt.path_inside_test_folder("file_to_stay_1")
+        file_to_stay_2: Path = self.pbt.path_inside_test_folder("file_to_stay_2")
+        united_file: Path = self.pbt.path_inside_test_folder("united_file")
+
+        # create the files
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(file_to_remove_1)
+        self.pbt.batch_accum += Touch(file_to_remove_2)
+        self.pbt.batch_accum += MakeRandomDataFile(file_to_stay_1, 68)
+        self.pbt.batch_accum += MakeRandomDataFile(file_to_stay_2, 32)
+        self.pbt.exec_and_capture_output()
+        # check files were created
+        self.assertTrue(file_to_remove_1.exists(), f"file not created {file_to_remove_1}")
+        self.assertTrue(file_to_remove_2.exists(), f"file not created {file_to_remove_2}")
+        self.assertTrue(file_to_stay_1.exists(), f"file not created {file_to_stay_1}")
+        self.assertTrue(file_to_stay_2.exists(), f"file not created {file_to_stay_2}")
+        self.assertFalse(united_file.exists(), f"file should not exist {united_file}")
+
+        # test will:
+        # 1) remove some files with a glob pattern.
+        # 2) unite some files with another pattern and check expected size of new file
+        # 3) run a glob that  matches nothing to make sure Glober can handler this as well
+        self.pbt.batch_accum.clear(section_name="doit")
+        to_stay_glob = os.fspath(self.pbt.test_folder.joinpath("file_to_stay*"))
+        to_remove_glob = os.fspath(self.pbt.test_folder.joinpath("file_to_remove*"))
+        no_match_glob = os.fspath(self.pbt.test_folder.joinpath("no_match*"))
+
+        self.pbt.batch_accum += Glober(to_stay_glob,
+                                       AppendFileToFile,
+                                       None,
+                                       united_file)
+        self.pbt.batch_accum += Glober(to_remove_glob,
+                                       RmFile,
+                                       "path")
+        self.pbt.batch_accum += Glober(no_match_glob,
+                                       RmFile,
+                                       "path")
+
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(file_to_remove_1.exists(), f"file not created {file_to_remove_1}")
+        self.assertFalse(file_to_remove_2.exists(), f"file not created {file_to_remove_2}")
+        self.assertTrue(file_to_stay_1.exists(), f"file not created {file_to_stay_1}")
+        self.assertTrue(file_to_stay_2.exists(), f"file not created {file_to_stay_2}")
+        self.assertEqual(united_file.stat().st_size, 100, f"united file, wrong size {united_file.stat().st_size}")
+
     def test_something(self):
         the_folder = Path("C:\\Program Files (x86)\\Common Files\\WPAPI")
         # self.pbt.batch_accum.clear(section_name="doit")

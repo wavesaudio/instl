@@ -8,6 +8,7 @@ import math
 import collections
 from typing import List, Any, Optional, Union
 import re
+import glob
 
 import utils
 from .baseClasses import *
@@ -924,6 +925,64 @@ class FixAllPermissions(PythonBatchCommandBase):
         elif sys.platform == 'win32':
             with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
                 acler()
+
+
+class Glober(PythonBatchCommandBase):
+    """ run a given class on a list of file created from a glob pattern
+        for example to delete all file is a folder ending with .h:
+        with Glober(glob_pattern="/A/b/*.h", class_to_run=RmFile, target_param_name="path") as glober:
+            glober()
+    """
+    def __init__(self, glob_pattern, class_to_run, target_param_name, *argv_for_glob_handler, **kwargs_for_glob_handler):
+        """
+        :param glob_pattern:  the glob pattern to run on,
+                syntax as defined in https://docs.python.org/3.6/library/pathlib.html#pathlib.Path.glob
+        :param class_to_run: class_to_run, the class that handles each of the file in the list create by glob
+        :param target_param_name: the name of the param to pass to class_to_run with the file path
+        :param argv_for_glob_handler: positional args to pass to class_to_run __init__()
+        :param kwargs_for_glob_handler: named args to pass to class_to_run __init__()
+        """
+        super().__init__()
+        self.glob_pattern = glob_pattern
+        self.target_param_name = target_param_name
+        self.class_to_run = class_to_run
+        self.argv_for_glob_handler = list(argv_for_glob_handler)
+        self.kwargs_for_glob_handler = kwargs_for_glob_handler
+        pass
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.glob_pattern))
+        all_args.append(self.class_to_run.__name__)
+        if self.target_param_name:
+            all_args.append(self.unnamed__init__param(self.target_param_name))
+        else:
+            all_args.append("None")  # by not calling unnamed__init__param we make sure None will bewitten without quotes
+        for positional_arg in self.argv_for_glob_handler:
+            all_args.append(self.unnamed__init__param(positional_arg))
+        for name, value in self.kwargs_for_glob_handler.items():
+            all_args.append(self.named__init__param(name, value))
+        pass
+
+    def progress_msg_self(self):
+        return f"""{self.__class__.__name__} '{self.glob_pattern}'"""
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        self.doing = f"""running {self.class_to_run} on glob pattern'{self.glob_pattern}'"""
+        self.kwargs_for_glob_handler['report_own_progress'] = False
+
+        if not self.target_param_name:
+            self.argv_for_glob_handler.insert(0, None)
+
+        for a_path in glob.glob(self.glob_pattern):
+            if self.target_param_name:
+                self.kwargs_for_glob_handler[self.target_param_name] = a_path
+                with self.class_to_run(*self.argv_for_glob_handler, **self.kwargs_for_glob_handler) as handler:
+                    handler()
+            else:
+                self.argv_for_glob_handler[0] = a_path
+                with self.class_to_run(*self.argv_for_glob_handler, **self.kwargs_for_glob_handler) as handler:
+                    handler()
 
 
 if sys.platform == "darwin":

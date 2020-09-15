@@ -47,7 +47,7 @@ class PythonBatchCommandBase(abc.ABC):
     is_anonymous: bool = False        # anonymous means the object is just a container for child_batch_commands and should not be used by itself
     runtime_duration_by_progress = dict()
     ignore_progress = False           # set to True when using batch commands out side python batch file
-    config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__90
+    config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__()
 
     # defaults for __init__ of derived classes. Members how's value has not changed from these values
     # can be skipped when __repr__ recreates the object
