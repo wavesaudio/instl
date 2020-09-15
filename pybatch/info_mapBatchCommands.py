@@ -55,7 +55,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
-        all_args.append(self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload, None))
+        all_args.append(self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''

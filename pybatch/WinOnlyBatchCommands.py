@@ -23,8 +23,8 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         self.exceptions_to_ignore.append(AttributeError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(os.fspath(self.shortcut_path)))
-        all_args.append(self.unnamed__init__param(os.fspath(self.target_path)))
+        all_args.append(self.unnamed__init__param(self.shortcut_path))
+        all_args.append(self.unnamed__init__param(self.target_path))
 
     def progress_msg_self(self) -> str:
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
@@ -61,15 +61,17 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
 
 class BaseRegistryKey(PythonBatchCommandBase):
     reg_view_num_to_const = {64: winreg.KEY_WOW64_64KEY, 32: winreg.KEY_WOW64_32KEY}
+
     def __init__(self, top_key: str, sub_key: str, data_type: str='REG_SZ', reg_num_bits: int=64, **kwargs):
-        '''
+        """
         The base registry sub_key class to be used for reading/creating/deleting keys or values in the registry
         args follow names and meaning of winreg functions such as OpenKey
         Args:
             top_key one of HKEY_CLASSES_ROOT/HKEY_CURRENT_USER/HKEY_LOCAL_MACHINE/HKEY_USERS/HKEY_CURRENT_CONFIG
             sub_key - path to sub_key's folder
             reg_num_bits - 32/64
-            data_type -  REG_SZ (default) | REG_DWORD | REG_EXPAND_SZ | REG_MULTI_SZ'''
+            data_type -  REG_SZ (default) | REG_DWORD | REG_EXPAND_SZ | REG_MULTI_SZ
+        """
         super().__init__(**kwargs)
         self.top_key = top_key
         self.sub_key = sub_key
@@ -90,11 +92,11 @@ class BaseRegistryKey(PythonBatchCommandBase):
     def positional_members_repr(self, all_args: List[str]) -> None:
         """ helper function to create repr for BaseRegistryKey common to all subclasses """
         all_args.append(utils.quoteme_double(self.top_key))
-        all_args.append(utils.quoteme_raw_by_type(self.sub_key))
+        all_args.append(self.unnamed__init__param(self.sub_key))
         if self.value_name is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.value_name))
+            all_args.append(self.unnamed__init__param(self.value_name))
         if self.value_data is not None:
-            all_args.append(utils.quoteme_raw_by_type(self.value_data))
+            all_args.append(self.unnamed__init__param(self.value_data))
 
     def named_members_repr(self, all_args: List[str]) -> None:
         if self.data_type != 'REG_SZ':
@@ -185,7 +187,7 @@ class CreateRegistryValues(BaseRegistryKey):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         super().repr_own_args(all_args)
-        all_args.append(f"value_dict={utils.quoteme_raw_by_type(self.value_dict)}")
+        all_args.append(self.named__init__param("value_dict", self.value_dict))
 
     def progress_msg_self(self) -> str:
         return f"Creating Registry values {self.sub_key} -> {self.value_dict}"
@@ -257,8 +259,8 @@ class ResHackerCompileResource(RunProcessBase):
         self.rc_file_path: os.PathLike = rc_file_path
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
-        all_args.append(f"""rc_file_path={utils.quoteme_raw_by_type(self.rc_file_path)}""")
+        all_args.append(self.named__init__param("reshacker_path", self.reshacker_path))
+        all_args.append(self.named__init__param("rc_file_path", self.rc_file_path))
 
     def progress_msg_self(self):
         return f"""Compile resource '{self.rc_file_path}'"""
@@ -287,13 +289,11 @@ class ResHackerAddResource(RunProcessBase):
         self.resource_name = resource_name
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"""reshacker_path={utils.quoteme_raw_by_type(self.reshacker_path)}""")
-        all_args.append(f"""trg={utils.quoteme_raw_by_type(self.trg)}""")
-        all_args.append(f"""resource_source_file={utils.quoteme_raw_by_type(self.resource_source_file)}""")
-        if self.resource_type:
-            all_args.append( f"""resource_type={utils.quoteme_raw_by_type(self.resource_type)}""")
-        if self.resource_name:
-            all_args.append( f"""resource_name={utils.quoteme_raw_by_type(self.resource_name)}""")
+        all_args.append(self.named__init__param("reshacker_path", self.reshacker_path))
+        all_args.append(self.named__init__param("trg", self.trg))
+        all_args.append(self.named__init__param("resource_source_file", self.resource_source_file))
+        all_args.append(self.optional_named__init__param("resource_type", self.resource_type))
+        all_args.append(self.optional_named__init__param("resource_name", self.resource_name))
 
     def progress_msg_self(self):
         if self.resource_type and self.resource_name:
@@ -331,7 +331,7 @@ class FullACLForEveryone(RunProcessBase):
         self.path = Path(path)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"FullACLForEveryone for {self.path}"

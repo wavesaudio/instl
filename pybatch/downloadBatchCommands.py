@@ -15,9 +15,9 @@ class DownloadFileAndCheckChecksum(PythonBatchCommandBase):
         self.checksum = checksum
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.url))
-        all_args.append(utils.quoteme_raw_by_type(self.path))
-        all_args.append(utils.quoteme_raw_by_type(self.checksum))
+        all_args.append(self.unnamed__init__param(self.url))
+        all_args.append(self.unnamed__init__param(self.path))
+        all_args.append(self.unnamed__init__param(self.checksum))
 
     def progress_msg_self(self):
         the_progress_msg = f"Downloading '{self.url}' to '{self.path}'"

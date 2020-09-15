@@ -163,7 +163,7 @@ class SVNAdd(SVNClient):
         self.file_to_add = file_to_add
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.named__init__param("file_to_add", os.fspath(self.file_to_add)))
+        all_args.append(self.named__init__param("file_to_add", self.file_to_add))
 
     def get_run_args(self, run_args) -> None:
         run_args.append(config_vars.get("SVN_CLIENT_PATH", "svn").str())
@@ -178,7 +178,7 @@ class SVNRemove(SVNClient, kwargs_defaults={"depth": None}):
         self.file_to_remove = file_to_remove
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.named__init__param("file_to_remove", os.fspath(self.file_to_remove)))
+        all_args.append(self.named__init__param("file_to_remove", self.file_to_remove))
 
     def get_run_args(self, run_args) -> None:
         super().get_run_args(run_args)

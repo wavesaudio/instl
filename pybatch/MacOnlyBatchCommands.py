@@ -25,8 +25,8 @@ class MacDock(PythonBatchCommandBase):
         self.remove = remove
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item, None))
-        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item, None))
+        all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item))
+        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item))
         all_args.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
@@ -100,7 +100,7 @@ class RmSymlink(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path))
+        all_args.append(self.unnamed__init__param(self.path))
 
     def progress_msg_self(self):
         return f"""Remove symlink '{self.path}'"""

@@ -115,6 +115,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
     def __repr__(self):
         single_indent = "    "
         running_progress_count = self.initial_progress
+        PythonBatchCommandBase.config_vars_for_repr = config_vars  # so __repr__ of object derived from PythonBatchCommandBase will resolve config_vars values
 
         def _create_unique_obj_name(obj, prog_count):
             try:
@@ -200,6 +201,9 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         main_str_resolved = config_vars.replace_unresolved_with_native_var_pattern(main_str_resolved, list(config_vars["__CURRENT_OS_NAMES__"])[0])
 
         the_whole_repr = prolog_str.getvalue()+main_str_resolved+epilog_str.getvalue()
+
+        PythonBatchCommandBase.config_vars_for_repr = None
+
         return the_whole_repr
 
     def progress_msg_self(self):

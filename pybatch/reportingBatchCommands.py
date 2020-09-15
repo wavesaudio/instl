@@ -49,7 +49,7 @@ class RaiseException(pybatch.PythonBatchCommandBase):
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.exception_type_name)
-        all_args.append(utils.quoteme_raw_by_type(self.exception_message))
+        all_args.append(self.unnamed__init__param(self.exception_message))
 
     def progress_msg_self(self) -> str:
         return f'''Raising exception {self.exception_type.__name__}("{self.exception_message}")'''
@@ -68,9 +68,9 @@ class Stage(pybatch.PythonBatchCommandBase, essential=False, call__call__=False,
         self.stage_extra = stage_extra
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.stage_name))
+        all_args.append(self.unnamed__init__param(self.stage_name))
         if self.stage_extra:
-            all_args.append(utils.quoteme_raw_by_type(self.stage_extra))
+            all_args.append(self.unnamed__init__param(self.stage_extra))
 
     def stage_str(self):
         the_str = f"""{self.stage_name}"""
@@ -102,7 +102,7 @@ class Progress(pybatch.PythonBatchCommandBase, essential=False, call__call__=Tru
         self.message = message
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.message))
+        all_args.append(self.unnamed__init__param(self.message))
 
     def progress_msg_self(self) -> str:
         return self.message
@@ -268,7 +268,7 @@ class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_conte
         self.var_name = var_name
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.var_name))
+        all_args.append(self.unnamed__init__param(self.var_name))
 
     def progress_msg_self(self) -> str:
         resolved = config_vars[self.var_name].str()
@@ -310,7 +310,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         log.error(f"---\n{error_json}\n...\n")
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f'''"{self.name}"''')
+        all_args.append(self.unnamed__init__param(self.name))
 
     def progress_msg_self(self) -> str:
         return f''''''
@@ -320,7 +320,14 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_files=None, **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False, **kwargs):
+        """
+        read a file and resolve all references to config_vars.
+        :param unresolved_file: file to resolve
+        :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
+        :param config_files: additional files to read config_vars definitions from
+        :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
+        """
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
         if resolved_file:
@@ -328,12 +335,14 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         else:
             self.resolved_file = self.unresolved_file
         self.config_files = config_files
+        self.raise_if_unresolved = raise_if_unresolved
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(os.fspath(self.unresolved_file)))
+        all_args.append(self.unnamed__init__param(self.unresolved_file))
         if self.resolved_file != self.unresolved_file:
-            all_args.append(self.unnamed__init__param(os.fspath(self.resolved_file)))
+            all_args.append(self.unnamed__init__param(self.resolved_file))
         all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
+        all_args.append(self.optional_named__init__param("raise_if_unresolved", self.raise_if_unresolved, False))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
@@ -347,6 +356,12 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
             text_to_resolve = rfd.read()
         resolved_text = config_vars.resolve_str(text_to_resolve)
+        if self.raise_if_unresolved:
+            unresolved_re = re.compile(r"""\$\(.*?\)""")
+            all_unresolved = unresolved_re.findall(resolved_text)
+            if all_unresolved:
+                unresolved_references = ", ".join(list(set(all_unresolved)))
+                raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
         with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
             wfd.write(resolved_text)
 
@@ -416,7 +431,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
         self.path_to_py_batch = utils.ExpandAndResolvePath(path_to_py_batch)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(utils.quoteme_raw_by_type(self.path_to_py_batch))
+        all_args.append(self.unnamed__init__param(self.path_to_py_batch))
 
     def progress_msg_self(self) -> str:
         """ classes overriding PythonBatchCommandBase should add their own progress message

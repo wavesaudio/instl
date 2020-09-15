@@ -86,21 +86,23 @@ def quoteme_raw_if_string(some_thing):
         return str(some_thing)
 
 
-def quoteme_raw_by_type(some_thing):
+def quoteme_raw_by_type(some_thing, config_vars=None):
     retVal = None
     if isinstance(some_thing, types_that_do_not_need_quotation):
         retVal = str(some_thing)
     elif isinstance(some_thing, str):
+        if config_vars is not None:
+            some_thing = config_vars.resolve_str(some_thing)
         retVal = quoteme_raw_string(some_thing)
     elif isinstance(some_thing, os.PathLike):
-        retVal = quoteme_raw_by_type(os.fspath(some_thing))
+        retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
     elif isinstance(some_thing, collections.Sequence):
-       retVal = "".join(("[", ",".join(quoteme_raw_by_type(t) for t in some_thing),"]"))
+       retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing),"]"))
     elif isinstance(some_thing, collections.Mapping):
         item_strs = list()
         for k, v in sorted(some_thing.items()):
-            item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v)}""")
-        retVal = "".join(("{", ",".join(item_strs),"}"))
+            item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v, config_vars)}""")
+        retVal = "".join(("{", ",".join(item_strs), "}"))
     return retVal
 
 
