@@ -471,9 +471,9 @@ class Chmod(RunProcessBase):
     """ change mode read.write/execute permissions for a file or folder"""
 
     if sys.platform == 'darwin':
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>[+\-=])(?P<perm>[rwxX]+)$""")
+        symbolic_mode_re = re.compile(r"""^(?P<who>[augo]+)(?P<operation>[+\-=])(?P<perm>[rwxX]+)$""")
     elif sys.platform == 'win32':
-        symbolic_mode_re = re.compile("""^(?P<who>[augo]+)(?P<operation>\+)(?P<perm>[rwx]+)$""")
+        symbolic_mode_re = re.compile(r"""^(?P<who>[augo]+)(?P<operation>\+)(?P<perm>[rwxX]+)$""")
 
     all_read = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
     all_exec = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
@@ -487,7 +487,8 @@ class Chmod(RunProcessBase):
     if sys.platform == 'win32':
         win_perms = {'r': con.FILE_GENERIC_READ,
                      'w': con.FILE_GENERIC_WRITE | con.FILE_GENERIC_READ,
-                     'x': con.FILE_GENERIC_EXECUTE}
+                     'x': con.FILE_GENERIC_EXECUTE,
+                     'X': con.FILE_GENERIC_EXECUTE}
 
     def __init__(self, path, mode, ignore_if_not_exist=False, **kwargs):
         super().__init__(**kwargs)
@@ -540,7 +541,7 @@ class Chmod(RunProcessBase):
 
     def parse_symbolic_mode_win(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
-            return the mode as a number (e.g 766) and the operation (e.g. =|+|-)
+
         """
         flags = 0
         match = self.symbolic_mode_re.match(symbolic_mode_str)
