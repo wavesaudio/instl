@@ -622,6 +622,13 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.batch_accum += Glober(no_match_glob,
                                        RmFile,
                                        "path")
+        self.pbt.batch_accum += Glober(r"""$(NATIVE_INSTRUMENTS_SERVICE_CENTER_DIR)/Waves-*""", Chmod, None, "a+rw")
+        self.pbt.batch_accum += Glober(r"""$(NATIVE_INSTRUMENTS_SERVICE_CENTER_DIR)/Waves-*""", Chown, "path",
+                 user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)))
+        self.pbt.batch_accum += Glober(r"""$(WAVESHELL_AAX_DIR)/WaveShell*.aaxplugin""", Chown, "path",
+                 user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)),
+                 recursive=True)
+        self.pbt.batch_accum += Glober(r"""$(WAVESHELL_AAX_DIR)/WaveShell*.aaxplugin""", Chmod, None, "a+rwX", recursive=True)
 
         self.pbt.exec_and_capture_output()
         self.assertFalse(file_to_remove_1.exists(), f"file not created {file_to_remove_1}")
