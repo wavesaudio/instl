@@ -154,16 +154,21 @@ def check_abort_file(abort_file):
 
 
 def signal_handler(signum, frame):
+    log.info(f'singal handler called {signum}')
     global exit_val
     exit_val = signum
     killall_and_exit()
 
 
 def killall_and_exit():
+    log.info(f' going over procs')
     for a_process in process_list:
+
         status = a_process.poll()
+        log.info(f'proc {a_process} has status of {status}')
         if status is None:  # None means it's still alive
             if getattr(os, "killpg", None):
+                log.info(f' killing proc {a_process.pid}')
                 os.killpg(a_process.pid, signal.SIGTERM)  # Unix
             else:
                 kill_proc_tree(a_process.pid)  # Windows
