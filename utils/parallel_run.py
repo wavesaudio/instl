@@ -166,7 +166,8 @@ def killall_and_exit():
 
         status = a_process.poll()
         log.info(f'proc {a_process} has status of {status}')
-        if status is None:  # None means it's still alive
+        if status is None or status == 0:  # None means it's still alive
+            log.info(f' try killing proc {a_process.pid}')
             if getattr(os, "killpg", None):
                 log.info(f' killing proc {a_process.pid}')
                 os.killpg(a_process.pid, signal.SIGTERM)  # Unix
