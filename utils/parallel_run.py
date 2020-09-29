@@ -75,7 +75,7 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
     a_process = launch_process(command, shell, do_enqueue_output)
     process_list.append(a_process)
     t = None
-    if abort_file is not None:
+    if abort_file is not None: #TODO: ask shai
         t = ContinuousTimer(1, check_abort_file, args=[abort_file])
         t.start()
 
@@ -106,6 +106,7 @@ def launch_process(command, shell, do_enqueue_output):
     else:
         full_command = command
         kwargs = {'executable': command[0]}
+    log.info("removed preexec_fn")
     # if getattr(os, "setsid", None):  # UNIX
     #     kwargs['preexec_fn'] = os.setsid #look into it, try to comment
     if do_enqueue_output:
@@ -147,6 +148,7 @@ def enqueue_output(a_process):
 
 def check_abort_file(abort_file):
     global aborted
+    log.info("checking abort file " + abort_file)
     if not os.path.exists(abort_file):
         aborted = True
         log.debug(f'Process aborted - Abort file not found {abort_file}')
