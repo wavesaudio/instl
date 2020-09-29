@@ -76,6 +76,7 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
     process_list.append(a_process)
     t = None
     if abort_file is not None: #TODO: ask shai
+        log.info("abort file is not none ")
         t = ContinuousTimer(1, check_abort_file, args=[abort_file])
         t.start()
 
@@ -87,6 +88,7 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
             if status is not None:  # None means it's still alive
                 log.debug(f'Process finished - {command}')
                 if aborted:
+                    log.info("proccess aborted ")
                     exit_val = status
                     raise ProcessTerminatedExternally(command)
                 elif status != 0:
