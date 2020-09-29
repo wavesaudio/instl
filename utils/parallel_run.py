@@ -106,8 +106,8 @@ def launch_process(command, shell, do_enqueue_output):
     else:
         full_command = command
         kwargs = {'executable': command[0]}
-    if getattr(os, "setsid", None):  # UNIX
-        kwargs['preexec_fn'] = os.setsid
+    # if getattr(os, "setsid", None):  # UNIX
+    #     kwargs['preexec_fn'] = os.setsid #look into it, try to comment
     if do_enqueue_output:
         kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'bufsize': 128})
     try:
@@ -166,7 +166,7 @@ def killall_and_exit():
 
         status = a_process.poll()
         log.info(f'proc {a_process} has status of {status}')
-        if status is None or status == 0:  # None means it's still alive
+        if status is None :  # None means it's still alive
             log.info(f' try killing proc {a_process.pid}')
             if getattr(os, "killpg", None):
                 log.info(f' killing proc {a_process.pid}')
