@@ -40,6 +40,8 @@ class ContinuousTimer(Timer):
 
 def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abort_file=None):
     global exit_val
+    path_str = "/Users/orenc/Library/Application Support/Waves Audio/Waves Central/Logs/scan/report-versions_11-0.abort"
+    abort_file = path_str.Path(resolve=True)
     try:
         install_signal_handlers()
 
@@ -47,7 +49,8 @@ def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abo
 
         for command_list in lists_of_command_lists:
             with futures.ThreadPoolExecutor(len(command_list)) as executor:
-                list(executor.map(run_process, command_list, repeat(shell), repeat(do_enqueue_output), repeat(abort_file)))
+                list(executor.map(run_process, command_list, repeat(shell), repeat(do_enqueue_output),
+                                  repeat(abort_file)))
         log.debug('Finished all processes')
         exit_val = 0
         killall_and_exit()
@@ -75,7 +78,9 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
     a_process = launch_process(command, shell, do_enqueue_output)
     process_list.append(a_process)
     t = None
-    if abort_file is not None: #TODO: ask shai
+    log.info(f"command: {command} ")
+    log.info(f"shell: {shell} ")
+    if abort_file is not None:
         log.info("abort file is not none ")
         t = ContinuousTimer(1, check_abort_file, args=[abort_file])
         t.start()
@@ -109,8 +114,8 @@ def launch_process(command, shell, do_enqueue_output):
         full_command = command
         kwargs = {'executable': command[0]}
     log.info("removed preexec_fn")
-    # if getattr(os, "setsid", None):  # UNIX
-    #     kwargs['preexec_fn'] = os.setsid #look into it, try to comment
+    if getattr(os, "setsid", None):  # UNIX
+        kwargs['preexec_fn'] = os.setsid  # look into it, try to comment
     if do_enqueue_output:
         kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'bufsize': 128})
     try:
@@ -170,7 +175,7 @@ def killall_and_exit():
 
         status = a_process.poll()
         log.info(f'proc {a_process} has status of {status}')
-        if status is None :  # None means it's still alive
+        if status is None:  # None means it's still alive
             log.info(f' try killing proc {a_process.pid}')
             if getattr(os, "killpg", None):
                 log.info(f' killing proc {a_process.pid}')
