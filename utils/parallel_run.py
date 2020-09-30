@@ -11,7 +11,7 @@ import psutil
 from itertools import repeat
 from concurrent import futures
 from threading import Timer
-
+from pathlib import Path
 import utils
 
 log = logging.getLogger()
@@ -41,7 +41,7 @@ class ContinuousTimer(Timer):
 def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abort_file=None):
     global exit_val
     path_str = "/Users/orenc/Library/Application Support/Waves Audio/Waves Central/Logs/scan/report-versions_11-0.abort"
-    abort_file = path_str.Path(resolve=True)
+    abort_file = Path(path_str)
     try:
         install_signal_handlers()
 
