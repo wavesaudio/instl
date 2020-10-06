@@ -58,7 +58,8 @@ class PythonBatchCommandBase(abc.ABC):
                        "reply_config_var": None,
                        "reply_environ_var": None,
                        'prog_num': 0,
-                       'skip_action': False}
+                       'skip_action': False,
+                       'suspend': False}
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
