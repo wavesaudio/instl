@@ -5,7 +5,7 @@ import sys
 import os
 from pathlib import Path
 import unittest
-import subprocess
+import time
 import stat
 import ctypes
 import io
@@ -216,3 +216,20 @@ STEVE: Jobs
         self.pbt.batch_accum += ReadConfigVarValueFromTextFile(config_file.absolute(), var_name)
         self.pbt.exec_and_capture_output()
         self.assertEqual(config_vars[var_name].values[0] , var_value, f"ReadConfigVarValueFromTextFile did not set environment variable '{var_name}' correctly")
+
+    def test_suspend_param(self):
+        """ test passing suspend= to a PythonBatchCommandBase object
+            MakeRandomDataFile is used here as a stand in for any other PythonBatchCommandBase derived object
+        """
+        random_data_file: Path = self.pbt.path_inside_test_folder("random_data_file")
+        suspend_time = 10
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeRandomDataFile(random_data_file, 88, suspend=suspend_time)
+
+        before_time = time.time()
+        self.pbt.exec_and_capture_output()
+        total_time = time.time() - before_time
+
+        self.assertTrue(random_data_file.exists(), "failed to create {random_data_file}")
+        self.assertGreaterEqual(total_time, suspend_time, "suspend time ({total_time}) too short")
