@@ -61,6 +61,7 @@ class PythonBatchCommandBase(abc.ABC):
                        'skip_action': False,
                        'suspend': 0}
 
+
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
         """ __init_subclass__ will be called once during compilation of each class derived from PythonBatchCommandBase.

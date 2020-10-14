@@ -37,6 +37,7 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results
 
+
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
         raise NotImplementedError
@@ -113,6 +114,7 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
                 completed_process.returncode = 0
 
             completed_process.check_returncode()
+
             self.handle_completed_process(completed_process)
 
     def handle_completed_process(self, completed_process):
@@ -180,6 +182,7 @@ class CUrl(RunProcessBase):
 
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
+
 
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["shell"] = True
@@ -292,11 +295,16 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
                     args = shlex.split(line)
                     commands.append(args)
         try:
+
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
-                raise
+                if "curl" in commands[0]:
+                    err_msg = utils.get_curl_err_msg(sys_exit.code)
+                    raise Exception(err_msg)
+                else:
+                    raise
         finally:
             self.increment_progress()
 
