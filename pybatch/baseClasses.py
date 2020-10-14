@@ -59,7 +59,8 @@ class PythonBatchCommandBase(abc.ABC):
                        "reply_environ_var": None,
                        'prog_num': 0,
                        'skip_action': False,
-                       'suspend': False}
+                       'suspend': 0}
+
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):
@@ -392,6 +393,10 @@ class PythonBatchCommandBase(abc.ABC):
         self.exit_self(exit_return=suppress_exception)
 
         self.exit_timing_measure()
+
+        if self.suspend:
+            log.warning(f"suspending for {self.suspend} seconds")
+            time.sleep(self.suspend)
 
         if self.report_own_progress and not PythonBatchCommandBase.ignore_progress:
             if 0 < self.prog_num != self.runtime_progress_num:
