@@ -301,12 +301,13 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
 
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
-            err_msg = ''
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
                 if "curl" in commands[0]:
                     err_msg = utils.get_curl_err_msg(sys_exit.code)
-                raise Exception(err_msg)
+                    raise Exception(err_msg)
+                else:
+                    raise
         finally:
             self.increment_progress()
 
