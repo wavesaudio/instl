@@ -1,12 +1,11 @@
-import sys
+#import sys
 import stat
 import random
 import string
 import itertools
 from pathlib import Path
 import math
-import collections
-from typing import List, Any, Optional, Union
+from typing import Union
 import re
 import glob
 
@@ -77,7 +76,8 @@ class MakeRandomDirs(PythonBatchCommandBase):
         if num_levels > 0:
             for i_dir in range(self.num_dirs_per_level):
                 random_dir_name = ''.join(random.choice(string.ascii_uppercase) for i in range(8))
-                os.makedirs(random_dir_name, mode=0o777, exist_ok=False)
+                mode = int(config_vars.get("MKDIR_SYMBOLIC_MODE", 0o755))
+                os.makedirs(random_dir_name, mode=mode, exist_ok=False)
                 save_cwd = os.getcwd()
                 os.chdir(random_dir_name)
                 self.make_random_dirs_recursive(num_levels - 1)
@@ -118,7 +118,7 @@ remove_obstacles:
         """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
-        # using all_kwargs_dict will make sure subcommands will inherit args like ignore_all_errors
+        # using all_kwargs_dict will make sure sub commands will inherit args like ignore_all_errors
         kwargs_for_subcommands = self.all_kwargs_dict()
         kwargs_for_subcommands['report_own_progress'] = False
         kwargs_for_subcommands['recursive'] = self.recursive_chmod
@@ -140,10 +140,9 @@ remove_obstacles:
                     try:
                         # we know _dir_to_create does not exist
                         self.doing = f"""creating folder '{_dir_to_create}'"""
-                        _dir_to_create.mkdir(parents=True, mode=0o777, exist_ok=True)
+                        mode = int(config_vars.get("MKDIR_SYMBOLIC_MODE", 0o755))
+                        _dir_to_create.mkdir(parents=True, mode=mode, exist_ok=True)
                         # if dir was created fix it's permissions
-                        with FixAllPermissions(_dir_to_create, **kwargs_for_subcommands) as perm_allower:
-                            perm_allower()
                         if self.chowner:
                             with Chown(path=_dir_to_create, user_id=int(config_vars.get("ACTING_UID", -1)),
                                        group_id=int(config_vars.get("ACTING_GID", -1)),
@@ -280,7 +279,7 @@ class ChFlags(RunProcessBase):
                    'nosystem': None},
         'win32': {'hidden': '+H', 'nohidden': '-H', 'locked': '+R', 'unlocked': '-R', 'system': '+S', 'nosystem': '-S'}}
 
-    def __init__(self, path, *flags: List[str], **kwargs) -> None:
+    def __init__(self, path, *flags, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
 
@@ -408,7 +407,7 @@ class Chown(RunProcessBase, call__call__=True):
         if 'path' is a folder and recursive==True, ownership will be changed recursively
     """
 
-    def __init__(self, path: os.PathLike, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
+    def __init__(self, path, user_id: Union[int, str, None], group_id: Union[int, str, None], **kwargs):
         super().__init__(**kwargs)
         self.path = path
         self.user_id: int = int(user_id) if user_id else -1
@@ -516,28 +515,31 @@ class Chmod(RunProcessBase):
         """
         current_mode, current_mode_oct = stat.S_IMODE(current_stats[stat.ST_MODE]), oct(
             stat.S_IMODE(current_stats[stat.ST_MODE]))
-        match = self.symbolic_mode_re.match(symbolic_mode_str)
-        if not match:
-            raise ValueError(f"invalid symbolic mode for chmod: {symbolic_mode_str}")
-        symbolic_who = match.group('who')
-        if 'a' in symbolic_who:
-            symbolic_who = 'ugo'
+        perms_and_operation = list()
+        for match in self.symbolic_mode_re.finditer(symbolic_mode_str):
+            symbolic_who = match.group('who')
+            if 'a' in symbolic_who:
+                symbolic_who = 'ugo'
 
-        symbolic_perm = match.group('perm')
-        if stat.S_ISDIR(stat.S_IFMT(current_stats[stat.ST_MODE])):
-            symbolic_perm = symbolic_perm.lower()  # for a dir we want X to mean x
-            any_exec_permission = False
-        else:
-            any_exec_permission = current_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        actual_perms = 0
-        for w in symbolic_who:
-            for p in symbolic_perm:
-                if p == 'X':
-                    if any_exec_permission:
-                        actual_perms |= Chmod.who_2_perm[w]['x']
-                else:
-                    actual_perms |= Chmod.who_2_perm[w][p]
-        return actual_perms, match.group('operation')
+            symbolic_perm = match.group('perm')
+            if stat.S_ISDIR(stat.S_IFMT(current_stats[stat.ST_MODE])):
+                symbolic_perm = symbolic_perm.lower()  # for a dir we want X to mean x
+                any_exec_permission = False
+            else:
+                any_exec_permission = current_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+            actual_perms = 0
+            for w in symbolic_who:
+                for p in symbolic_perm:
+                    if p == 'X':
+                        if any_exec_permission:
+                            # for non-dir 'X' means to extend the exec permission if such permission exist
+                            actual_perms |= Chmod.who_2_perm[w]['x']
+                    else:
+                        actual_perms |= Chmod.who_2_perm[w][p]
+            perms_and_operation.append((actual_perms, match.group('operation')))
+        if not perms_and_operation:
+            ValueError(f"no valid symbolic mode was found in {symbolic_mode_str}")
+        return perms_and_operation
 
     def parse_symbolic_mode_win(self, symbolic_mode_str):
         """ parse chmod symbolic mode string e.g. uo+xw
@@ -603,17 +605,17 @@ class Chmod(RunProcessBase):
                 path_stats = resolved_path.stat()
                 current_mode, current_mode_oct = stat.S_IMODE(path_stats[stat.ST_MODE]), oct(
                     stat.S_IMODE(path_stats[stat.ST_MODE]))
-                flags, op = self.parse_symbolic_mode_mac(self.mode, path_stats)
-                mode_to_set = flags
-                if op == '+':
-                    mode_to_set |= current_mode
-                elif op == '-':
-                    mode_to_set = current_mode & ~flags
-                if mode_to_set != current_mode:
-                    self.doing = f"""change mode of '{resolved_path}' to '{self.mode}'"""
-                    os.chmod(resolved_path, mode_to_set)
-                else:
-                    self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}'"""
+                for flags, op in self.parse_symbolic_mode_mac(self.mode, path_stats):
+                    mode_to_set = flags
+                    if op == '+':
+                        mode_to_set |= current_mode
+                    elif op == '-':
+                        mode_to_set = current_mode & ~flags
+                    if mode_to_set != current_mode:
+                        self.doing = f"""change mode of '{resolved_path}' to '{self.mode}'"""
+                        os.chmod(resolved_path, mode_to_set)
+                    else:
+                        self.doing = f"""skip change mode of '{resolved_path}' mode is already '{mode_to_set}'"""
 
         elif sys.platform == 'win32':
             if self.recursive:
@@ -734,6 +736,8 @@ class FileSizes(PythonBatchCommandBase):
         super().__init__(**kwargs)
         self.folder_to_scan = folder_to_scan
         self.out_file = out_file
+        self.compiled_forbidden_folder_regex = None
+        self.compiled_forbidden_file_regex = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.folder_to_scan))
@@ -775,7 +779,7 @@ class MakeRandomDataFile(PythonBatchCommandBase):
         Will create a file with random data of the requested size
     """
 
-    def __init__(self, file_path: int, file_size: int, **kwargs) -> None:
+    def __init__(self, file_path, file_size: int, **kwargs) -> None:
         super().__init__(**kwargs)
         self.file_path = file_path
         self.file_size = file_size
@@ -921,7 +925,8 @@ class FixAllPermissions(PythonBatchCommandBase):
                      recursive=self.recursive) as chflager:
             chflager()
         if sys.platform in ('darwin', 'linux'):
-            with Chmod(path=self.path, mode="a+rwX", report_own_progress=False, recursive=self.recursive) as chmoder:
+            the_mode = config_vars.get("FIX_ALL_PERMISSIONS_SYMBOLIC_MODE", "u+rwx,go+rx").str()
+            with Chmod(path=self.path, mode=the_mode, report_own_progress=False, recursive=self.recursive) as chmoder:
                 chmoder()
         elif sys.platform == 'win32':
             with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
@@ -988,10 +993,13 @@ class Glober(PythonBatchCommandBase):
 
 if sys.platform == "darwin":
     import fcntl
+
     def exclusive_lock_fileno(fileno):
         fcntl.flock(fileno, fcntl.LOCK_EX)
+
     def exclusive_unlock_fileno(fileno):
         fcntl.flock(fileno, fcntl.LOCK_UN)
+
 elif sys.platform == "win32":
     pass
     # import win32con, win32file, pywintypes

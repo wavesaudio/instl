@@ -583,7 +583,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     return retVal
 
 
-def ExpandAndResolvePath(path_to_resolve: os.PathLike, resolve_path=True) -> Path:
+def ExpandAndResolvePath(path_to_resolve, resolve_path=True) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
         and Path.resolve to resolve relative paths and
