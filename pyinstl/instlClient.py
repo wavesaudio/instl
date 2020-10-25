@@ -318,17 +318,16 @@ class InstlClient(InstlInstanceBase):
                     retVal += EvalShellCommand(action, message, self.python_batch_names)
         return retVal
 
-    def accumulate_actions_for_iid(self, iid, detail_name, message=None):
+    def accumulate_actions_for_iid(self, iid, detail_name):
         retVal = AnonymousAccum()
-        actions =  self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name=detail_name)
+        actions = self.items_table.get_resolved_details_value_for_active_iid(iid=iid, detail_name=detail_name)
         actions_of_iid_count = 0
         for an_action in actions:
-            if message is None:
+            sub_actions = config_vars.resolve_str_to_list(an_action)
+            for sub_action in sub_actions:
+                actions_of_iid_count += 1
                 message = f"{iid} {detail_name} {actions_of_iid_count}"
-                sub_actions = config_vars.resolve_str_to_list(an_action)
-                for sub_action in sub_actions:
-                    actions_of_iid_count += 1
-                    retVal += EvalShellCommand(sub_action, message, self.python_batch_names)
+                retVal += EvalShellCommand(sub_action, message, self.python_batch_names)
         return retVal
 
     def create_require_file_instructions(self):

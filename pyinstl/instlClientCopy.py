@@ -343,9 +343,9 @@ class InstlClientCopy(InstlClient):
                         self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                         with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
-                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item", message=None)
+                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item")
                             source_accum += self.create_copy_instructions_for_source(source, name_and_version)
-                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item", message=None)
+                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item")
                             if self.mac_current_and_target:
                                 num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
             self.current_iid = None
