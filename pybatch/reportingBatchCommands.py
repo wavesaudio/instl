@@ -320,7 +320,8 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False, **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False,
+                 temp_config_vars=None, **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
@@ -336,6 +337,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
             self.resolved_file = self.unresolved_file
         self.config_files = config_files
         self.raise_if_unresolved = raise_if_unresolved
+        self.temp_config_vars = temp_config_vars
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.unresolved_file))
@@ -343,27 +345,34 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
             all_args.append(self.unnamed__init__param(self.resolved_file))
         all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
         all_args.append(self.optional_named__init__param("raise_if_unresolved", self.raise_if_unresolved, False))
+        if self.temp_config_vars:
+            complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
+            all_args.append(complete_repr)
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
 
     def __call__(self, *args, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_files is not None:
-            reader = ConfigVarYamlReader(config_vars)
-            for config_file in self.config_files:
-                reader.read_yaml_file(config_file)
-        with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
-            text_to_resolve = rfd.read()
-        resolved_text = config_vars.resolve_str(text_to_resolve)
-        if self.raise_if_unresolved:
-            unresolved_re = re.compile(r"""\$\(.*?\)""")
-            all_unresolved = unresolved_re.findall(resolved_text)
-            if all_unresolved:
-                unresolved_references = ", ".join(list(set(all_unresolved)))
-                raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
-        with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
-            wfd.write(resolved_text)
+        with config_vars.push_scope_context() as scope_context:
+            if self.temp_config_vars:
+                config_vars.update(self.temp_config_vars)
+            if self.config_files is not None:
+                reader = ConfigVarYamlReader(config_vars)
+                for config_file in self.config_files:
+                    reader.read_yaml_file(config_file)
+            with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
+                text_to_resolve = rfd.read()
+            resolved_text = config_vars.resolve_str(text_to_resolve)
+
+            if self.raise_if_unresolved:
+                unresolved_re = re.compile(r"""\$\(.*?\)""")
+                all_unresolved = unresolved_re.findall(resolved_text)
+                if all_unresolved:
+                    unresolved_references = ", ".join(list(set(all_unresolved)))
+                    raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
+            with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
+                wfd.write(resolved_text)
 
 
 class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase):
