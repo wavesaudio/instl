@@ -555,14 +555,16 @@ class Chmod(RunProcessBase):
         if 'a' in symbolic_who:
             symbolic_who = 'ugo'
 
-        actual_who = list()
+        actual_names = list()
+        actual_codes = list()
         for w in symbolic_who:
             if w == "u":
-                actual_who.append(getpass.getuser())
+                actual_names.append(getpass.getuser())
             elif w == "g":
-                actual_who.append("Users")
+                actual_codes.append("S-1-5-32-549")
             elif w == "o":
-                actual_who.append("Everyone")
+                actual_codes.append("S-1-1-0")
+        actual_who = {"names": actual_names,"codes": actual_codes}
 
         actual_perms = match.group('perm')
         for p in actual_perms:
@@ -630,7 +632,11 @@ class Chmod(RunProcessBase):
                 if 'w' in self.mode:
                     os.chmod(resolved_path, stat.S_IWRITE)
                 accounts = list()
-                for name in who:
+                for sid in who["codes"]:
+                    user = win32security.ConvertStringSidToSid(sid)
+                    accounts.append(user)
+
+                for name in who["names"]:
                     user, domain, type = win32security.LookupAccountName("", name)
                     accounts.append(user)
 
