@@ -563,12 +563,8 @@ class Chmod(RunProcessBase):
             elif w == "g":
                 actual_codes.append("S-1-5-32-549")
             elif w == "o":
-<<<<<<< HEAD
                 actual_codes.append("S-1-1-0")
         actual_who = {"names": actual_names,"codes": actual_codes}
-=======
-                actual_who.append("*S-1-1-0:(OI)(CI)F")
->>>>>>> bfbef894bbe9c4b8d424f259d65a6ea0b0933bcb
 
         actual_perms = match.group('perm')
         for p in actual_perms:
