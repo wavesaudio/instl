@@ -418,6 +418,24 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         mod_after = stat.S_IMODE(os.stat(file_to_chmod).st_mode)
         self.assertEqual(new_mode, mod_after, f"{self.pbt.which_test}: failed to chmod to {utils.unix_permissions_to_str(new_mode)} got {utils.unix_permissions_to_str(mod_after)}")
 
+    def test_chmod_non_recursive_for_all_users_win(self):
+        if sys.platform != 'win32':
+            return
+        folder_name = "chmod-test-folder"
+        folder_to_chmod = self.pbt.path_inside_test_folder(folder_name)
+        initial_mode_str = "a+rw"
+        # create the folder
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(folder_to_chmod)
+        self.pbt.batch_accum += Chmod(path=folder_to_chmod, mode=initial_mode_str, recursive=False)
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(os.access(folder_to_chmod.absolute(), os.R_OK)) # Check for read access
+        self.assertTrue(os.access(folder_to_chmod.absolute(), os.W_OK))  # Check for write access
+        self.assertTrue(os.access(folder_to_chmod.absolute(), os.X_OK | os.W_OK)) # Check if we can write file to the directory
+
+
+
+
     def test_Chmod_recursive(self):
         """ test Chmod recursive
             A file is created and it's permissions are changed several times
