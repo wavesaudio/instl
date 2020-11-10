@@ -555,16 +555,16 @@ class Chmod(RunProcessBase):
         if 'a' in symbolic_who:
             symbolic_who = 'ugo'
 
-        actual_names = list()
+        actual_names = list() # suited for users names
         actual_codes = list()
         for w in symbolic_who:
             if w == "u":
-                actual_names.append(getpass.getuser())
+                actual_names.append(getpass.getuser()) #there are different handling between users an universal code
             elif w == "g":
-                actual_codes.append("S-1-5-32-549")
+                actual_codes.append("S-1-5-32-549") #universal code for Users
             elif w == "o":
-                actual_codes.append("S-1-1-0")
-        actual_who = {"names": actual_names,"codes": actual_codes}
+                actual_codes.append("S-1-1-0") #universal code for Everyone
+        actual_who = {"names": actual_names, "codes": actual_codes}
 
         actual_perms = match.group('perm')
         for p in actual_perms:
@@ -637,7 +637,7 @@ class Chmod(RunProcessBase):
                     accounts.append(user)
 
                 for name in who["names"]:
-                    user, domain, type = win32security.LookupAccountName("", name)
+                    user, domain, account_type = win32security.LookupAccountName("", name)
                     accounts.append(user)
 
                 sd = win32security.GetFileSecurity(os.fspath(resolved_path), win32security.DACL_SECURITY_INFORMATION)
