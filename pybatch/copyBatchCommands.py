@@ -13,6 +13,10 @@ log = logging.getLogger(__name__)
 
 def _fast_copy_file(src, dst):
     # insert faster code here if and when available
+    try:
+        os.unlink(dst)
+    except:
+        pass
     length = 256*1024
     with open(src, 'rb') as rfd:
         with open(dst, 'wb') as wfd:
