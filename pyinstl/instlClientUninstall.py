@@ -3,6 +3,7 @@
 from collections import deque, defaultdict
 from configVar import config_vars
 import logging
+
 log = logging.getLogger()
 
 from .instlClientRemove import InstlClientRemove
@@ -41,7 +42,7 @@ class InstlClientUninstall(InstlClientRemove):
         req_trans_items = self.items_table.get_all_require_translate_items()
 
         # create a count of how much require_by each item has
-        how_many_require_by = defaultdict( lambda: 0 )
+        how_many_require_by = defaultdict(lambda: 0)
         for rt in req_trans_items:
             how_many_require_by[rt['iid']] += 1
 
@@ -59,9 +60,9 @@ class InstlClientUninstall(InstlClientRemove):
             should_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall) & set(items_required_by_no_one)))
 
             # zero status and count for next stage
-            how_many_require_by = defaultdict( lambda: 0 )
+            how_many_require_by = defaultdict(lambda: 0)
             for rt in req_trans_items:
-                how_many_require_by[rt['iid']] +=1
+                how_many_require_by[rt['iid']] += 1
                 rt['status'] = 0
         else:
             should_be_uninstalled = iid_candidates_for_uninstall
@@ -81,11 +82,11 @@ class InstlClientUninstall(InstlClientRemove):
         # items who's count is 0 should be uninstalled
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
-            all_uninstall_items = list(set(all_uninstall_items+iid_candidates_for_uninstall))
+            all_uninstall_items = list(set(all_uninstall_items + iid_candidates_for_uninstall))
         all_uninstall_items.sort()
         config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"] = all_uninstall_items
 
-        iids_that_should_not_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall)-set(all_uninstall_items)))
+        iids_that_should_not_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall) - set(all_uninstall_items)))
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = iids_that_should_not_be_uninstalled
 
         # mark all uninstall items
@@ -105,7 +106,8 @@ class InstlClientUninstall(InstlClientRemove):
             # uninstall might be done with index.yaml that is pre-python-batch.
             # And in any case uninstall should stop because any one commands failed/
             self.batch_accum.set_current_section("begin")
-            self.batch_accum += PythonDoSomething('''PythonBatchCommandBase.set_a_kwargs_default("ignore_all_errors", True)''')
+            self.batch_accum += PythonDoSomething(
+                '''PythonBatchCommandBase.set_a_kwargs_default("ignore_all_errors", True)''')
         else:
             log.info("nothing to uninstall")
 
@@ -123,27 +125,40 @@ class InstlClientUninstall(InstlClientRemove):
         req_trans_items = self.items_table.get_all_require_translate_items()
 
         # create a count of how much require_by each item has
-        how_many_require_by = defaultdict( lambda: 0 )
+        how_many_require_by = defaultdict(lambda: 0)
+        iid_to_required_items = dict()
         for rt in req_trans_items:
             how_many_require_by[rt['iid']] += 1
+            key = rt['iid']
+            if key in iid_to_required_items:
+                iid_to_required_items[key] += [rt['require_by']]
+            else:
+                iid_to_required_items[key] = [rt['require_by']]
 
         if not force_uninstall_of_main_items:
-            # some main uninstall items might be required by other items (that are not uninstalled),
-            # and so should not be uninstalled
             for candi in iid_candidates_for_uninstall:
                 for req_trans in req_trans_items:
                     if req_trans['status'] == 0:
                         if req_trans['require_by'] == candi:
                             req_trans['status'] += 1
-                            how_many_require_by[req_trans['iid']] -= 1
+                            iidKey = req_trans['iid']
+                            how_many_require_by[iidKey] -= 1
+                            if iid_to_required_items[iidKey] and candi in iid_to_required_items[iidKey]:
+                                iid_to_required_items[iidKey].remove(candi)
+
+            for iid in iid_to_required_items.keys():
+                for depend_item in iid_to_required_items[iid]:
+                    if how_many_require_by[depend_item] == 0:
+                        iid_to_required_items[iid].remove(depend_item)
+                        how_many_require_by[iid] -= 1
 
             items_required_by_someone = sorted([iid for iid, count in how_many_require_by.items() if count > 0])
             should_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall) - set(items_required_by_someone)))
 
             # zero status and count for next stage
-            how_many_require_by = defaultdict( lambda: 0 )
+            how_many_require_by = defaultdict(lambda: 0)
             for rt in req_trans_items:
-                how_many_require_by[rt['iid']] +=1
+                how_many_require_by[rt['iid']] += 1
                 rt['status'] = 0
         else:
             should_be_uninstalled = iid_candidates_for_uninstall
@@ -163,11 +178,11 @@ class InstlClientUninstall(InstlClientRemove):
         # items who's count is 0 should be uninstalled
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
-            all_uninstall_items = list(set(all_uninstall_items+iid_candidates_for_uninstall))
+            all_uninstall_items = list(set(all_uninstall_items + iid_candidates_for_uninstall))
         all_uninstall_items.sort()
         config_vars["__FULL_LIST_OF_INSTALL_TARGETS__"] = all_uninstall_items
 
-        iids_that_should_not_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall)-set(all_uninstall_items)))
+        iids_that_should_not_be_uninstalled = sorted(list(set(iid_candidates_for_uninstall) - set(all_uninstall_items)))
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = iids_that_should_not_be_uninstalled
 
         # mark all uninstall items
@@ -177,3 +192,4 @@ class InstlClientUninstall(InstlClientRemove):
             all_uninstall_items,
             progress_callback=self.progress)
         self.sort_all_items_by_target_folder(consider_direct_sync=False)
+
