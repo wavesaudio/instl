@@ -75,3 +75,8 @@ coll = COLLECT(exe,
                 strip=None,
                upx=False,
                name='instl')
+
+app = BUNDLE(coll,
+         name='instl.bundle',
+         icon=None,
+         bundle_identifier=None)
