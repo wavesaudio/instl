@@ -38,39 +38,36 @@ class MacDock(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
-        # Should we have this template along with the instl package and use it?
-        plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
-                            <string>{self.path_to_item}</string><key>_CFURLStringType</key>
-                            <integer>0</integer></dict></dict></dict>"'''
-        # Can some of these variables should be passed to this class externally ?
         dock_bundle = 'com.apple.dock'
         plist_buddy_path = "/usr/libexec/PlistBuddy"
-        path = Path(self.path_to_item)
-        app_name = path.name.split(".")[0]
-        # Is there an Awk helper tool that should be used here?
-        get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
         mac_dock_path = "~/Library/Preferences/com.apple.dock.plist"
+
         if self.restart_the_doc:
-            stop_dock_cmd = ";killall Dock"
+            stop_dock_cmd = "killall Dock"
         else:
             stop_dock_cmd = ''
 
-        if self.remove:
-            dock_cmd = f'''defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
-                       get_records_number + \
-                       f''' | grep -E "\d" && {plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
-                       get_records_number + \
-                       f'''`" {mac_dock_path}  ''' + \
-                       stop_dock_cmd
-            print(dock_cmd)
-            os.system(dock_cmd)
+        if self.path_to_item:
+            plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
+                                     <string>{self.path_to_item}</string><key>_CFURLStringType</key>
+                                     <integer>0</integer></dict></dict></dict>"'''
+            path = Path(self.path_to_item)
+            app_name = path.name.split(".")[0]
+            get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
+
+            if self.remove:
+                dock_cmd = f'''defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
+                           get_records_number + \
+                           f''' | grep -E "\d" && {plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
+                           get_records_number + \
+                           f'''`" {mac_dock_path} ; ''' + \
+                           stop_dock_cmd
+            else:
+                dock_cmd = f"defaults write {dock_bundle} persistent-apps -array-add " + plist_template +";" + stop_dock_cmd
         else:
-            try:
-                dock_cmd = f"defaults write {dock_bundle} persistent-apps -array-add " + plist_template + stop_dock_cmd
-                print(dock_cmd)
-                os.system(dock_cmd)
-            except Exception as e:
-                raise e
+            dock_cmd = stop_dock_cmd
+
+        os.system(dock_cmd)
 
 
 class CreateSymlink(PythonBatchCommandBase):
