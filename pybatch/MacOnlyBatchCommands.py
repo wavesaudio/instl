@@ -48,14 +48,11 @@ class MacDock(PythonBatchCommandBase):
             stop_dock_cmd = ''
 
         if self.path_to_item:
-            plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
-                                     <string>{self.path_to_item}</string><key>_CFURLStringType</key>
-                                     <integer>0</integer></dict></dict></dict>"'''
             path = Path(self.path_to_item)
             app_name = path.name.split(".")[0]
-            get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
 
             if self.remove:
+                get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
                 dock_cmd = f'''defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
                            get_records_number + \
                            f''' | grep -E "\d" && {plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
@@ -63,7 +60,11 @@ class MacDock(PythonBatchCommandBase):
                            f'''`" {mac_dock_path} ; ''' + \
                            stop_dock_cmd
             else:
-                dock_cmd = f"defaults write {dock_bundle} persistent-apps -array-add " + plist_template +";" + stop_dock_cmd
+                plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
+                                          <string>{self.path_to_item}</string><key>_CFURLStringType</key>
+                                          <integer>0</integer></dict></dict></dict>"'''
+
+                dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {stop_dock_cmd}'''
         else:
             dock_cmd = stop_dock_cmd
 
