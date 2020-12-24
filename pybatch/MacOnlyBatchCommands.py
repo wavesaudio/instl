@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List
 
 import logging
+
 log = logging.getLogger(__name__)
 
 from .baseClasses import PythonBatchCommandBase
@@ -17,55 +18,58 @@ class MacDock(PythonBatchCommandBase):
         or removed if remove==True
         Dock will restarted if restart_the_doc==True
     """
-    def __init__(self, path_to_item=None, label_for_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
+
+    def __init__(self, path_to_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_item = path_to_item
-        self.label_for_item = label_for_item
         self.restart_the_doc = restart_the_doc
         self.remove = remove
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item))
-        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item))
         all_args.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} setting '{self.path_to_item}' as '{self.label_for_item}' (operation disabled and ignored)"""
+        return f"""{self.__class__.__name__} setting '{self.path_to_item}'  """
 
     def __call__(self, *args, **kwargs) -> None:
-        return  # disable all dock operations since they cause crashes on Catalina
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        dock_util_command = list()
-        if self.remove:
-            dock_util_command.append("--remove")
-            if self.label_for_item:
-                dock_util_command.append(self.label_for_item)
-            if not self.restart_the_doc:
-                dock_util_command.append("--no-restart")
+
+        dock_bundle = 'com.apple.dock'
+        plist_buddy_path = "/usr/libexec/PlistBuddy"
+        mac_dock_path = "~/Library/Preferences/com.apple.dock.plist"
+
+        if self.restart_the_doc:
+            stop_dock_cmd = "killall Dock"
         else:
-            if not self.path_to_item:
-                if self.restart_the_doc:
-                    dock_util_command.append("--restart")
-                else:
-                    log.warning("mac-dock confusing options, both --path and --restart were not supplied")
+            stop_dock_cmd = ''
+
+        if self.path_to_item:
+            path = Path(self.path_to_item)
+            app_name = path.name.split(".")[0]
+
+            if self.remove:
+                get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
+                dock_cmd = f'''{plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
+                           get_records_number + \
+                           f'''`" {mac_dock_path} ; ''' + \
+                           stop_dock_cmd
             else:
-                dock_util_command.append("--add")
-                resolved_path_to_item = os.fspath(utils.ExpandAndResolvePath(self.path_to_item))
-                dock_util_command.append(resolved_path_to_item)
-                if self.label_for_item:
-                    dock_util_command.append("--label")
-                    dock_util_command.append(self.label_for_item)
-                    dock_util_command.append("--replacing")
-                    dock_util_command.append(self.label_for_item)
-        if not self.restart_the_doc:
-            dock_util_command.append("--no-restart")
-        self.doing = dock_util_command
-        utils.dock_util(dock_util_command)
+                plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
+                                          <string>{self.path_to_item}</string><key>_CFURLStringType</key>
+                                          <integer>0</integer></dict></dict></dict>"'''
+
+                dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {stop_dock_cmd}'''
+        else:
+            dock_cmd = stop_dock_cmd
+
+        os.system(dock_cmd)
 
 
 class CreateSymlink(PythonBatchCommandBase):
     """ create a symbolic link (MacOS only)"""
+
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_symlink = path_to_symlink
@@ -94,6 +98,7 @@ class RmSymlink(PythonBatchCommandBase):
     - but exception will be raised if path is a folder
      (MacOS only)
     """
+
     def __init__(self, path: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path: os.PathLike = path
@@ -125,6 +130,7 @@ class SymlinkToSymlinkFile(PythonBatchCommandBase):
         This will allow uploading symlinks to cloud storage does not support symlinks
          (MacOS only)
     """
+
     def __init__(self, symlink_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.symlink_to_convert = Path(symlink_to_convert)
@@ -153,6 +159,7 @@ class SymlinkFileToSymlink(PythonBatchCommandBase):
         This will allow uploading symlinks to cloud storage does not support symlinks
          (MacOS only)
     """
+
     def __init__(self, symlink_file_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.symlink_file_to_convert = os.fspath(symlink_file_to_convert)
@@ -196,6 +203,7 @@ class CreateSymlinkFilesInFolder(PythonBatchCommandBase):
         This will allow uploading symlinks to cloud storage does not support symlinks
          (MacOS only)
     """
+
     def __init__(self, folder_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_convert = Path(folder_to_convert)
@@ -230,6 +238,7 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
         This will allow uploading symlinks to cloud storage does not support symlinks
          (MacOS only)
     """
+
     def __init__(self, folder_to_convert: os.PathLike, **kwargs) -> None:
         super().__init__(**kwargs)
         self.folder_to_convert = folder_to_convert
@@ -252,4 +261,3 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
                     self.doing = f"""resolve symlink file '{self.last_symlink_file}'"""
                     with SymlinkFileToSymlink(item_path, own_progress_count=0) as symlink_converter:
                         symlink_converter()
-
