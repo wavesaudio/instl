@@ -19,21 +19,19 @@ class MacDock(PythonBatchCommandBase):
         Dock will restarted if restart_the_doc==True
     """
 
-    def __init__(self, path_to_item=None, label_for_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
+    def __init__(self, path_to_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_item = path_to_item
-        self.label_for_item = label_for_item
         self.restart_the_doc = restart_the_doc
         self.remove = remove
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item))
-        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item))
         all_args.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
     def progress_msg_self(self) -> str:
-        return f"""{self.__class__.__name__} setting '{self.path_to_item}' as '{self.label_for_item}' """
+        return f"""{self.__class__.__name__} setting '{self.path_to_item}'  """
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -53,9 +51,7 @@ class MacDock(PythonBatchCommandBase):
 
             if self.remove:
                 get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
-                dock_cmd = f'''defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
-                           get_records_number + \
-                           f''' | grep -E "\d" && {plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
+                dock_cmd = f'''{plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
                            get_records_number + \
                            f'''`" {mac_dock_path} ; ''' + \
                            stop_dock_cmd
