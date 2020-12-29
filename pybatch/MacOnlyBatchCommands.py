@@ -2,8 +2,11 @@ import os
 import shutil
 from pathlib import Path
 from typing import List
-
+from configVar import config_vars
 import logging
+
+from utils import dock_util
+from .subprocessBatchCommands import ShellCommand
 
 log = logging.getLogger(__name__)
 
@@ -19,14 +22,18 @@ class MacDock(PythonBatchCommandBase):
         Dock will restarted if restart_the_doc==True
     """
 
-    def __init__(self, path_to_item=None, restart_the_doc=False, remove=False, **kwargs) -> None:
+    def __init__(self, path_to_item=None, label_for_item=None, restart_the_doc=False, remove=False, username=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path_to_item = path_to_item
+        self.label_for_item = label_for_item
         self.restart_the_doc = restart_the_doc
         self.remove = remove
+        self.username = username # for testing purposes, during run we should have this info from config_vars
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param('path_to_item', self.path_to_item))
+        all_args.append(self.optional_named__init__param('label_for_item', self.label_for_item))
+        all_args.append(self.optional_named__init__param('username', self.username))
         all_args.append(self.optional_named__init__param('restart_the_doc', self.restart_the_doc, False))
         all_args.append(self.optional_named__init__param('remove', self.remove, False))
 
@@ -36,35 +43,32 @@ class MacDock(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
+        home_dir = config_vars.get('HOME_DIR') or "~"
+        username = config_vars.get('ACTING_UID') or self.username
         dock_bundle = 'com.apple.dock'
         plist_buddy_path = "/usr/libexec/PlistBuddy"
-        mac_dock_path = "~/Library/Preferences/com.apple.dock.plist"
-
+        mac_dock_path = f"{home_dir}/Library/Preferences/com.apple.dock.plist"
         if self.restart_the_doc:
-            stop_dock_cmd = "killall Dock"
+            dock_cmd = "killall Dock"
         else:
-            stop_dock_cmd = ''
+            dock_cmd = ''
 
-        if self.path_to_item:
-            path = Path(self.path_to_item)
-            app_name = path.name.split(".")[0]
+        if self.remove:
+            app_name = self.label_for_item or Path(self.path_to_item).name.split(".")[0]
+            get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
+            dock_cmd = f''' {plist_buddy_path} -c "Delete persistent-apps:`sudo -u {username} defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
+                       get_records_number + \
+                       f'''`" {mac_dock_path} ; ''' + \
+                       dock_cmd
+        elif self.path_to_item:
+            plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
+                                      <string>{self.path_to_item}</string><key>_CFURLStringType</key>
+                                      <integer>0</integer></dict></dict></dict>"'''
+            dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {dock_cmd}'''
 
-            if self.remove:
-                get_records_number = f"awk '/{app_name}/" + " {print NR-1}'"
-                dock_cmd = f'''{plist_buddy_path} -c "Delete persistent-apps:`defaults read {dock_bundle} persistent-apps | grep file-label |''' + \
-                           get_records_number + \
-                           f'''`" {mac_dock_path} ; ''' + \
-                           stop_dock_cmd
-            else:
-                plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
-                                          <string>{self.path_to_item}</string><key>_CFURLStringType</key>
-                                          <integer>0</integer></dict></dict></dict>"'''
-
-                dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {stop_dock_cmd}'''
-        else:
-            dock_cmd = stop_dock_cmd
-
-        os.system(dock_cmd)
+        log.info(dock_cmd)
+        with ShellCommand(dock_cmd) as shell_cmd_mack:
+            shell_cmd_mack()
 
 
 class CreateSymlink(PythonBatchCommandBase):
