@@ -43,8 +43,8 @@ class MacDock(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
-        home_dir = config_vars.get('HOME_DIR') or "~"
-        username = config_vars.get('ACTING_UID') or self.username
+        home_dir = str(config_vars['HOME_DIR']) if 'HOME_DIR' in config_vars else "~"
+        username = str(config_vars['ACTING_UNAME']) if 'ACTING_UNAME' in config_vars else self.username
         dock_bundle = 'com.apple.dock'
         plist_buddy_path = "/usr/libexec/PlistBuddy"
         mac_dock_path = f"{home_dir}/Library/Preferences/com.apple.dock.plist"
@@ -265,3 +265,4 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
                     self.doing = f"""resolve symlink file '{self.last_symlink_file}'"""
                     with SymlinkFileToSymlink(item_path, own_progress_count=0) as symlink_converter:
                         symlink_converter()
+
