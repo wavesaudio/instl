@@ -67,8 +67,8 @@ class MacDock(PythonBatchCommandBase):
             dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {dock_cmd}'''
 
         log.info(dock_cmd)
-        with ShellCommand(dock_cmd, report_own_progress=False, stderr_means_err=False) as shell_cmd_mack:
-            shell_cmd_mack()
+        with ShellCommand(dock_cmd, report_own_progress=False, stderr_means_err=False) as shell_cmd_macdoc:
+            shell_cmd_macdoc()
 
 
 class CreateSymlink(PythonBatchCommandBase):
