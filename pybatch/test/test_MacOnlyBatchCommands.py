@@ -62,7 +62,7 @@ class TestPythonBatchMac(unittest.TestCase):
         app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += MacDock(app_to_add_to_dock, restart_the_doc=True)
+        self.pbt.batch_accum += MacDock(app_to_add_to_dock, restart_the_doc=True, username="orenc")
         self.pbt.exec_and_capture_output("test_MacDoc_add_to_and_restart_dock")
 
     def test_MacDoc_remove_from_and_restart_dock(self):
@@ -72,7 +72,7 @@ class TestPythonBatchMac(unittest.TestCase):
         app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += MacDock(app_to_add_to_dock, remove=True, restart_the_doc=True)
+        self.pbt.batch_accum += MacDock(None, label_for_item="Cubase 10.5", remove=True, restart_the_doc=True, username="orenc")
         self.pbt.exec_and_capture_output("test_MacDoc_remove_from_and_restart_dock")
 
     def test_MacDoc_add_to_and_restart_dock_separately(self):
@@ -82,7 +82,7 @@ class TestPythonBatchMac(unittest.TestCase):
         app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += MacDock(app_to_add_to_dock)
+        self.pbt.batch_accum += MacDock(app_to_add_to_dock, username="orenc")
         self.pbt.batch_accum += MacDock(restart_the_doc=True)
         self.pbt.exec_and_capture_output("test_MacDoc_add_to_and_restart_dock_separately")
 
@@ -90,10 +90,9 @@ class TestPythonBatchMac(unittest.TestCase):
         """ it's hard to define an automatic assert to result of MacDock operations
             so this test should be run manually
         """
-        app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += MacDock(app_to_add_to_dock, remove=True, restart_the_doc=False)
+        self.pbt.batch_accum += MacDock(None,"Cubase 10", remove=True, restart_the_doc=False, username="orenc")
         self.pbt.batch_accum += MacDock(restart_the_doc=True)
         self.pbt.exec_and_capture_output("test_MacDoc_remove_from_and_restart_dock_separately")
 
@@ -101,7 +100,7 @@ class TestPythonBatchMac(unittest.TestCase):
         """ it's hard to define an automatic assert to result of MacDock operations
             so this test should be run manually
         """
-        app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
+        # app_to_add_to_dock = Path("/Applications/Cubase 10.5.app")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MacDock(restart_the_doc=True)
