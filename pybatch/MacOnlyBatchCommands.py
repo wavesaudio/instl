@@ -64,7 +64,7 @@ class MacDock(PythonBatchCommandBase):
             plist_template = f'''"<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key>
                                       <string>{self.path_to_item}</string><key>_CFURLStringType</key>
                                       <integer>0</integer></dict></dict></dict>"'''
-            dock_cmd = f'''defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {dock_cmd}'''
+            dock_cmd = f'''sudo -u {username} defaults write {dock_bundle} persistent-apps -array-add {plist_template}  ; {dock_cmd}'''
 
         log.info(dock_cmd)
         with ShellCommand(dock_cmd, report_own_progress=False, stderr_means_err=False) as shell_cmd_macdoc:
