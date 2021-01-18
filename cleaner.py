@@ -18,13 +18,16 @@ class WleAux:  # TODO: change this name once you see what is the functionallity 
     @staticmethod
     def get_licenses(plugins_sorted):
         ''' A wle action that runs the licenses command and return a dictionary with the latest licenses'''
-        # TODO: abs path, modify - check INDEX
-        wle_exec = Path(config_vars['WLE_EXEC_PATH'])
-        wle_exec_path = os.path.join("WavesLicenseEngine.bundle", "Contents", "MacOS", "exec", "wle")
+        wle_exec = config_vars.get('WLE_EXEC_PATH', None)
+        if wle_exec:
+            wle_exec = Path(config_vars['WLE_EXEC_PATH'])
+        wle_exec_path = Path(config_vars['WLE_EXEC_REL_PATH'])
         latest = {}
         GuidFields = namedtuple('GuidFields', ('guid', 'version', 'expired', 'name'))
         if not os.path.exists(wle_exec):
             log.info('WLE NOT FOUND IN WAVES FOLDER!')
+            # could have made a direct path to central's wle but since there is an option where it won't be installed to the
+            # default folder it is made this way
             wle_exec = os.path.join(os.path.dirname(sys.argv[0]), os.pardir, os.pardir, os.pardir, wle_exec_path)
             if not os.path.exists(wle_exec):
                 log.info(f'WLE NOT FOUND IN WAVES CENTRAL FOLDER! {wle_exec}')
