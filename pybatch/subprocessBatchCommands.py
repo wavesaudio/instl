@@ -11,6 +11,11 @@ from threading import Thread
 import utils
 import psutil
 import time
+
+from aYaml import YamlReader
+from configVar import config_vars
+from configVar import ConfigVarYamlReader
+#from pyinstl.instlInstanceBase import InstlInstanceBase - can't do that
 from .baseClasses import PythonBatchCommandBase
 
 import logging
@@ -309,7 +314,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
             self.increment_progress()
 
 
-class Exec(PythonBatchCommandBase):
+class Exec(PythonBatchCommandBase, ConfigVarYamlReader):
     def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
@@ -327,10 +332,15 @@ class Exec(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
         if self.config_files:
+            self.reader = ConfigVarYamlReader(config_vars)
             for config_file in self.config_files:
-                config_file = utils.ExpandAndResolvePath(config_file)
-                self.read_yaml_file(config_file)
+                # config_file = utils.ExpandAndResolvePath(config_file)
+                self.exception_printed = ''
+                self._allow_reading_of_internal_vars = True
+                self.file_read_stack = list()
+                self.reader.read_yaml_file(str(config_file))
         self.python_file = utils.ExpandAndResolvePath(self.python_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
@@ -517,4 +527,5 @@ class KillProcess(PythonBatchCommandBase):
                 for proc in psutil.process_iter():
                     if proc.name() == self.process_name:
                         raise TimeoutError(f"failed to kill process {self.process_name}")
+
 
