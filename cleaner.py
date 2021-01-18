@@ -3,9 +3,7 @@ import json
 import sys
 from collections import namedtuple
 from subprocess import PIPE, run
-
-import xml.dom.minidom
-
+import utils
 from pybatch import *
 
 MAX_PLUGIN_VERSION = 12
@@ -144,7 +142,7 @@ class Cleaner:  # should there be inheritance?
         for folder in folders_to_remove:
             if folder not in self.main_actions_table:
                 self.main_actions_table[folder] = {}
-            self.main_actions_table[folder]['action'] = "rmdirorfile"  # TODO: can it be the class to be used??
+            self.main_actions_table[folder]['action'] = "REMOVE"  # TODO: can it be the class to be used??
             self.main_actions_table[folder]['dst'] = ''
 
         Cleaner.pretty(self.main_actions_table)
@@ -201,37 +199,38 @@ class Cleaner:  # should there be inheritance?
             if tag.attributes._attrs['OS'].firstChild.data == os_type:
                 return idx
 
+    @staticmethod
+    def get_dynamic_plugins_name_idx_by_os(): #weird function I know
+    #assuming a constant index suitable per each os
+        cur_os = str(config_vars['__CURRENT_OS__'])
+        if cur_os == 'Mac':
+            idx = 1
+        else:
+            if '32' in cur_os:
+                idx = 2
+            else:
+                idx = 3
+        return idx
     # TODO: this function seems way to long, think of a way to shorten it
     @staticmethod
     def parse_plugin_info_xml(plugin_path):
         '''A function that parses the info xml of a plugin and stores the data in a dictionary for all plugins'''
         info_xml = str(Cleaner.find_resoruces(plugin_path, 'Info.xml')[0])
         try:
-            xmldoc = xml.dom.minidom.parse(info_xml)
-            license_guid = Cleaner.get_data_from_xml_by_tag_name(xmldoc, "LicenseGUID")
-            version = Cleaner.get_data_from_xml_by_tag_name(xmldoc, "PluginExternalVersion")
-            waveshell_basename = Cleaner.get_data_from_xml_by_tag_name(xmldoc, "WaveShellsBaseName")
-            artist_dll_basename = Cleaner.get_data_from_xml_by_tag_name(xmldoc, "ArtistDlls")
-            waves_lib_version = Cleaner.get_data_from_xml_by_tag_name(xmldoc,
-                                                                      "WavesLibExternalVersion")  # TODO: is this really needed?
-            relevant_os_idx = Cleaner.get_relevant_waveslib_index(xmldoc, "DynamicPluginLibName")
-            waves_lib_basename = Cleaner.get_data_from_xml_by_tag_name(xmldoc, "DynamicPluginLibName", relevant_os_idx)
+            info_xml_dict = utils.get_info_from_plugin(None, in_path=plugin_path)
+            info_xml_dict['product_name'] = Path(info_xml_dict['path']).stem
+            version = info_xml_dict['PluginExternalVersion']
+            info_xml_dict['guid'] = info_xml_dict['LicenseGUID']
+            del info_xml_dict['LicenseGUID']
+            info_xml_dict['src_path'] = plugin_path
+            info_xml_dict['version'] = int(version.split('.')[0])
             major_minor = version.split(".")[0] + "." + version.split(".")[1]
-            # TODO: maybe this returned dict can also be transfered to a callable class or function which will return it according to some enum?
-            return {'product_name': Path(plugin_path).stem
-                , 'version': int(version.split('.')[0])  #
-                , 'guid': license_guid
-                , 'src_path': plugin_path
-                , 'dst_path': ''
-                , 'shell_name': waveshell_basename
-                , 'wavesshell': f"{waveshell_basename}-{major_minor}"
-                , 'wavesshell_rgx': f"{waveshell_basename}-.*{major_minor}"
-                    # constructing Referenced Shells according to requirements
-                , "waveslib": waves_lib_basename
-                , "waveslib_rgx": f"{waves_lib_basename.split('/')[0]}.*"
-                , "artist_dll": artist_dll_basename
-                , "artist_dll_rgx": artist_dll_basename
-                    }
+            info_xml_dict['wavesshell_rgx'] = f"{info_xml_dict['WaveShellsBaseName']}-.*{major_minor}"
+            info_xml_dict['dst_path'] = '' # for further use
+            idx = Cleaner.get_dynamic_plugins_name_idx_by_os()
+            info_xml_dict['waveslib'] = info_xml_dict['DynamicPluginLibName'][idx]
+            info_xml_dict["waveslib_rgx"] = f"{info_xml_dict['waveslib'].split('/')[0]}.*"
+            return info_xml_dict
         except Exception as e:
             log.info(f'Exception in parsing {info_xml} --- {e}')
             raise e
@@ -262,7 +261,7 @@ class Cleaner:  # should there be inheritance?
         for p in plugins_exists:
             # if 'Unused' in str(p['src_path']):
             #     continue
-            shell_key = f"{p['version']}:{p['shell_name']}"
+            shell_key = f"{p['version']}:{p['WaveShellsBaseName']}"
             adding = ''
             if str(p['src_path']) != str(p['dst_path']) and str(p['dst_path']) != '' and 'Unused' not in str(
                     p['dst_path']):
@@ -284,7 +283,7 @@ class Cleaner:  # should there be inheritance?
                 continue
             else:
                 used_by = ', '.join(v)
-            log.info(f"Version{k.replace(':', ' - ')} is used by {used_by}")
+            # log.info(f"Version{k.replace(':', ' - ')} is used by {used_by}")
         return required_shells
 
     @staticmethod
@@ -317,7 +316,7 @@ class Cleaner:  # should there be inheritance?
             to_be_removed.extend(Cleaner.get_folders_to_remove(existing_shells, self.plugins_info_table, 'wavesshell_rgx'))
         if 'artistdlls' in self.types_be_handled:
             artist_dlls = Cleaner.find_existing_path_by_expr(self.plugins_folders_dict, "ArtistDlls")
-            to_be_removed.extend(Cleaner.get_folders_to_remove(artist_dlls, self.plugins_info_table, 'artist_dll_rgx'))
+            to_be_removed.extend(Cleaner.get_folders_to_remove(artist_dlls, self.plugins_info_table, 'ArtistDlls'))
 
         return to_be_removed
 
@@ -381,9 +380,9 @@ class Cleaner:  # should there be inheritance?
         batch_accum.set_current_section('doit')
         for path, item in actions_table.items():
             action = item['action']
-            if action == 'mv':
+            if action == 'MOVE':
                 batch_accum += MoveDirToDir(path, item['dst_path'])
-            elif action == 'rmdirorfile':
+            elif action == 'REMOVE':
                 batch_accum += RmFileOrDir(path)
         return batch_accum
 
@@ -393,7 +392,7 @@ class Cleaner:  # should there be inheritance?
             cur_path = coex['src_path']
             if cur_path not in self.main_actions_table:
                 self.main_actions_table[cur_path] = {}
-            self.main_actions_table[cur_path]['action'] = 'mv'
+            self.main_actions_table[cur_path]['action'] = 'MOVE'
             if coex['src_path'].parent == self.plugins_folders[coex['version']]['used']:
                 coex['dst_path'] = self.plugins_folders[coex['version']]['unused']
             if coex['src_path'].parent == self.plugins_folders[coex['version']]['unused']:
@@ -412,7 +411,7 @@ class Cleaner:  # should there be inheritance?
             action = val['action']
             if 'dst_path' in val:
                 action = f"{action} to {val['dst_path']}"
-            print ("{:<15} {:<15}".format(path.name,action ))
+            print ("{:<15}:: {:<15}".format(path.name,action ))
 
 cleaner_obj = Cleaner()
 cleaner_obj.run_main_proc()
