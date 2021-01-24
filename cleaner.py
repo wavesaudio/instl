@@ -210,7 +210,7 @@ class Cleaner:  # should there be inheritance?
             if '32' in cur_os:
                 idx = 2
             else:
-                idx = 3
+                idx = 4
         return idx
     # TODO: this function seems way to long, think of a way to shorten it
     @staticmethod
@@ -228,8 +228,11 @@ class Cleaner:  # should there be inheritance?
             major_minor = version.split(".")[0] + "." + version.split(".")[1]
             info_xml_dict['wavesshell_rgx'] = f"{info_xml_dict['WaveShellsBaseName']}-.*{major_minor}"
             info_xml_dict['dst_path'] = '' # for further use
-            idx = Cleaner.get_dynamic_plugins_name_idx_by_os()
-            info_xml_dict['waveslib'] = info_xml_dict['DynamicPluginLibName'][idx]
+            cur_os = str(config_vars['__CURRENT_OS__'])
+            if cur_os == 'Mac':
+                info_xml_dict['waveslib'] = info_xml_dict['DynamicPluginLibName'][1]
+            else:
+                info_xml_dict['waveslib'] = info_xml_dict['DynamicPluginLibName'].pop()
             info_xml_dict["waveslib_rgx"] = f"{info_xml_dict['waveslib'].split('/')[0]}.*"
             return info_xml_dict
         except Exception as e:
@@ -372,11 +375,11 @@ class Cleaner:  # should there be inheritance?
                                   optimize=2)
             if execute:
                 log.info(f"Instl will execute {main_out_file}")
-                # try:
-                #     exec(py_compiled, globals())
-                # except Exception as ex:
-                #     log.exception(ex)
-                #     pass
+                try:
+                    exec(py_compiled, globals())
+                except Exception as ex:
+                    log.exception(ex)
+                    pass
 
     @staticmethod
     def accum_actions_table(actions_table):

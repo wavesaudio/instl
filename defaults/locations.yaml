@@ -37,7 +37,7 @@ WAVES_DRIVERS_DIR: $(WAVES_SOUNDGRID_DIR)
 
 __environment__:
     - HOME
-    
+
 USER_WAVES_DIR: $(HOME)/Library/Application Support/Waves Audio
 WAVES_DIR: "/Applications/Waves"
 WAVES_PLUGINS_DIR: $(WAVES_DIR)/Plug-Ins V10
@@ -69,19 +69,7 @@ WAVES_SHELL_DIRS:
     - $(WAVES_WPAPI_DIR)
 
 --- !define_Win
-WAVES_DIR_FOR_Win64: $(ProgramFiles(x86))\Waves
-WAVES_DIR: $(WAVES_DIR_FOR_$(TARGET_OS_SECOND_NAME))
 
-# preparing for removal of $(X$(Y)) resolves
-NUMBER_OF_BITS: Who knows
-
---- !define_Win32
-NUMBER_OF_BITS: 32
-WAVES_DIR: $(ProgramFiles)\Waves
-
---- !define_Win64
-NUMBER_OF_BITS: 64
-WAVES_DIR: $(ProgramFiles(x86))\Waves
 
 --- !define_Win
 __environment__:
@@ -92,7 +80,9 @@ __environment__:
    - APPDATA
    - CommonProgramFiles(x86)
    - ProgramData
-   
+   - ProgramFiles(x86)
+
+WAVES_DIR: $(ProgramFiles(x86))\Waves
 WAVES_PLUGINS_DIR: $(WAVES_DIR)\Plug-Ins V10
 WIN_WAVESHELL_DAE_X86_DIR: $(ProgramFiles(x86))\Common Files\Digidesign\DAE\Plug-ins
 WIN_WAVESHELL_DAE_X64_DIR: $(ProgramW6432)\Common Files\Digidesign\DAE\Plug-ins
@@ -106,8 +96,7 @@ WAVES_PROGRAMDATA_DIR: $(ProgramData)\Waves Audio
 WAVES_SHARED_DIR: $(PUBLIC)\Waves Audio
 SAMPLE_LIBRARIES_LOCATIONS_DIR: $(WAVES_SHARED_DIR)\Sample Libraries Locations
 WAVES_SG_TEMPLATES_DIR: $(WAVES_SHARED_DIR)\eMotion
-# No need to give default for DOWNLOAD_TOOL_PATH on Window, since user must provide this variable.
-# DOWNLOAD_TOOL_PATH: curl.exe
+
 VENDOR_DIR_NAME: Waves Audio/Central
 WAVES_PREFERENCES_DIR: $(APPDATA)\Waves Audio\Preferences
 WAVES_CENTRAL_APP_DATA_DIR:  $(APPDATA)\Waves Central
@@ -124,3 +113,4 @@ WAVES_SHELL_DIRS:
    - $(WIN_WAVESHELL_VST3_X64_DIR)
    - $(WAVESHELL_AAX_DIR)
    - $(WAVES_WPAPI_DIR)
+
