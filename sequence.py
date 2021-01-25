@@ -282,10 +282,9 @@ def arrange_sorted_list(rows):
 db = init_db()
 cur = db.cursor()
 id_to_repos = {}
-logs_folder = "/Users/orenc/Downloads/Users/ghobish/Library/Application Support/Waves Audio/Waves Central/Logs"
-logs_folder = "/Users/orenc/Downloads/Users 5/gal/AppData/Roaming/Waves Audio/Waves Central/Logs"
-if len(sys.argv) > 5:
-    logs_folder = sys.argv[5]
+logs_folder = "/Users/orenc/Downloads/Users 4/dougieb/Library/Application Support/Waves Audio/Waves Central/Logs"
+# if len(sys.argv) > 5:
+#     logs_folder = sys.argv[5]
 
 lib_scan(logs_folder + "/install")
 lib_scan(logs_folder + "/uninstall")
