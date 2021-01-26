@@ -42,6 +42,18 @@ def init_db():
         );
     """
 
+    create_table_sql = """
+           CREATE TABLE report_versions 
+           (
+               _id INTEGER ,
+               products TEXT ,
+               major_version INTEGER ,
+               date DATE,
+               number_of_installed INTEGER, 
+               PRIMARY KEY (_id, major_version)
+           );
+       """
+
     try:
         cur.execute(create_table_sql)
     except Exception as exp:
@@ -113,8 +125,7 @@ def get_relevant_files_by_id_by_type(dst_dir):
     return res
 
 
-def insert_to_db(keys, values):
-    table_name = 'actions_sequence'
+def insert_to_db(keys, values, table_name='actions_sequence'):
     columns = ', '.join(keys)
     placeholders = ', '.join('?' * len(values))
     sql = r"INSERT INTO " + table_name + r" ({}) VALUES ({}) ".format(columns, placeholders)
@@ -122,6 +133,7 @@ def insert_to_db(keys, values):
         cur.execute(sql, values)
         db.commit()
     except Exception as exp:
+        print(exp)
         pass
 
 
@@ -278,6 +290,34 @@ def arrange_sorted_list(rows):
             tmp.update(id_to_repos[cur_id])
             row['repo_rev'] = tmp
 
+def scan_rep_version(path):
+    files = get_files_by_type(path, "json")
+    for file in files:
+        scan_report_versions(file)
+
+def scan_report_versions(file):
+    #get data from file
+    installed_prods = []
+    (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(file)
+    last_updated = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+    with open(file) as f:
+        data = json.load(f)
+    for data_vals in data:
+        installed_version = data_vals[3] if data_vals[3] != '_' else None
+        if installed_version:
+            full_prod_name = data_vals[2] + ":" + installed_version
+            installed_prods.append(full_prod_name)
+    if len(installed_prods) >0:
+        installed_prods_str = ",".join(installed_prods)
+        data = {}
+        filename = file.split("/").pop()
+        data["products"] = installed_prods_str
+        data['_id'] = filename.split(".")[0].split("-")[2]
+        data["date"] = last_updated
+        data['number_of_installed'] = len(installed_prods)
+        data['major_version'] = filename.split("_")[1].split("-")[0]
+        insert_to_db(list(data.keys()), list(data.values()),"report_versions")
+    #insert to db new table ment for report version
 
 db = init_db()
 cur = db.cursor()
@@ -285,10 +325,13 @@ id_to_repos = {}
 logs_folder = "/Users/orenc/Downloads/Users 4/dougieb/Library/Application Support/Waves Audio/Waves Central/Logs"
 # if len(sys.argv) > 5:
 #     logs_folder = sys.argv[5]
-
-lib_scan(logs_folder + "/install")
-lib_scan(logs_folder + "/uninstall")
-lib_scan(logs_folder + "/permissionFixer")
-lib_scan(logs_folder + "/Cofix_Logs")
-get_sorted_actions_lits()
+#
+# lib_scan(logs_folder + "/install")
+# lib_scan(logs_folder + "/uninstall")
+# lib_scan(logs_folder + "/permissionFixer")
+# lib_scan(logs_folder + "/Cofix_Logs")
+logs_folder = "/Users/orenc/Downloads/OneDrive_1_1-26-2021/Users/Nail/Library/Application Support/Waves Audio/Waves Central/Logs"
+logs_folder = "/Users/orenc/Downloads/Users 3/max/Library/Application Support/Waves Audio/Waves Central/Logs"
+scan_rep_version(logs_folder+"/scan")
+# get_sorted_actions_lits()
 db.close()
