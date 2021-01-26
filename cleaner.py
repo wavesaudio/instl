@@ -103,24 +103,14 @@ class Cleaner:  # should there be inheritance?
     def __init__(self):
         self.script_path = os.path.abspath(__file__)
         self.script_folder = os.path.dirname(self.script_path)
-        self.set_main_out_file()  # can probably static method
         self.plugins_folders = Cleaner.get_possible_plugins_folders(Path(config_vars['WAVES_DIR']))
         self.plugins_folders_dict = self.spread_plugins_folder()
         self.waves_shell_paths = list(config_vars['WAVES_SHELL_DIRS'])
+        self.waves_shells_dict = dict([i.split('::') for i in config_vars['WAVES_SHELL_DIRS_BY_TYPE']])
         self.artist_dll_paths = [_path for key,_path in self.plugins_folders_dict.items()]
         self.types_be_handled = ['wavesshell', 'artistdlls', 'waveslib']
         self.plugins_info_table = {}
         self.main_actions_table = {}  # all of the relevant actions per folder will be aggregated to this var
-
-    def set_main_out_file(self):
-        default_logs_path = Path(config_vars['WAVES_CENTRAL_APP_DATA_DIR'])
-        right_now = time.strftime('%Y%m%d%H%M%S')
-        log_file_name = f"cleaner_{right_now}.log"
-        log_file = default_logs_path / 'Logs' / 'versionManager' / log_file_name
-        log_folder = log_file.parent
-        os.umask(0)
-        main_out_file = log_folder / f'task_list_{right_now}.py'
-        config_vars.setdefault('__MAIN_OUT_FILE__', main_out_file)
 
     @staticmethod
     def get_possible_plugins_folders(waves_main_folder):
@@ -132,23 +122,29 @@ class Cleaner:  # should there be inheritance?
         return plugin_folders
 
     # def __call__(self, *args, **kwargs):
+    def update_actions_table(self,src_path, action, dst=''):
+        if src_path not in self.main_actions_table:
+            self.main_actions_table[src_path] = {}
+        self.main_actions_table[src_path]['action'] = action
+        self.main_actions_table[src_path]['dst'] = dst
+
     def run_main_proc(self):
 
         self.plugins_info_table = Cleaner.sort_plugins_by_guid_version(self.plugins_folders)
+        #this part represents cofix operation
         self.update_coex_plugins_actions()
+        required_shells = Cleaner.find_required_shells(self.plugins_info_table)
+        self.restore_required_shells(required_shells)
         # generate a table to conclude all
 
         # there is a dependency between those who are about to be moved to unused and it's relevant shells, etc..
         folders_to_remove = self.get_leftover_folders_to_remove()  # remove leftover operation
         for folder in folders_to_remove:
-            if folder not in self.main_actions_table:
-                self.main_actions_table[folder] = {}
-            self.main_actions_table[folder]['action'] = "REMOVE"  # TODO: can it be the class to be used??
-            self.main_actions_table[folder]['dst'] = ''
+            self.update_actions_table(folder, "REMOVE")
 
         Cleaner.pretty(self.main_actions_table)
 
-        required_shells = Cleaner.find_required_shells(self.plugins_info_table)
+
         accum = Cleaner.accum_actions_table(self.main_actions_table)
         AuUtilHelper.accum_auval_reg_utils(accum, required_shells, Path(config_vars['WAVES_DIR']))
         self.create_and_exec_batch(accum)
@@ -326,6 +322,29 @@ class Cleaner:  # should there be inheritance?
 
     # should be executed once all other actions
 
+
+    def restore_required_shells(self, required_shells):
+        """Accum required shells to system plugins folders if not exists"""
+        for required_shell in required_shells:
+            if required_shells.get(required_shell) == {''}:
+                continue
+            shell_version, shell_enum = required_shell.split(':')
+
+            for shell_path in Cleaner.find_resoruces(os.path.join(Path(config_vars['WAVES_DIR']), f'WaveShells V{shell_version}'),
+                                             f'{shell_enum}-', '{}*'):
+                shell_full_name = os.path.split(shell_path)[1]
+                shell_type = shell_full_name.split('-')[1].split(' ')[0]
+                if 'x64' in shell_full_name:
+                    shell_type += 'x64'
+
+                dst_path = self.waves_shells_dict[shell_type]
+                if not dst_path:
+                    continue
+
+                if not os.path.exists(dst_path) or os.path.exists(os.path.join(dst_path, shell_full_name)):
+                    continue
+                self.update_actions_table(shell_path, "COPY", dst_path)
+
     def scan_plugins_for_coex(self,plugins_info_table):
         licenses = WleAux.get_licenses(plugins_info_table)  # guid to tuple of version product name
         plugins_to_used = []
@@ -359,11 +378,9 @@ class Cleaner:  # should there be inheritance?
                     # batch_accum = accum_return_to_used(batch_accum, in_unused[0], plugin_folders)
             # I think this can probably replaced by simply update the main table?
             ret_val.extend(plugins_to_used)
-            return ret_val #TODO: bad name
+            return ret_val
 
     def create_and_exec_batch(self, batch_accum, execute=True):
-        """Create task_list.py file and optionally run it
-        Set log file name to cofix"""
         main_out_file = config_vars['__MAIN_OUT_FILE__']
         out_file_realpath = Path(self.script_folder, main_out_file)
         with utils.utf8_open_for_write(out_file_realpath, 'w') as f:
@@ -381,6 +398,7 @@ class Cleaner:  # should there be inheritance?
                     log.exception(ex)
                     pass
 
+
     @staticmethod
     def accum_actions_table(actions_table):
         batch_accum = PythonBatchCommandAccum()
@@ -388,14 +406,14 @@ class Cleaner:  # should there be inheritance?
         for path, item in actions_table.items():
             action = item['action']
             if action == 'MOVE':
-                batch_accum += MoveDirToDir(path, item['dst_path'])
+                batch_accum += MoveDirToDir(path, item['dst'])
+            elif action == 'COPY':
+                batch_accum += CopyDirToDir(path, item['dst'])
             elif action == 'REMOVE':
                 batch_accum += RmFileOrDir(path)
         return batch_accum
 
-# ##
-#     if os.path.exists(dst_path) and os.path.exists(plugin["src_path"]):
-#         log.info(f'Plugin already exist in {dst_path}, will remove the old one and move the new')
+
     def update_coex_plugins_actions(self):
         coex_plugins = self.scan_plugins_for_coex(self.plugins_info_table)
         for coex in coex_plugins:
@@ -405,25 +423,23 @@ class Cleaner:  # should there be inheritance?
                 coex['dst_path'] = self.plugins_folders[coex['version']]['unused']
             if coex['src_path'].parent == self.plugins_folders[coex['version']]['unused']:
                 coex['dst_path'] = self.plugins_folders[coex['version']]['used']
-            dst_path = os.path.join(coex["dst_path"], os.path.split(coex["src_path"])[1])  # ??
+            dst_path = coex["dst_path"]
 
             for p in self.plugins_info_table:
                 if p['product_name'] == coex['product_name'] and p['version'] == coex['version']:
                     p['dst_path'] = dst_path
 
-            if cur_path not in self.main_actions_table:
-                self.main_actions_table[cur_path] = {}
-            self.main_actions_table[cur_path]['action'] = 'MOVE'
-            self.main_actions_table[cur_path]['dst_path'] = dst_path
+            self.update_actions_table(cur_path, "MOVE", dst_path)
 
     @staticmethod
     def pretty(d, indent=0):
         print ("{:<15} {:<15} ".format('Path', 'action'))
         for path, val in d.items():
             action = val['action']
-            if 'dst_path' in val:
-                action = f"{action} to {val['dst_path']}"
-            print ("{:<15}:: {:<15}".format(path.name,action ))
+            if 'dst' in val and val['dst']:
+                action = f"{action} to {val['dst']}"
+            print ("{:<15}:: {:<15}".format(str(path),action ))
+
 
 cleaner_obj = Cleaner()
 cleaner_obj.run_main_proc()
@@ -432,5 +448,3 @@ cleaner_obj.run_main_proc()
 # we can get the instructions from an argument, something like: all,coex,leftover
 # issue to consider, cofix get the coex plugins and move them to the unused folder, however it does so
 # only "on paper" meaning, the is a dependant calculation between those two operations
-#TODO: there can be a situation where unused already exists with a bundle - need to remove it and move the existing one
-#
