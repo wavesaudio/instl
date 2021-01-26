@@ -408,7 +408,10 @@ class Cleaner:  # should there be inheritance?
             if action == 'MOVE':
                 batch_accum += MoveDirToDir(path, item['dst'])
             elif action == 'COPY':
-                batch_accum += CopyDirToDir(path, item['dst'])
+                if Path(path).is_dir():
+                    batch_accum += CopyDirToDir(path, item['dst'])
+                else:
+                    batch_accum += CopyFileToFile(path, item['dst']+"/"+Path(path).name)
             elif action == 'REMOVE':
                 batch_accum += RmFileOrDir(path)
         return batch_accum
