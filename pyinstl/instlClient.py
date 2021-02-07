@@ -380,22 +380,26 @@ class InstlClient(InstlInstanceBase):
 
         # translate each row to a dict, to help debug, since sqlite3.row does not show fields in Pycharm debugger
         for require_detail in [dict(rd) for rd in require_details]:
-            # do not include details originating in aux IIDs such as UNINSTALL_AS_PLUGIN
-            if require_detail['original_iid'] not in self.auxiliary_iids:
 
-                # this will create the item_dict in retVal if it does not already exist
-                item_dict = retVal[require_detail['owner_iid']]
+            # get the translated detail_name (which is the original detail_name if detail_name is not in translate_detail_names)
+            detail_name_translated = translate_detail_names.get(require_detail['detail_name'], require_detail['detail_name'])
 
-                # get the translated detail_name or the original detail_name if detail_name is not in translate_detail_names
-                detail_name_translated = translate_detail_names.get(require_detail['detail_name'], require_detail['detail_name'])
+            # do not include details originating from auxiliary IIDs such as UNINSTALL_AS_PLUGIN
+            # do not include details guids that are not from original_iid
+            if require_detail['original_iid'] in self.auxiliary_iids or \
+                    (detail_name_translated == 'guid' and require_detail['original_iid'] != require_detail['owner_iid']):
+                continue
 
-                # if this is the first encounter of this detail_name, create a set to hold the values
-                # a set is used to avoid duplicate values
-                if detail_name_translated not in item_dict:
-                    item_dict[detail_name_translated] = set()
+            # this will create the item_dict in retVal if it does not already exist
+            item_dict = retVal[require_detail['owner_iid']]
 
-                # add the deatil to the set
-                item_dict[detail_name_translated].add(require_detail['detail_value'])
+            # if this is the first encounter of this detail_name, create a set to hold the values
+            # a set is used to avoid duplicate values
+            if detail_name_translated not in item_dict:
+                item_dict[detail_name_translated] = set()
+
+            # add the deatil to the set
+            item_dict[detail_name_translated].add(require_detail['detail_value'])
 
         for item in retVal.values():
             for k, v in item.items():

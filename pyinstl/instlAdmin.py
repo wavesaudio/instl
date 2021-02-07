@@ -696,7 +696,7 @@ class InstlAdmin(InstlInstanceBase):
 
     def translate_guids_in_file(self, in_file, out_file):
         num_translated_guids = 0
-        iid_to_guid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
+        guid_to_iid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
         guid_re = re.compile("""
                 (?P<guid>[a-fA-F0-9]{8}
                 (-[a-fA-F0-9]{4}){3}
@@ -708,9 +708,11 @@ class InstlAdmin(InstlInstanceBase):
                 for line in rfd.readlines():
                     match = guid_re.search(line)
                     if match:
-                        new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {iid_to_guid.get(match.group("guid").lower(), "?")}')
-                        wfd.write(new_line)
-                        num_translated_guids += 1
+                        the_iid = guid_to_iid.get(match.group("guid").lower(), "?")
+                        if the_iid not in line:  # if not already translated
+                            new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {the_iid}')
+                            wfd.write(new_line)
+                            num_translated_guids += 1
                     else:
                         wfd.write(line)
         return num_translated_guids
