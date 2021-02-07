@@ -374,17 +374,32 @@ class InstlClient(InstlInstanceBase):
         return retVal
 
     def repr_require_for_yaml(self):
-        translate_detail_name = {'require_version': 'version', 'require_guid': 'guid', 'require_by': 'require_by'}
+        translate_detail_names = {'require_version': 'version', 'require_guid': 'guid'}
         retVal = defaultdict(dict)
         require_details = self.items_table.get_details_by_name_for_all_iids("require_%")
-        for require_detail in require_details:
-            item_dict = retVal[require_detail['owner_iid']]
-            if require_detail['detail_name'] not in item_dict:
-                item_dict[translate_detail_name[require_detail['detail_name']]] = utils.unique_list()
-            item_dict[translate_detail_name[require_detail['detail_name']]].append(require_detail['detail_value'])
+
+        # translate each row to a dict, to help debug, since sqlite3.row does not show fields in Pycharm debugger
+        for require_detail in [dict(rd) for rd in require_details]:
+            # do not include details originating in aux IIDs such as UNINSTALL_AS_PLUGIN
+            if require_detail['original_iid'] not in self.auxiliary_iids:
+
+                # this will create the item_dict in retVal if it does not already exist
+                item_dict = retVal[require_detail['owner_iid']]
+
+                # get the translated detail_name or the original detail_name if detail_name is not in translate_detail_names
+                detail_name_translated = translate_detail_names.get(require_detail['detail_name'], require_detail['detail_name'])
+
+                # if this is the first encounter of this detail_name, create a set to hold the values
+                # a set is used to avoid duplicate values
+                if detail_name_translated not in item_dict:
+                    item_dict[detail_name_translated] = set()
+
+                # add the deatil to the set
+                item_dict[detail_name_translated].add(require_detail['detail_value'])
+
         for item in retVal.values():
-            for sub_item in item.values():
-                sub_item.sort()
+            for k, v in item.items():
+                item[k] = sorted(list(v))  # turn the set into a sorted list
         return retVal
 
     def should_check_for_binary_versions(self):
