@@ -384,8 +384,9 @@ class InstlClient(InstlInstanceBase):
             # get the translated detail_name (which is the original detail_name if detail_name is not in translate_detail_names)
             detail_name_translated = translate_detail_names.get(require_detail['detail_name'], require_detail['detail_name'])
 
-            # do not include details originating from auxiliary IIDs such as UNINSTALL_AS_PLUGIN
-            # do not include details guids that are not from original_iid
+            # do not include any details originating from auxiliary IIDs such as UNINSTALL_AS_PLUGIN, such details could have
+            # been written to previous require.yaml due to a bug in index.yaml
+            # do not include details guids that are not from original_iid, again to overcome bugs.
             if require_detail['original_iid'] in self.auxiliary_iids or \
                     (detail_name_translated == 'guid' and require_detail['original_iid'] != require_detail['owner_iid']):
                 continue
