@@ -683,7 +683,9 @@ class IndexItemsTable(object):
         for iid in aux_iids:
             guid = self.get_resolved_details_value_for_iid(iid, "guid")
             aux_guids.extend(guid)
-        should_not_be_required_by_re = re.compile(r"(Plugin\d+_\d+_Root_\d+_\d+_IID)|(GTR_(Internals|Stomps)_IID)")
+
+        should_not_be_required_by_text = config_vars.get("SHOULD_NOT_BE_REQUIRED_BY", "a^").str()
+        should_not_be_required_by_re = re.compile(should_not_be_required_by_text)
 
         iids_from_require = [*require_details]
         for iid in iids_from_require:
@@ -691,31 +693,31 @@ class IndexItemsTable(object):
             old_details_list = require_details[iid]
             new_details_list = []
             for details in old_details_list:
-                # replace UNINSTALL_AS_PLUGIN guid with the real guid, or erase if not real guid exists
+                # replace guids such as UNINSTALL_AS_PLUGIN  with the real guid, or erase if no real guid exists
                 if details['detail_name'] == 'require_guid':
-                    if details['detail_value'] in aux_guids:
+                    if details['detail_value'] in aux_guids:  # aux_guids are the guids that should not appear as require_guid
                         real_guid = self.get_resolved_details_value_for_iid(iid, "guid")
                         if real_guid:  # real_guid is a list, might be empty
                             details['detail_value'] = real_guid[0]
                             new_details_list.append(details)
                             #print(f"erase guid for {iid}")
                 elif details['detail_name'] == "require_by":
+                    # only add the require_by field if it's NOT one of the guids matching the regex in SHOULD_NOT_BE_REQUIRED_BY
                     match = should_not_be_required_by_re.match(details['detail_value'])
                     if not match:
                         new_details_list.append(details)
                         good_require_by_count += 1
-                    else:
-                        print(f"erase require_by {details['detail_value']} for {iid}")
+                    #else:
+                    #    print(f"erase require_by {details['detail_value']} for {iid}")
                 else:
                     new_details_list.append(details)
             if good_require_by_count == 0:
+                # totaly remove IIDs that (after cleaning) are not required by anyone
                 del require_details[iid]
-                print(f"erase {iid} no require_by left")
+                #print(f"erase {iid} no require_by left")
             else:
                 require_details[iid] = new_details_list
 
-    # Todo: remove printing
-    # add should_not_be_required_by_re as config_var in some central .yaml file
     def read_require_node(self, a_node: yaml.MappingNode, **kwargs):
 
         require_items = dict()
@@ -727,17 +729,7 @@ class IndexItemsTable(object):
                     if require_details:
                         require_items[IID] = require_details
 
-            with utils.utf8_open_for_write("/Users/shai/Desktop/flat_require.before.txt", "w") as wfd:
-                for k, v in sorted(require_items.items()):
-                    wfd.write(f"{k}:\n")
-                    for vv in v:
-                        wfd.write(f"    {vv}\n")
             self.clean_require_items(require_items)
-            with utils.utf8_open_for_write("/Users/shai/Desktop/flat_require.after.txt", "w") as wfd:
-                for k, v in sorted(require_items.items()):
-                    wfd.write(f"{k}:\n")
-                    for vv in v:
-                        wfd.write(f"    {vv}\n")
 
             query_text1 = """
                 INSERT INTO index_item_detail_t
