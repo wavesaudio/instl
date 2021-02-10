@@ -681,22 +681,34 @@ class InstlAdmin(InstlInstanceBase):
                     self.progress(f"""bad {item.leaf} checksum expected: {item.checksum}, actual: {info_map_checksum}""")
 
     def do_translate_guids(self):
-        file_to_translate_path = config_vars["__MAIN_INPUT_FILE__"].Path()
-        output_file_path = config_vars["__MAIN_OUT_FILE__"].Path()
-        a_temp_file = tempfile.NamedTemporaryFile(mode='w', dir=output_file_path.parent, delete=False)
-        try:
-            num_translated_guids = self.translate_guids_in_file(file_to_translate_path, a_temp_file.name)
-            os.replace(a_temp_file.name, output_file_path)
-            self.progress(f"""{num_translated_guids} guids translated""")
-        except Exception as ex:
-            pass
-        finally:
-            try: os.unlink(a_temp_file.name)
-            except: pass
+
+        input_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        files_to_translate_path = list()
+        if input_path.is_dir():
+            for root, dirs, files in os.walk(input_path):
+                for f in files:
+                    if not f.startswith("."):
+                        files_to_translate_path.append(Path(root, f))
+                    else:
+                        print(f"{f} is hidden")
+        else:
+            files_to_translate_path.append(input_path)
+
+        for f in files_to_translate_path:
+            a_temp_file = f.parent.joinpath(f.name+".tmp")
+            try:
+                num_translated_guids = self.translate_guids_in_file(f, a_temp_file)
+                os.rename(a_temp_file, f)
+                self.progress(f"""{f}: {num_translated_guids} guids translated""")
+            except Exception as ex:
+                pass
+            finally:
+                try: os.unlink(a_temp_file)
+                except: pass
 
     def translate_guids_in_file(self, in_file, out_file):
         num_translated_guids = 0
-        iid_to_guid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
+        guid_to_iid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
         guid_re = re.compile("""
                 (?P<guid>[a-fA-F0-9]{8}
                 (-[a-fA-F0-9]{4}){3}
@@ -708,9 +720,11 @@ class InstlAdmin(InstlInstanceBase):
                 for line in rfd.readlines():
                     match = guid_re.search(line)
                     if match:
-                        new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {iid_to_guid.get(match.group("guid").lower(), "?")}')
-                        wfd.write(new_line)
-                        num_translated_guids += 1
+                        the_iid = guid_to_iid.get(match.group("guid").lower(), "?")
+                        if the_iid not in line:  # if not already translated
+                            new_line = line.replace(match.group("guid"), f'{match.group("guid")}  # {the_iid}')
+                            wfd.write(new_line)
+                            num_translated_guids += 1
                     else:
                         wfd.write(line)
         return num_translated_guids

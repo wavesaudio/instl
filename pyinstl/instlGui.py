@@ -533,11 +533,15 @@ class ActivateFrameController(FrameController):
         self.tk_vars["REDIS_PORT"] = TkConfigVarInt("REDIS_PORT")
         self.tk_vars["ACTIVATE_CONFIG_FILE"] = TkConfigVarStr("ACTIVATE_CONFIG_FILE")
         self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"] = TkConfigVarStr("DOMAIN_REPO_TO_ACTIVATE")
+        #todo oren - ??
+        self.tk_vars["DOMAIN_REPO_TO_UPLOAD"] = TkConfigVarStr("DOMAIN_REPO_TO_UPLOAD")
         self.tk_vars["IN_PROGRESS_VALUE"] = TkConfigVarStr("IN_PROGRESS_VALUE")
         self.tk_vars["HEARTBEAT_VALUE"] = TkConfigVarStr("HEARTBEAT_VALUE")
 
         self.tk_vars["REDIS_KEY_VALUE_1"] = TkConfigVarStr("REDIS_KEY_VALUE_1")
         self.tk_vars["REPO_REV_TO_ACTIVATE"] = TkConfigVarStr("REPO_REV_TO_ACTIVATE")
+        # todo oren - ??
+        self.tk_vars["REPO_REV_TO_UPLOAD"] = TkConfigVarStr("REPO_REV_TO_UPLOAD")
         self.tk_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
         self.redis_conn: utils.RedisClient = None
         self.update_redis_table_working_id = None
@@ -618,9 +622,11 @@ class ActivateFrameController(FrameController):
                     focused_item_values = self.tree.item(focused_item)
                     new_value = ":".join((focused_item_values['text'], str(focused_item_values['values'][0])))
                     self.tk_vars["DOMAIN_REPO_TO_ACTIVATE"].set(new_value)
+                    self.tk_vars["DOMAIN_REPO_TO_UPLOAD"].set(new_value)
                     uploaded_rep_rev = focused_item_values['values'][1]
                     activated_rep_rev = int(focused_item_values['values'][2])
                     self.tk_vars["REPO_REV_TO_ACTIVATE"].set(uploaded_rep_rev)
+                    self.tk_vars["REPO_REV_TO_UPLOAD"].set(uploaded_rep_rev)
                 self.prev_focused_item = focused_item
 
 
@@ -655,7 +661,7 @@ class ActivateFrameController(FrameController):
             self.update_redis_table_working_id = None
             #log.info("update_redis_table STOPPEd")
 
-    def activate_repo_rev(self):
+    def activate_repo_rev(self): #oren todo - add something simmilar for upload SI-300
         try:
             if self.redis_conn:
                 current_items = self.tree.get_children()
@@ -670,6 +676,22 @@ class ActivateFrameController(FrameController):
                         self.redis_conn.lpush(redis_key, redis_value)
         except Exception as ex:
             print(f"activate_repo_rev exception {ex}")
+
+    def upload_repo_rev(self): #oren todo - add something simmilar for upload SI-300
+        try:
+            if self.redis_conn:
+                current_items = self.tree.get_children()
+                domain_repo = self.tk_vars["DOMAIN_REPO_TO_UPLOAD"].get()
+                if domain_repo in current_items:
+                    host = self.redis_conn.host
+                    repo_rev = self.tk_vars["REPO_REV_TO_UPLOAD"].get()
+                    redis_value = config_vars.resolve_str(":".join(('up2s3', domain_repo, str(repo_rev))))
+                    redis_key   = config_vars.resolve_str(":".join(("$(REDIS_KEYS_PREFIX)", host, "waiting_list")))
+                    answer = messagebox.askyesno("Upload repo-rev", f"upload repo-rev {repo_rev} on {domain_repo} ?")
+                    if answer:
+                        self.redis_conn.lpush(redis_key, redis_value)
+        except Exception as ex:
+            print(f"upload_repo_rev exception {ex}")
 
     def remove_redis_key(self, key_config_var, value_config_var=None):
         key_to_remove = config_vars[key_config_var].str()
@@ -734,6 +756,17 @@ class ActivateFrameController(FrameController):
         Label(self.frame, text="rep-rev:").grid(row=curr_row, column=2, sticky=E)
         Entry(self.frame, textvariable=self.tk_vars["REPO_REV_TO_ACTIVATE"]).grid(row=curr_row, column=3, columnspan=1, sticky=W + E)
         Button(self.frame, width=7, text="Activate", command=self.activate_repo_rev).grid(row=curr_row, column=4, columnspan=1, sticky="E")
+
+        curr_row += 1
+        Label(self.frame, text="Repository:").grid(row=curr_row, column=0, sticky=W)
+        Label(self.frame, textvariable=self.tk_vars["DOMAIN_REPO_TO_UPLOAD"]).grid(row=curr_row, column=1,
+                                                                                     columnspan=1, sticky=W)
+
+        Label(self.frame, text="rep-rev:").grid(row=curr_row, column=2, sticky=E)
+        Entry(self.frame, textvariable=self.tk_vars["REPO_REV_TO_UPLOAD"]).grid(row=curr_row, column=3, columnspan=1,
+                                                                                  sticky=W + E)
+        Button(self.frame, width=7, text="Upload", command=self.upload_repo_rev).grid(row=curr_row, column=4,
+                                                                                          columnspan=1, sticky="E")
 
         self.prev_focused_item = None
 

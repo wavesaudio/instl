@@ -677,7 +677,54 @@ class IndexItemsTable(object):
         YamlReader.convert_standard_tags(out_node)
         return out_node
 
+    def clean_require_items(self, require_details):
+        aux_guids = []
+        aux_iids = list(config_vars.get("AUXILIARY_IIDS", []))
+        for iid in aux_iids:
+            guid = self.get_resolved_details_value_for_iid(iid, "guid")
+            aux_guids.extend(guid)
+
+        should_not_be_required_by_text = config_vars.get("SHOULD_NOT_BE_REQUIRED_BY", "a^").str()
+        should_not_be_required_by_re = re.compile(should_not_be_required_by_text)
+
+        iids_from_require = [*require_details]
+        for iid in iids_from_require:
+            good_require_by_count = 0
+            old_details_list = require_details[iid]
+            new_details_list = []
+            for details in old_details_list:
+                # replace guids such as UNINSTALL_AS_PLUGIN  with the real guid, or erase if no real guid exists
+                use_new_detail = True
+                if details['detail_name'] == 'require_guid':
+                    if not details['detail_value'] or details['detail_value'] in aux_guids:  # aux_guids are the guids that should not appear as require_guid
+                        real_guid = self.get_resolved_details_value_for_iid(iid, "guid")
+                        if real_guid:  # real_guid is a list, might be empty
+                            details['detail_value'] = real_guid[0]
+                        else:
+                            use_new_detail = False
+                elif details['detail_name'] == "require_by":
+                    if not details['detail_value']:
+                        use_new_detail = False
+                    else:
+                        # only add the require_by field if it's NOT one of the guids matching the regex in SHOULD_NOT_BE_REQUIRED_BY
+                        match = should_not_be_required_by_re.match(details['detail_value'])
+                        if not match:
+                            good_require_by_count += 1
+                        else:
+                            use_new_detail = False
+
+                if use_new_detail:
+                    new_details_list.append(details)
+
+            if good_require_by_count == 0:
+                # totally remove IIDs that (after cleaning) are not required by anyone
+                del require_details[iid]
+                #print(f"erase {iid} no require_by left")
+            else:
+                require_details[iid] = new_details_list
+
     def read_require_node(self, a_node: yaml.MappingNode, **kwargs):
+
         require_items = dict()
         if a_node.isMapping():
             all_iids = self.get_all_iids()
@@ -686,6 +733,8 @@ class IndexItemsTable(object):
                     require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
                     if require_details:
                         require_items[IID] = require_details
+
+            self.clean_require_items(require_items)
 
             query_text1 = """
                 INSERT INTO index_item_detail_t
