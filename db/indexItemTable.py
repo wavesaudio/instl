@@ -696,19 +696,22 @@ class IndexItemsTable(object):
                 # replace guids such as UNINSTALL_AS_PLUGIN  with the real guid, or erase if no real guid exists
                 use_new_detail = True
                 if details['detail_name'] == 'require_guid':
-                    if details['detail_value'] in aux_guids:  # aux_guids are the guids that should not appear as require_guid
+                    if not details['detail_value'] or details['detail_value'] in aux_guids:  # aux_guids are the guids that should not appear as require_guid
                         real_guid = self.get_resolved_details_value_for_iid(iid, "guid")
                         if real_guid:  # real_guid is a list, might be empty
                             details['detail_value'] = real_guid[0]
                         else:
                             use_new_detail = False
                 elif details['detail_name'] == "require_by":
-                    # only add the require_by field if it's NOT one of the guids matching the regex in SHOULD_NOT_BE_REQUIRED_BY
-                    match = should_not_be_required_by_re.match(details['detail_value'])
-                    if not match:
-                        good_require_by_count += 1
-                    else:
+                    if not details['detail_value']:
                         use_new_detail = False
+                    else:
+                        # only add the require_by field if it's NOT one of the guids matching the regex in SHOULD_NOT_BE_REQUIRED_BY
+                        match = should_not_be_required_by_re.match(details['detail_value'])
+                        if not match:
+                            good_require_by_count += 1
+                        else:
+                            use_new_detail = False
 
                 if use_new_detail:
                     new_details_list.append(details)
