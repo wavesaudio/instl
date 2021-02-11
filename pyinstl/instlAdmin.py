@@ -698,7 +698,11 @@ class InstlAdmin(InstlInstanceBase):
             a_temp_file = f.parent.joinpath(f.name+".tmp")
             try:
                 num_translated_guids = self.translate_guids_in_file(f, a_temp_file)
-                os.rename(a_temp_file, f)
+                if num_translated_guids > 0:
+                    modificatio_times = f.stat().st_atime_ns, f.stat().st_mtime_ns
+                    os.rename(a_temp_file, f)
+                    # restore modification time so files will keep relative modification time, so we can know when the file was created
+                    os.utime(f, ns=modificatio_times)
                 self.progress(f"""{f}: {num_translated_guids} guids translated""")
             except Exception as ex:
                 pass
