@@ -201,6 +201,7 @@ class InstlClient(InstlInstanceBase):
         config_vars["__ORPHAN_INSTALL_TARGETS__"] = sorted(orphaned_main_guids+orphaned_main_iids+orphaned_update_iids)
 
         self.update_mode = "__REPAIR_INSTALLED_ITEMS__" in self.main_install_targets
+
     # install_status = {"none": 0, "main": 1, "update": 2, "depend": 3}
     def calculate_all_install_items(self):
         # mark ignored iids, so all subsequent operations not act on these iids

@@ -18,9 +18,9 @@ class PythonBatchCommandBase(abc.ABC):
         PythonBatchCommandBase implement context manager interface:
         __enter__: will print progress message (if needed)
                     derived classes should not override __enter__ and should not do any actual work here but implement
-                    the work in __call__. If something must be done in __enter__ override enter_self
+                    the work in __call__. If something must be done in __enter__ override enter_self and do it there.
         __exit__: will handle exceptions and print warning/error messages, or ignore errors if needed
-                 derived classes should not override __exit__. If something must be done in __exit__ override exit_self
+                 derived classes should not override __exit__. If something must be done in __exit__ override exit_self and do it there.
         Derived classes must implement some additional methods:
         __repr__: must be implemented correctly so the returned string can be passed to eval to recreate the object
         __init__: must record all parameters needed to implement __repr__ and must not do any actual work!
@@ -49,7 +49,7 @@ class PythonBatchCommandBase(abc.ABC):
     ignore_progress = False           # set to True when using batch commands out side python batch file
     config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__()
 
-    # defaults for __init__ of derived classes. Members how's value has not changed from these values
+    # defaults for __init__ of derived classes. Members who's value is not different from these default values
     # can be skipped when __repr__ recreates the object
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,

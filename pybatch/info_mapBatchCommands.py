@@ -342,7 +342,9 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
                 if data_dict['name']:
                     short_index_dict[IID]['name'] = data_dict['name']
 
-                if data_dict['version_mac'] == data_dict['version_win']:
+                if data_dict['version_mac'] is None and data_dict['version_win'] is None:
+                    pass
+                elif data_dict['version_mac'] == data_dict['version_win']:
                     short_index_dict[IID]['version'] = data_dict['version_mac']
                 else:
                     if data_dict['version_mac']:

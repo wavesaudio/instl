@@ -255,7 +255,12 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
     def write_require_file(self, file_path, require_dict):
         with utils.utf8_open_for_write(file_path, "w") as wfd:
 
-            define_dict = aYaml.YamlDumpDocWrap({"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str()},
+            require_define_dict = {"REQUIRE_REPO_REV": config_vars["MAX_REPO_REV"].str(),
+                                   "REQUIRE_REPO_NAME": config_vars.get("REPO_NAME", "N/A").str(),
+                                   "REQUIRE_SYNC_BASE_URL": config_vars.get("SYNC_BASE_URL", "N/A").str(),
+                                   "REQUIRE_S3_BUCKET_NAME": config_vars.get("S3_BUCKET_NAME", "N/A").str(),
+                                   }
+            define_dict = aYaml.YamlDumpDocWrap(require_define_dict,
                                                 '!define', "definitions",
                                                  explicit_start=True, sort_mappings=True)
             require_dict = aYaml.YamlDumpDocWrap(require_dict, '!require', "requirements",

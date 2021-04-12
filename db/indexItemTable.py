@@ -13,7 +13,7 @@ import logging
 log = logging.getLogger()
 
 import utils
-from aYaml import YamlReader
+from aYaml import *
 from configVar import config_vars, private_config_vars
 
 # todo: these were copied from the late Install Item.py and should find a better home
@@ -1470,7 +1470,9 @@ class IndexItemsTable(object):
                     -- select all rows that have some version
                     SELECT * FROM short_index_t
                     WHERE version_mac IS NOT NULL
-                    OR version_win IS NOT NULL;
+                    OR version_win IS NOT NULL
+                    OR name IS NOT NULL
+                    OR install_guid IS NOT NULL;
                     """
 
         retVal = self.db.select_and_fetchall(query_text)
