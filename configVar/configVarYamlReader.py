@@ -7,6 +7,9 @@ import sys
 import re
 from contextlib import contextmanager
 import logging
+
+from configVar import config_vars
+
 log = logging.getLogger()
 
 import aYaml
@@ -36,13 +39,26 @@ class ConfigVarYamlReader(aYaml.YamlReader):
 
     def init_specific_doc_readers(self):
         aYaml.YamlReader.init_specific_doc_readers(self)
-        self.specific_doc_readers["__no_tag__"] = self.read_defines
-        self.specific_doc_readers["__unknown_tag__"] = self.read_defines
+        # self.specific_doc_readers["__no_tag__"] = self.read_defines
+        # self.specific_doc_readers["__unknown_tag__"] = self.read_defines
+        self.specific_doc_readers.pop("__no_tag__", None)
+        self.specific_doc_readers.pop("__unknown_tag__", None)
         self.specific_doc_readers["!define"] = self.read_defines
         # !define_const is deprecated and read as non-const
         self.specific_doc_readers["!define_const"] = self.read_defines
         # !define_const is deprecated - use __ifndef__ instead
         self.specific_doc_readers["!define_if_not_exist"] = self.read_defines_if_not_exist
+        acceptables = list(config_vars.setdefault("ACCEPTABLE_YAML_DOC_TAGS", []))
+        if "__INSTL_COMPILED__" in config_vars:
+            if config_vars["__INSTL_COMPILED__"].str() == "True":
+                acceptables.append("define_Compiled")
+            else:
+                acceptables.append("define_Uncompiled")
+        for acceptibul in acceptables:
+            if acceptibul.startswith("define_if_not_exist"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines_if_not_exist
+            elif acceptibul.startswith("define"):
+                self.specific_doc_readers["!" + acceptibul] = self.read_defines
 
     def read_defines(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node
@@ -114,4 +130,3 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                     self.read_defines(contents, **kwargs)
         else:
             log.warning(f"unknown conditional {identifier}")
-
