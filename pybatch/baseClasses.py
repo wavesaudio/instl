@@ -59,8 +59,10 @@ class PythonBatchCommandBase(abc.ABC):
                        "reply_environ_var": None,
                        'prog_num': 0,
                        'skip_action': False,
-                       'suspend': 0}
-
+                       'suspend': 0,
+                       'skip_chmod': False, # when set to True, all file/dir permission code will be bypassed
+                       'skip_chown': False,       # when set to True, all file/dir ownership  code will be bypassed
+                       }
 
     @classmethod
     def __init_subclass__(cls, essential=True, call__call__=True, is_context_manager=True, is_anonymous=False, kwargs_defaults=None, **kwargs):

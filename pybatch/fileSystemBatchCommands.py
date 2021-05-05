@@ -437,6 +437,8 @@ class Chown(RunProcessBase, call__call__=True):
         return f"""{self.__class__.__name__} {self.user_id}:{self.group_id} '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        if self.skip_chown:
+            return
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if (self.user_id, self.group_id) != (-1, -1):
             # os.chown is not recursive so call the system's chown
@@ -593,6 +595,9 @@ class Chmod(RunProcessBase):
             run_args.append('/D')
 
     def __call__(self, *args, **kwargs):
+        if self.skip_chmod:
+            return
+
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
         if self.ignore_if_not_exist and not resolved_path.exists():
@@ -698,9 +703,10 @@ class ChmodAndChown(PythonBatchCommandBase):
         resolved_path = utils.ExpandAndResolvePath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
         with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive,
-                   own_progress_count=0) as owner_chaner:
+                   skip_chmod=self.skip_chmod, own_progress_count=0) as owner_chaner:
             owner_chaner()
-        with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive, own_progress_count=0) as mode_changer:
+        with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive,
+                   skip_chown=self.skip_chown, own_progress_count=0) as mode_changer:
             mode_changer()
 
 
@@ -924,7 +930,12 @@ class FixAllPermissions(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        if self.skip_chmod is True:
+            self.doing = f"""self.skip_chmod is True, skipping all permissions for'{self.path}'"""
+            return
+
         self.doing = f"""allowing all permissions for'{self.path}'"""
+
         # chflags first since (at least on Mac) it has higher priority (e.g. you cannot chmod a-w on files with flags uchg set,
         # but you can chflags nouchg on files with a-w set)
         with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False,

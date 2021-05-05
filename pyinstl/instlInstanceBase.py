@@ -219,7 +219,9 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
         # can be writen to disk if needed
         if getattr(sys, 'frozen', False) or self.the_command in self.commands_that_need_memory_db:
             config_vars['__MAIN_DB_FILE__'] = ':memory:'
-        DBManager.set_refresh_db_file(self.the_command in self.commands_that_need_to_refresh_db_file)
+
+        db_need_refresh = cmd_line_options_obj.mode == "interactive" or self.the_command in self.commands_that_need_to_refresh_db_file
+        DBManager.set_refresh_db_file(db_need_refresh)
 
         if hasattr(cmd_line_options_obj, "subject") and cmd_line_options_obj.subject is not None:
             config_vars["__HELP_SUBJECT__"] = cmd_line_options_obj.subject
