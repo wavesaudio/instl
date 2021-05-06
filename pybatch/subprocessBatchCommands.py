@@ -11,21 +11,29 @@ from threading import Thread
 import utils
 import psutil
 import time
+
+from aYaml import YamlReader
+from configVar import config_vars
+from configVar import ConfigVarYamlReader
+# from pyinstl.instlInstanceBase import InstlInstanceBase - can't do that
 from .baseClasses import PythonBatchCommandBase
 
 import logging
+
 log = logging.getLogger(__name__)
 
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
+                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,
+                                      "detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
         to stderr, RunProcessBase will raise with error code 123. If stderr_means_err==False the exit code from the
         subprocess will remain as it was returned from the subprocess. stderr handling will only occur if err_file==None.
     """
-    def __init__(self, ignore_specific_exit_codes=(),  **kwargs):
+
+    def __init__(self, ignore_specific_exit_codes=(), **kwargs):
         super().__init__(**kwargs)
         if self.ignore_all_errors:
             self.exceptions_to_ignore.append(subprocess.CalledProcessError)
@@ -36,7 +44,6 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results
-
 
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
@@ -59,16 +66,16 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             # in https://docs.python.org/3.6/library/subprocess.html#replacing-the-os-spawn-family
             # the recommended way to replace os.spawnlp(os.P_NOWAIT,.. is by using subprocess.Popen,
             # but it does not work properly
-            #pid = subprocess.Popen(run_args).pid
+            # pid = subprocess.Popen(run_args).pid
         else:
             if self.script:
                 self.shell = True
                 assert len(run_args) == 1
             elif self.shell and len(run_args) == 1:
                 if sys.platform == 'darwin':  # MacOS needs help with spaces in paths
-                    #run_args = shlex.split(run_args[0])
-                    #run_args = [p.replace(" ", r"\ ") for p in run_args]
-                    #run_args = " ".join(run_args)
+                    # run_args = shlex.split(run_args[0])
+                    # run_args = [p.replace(" ", r"\ ") for p in run_args]
+                    # run_args = " ".join(run_args)
                     run_args = run_args[0]
                 elif sys.platform == 'win32':
                     run_args = run_args[0]
@@ -89,7 +96,8 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             in_stream = None
             err_stream = subprocess.PIPE
 
-            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell, bufsize=0)
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
+                                               stderr=err_stream, shell=self.shell, bufsize=0)
 
             if need_to_close_out_file:
                 out_stream.close()
@@ -138,8 +146,9 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
 
 class CUrl(RunProcessBase):
     """ download a file using curl """
-    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int=16,
-                 max_time: int=180, retires: int=2, retry_delay: int=8, **kwargs) -> None:
+
+    def __init__(self, src, trg: os.PathLike, curl_path: os.PathLike, connect_time_out: int = 16,
+                 max_time: int = 180, retires: int = 2, retry_delay: int = 8, **kwargs) -> None:
         super().__init__(**kwargs)
         self.src: os.PathLike = src
         self.trg: os.PathLike = trg
@@ -183,7 +192,6 @@ class CUrl(RunProcessBase):
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
 
-
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["shell"] = True
         super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
@@ -194,8 +202,9 @@ class ShellCommand(RunProcessBase):
         all_args.append(self.unnamed__init__param(self.shell_command))
         all_args.append(self.optional_named__init__param("message", self.message))
         if self.ignore_specific_exit_codes:
-            if len(self.ignore_specific_exit_codes,) == 1:
-                all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
+            if len(self.ignore_specific_exit_codes, ) == 1:
+                all_args.append(
+                    self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
             else:
                 all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
 
@@ -212,6 +221,7 @@ class ShellCommand(RunProcessBase):
 
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
+
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["script"] = True
         super().__init__(shell_command, message, ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
@@ -244,7 +254,7 @@ class ShellCommands(PythonBatchCommandBase):
         if isinstance(the_lines, str):
             the_lines = [the_lines]
         if sys.platform == 'darwin':
-            the_lines.insert(0,  "#!/usr/bin/env bash")
+            the_lines.insert(0, "#!/usr/bin/env bash")
             batch_extension = ".command"
         elif sys.platform == "win32":
             batch_extension = ".bat"
@@ -261,12 +271,13 @@ class ShellCommands(PythonBatchCommandBase):
         # TODO: optimize by calling all the commands at once
         for i, shell_command in enumerate(self.shell_command_list):
             self.doing = f"""running shell command #{i} '{shell_command}'"""
-            with ShellCommand(shell_command, f"""{self.message} #{i+1}""", own_progress_count=0) as shelli:
+            with ShellCommand(shell_command, f"""{self.message} #{i + 1}""", own_progress_count=0) as shelli:
                 shelli()
 
 
 class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 'shell': False}):
     """ run some shell commands in parallel """
+
     def __init__(self, config_file, **kwargs):
         super().__init__(**kwargs)
         self.config_file = config_file
@@ -309,7 +320,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
             self.increment_progress()
 
 
-class Exec(PythonBatchCommandBase):
+class Exec(PythonBatchCommandBase, ConfigVarYamlReader):
     def __init__(self, python_file, config_files=None, reuse_db=True, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
@@ -327,14 +338,20 @@ class Exec(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
         if self.config_files:
+            self.reader = ConfigVarYamlReader(config_vars)
             for config_file in self.config_files:
-                config_file = utils.ExpandAndResolvePath(config_file)
-                self.read_yaml_file(config_file)
+                # config_file = utils.ExpandAndResolvePath(config_file)
+                self.exception_printed = ''
+                self._allow_reading_of_internal_vars = True
+                self.file_read_stack = list()
+                self.reader.read_yaml_file(str(config_file))
         self.python_file = utils.ExpandAndResolvePath(self.python_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
-            py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
+            py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False,
+                                  optimize=2)
             exec(py_compiled, globals())
 
 
@@ -342,12 +359,13 @@ class RunInThread(PythonBatchCommandBase):
     """
         run another python-batch command in a thread
     """
+
     def __init__(self, what_to_run, thread_name=None, daemon=None, **kwargs) -> None:
         PythonBatchCommandBase.__init__(self, **kwargs)
         self.what_to_run = what_to_run
         self.thread_name = thread_name
         self.daemon = daemon  # remember: 1 the thread is not daemonize only if self.daemon is None, if self.daemon has any value, including False the thread will be daemonize
-                              #           2 daemon means the thread will be terminated when the process is terminated, it has nothing to do with daemon process
+        #           2 daemon means the thread will be terminated when the process is terminated, it has nothing to do with daemon process
         self.own_progress_count = self.what_to_run.total_progress_count()
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -376,7 +394,7 @@ class RunInThread(PythonBatchCommandBase):
         if self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is False:
             thread_thingy = None  # wtf?
         elif self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is True:
-            thread_thingy = None # wtf?
+            thread_thingy = None  # wtf?
         elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is False:
             thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
         elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is True:
@@ -403,10 +421,12 @@ class Subprocess(RunProcessBase):
                 all_args.append(self.unnamed__init__param(arg))
             all_args.append(self.optional_named__init__param("message", self.message))
             if self.ignore_specific_exit_codes:
-                if len(self.ignore_specific_exit_codes,) == 1:
-                    all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
+                if len(self.ignore_specific_exit_codes, ) == 1:
+                    all_args.append(
+                        self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
                 else:
-                    all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
+                    all_args.append(
+                        self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
         except TypeError as te:
             pass
 
@@ -426,6 +446,7 @@ class Subprocess(RunProcessBase):
 
 class ExternalPythonExec(Subprocess):
     """ A class that enables running python processes under the native python installed on the machine"""
+
     def __init__(self, *subprocess_args, **kwargs):
         '''Setting subprocess_exe to an empty string to exclude it from the repr'''
         super().__init__('', *subprocess_args, **kwargs)
@@ -438,7 +459,7 @@ class ExternalPythonExec(Subprocess):
     def get_run_args(self, run_args) -> None:
         """ Injecting the relevant OS python process into the run args instead of the empty string"""
         super().get_run_args(run_args)
-        python_executables = {'win32': ['py',  '-3.6'], 'darwin': ['python3.6']}
+        python_executables = {'win32': ['py', '-3.6'], 'darwin': ['python3.6']}
         run_args.pop(0)  # Removing empty string
         for arg in reversed(python_executables[sys.platform]):
             run_args.insert(0, arg)
@@ -478,6 +499,7 @@ class Raise(PythonBatchCommandBase):
 
         class BogusException(RuntimeError):
             pass
+
         raise BogusException(f'bogus exception: {self.message}')
 
 
@@ -517,4 +539,3 @@ class KillProcess(PythonBatchCommandBase):
                 for proc in psutil.process_iter():
                     if proc.name() == self.process_name:
                         raise TimeoutError(f"failed to kill process {self.process_name}")
-
