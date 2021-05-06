@@ -135,7 +135,7 @@ class InstlClient(InstlInstanceBase):
 
         config_vars["__MAIN_DRIVE_NAME__"] = utils.get_main_drive_name()
 
-    def repr_for_yaml(self, what=None):
+    def repr_for_yaml(self, what=None, resolve=False):
         """ Create representation of self suitable for printing as yaml.
             parameter 'what' is a list of identifiers to represent. If 'what'
             is None (the default) create representation of everything.
@@ -155,7 +155,7 @@ class InstlClient(InstlInstanceBase):
             if identifier in all_vars:
                 defines.update({identifier: config_vars.repr_var_for_yaml(identifier)})
             elif identifier in all_iids:
-                indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier)})
+                indexes.update({identifier: self.items_table.repr_item_for_yaml(identifier, resolve=resolve)})
             else:
                 unknowns.append(aYaml.YamlDumpWrap(value="UNKNOWN VARIABLE",
                                                    comment=identifier + " is not in variable list"))

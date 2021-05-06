@@ -62,8 +62,8 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         dir_to_make_2 = self.pbt.path_inside_test_folder("dir_to_make/level_2")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=True)
-        self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=True)
+        self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=True, skip_chmod=True)
+        self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=True, skip_chown=True)
         self.pbt.batch_accum += MakeDir(dir_to_make_1, remove_obstacles=False)  # MakeDir twice should be OK
         self.pbt.batch_accum += MakeDir(dir_to_make_2, remove_obstacles=False)  # MakeDir twice should be OK
 

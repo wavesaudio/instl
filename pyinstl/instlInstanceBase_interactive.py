@@ -603,7 +603,7 @@ def do_list_imp(self, what=None, stream=sys.stdout):
         else:
             individual_items_to_write.append(item_to_do)
 
-    aYaml.writeAsYaml(whole_sections_to_write + self.repr_for_yaml(individual_items_to_write), stream)
+    aYaml.writeAsYaml(whole_sections_to_write + self.repr_for_yaml(individual_items_to_write, resolve=True), stream)
 
 
 def create_completion_list_imp(self, for_what="all"):
