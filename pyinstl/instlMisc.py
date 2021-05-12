@@ -160,6 +160,9 @@ class InstlMisc(InstlInstanceBase):
             if "__CONFIG_FILE__" in config_vars:
                 config_files = [Path(config_file) for config_file in config_vars["__CONFIG_FILE__"].list()]
 
+            for conf_file in config_files:
+                self.read_yaml_file(conf_file)
+
             with Exec(py_file_path, config_files, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
                 exec_le()
         except Exception as ex:
