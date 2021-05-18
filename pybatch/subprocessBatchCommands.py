@@ -327,10 +327,6 @@ class Exec(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        if self.config_files:
-            for config_file in self.config_files:
-                config_file = utils.ExpandAndResolvePath(config_file)
-                self.read_yaml_file(config_file)
         self.python_file = utils.ExpandAndResolvePath(self.python_file)
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             py_text = rfd.read()
