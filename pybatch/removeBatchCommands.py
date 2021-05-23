@@ -134,6 +134,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
+        resolved_path = None
         retry = kwargs.get("retry", True)
         try:
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -145,7 +146,7 @@ class RmFileOrDir(PythonBatchCommandBase):
                 self.doing = f"""removing folder'{resolved_path}'"""
                 shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
         except Exception as ex:
-            if retry:
+            if retry and resolved_path is not None:
                 kwargs["retry"] = False
                 log.info(f"Fixing permission for removing {resolved_path}")
                 from pybatch import FixAllPermissions
