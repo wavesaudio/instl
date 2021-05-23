@@ -248,6 +248,13 @@ class InstlClientCopy(InstlClient):
 
             if len(wtar_base_names) > 0:
                 retVal += Unwtar(source_path_abs, os.curdir)
+
+            # change ownership on destination folder + currently copied folder name (e.g: /Applications/Waves/Plug-Ins V11/XXX.bundle/, /Applications/Waves/YYY.framework)
+            if self.mac_current_and_target:
+                target_folder = Path(config_vars.resolve_str(self.current_destination_folder), source_path_name).resolve() #initialized in create_copy_instructions_for_target_folder
+                retVal += Chown(path=target_folder,
+                                user_id=int(config_vars.get("ACTING_UID", -1)),
+                                group_id=int(config_vars.get("ACTING_GID", -1)), recursive=True)
         else:
             # it might be a dir that was wtarred
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
