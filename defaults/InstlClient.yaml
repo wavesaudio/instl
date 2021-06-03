@@ -39,17 +39,17 @@ SOURCE_PREFIX: $(TARGET_OS)
 
 # during copy stage, if pathlib.Path.match returns true for one of these - file/dir will not be copied
 COPY_IGNORE_PATTERNS:
+    - "*.wtar.??"
+    - "*.wtar"
     - "*.done"
     - "._*"
-    - "*.wtar"
-    - "*.wtar.??"
 
 # during copy stage, if pathlib.Path.match returns true for one of these - file will not be hard-linked
 NO_HARD_LINK_PATTERNS:
-    - "desktop.ini"
-    - "*.ico"
     - "*Info.xml"
     - "*Info.plist"
+    - "desktop.ini"
+    - "*.ico"
 
 # during copy stage, if pathlib.Path.match returns true for one of these - destination file (if exist) flags such as hidden, system, read-only will be removed
 NO_FLAGS_PATTERNS:
