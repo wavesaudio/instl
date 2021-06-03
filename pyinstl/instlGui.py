@@ -428,10 +428,10 @@ class AdminFrameController(FrameController):
 
         curr_row += 1
         self.tk_vars["ADMIN_GUI_TARGET_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_TARGET_CONFIG_FILE"))
-        self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"target config file:", var_name="ADMIN_GUI_TARGET_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="target config file:", var_name="ADMIN_GUI_TARGET_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
         curr_row += 1
         self.tk_vars["ADMIN_GUI_LOCAL_CONFIG_FILE"].set_trace_write_callback(functools.partial(self.update_state, who="ADMIN_GUI_LOCAL_CONFIG_FILE"))
-        self.create_line_for_file(curr_row=curr_row, curr_column=0, label=f"local config file:", var_name="ADMIN_GUI_LOCAL_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
+        self.create_line_for_file(curr_row=curr_row, curr_column=0, label="local config file:", var_name="ADMIN_GUI_LOCAL_CONFIG_FILE", locate=True, edit=True, check=True, combobox=None)
 
         # path to stage index file
         curr_row += 1
