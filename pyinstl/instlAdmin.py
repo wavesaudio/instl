@@ -489,12 +489,43 @@ class InstlAdmin(InstlInstanceBase):
         the_folder = config_vars["STAGING_FOLDER"].str()
         self.info_map_table.initialize_from_folder(the_folder, progress_callback=self.progress)
         self.items_table.activate_all_oses()
-        self.items_table.resolve_inheritance()
+        problem_messages_by_iid = defaultdict(list)
+        self.verify_inheritance(problem_messages_by_iid)  # must be done before resolve_inheritance
+        self.verify_dependencies(problem_messages_by_iid) # must be done before resolve_inheritance
+        if problem_messages_by_iid:
+            self.print_problem_messages(problem_messages_by_iid)
+            self.progress(" >>> cannot continue checking - THESE ISSUES MUST BE FIXED <<<")
+            raise AssertionError(f"Found {len(problem_messages_by_iid)} missing inherit/depends")
+        else:
+            self.items_table.resolve_inheritance()
+            self.verify_actions()
+            self.verify_index_to_repo(problem_messages_by_iid)
 
-        self.verify_actions()
-        self.verify_index_to_repo()
+    def verify_inheritance(self, problem_messages_by_iid):
+        # check inherit
+        self.progress("checking inheritance")
+        missing_inheritees = self.items_table.get_missing_iids_from_details("inherit")
+        for missing_inheritee in missing_inheritees:
+            err_message = f"inherits from non existing '{missing_inheritee[1]}'"
+            problem_messages_by_iid[missing_inheritee[0]].append(err_message)
 
-    def verify_index_to_repo(self):
+    def verify_dependencies(self, problem_messages_by_iid):
+        # check depends
+        self.progress("checking dependencies")
+        missing_dependees = self.items_table.get_missing_iids_from_details("depends")
+        for missing_dependee in missing_dependees:
+            err_message = f"depends on non existing '{missing_dependee[1]}'"
+            problem_messages_by_iid[missing_dependee[0]].append(err_message)
+
+    def print_problem_messages(self, problem_messages_by_iid):
+        for iid in sorted(problem_messages_by_iid):
+            self.progress(iid + ":")
+            for problem_message in sorted(problem_messages_by_iid[iid]):
+                self.progress("   ", problem_message)
+        else:
+            self.progress(f"No problem found")
+
+    def verify_index_to_repo(self, problem_messages_by_iid=None):
         """ helper function for verify-repo and verify-index commands
             Assuming the index and info-map have already been read
             check the expect files from the index appear in the info-map
@@ -503,21 +534,8 @@ class InstlAdmin(InstlInstanceBase):
         self.total_self_progress += len(all_iids)
         self.items_table.change_status_of_all_iids(1)
 
-        problem_messages_by_iid = defaultdict(list)
-
-        # check inherit
-        self.progress("checking inheritance")
-        missing_inheritees = self.items_table.get_missing_iids_from_details("inherit")
-        for missing_inheritee in missing_inheritees:
-            err_message = " ".join(("inherits from non existing", utils.quoteme_single(missing_inheritee[1])))
-            problem_messages_by_iid[missing_inheritee[0]].append(err_message)
-
-        # check depends
-        self.progress("checking dependencies")
-        missing_dependees = self.items_table.get_missing_iids_from_details("depends")
-        for missing_dependee in missing_dependees:
-            err_message = " ".join(("depends from non existing", utils.quoteme_single(missing_dependee[1])))
-            problem_messages_by_iid[missing_dependee[0]].append(err_message)
+        if problem_messages_by_iid is None:
+            problem_messages_by_iid = defaultdict(list)
 
         for iid in all_iids:
             self.progress("checking sources for", iid)
@@ -529,27 +547,24 @@ class InstlAdmin(InstlInstanceBase):
                 source_path, source_type = source[0], source[1]
                 num_files_for_source = self.info_map_table.mark_required_for_source(source_path, source_type)
                 if num_files_for_source == 0:
-                    case_insensitive_items = self.info_map_table.get_any_item_recursive(source_path)
+                    case_insensitive_items = self.info_map_table.get_any_item_recursive(source_path, case_sensitive=False)
                     err_message = f"""source, '{source_path}' required by {iid}, does not have any files or folders"""
                     if case_insensitive_items:
-                        err_message += f"""there are some files/folders is different case: {[s.path for s in case_insensitive_items]}"""
+                        err_message += f"""\nthere are some files/folders with similar name but different case:\n{[s.path for s in case_insensitive_items]}"""
                     problem_messages_by_iid[iid].append(err_message)
 
             # check targets
             if len(source_and_tag_list) > 0:
                 target_folders = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "install_folders", unique_values=True))
                 if len(target_folders) == 0:
-                    err_message = " ".join(("iid", iid, "does not have target folder"))
+                    err_message = f"iid {iid}, does not have target folder"
                     problem_messages_by_iid[iid].append(err_message)
 
         self.progress("checking for cyclic dependencies")
         self.info_map_table.mark_required_completion()
         self.find_cycles()
 
-        for iid in sorted(problem_messages_by_iid):
-            self.progress(iid+":")
-            for problem_message in sorted(problem_messages_by_iid[iid]):
-                self.progress("   ", problem_message)
+        print_problem_messages()
 
         self.progress("index:", len(all_iids), "iids")
         num_files = self.info_map_table.num_items("all-files")

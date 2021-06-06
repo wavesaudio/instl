@@ -16,6 +16,7 @@ import logging
 from pathlib import Path
 import functools
 from collections import defaultdict
+import re
 log = logging.getLogger()
 
 import utils
