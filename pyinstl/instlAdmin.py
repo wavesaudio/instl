@@ -529,7 +529,10 @@ class InstlAdmin(InstlInstanceBase):
                 source_path, source_type = source[0], source[1]
                 num_files_for_source = self.info_map_table.mark_required_for_source(source_path, source_type)
                 if num_files_for_source == 0:
-                    err_message = " ".join(("source", utils.quoteme_single(source_path),"required by", iid, "does not have files"))
+                    case_insensitive_items = self.info_map_table.get_any_item_recursive(source_path)
+                    err_message = f"""source, '{source_path}' required by {iid}, does not have any files or folders"""
+                    if case_insensitive_items:
+                        err_message += f"""there are some files/folders is different case: {[s.path for s in case_insensitive_items]}"""
                     problem_messages_by_iid[iid].append(err_message)
 
             # check targets

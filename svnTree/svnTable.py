@@ -703,6 +703,23 @@ class SVNTable(object):
                 retVal = SVNRow(the_item)
         return retVal
 
+    def get_any_item_recursive(self, item_path, case_sensitive=True) -> SVNRow:
+        """ Get items file or dirs that match the given path
+        :return: items found or empty list
+        """
+        retVal = []
+        collate_spec = "" if case_sensitive else "COLLATE NOCASE"
+        get_any_item_recursive_q = f"""
+                            SELECT * FROM svn_item_t
+                            WHERE path = :item_path {collate_spec} 
+                            or path like :item_path || "/" || "%"  {collate_spec}
+                            """
+        with self.db.selection() as curs:
+            curs.execute(get_any_item_recursive_q, {"item_path": item_path})
+            retVal = curs.fetchall()
+            retVal = self.SVNRowListToObjects(retVal)
+        return retVal
+
     def get_file_item(self, item_path) -> SVNRow:
         """ Get specific file item or return None if not found
         :param item_path: path to the item
