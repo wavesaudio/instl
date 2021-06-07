@@ -518,12 +518,13 @@ class InstlAdmin(InstlInstanceBase):
             problem_messages_by_iid[missing_dependee[0]].append(err_message)
 
     def print_problem_messages(self, problem_messages_by_iid):
-        for iid in sorted(problem_messages_by_iid):
-            self.progress(iid + ":")
-            for problem_message in sorted(problem_messages_by_iid[iid]):
-                self.progress("   ", problem_message)
+        if problem_messages_by_iid:
+            for iid in sorted(problem_messages_by_iid):
+                self.progress(iid + ":")
+                for problem_message in sorted(problem_messages_by_iid[iid]):
+                    self.progress("   ", problem_message)
         else:
-            self.progress(f"No problem found")
+            self.progress(f"No problems found")
 
     def verify_index_to_repo(self, problem_messages_by_iid=None):
         """ helper function for verify-repo and verify-index commands
@@ -564,7 +565,7 @@ class InstlAdmin(InstlInstanceBase):
         self.info_map_table.mark_required_completion()
         self.find_cycles()
 
-        print_problem_messages()
+        self.print_problem_messages(problem_messages_by_iid)
 
         self.progress("index:", len(all_iids), "iids")
         num_files = self.info_map_table.num_items("all-files")
