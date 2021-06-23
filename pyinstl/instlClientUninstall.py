@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3.9
 
 from collections import deque, defaultdict
 from configVar import config_vars
