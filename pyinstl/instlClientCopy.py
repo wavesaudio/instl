@@ -173,13 +173,10 @@ class InstlClientCopy(InstlClient):
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
         if no_wtar_items:
-            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in wtar_items}
-            ignores = list(wtar_base_names)
             retVal += CopyDirContentsToDir(
                                                         source_path_abs,
                                                         os.curdir,
                                                         link_dest=True,
-                                                        ignore_patterns=ignores,
                                                         preserve_dest_files=True)  # preserve files already in destination
 
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
@@ -202,8 +199,7 @@ class InstlClientCopy(InstlClient):
         if dir_item is not None:
             retVal = AnonymousAccum()
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
-            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
-            ignores = list(wtar_base_names)
+            has_wtars = any(source_item.wtarFlag for source_item in source_items)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
@@ -217,10 +213,10 @@ class InstlClientCopy(InstlClient):
             #             # executable files should also get exec bit
             #             retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
             #
-            # if len(wtar_base_names) > 0:
+            # if has_wtars:
             #     retVal += Unwtar(source_path_abs, os.curdir)
 
-            retVal += CopyBundle(source_path_abs, os.curdir, unwtar=(len(wtar_base_names) > 0), ignore_patterns=ignores)
+            retVal += CopyBundle(source_path_abs, os.curdir, unwtar=has_wtars)
         else:
             # it might be a dir that was wtarred
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
@@ -231,10 +227,9 @@ class InstlClientCopy(InstlClient):
         if dir_item is not None:
             retVal = AnonymousAccum()
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
-            wtar_base_names = {source_item.unwtarred.split("/")[-1] for source_item in source_items if source_item.wtarFlag}
-            ignores = list(wtar_base_names)
+            has_wtars = any(source_item.wtarFlag for source_item in source_items)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, ignore_patterns=ignores, delete_extraneous_files=True)
+            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, delete_extraneous_files=True)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -246,7 +241,7 @@ class InstlClientCopy(InstlClient):
                         # executable files should also get exec bit
                         retVal += Chmod(source_path_relative_to_current_dir, source_item.chmod_spec())
 
-            if len(wtar_base_names) > 0:
+            if has_wtars > 0:
                 retVal += Unwtar(source_path_abs, os.curdir)
 
             # change ownership on destination folder + currently copied folder name (e.g: /Applications/Waves/Plug-Ins V11/XXX.bundle/, /Applications/Waves/YYY.framework)

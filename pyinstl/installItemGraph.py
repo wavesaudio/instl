@@ -30,7 +30,7 @@ def find_cycles(item_graph):
     return retVal
 
 
-def find_leafs(item_graph):
+def find_leaves(item_graph):
     retVal = list()
     for node in sorted(item_graph):
         the_neighbors = item_graph.neighbors(node)
