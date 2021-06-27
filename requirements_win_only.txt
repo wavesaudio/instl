@@ -1,4 +1,4 @@
 # Windows only
-pypiwin32==220
-pywin32==224
+pypiwin32==223
+pywin32==301
 pywin32-ctypes==0.2.0
