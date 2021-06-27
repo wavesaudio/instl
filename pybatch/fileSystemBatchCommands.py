@@ -971,6 +971,10 @@ class Glober(PythonBatchCommandBase):
         self.class_to_run = class_to_run
         self.argv_for_glob_handler = list(argv_for_glob_handler)
         self.kwargs_for_glob_handler = kwargs_for_glob_handler
+        if "excludes" in kwargs_for_glob_handler:
+            self.excludes = kwargs_for_glob_handler["excludes"]
+        else:
+            self.excludes = []
         pass
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -989,6 +993,7 @@ class Glober(PythonBatchCommandBase):
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} '{self.glob_pattern}'"""
 
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.doing = f"""running {self.class_to_run} on glob pattern'{self.glob_pattern}'"""
@@ -997,7 +1002,13 @@ class Glober(PythonBatchCommandBase):
         if not self.target_param_name:
             self.argv_for_glob_handler.insert(0, None)
 
-        for a_path in glob.glob(self.glob_pattern):
+        excluded_items = []
+        for excluded_item in self.excludes:
+            excluded_item = str(Path(self.glob_pattern).parent) + "/" + excluded_item
+            excluded_items.extend(glob.glob(excluded_item))
+        paths = set(glob.glob(self.glob_pattern)) - set(excluded_items)
+
+        for a_path in paths:
             if self.target_param_name:
                 self.kwargs_for_glob_handler[self.target_param_name] = a_path
                 with self.class_to_run(*self.argv_for_glob_handler, **self.kwargs_for_glob_handler) as handler:
