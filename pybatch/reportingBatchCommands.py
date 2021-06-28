@@ -329,7 +329,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         :param config_files: additional files to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
         :param avoid_resolve_marker: config vars marked with this char (if != '$') will be ignored and after
-        the resolve will be replacfed by '$'. This will enable to mark certain config vars so they are not resolved
+        the resolve will be replaced by '$'. This will enable to mark certain config vars so they are not resolved
         """
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
@@ -401,6 +401,9 @@ class ReadConfigVarsFromFile(pybatch.PythonBatchCommandBase):
 
 
 class ReadConfigVarValueFromTextFile(pybatch.PythonBatchCommandBase, essential=True):
+    """
+    Read a file and assign the file's whole contents to a configVar
+    """
     def __init__(self, file_path_to_read, var_name, **kwargs):
         super().__init__(**kwargs)
         self.file_path_to_read = file_path_to_read

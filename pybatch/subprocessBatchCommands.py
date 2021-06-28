@@ -77,7 +77,10 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             need_to_close_out_file = False
             if self.out_file:
                 if isinstance(self.out_file, (str, os.PathLike, bytes)):
-                    out_stream = utils.utf8_open_for_write(self.out_file, "w")
+                    out_file = Path(self.out_file).resolve()
+                    out_file.parent.mkdir(parents=True, exist_ok=True)
+                    out_stream = utils.utf8_open_for_write(out_file, "w")
+                    log.info(f"output will be written to {out_file}")
                     need_to_close_out_file = True
                 elif hasattr(self.out_file, "write"):  # out_file is already an open file
                     out_stream = self.out_file
@@ -182,7 +185,6 @@ class CUrl(RunProcessBase):
 
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
-
 
     def __init__(self, shell_command, message=None, ignore_specific_exit_codes=(), **kwargs):
         kwargs["shell"] = True

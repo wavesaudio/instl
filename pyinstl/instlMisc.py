@@ -93,7 +93,7 @@ class InstlMisc(InstlInstanceBase):
         import importlib
 
         bad_modules = list()
-        for module in ("yaml", "appdirs", "configVar", "utils", "svnTree", "aYaml", "xmltodict"):
+        for module in ("yaml", "appdirs", "configVar", "utils", "svnTree", "aYaml"):
             try:
                 importlib.import_module(module)
             except ImportError:
