@@ -1,5 +1,4 @@
-#!/usr/bin/env python3.6
-
+#!/usr/bin/env python3.9
 
 import os
 import sys

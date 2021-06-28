@@ -8,4 +8,4 @@ SCRIPT_FOLDER=$(dirname $SCRIPT)
 echo ${PYTHONPATH}
 
 source "${SCRIPT_FOLDER}/venv/bin/activate"
-sudo python3.6 "$@"
+sudo python3.9 "$@"

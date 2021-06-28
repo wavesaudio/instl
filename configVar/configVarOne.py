@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3.9
 
 """
     Copyright (c) 2012, Shai Shasag

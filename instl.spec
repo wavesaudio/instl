@@ -9,6 +9,7 @@ import socket
 import datetime
 import re
 from subprocess import check_output
+from pathlib import Path
 
 block_cipher = None
 
@@ -16,7 +17,7 @@ a = Analysis(['instl'],
              pathex=['instl'],
              binaries=None,
              datas=None,
-             hiddenimports=['distutils', 'six','packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements', 'xmltodict'],
+             hiddenimports=['distutils', 'packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements'],
              hookspath=None,
              runtime_hooks=None,
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
@@ -30,6 +31,8 @@ instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
     if fnmatch.fnmatch(defaults_file, '*.yaml') or fnmatch.fnmatch(defaults_file, '*.ddl'):
         a.datas += [("defaults/"+defaults_file, os.path.join(instl_defaults_path, defaults_file), "DATA")]
+pip_info_path = os.path.join("defaults", "pip-freeze.txt")
+a.datas += [("defaults/pip-freeze.txt", pip_info_path, "DATA")]
 
 
 git_branch = check_output(["git", "rev-parse", "--symbolic-full-name", "--abbrev-ref", "HEAD"]).decode('utf-8')
@@ -48,6 +51,7 @@ __PYTHON_COMPILER__: {}
 __GITHUB_BRANCH__: {}
 """.format(str(datetime.datetime.now()), socket.gethostname(), platform.node(), PyInstallerVersion, git_branch))
 a.datas += [("defaults/compile-info.yaml", compile_info_path, "DATA")]
+
 
 instl_help_path = os.path.join("help")
 for help_file in os.listdir(instl_help_path):
