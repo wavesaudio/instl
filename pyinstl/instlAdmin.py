@@ -568,7 +568,7 @@ class InstlAdmin(InstlInstanceBase):
 
         for name, iids in names_to_iids.items():
             if len(iids) > 1:
-                err_message = f"name '{name}', is common to iids: {iids}"
+                err_message = f"name '{name}', is common to {len(iids)} iids: {iids}"
                 for iid in iids:
                     problem_messages_by_iid[iid].append(err_message)
 
