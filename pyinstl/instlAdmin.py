@@ -82,7 +82,7 @@ class InstlAdmin(InstlInstanceBase):
         do_command_func()
 
     def get_revision_range(self):
-        revision_range_re = re.compile("""
+        revision_range_re = re.compile(r"""
                                 (?P<min_rev>\d+)
                                 (:
                                 (?P<max_rev>\d+)
@@ -329,7 +329,7 @@ class InstlAdmin(InstlInstanceBase):
         else:
             self.compiled_wtar_by_file_size_exclude_regex = re.compile(".+")
 
-        self.already_wtarred_regex = re.compile("wtar(\.\w\w)?$")
+        self.already_wtarred_regex = re.compile(r"wtar(\.\w\w)?$")
 
     def should_wtar(self, dir_item: Path):
         _should_wtar = False
@@ -538,8 +538,13 @@ class InstlAdmin(InstlInstanceBase):
         if problem_messages_by_iid is None:
             problem_messages_by_iid = defaultdict(list)
 
+        names_to_iids = defaultdict(list)
         for iid in all_iids:
             self.progress("checking sources for", iid)
+
+            name = self.items_table.get_details_for_active_iids("name", unique_values=True, limit_to_iids=[iid])
+            if name:
+                names_to_iids[name].append(iid)
 
             # check sources
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
@@ -560,6 +565,13 @@ class InstlAdmin(InstlInstanceBase):
                 if len(target_folders) == 0:
                     err_message = f"iid {iid}, does not have target folder"
                     problem_messages_by_iid[iid].append(err_message)
+
+        for name, iids in names_to_iids.items():
+            if len(iids) > 1:
+                err_message = f"name '{name}', is common to iids: {iids}"
+                for iid in iids:
+                    problem_messages_by_iid[iid].append(err_message)
+
 
         self.progress("checking for cyclic dependencies")
         self.info_map_table.mark_required_completion()

@@ -220,7 +220,7 @@ class ConfigVar:
         if isinstance(values, (str, int, float, type(None))):
             # so str will not be treated as a list of characters
             self.append(values)
-        elif isinstance(values, collections.Sequence):
+        elif isinstance(values, collections.abc.Sequence):
             for val in values:
                 self.extend(val)  # flatten nested lists
         elif isinstance(values, os.PathLike):

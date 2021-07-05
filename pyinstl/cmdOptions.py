@@ -33,7 +33,7 @@ class OptionToConfigVar:
             if self.set_value is not None:
                 config_vars[self.var_name] = self.set_value
             else:
-                if isinstance(value, collections.Sequence):
+                if isinstance(value, collections.abc.Sequence):
                     config_vars[self.var_name] = value
                 else:
                     config_vars[self.var_name] = str(value)

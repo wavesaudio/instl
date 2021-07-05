@@ -606,17 +606,18 @@ def get_main_drive_name():
     retVal = None
     try:
         if sys.platform == 'darwin':
-            for volume in os.scandir("/Volumes"):
-                if volume.is_symlink():
-                    resolved_volume_path = Path("/Volumes", volume.name).resolve()
-                    if str(resolved_volume_path) == "/":
-                        retVal = volume.name
-                        break
-            else:
-                apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
-                completed_process = subprocess.run(apple_script, stdout=subprocess.PIPE, shell=True)
-                retVal = utils.unicodify(completed_process.stdout)
-                retVal = retVal.strip("\n:")
+            with os.scandir("/Volumes") as it:
+                for volume in it:
+                    if volume.is_symlink():
+                        resolved_volume_path = Path("/Volumes", volume.name).resolve()
+                        if str(resolved_volume_path) == "/":
+                            retVal = volume.name
+                            break
+                else:
+                    apple_script = """osascript -e 'return POSIX file (POSIX path of "/") as Unicode text' """
+                    completed_process = subprocess.run(apple_script, stdout=subprocess.PIPE, shell=True)
+                    retVal = utils.unicodify(completed_process.stdout)
+                    retVal = retVal.strip("\n:")
         elif sys.platform == 'win32':
             import win32api
             retVal = win32api.GetVolumeInformation("C:\\")[0]
