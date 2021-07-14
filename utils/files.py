@@ -78,7 +78,7 @@ def write_shell_command(cmd, output_script):
         if not exists:
             script.write(script_start + "\n")
         script.write(cmd)
-
+    os.chmod(output_script, 0o755)
 
 def chown_chmod_on_fd(fd, user=-1, group=-1):
     if user == -1:
