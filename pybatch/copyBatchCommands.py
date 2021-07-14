@@ -3,6 +3,7 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 from typing import List
+import utils
 # ToDo: add unwtar ?
 
 
@@ -567,12 +568,15 @@ class CopyFileToFile(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
-        with MakeDir(resolved_dst.parent, report_own_progress=False) as md:
-            md()
-        self.top_destination_does_not_exist = False
-        self.copy_file_to_file(resolved_src, resolved_dst)
+        if self.output_script and sys.platform == 'darwin':
+            utils.write_shell_command(f" cp \"{self.src}\" \"{self.dst}\" \n", self.output_script)
+        else:
+            resolved_src: Path = utils.ExpandAndResolvePath(self.src)
+            resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
+            with MakeDir(resolved_dst.parent, report_own_progress=False) as md:
+                md()
+            self.top_destination_does_not_exist = False
+            self.copy_file_to_file(resolved_src, resolved_dst)
 
 
 class MoveFileToFile(CopyFileToFile):
