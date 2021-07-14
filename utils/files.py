@@ -12,13 +12,13 @@ import ssl
 import subprocess
 from pathlib import Path
 import logging
+
 log = logging.getLogger()
 
 import zlib
 import urllib.request, urllib.error, urllib.parse
 
 from typing import Optional, TextIO
-
 
 global_acting_uid = -1
 global_acting_gid = -1
@@ -71,6 +71,15 @@ def utf8_open_for_write(*args, **kwargs) -> TextIO:
     return retVal
 
 
+def write_shell_command(cmd, output_script):
+    script_start = "#!/bin/bash"
+    exists = os.path.isfile(output_script)
+    with utf8_open_for_write(output_script, "a") as script:
+        if not exists:
+            script.write(script_start + "\n")
+        script.write(cmd)
+
+
 def chown_chmod_on_fd(fd, user=-1, group=-1):
     if user == -1:
         user = global_acting_uid
@@ -88,11 +97,13 @@ def chown_chmod_on_fd(fd, user=-1, group=-1):
                 log.warning(f"""chown_chmod_on_fd: chown failed for {fd.name}; {ex}""")
     try:
         if hasattr(os, 'fchmod'):
-            os.fchmod(fd.fileno(), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+            os.fchmod(fd.fileno(),
+                      stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
     except Exception:
         try:
             if hasattr(os, 'chmod'):
-                os.chmod(fd.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                os.chmod(fd.name,
+                         stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_fd: chmod failed for {fd.name}; {ex}""")
     return f"""chown_chmod_on_fd: {fd.name} u:{user}, g:{group}"""
@@ -114,7 +125,8 @@ def chown_chmod_on_path(in_path, user=-1, group=-1):
             log.warning(f"""chown_chmod_on_path: chown failed for {in_path}; {ex}""")
         try:
             if hasattr(os, 'chmod'):
-                os.chmod(in_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
+                os.chmod(in_path,
+                         stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         except Exception as ex:
             log.warning(f"""chown_chmod_on_path: chmod failed for {in_path}; {ex}""")
 
@@ -191,7 +203,8 @@ protocol_header_re = re.compile("""
                         """, re.VERBOSE)
 
 
-def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_to_path=None, checksum=None, connection_obj=None):
+def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_to_path=None, checksum=None,
+                          connection_obj=None):
     need_to_download = not utils.check_file_checksum(save_to_path, checksum)
     if not need_to_download:
         # if save_to_path contains the correct data just read it by recursively
@@ -217,7 +230,7 @@ def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
-    buffer = utils.unicodify(buffer) # make sure text is unicode
+    buffer = utils.unicodify(buffer)  # make sure text is unicode
     if save_to_path and in_file_or_url != save_to_path:
         with open(save_to_path, "w") as wfd:
             utils.chown_chmod_on_fd(wfd)
@@ -227,7 +240,8 @@ def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_
 
 class open_for_read_file_or_url(object):
 
-    def __init__(self, in_file_or_url, config_vars, translate_url_callback=None, path_searcher=None, encoding='utf-8', verify_ssl=False) -> None:
+    def __init__(self, in_file_or_url, config_vars, translate_url_callback=None, path_searcher=None, encoding='utf-8',
+                 verify_ssl=False) -> None:
         self.local_file_path = None
         self.url = None
         self.custom_headers = None
@@ -261,7 +275,8 @@ class open_for_read_file_or_url(object):
                 if self.custom_headers:
                     for custom_header in self.custom_headers:
                         opener.addheaders.append(custom_header)
-                with patch_verify_ssl(self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
+                with patch_verify_ssl(
+                        self.verify_ssl):  # if self.verify_ssl is False this will disable SSL verifications
                     # crud retry mechanism, should be improved, use requests?
                     retries = 12
                     while retries > 0:
@@ -308,17 +323,21 @@ def read_from_file_or_url(in_url, config_vars, translate_url_callback=None, expe
         # check checksum only if  given
         if expected_checksum is not None:
             if len(contents_buffer) == 0:
-                raise IOError(f"Empty contents returned from {in_url} ; expected checksum: {expected_checksum} ; encoding: {encoding}")
+                raise IOError(
+                    f"Empty contents returned from {in_url} ; expected checksum: {expected_checksum} ; encoding: {encoding}")
             if encoding is not None:
-                raise IOError(f"Checksum check requested for {in_url} but encoding is not None, encoding: {encoding} ; expected checksum: {expected_checksum}")
+                raise IOError(
+                    f"Checksum check requested for {in_url} but encoding is not None, encoding: {encoding} ; expected checksum: {expected_checksum}")
             buffer_ok = utils.check_buffer_checksum(contents_buffer, expected_checksum)
             if not buffer_ok:
                 actual_checksum = utils.get_buffer_checksum(contents_buffer)
-                raise IOError(f"Checksum mismatch {in_url} expected checksum:  {expected_checksum} actual checksum: {actual_checksum} encoding: {encoding}")
+                raise IOError(
+                    f"Checksum mismatch {in_url} expected checksum:  {expected_checksum} actual checksum: {actual_checksum} encoding: {encoding}")
     return contents_buffer
 
 
-def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, translate_url_callback=None, expected_checksum=None):
+def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, translate_url_callback=None,
+                                   expected_checksum=None):
     """ download file to given cache folder
         if checksum is supplied and the a file with that checksum exists in cache folder - download can be avoided
         otherwise download the file
@@ -339,7 +358,8 @@ def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, tran
             safe_remove_file(cached_file_path)
 
     if not cached_file_path.is_file():  # need to download
-        contents_buffer = read_from_file_or_url(in_url, config_vars, translate_url_callback, expected_checksum, encoding=None)
+        contents_buffer = read_from_file_or_url(in_url, config_vars, translate_url_callback, expected_checksum,
+                                                encoding=None)
         if contents_buffer:
             with open(cached_file_path, "wb") as wfd:
                 chown_chmod_on_fd(wfd)
@@ -347,13 +367,16 @@ def download_and_cache_file_or_url(in_url, config_vars, cache_folder: Path, tran
     return cached_file_path
 
 
-def download_from_file_or_url(in_url, config_vars, in_target_path=None, translate_url_callback=None, cache_folder=None, expected_checksum=None):
+def download_from_file_or_url(in_url, config_vars, in_target_path=None, translate_url_callback=None, cache_folder=None,
+                              expected_checksum=None):
     """
         download a file from url and place it on a target path. Possibly also decompressed .wzip files.
         """
 
     final_file_path = None
-    cached_file_path = download_and_cache_file_or_url(in_url=in_url, config_vars=config_vars, translate_url_callback=translate_url_callback, cache_folder=cache_folder, expected_checksum=expected_checksum)
+    cached_file_path = download_and_cache_file_or_url(in_url=in_url, config_vars=config_vars,
+                                                      translate_url_callback=translate_url_callback,
+                                                      cache_folder=cache_folder, expected_checksum=expected_checksum)
     if not in_target_path:
         in_target_path = cache_folder
     if in_target_path:
@@ -384,6 +407,7 @@ def download_from_file_or_url(in_url, config_vars, in_target_path=None, translat
 
 class ChangeDirIfExists(object):
     """Context manager for changing the current working directory"""
+
     def __init__(self, newPath: Path) -> None:
         if newPath.is_dir():
             self.newPath = newPath
@@ -528,7 +552,7 @@ def find_split_files_from_base_file(base_file):
     try:
         wtar_first_file = base_file
         if not utils.is_first_wtar_file(wtar_first_file):
-            wtar_first_file = wtar_first_file+".wtar"
+            wtar_first_file = wtar_first_file + ".wtar"
         if not os.path.isfile(wtar_first_file):
             wtar_first_file += ".aa"
         if os.path.isfile(wtar_first_file):
@@ -543,7 +567,7 @@ def find_wtarred_parts_of_original(original: Path):
     unsplit_wtar = utils.append_suffix(original, ".wtar")
     if unsplit_wtar.is_file():
         parts_list.append(unsplit_wtar)
-    glob_pattern = "*"+original.name+".wtar.??"
+    glob_pattern = "*" + original.name + ".wtar.??"
     glob_results = original.parent.glob(glob_pattern)
     parts_list.extend(glob_results)
     return parts_list
@@ -568,13 +592,14 @@ def scandir_walk(top_path, report_files=True, report_dirs=True, follow_symlinks=
         elif item.is_dir(follow_symlinks=follow_symlinks):
             if report_dirs:
                 yield item
-            yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs, follow_symlinks=follow_symlinks)
+            yield from scandir_walk(item.path, report_files=report_files, report_dirs=report_dirs,
+                                    follow_symlinks=follow_symlinks)
 
 
 def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
     netloc = in_cookies['ResourceRootUrl']
     cookies_list = list()
-    for k,v in in_cookies.items():
+    for k, v in in_cookies.items():
         if isinstance(v, dict):
             if 'Value' in v and 'Key' in v:
                 cookies_list.append("=".join((v['Key'], v['Value'])))
@@ -704,7 +729,8 @@ def who_locks_file(in_file_path, in_dll_path):
         else:
             who_locks_file_dll = ctypes.WinDLL(os.fspath(in_dll_path))
             replay_max_size = 260 * 128 * 2
-            the_reply = ctypes.create_string_buffer(replay_max_size)  # supposedly enough for two long-form paths: the file and the process
+            the_reply = ctypes.create_string_buffer(
+                replay_max_size)  # supposedly enough for two long-form paths: the file and the process
             file_path_c_wchar_p = ctypes.c_wchar_p(os.fspath(in_file_path))
             ret_code = who_locks_file_dll.who_locks_file_json(file_path_c_wchar_p, the_reply, replay_max_size)
             if 0 == ret_code:
@@ -719,6 +745,7 @@ def who_locks_file(in_file_path, in_dll_path):
 
     return retVal
 
+
 def wait_for_break_file_to_be_removed(path_to_break_file, progress_callback=None):
     """ while path_to_break_file exist, sleep 1 second and call progress_callback"""
     if progress_callback is None:
@@ -731,4 +758,3 @@ def wait_for_break_file_to_be_removed(path_to_break_file, progress_callback=None
         time.sleep(1)
     if num_sleeps > 0:
         progress_callback(f"break file is gone {path_to_break_file}")
-
