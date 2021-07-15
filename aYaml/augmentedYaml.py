@@ -324,7 +324,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         out_stream.write("~")
     elif isinstance(pyObj, (list, tuple)):
         if not pyObj:
-            out_stream.write("~")
+            out_stream.write("[]")
         else:
             indentor.push('l')
             for item in pyObj:
@@ -355,7 +355,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
                 indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
             indentor.write_extra_chars(out_stream, ":")
-            if isScalar(pyObj[item]):
+            if isScalar(pyObj[item]) or not pyObj[item].value:  # value is either a scalar or empty list/map
                 indentor.write_extra_chars(out_stream, " ")
             indentor += 1
             writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator)

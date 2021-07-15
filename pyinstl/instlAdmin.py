@@ -531,6 +531,11 @@ class InstlAdmin(InstlInstanceBase):
             Assuming the index and info-map have already been read
             check the expect files from the index appear in the info-map
         """
+
+        no_target_folder_ok = config_vars.get("NO_TARGET_FOLDER_OK", []).list()
+        common_name_ok = config_vars.get("COMMON_NAME_OK", []).list()
+        no_files_or_folders_ok = config_vars.get("NO_FILES_OR_FOLDERS_OK", []).list()
+
         all_iids = sorted(self.items_table.get_all_iids())
         self.total_self_progress += len(all_iids)
         self.items_table.change_status_of_all_iids(1)
@@ -544,7 +549,7 @@ class InstlAdmin(InstlInstanceBase):
 
             name = self.items_table.get_details_for_active_iids("name", unique_values=True, limit_to_iids=[iid])
             if name:
-                names_to_iids[name].append(iid)
+                names_to_iids[name[0]].append(iid)
 
             # check sources
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
@@ -554,15 +559,16 @@ class InstlAdmin(InstlInstanceBase):
                 num_files_for_source = self.info_map_table.mark_required_for_source(source_path, source_type)
                 if num_files_for_source == 0:
                     case_insensitive_items = self.info_map_table.get_any_item_recursive(source_path, case_sensitive=False)
-                    err_message = f"""source, '{source_path}' required by {iid}, does not have any files or folders"""
-                    if case_insensitive_items:
-                        err_message += f"""\nthere are some files/folders with similar name but different case:\n{[s.path for s in case_insensitive_items]}"""
-                    problem_messages_by_iid[iid].append(err_message)
+                    if iid not in no_files_or_folders_ok:
+                        err_message = f"""source, '{source_path}' required by {iid}, does not have any files or folders"""
+                        if case_insensitive_items:
+                            err_message += f"""\nthere are some files/folders with similar name but different case:\n{[s.path for s in case_insensitive_items]}"""
+                        problem_messages_by_iid[iid].append(err_message)
 
             # check targets
             if len(source_and_tag_list) > 0:
                 target_folders = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "install_folders", unique_values=True))
-                if len(target_folders) == 0:
+                if len(target_folders) == 0 and iid not in no_target_folder_ok:
                     err_message = f"iid {iid}, does not have target folder"
                     problem_messages_by_iid[iid].append(err_message)
 
@@ -570,8 +576,8 @@ class InstlAdmin(InstlInstanceBase):
             if len(iids) > 1:
                 err_message = f"name '{name}', is common to {len(iids)} iids: {iids}"
                 for iid in iids:
-                    problem_messages_by_iid[iid].append(err_message)
-
+                    if iid not in common_name_ok:
+                        problem_messages_by_iid[iid].append(err_message)
 
         self.progress("checking for cyclic dependencies")
         self.info_map_table.mark_required_completion()
