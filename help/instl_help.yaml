@@ -150,11 +150,11 @@ command:
             If --only-installed option is given only IIDs already installed will be listed.
 
     resolve:
-        short: Read text from stdin, resolve $() style variables and print result to stdout (utility command)
+        short: Read config-file and an input file and resolve $() style variables in the input file. Write result to output file (utility command)
         long: |
-            Usage: instl resolve --in yaml-with-variable-definitions [< input-file] [> output-file]
-            resolve command will read variable definiiotns from !define section in yaml-with-variable-definitions file.
-            Text from stdin will be resolved using the variable definitions and printed to stdout.
+            Usage: instl resolve --in input_file_path --config-file config_file_path --out output_file_path
+            resolve command will read variable definitions from !define section of the the config file.
+            $() style variables in the input file will be resolved using the variable definitions and printed to output file.
 
     run-process:
         short: Run single processes with optional abort file (utility command)

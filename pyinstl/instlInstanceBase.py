@@ -99,7 +99,7 @@ class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
                                              'doit', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
                                              'short-index', 'up-short-index', 'report-versions']
-    commands_that_need_memory_db = ['translate-guids']
+    commands_that_need_memory_db = ['resolve', 'translate-guids']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
