@@ -5,4 +5,5 @@ VALUES (0, 'common'),
         (3, 'Mac64'),
         (4, 'Win'),
         (5, 'Win32'),
-        (6, 'Win64');
+        (6, 'Win64'),
+        (7, 'Linux');

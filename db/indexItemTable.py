@@ -16,8 +16,8 @@ import utils
 from aYaml import *
 from configVar import config_vars, private_config_vars
 
-# todo: these were copied from the late Install Item.py and should find a better home
-os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64')
+# when adding a new OS name also add the name in init-values.ddl
+os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64', 'Linux')
 allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
                      'depends', 'actions', 'remark', 'version', 'phantom_version',
                      'direct_sync', 'previous_sources', 'info_map')
@@ -31,7 +31,8 @@ file_types = ('!dir_cont', '!file', '!dir')
 
 
 class IndexItemsTable(object):
-    os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6)])
+    # when adding a new OS name also add the name in init-values.ddl
+    os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6), ('Linux', 7)])
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
