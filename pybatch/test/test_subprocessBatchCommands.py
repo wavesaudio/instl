@@ -312,11 +312,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                                    KillProcess("pesach", retries=5),
                                    KillProcess("nurit", sleep_sec=0.1))
 
-    def test_KillProcess_repr(self):
+    def test_KillProcess(self):
         app_base_name = ""
         if sys.platform == 'win32':
             app_base_name = "notepad++"
-            os.system(f"{app_base_name}.exe")
+            os.system(f"start {app_base_name}")
         elif sys.platform == 'darwin':
             app_base_name = "Notes"
             os.system(f"open -a {app_base_name}.app")
