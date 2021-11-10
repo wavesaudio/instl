@@ -313,8 +313,16 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                                    KillProcess("nurit", sleep_sec=0.1))
 
     def test_KillProcess_repr(self):
-        os.system("""osascript -e 'tell app "Notes.app" to open'""")
+        app_base_name = ""
+        if sys.platform == 'win32':
+            app_base_name = "notepad++"
+            os.system(f"{app_base_name}.exe")
+        elif sys.platform == 'darwin':
+            app_base_name = "Notes"
+            os.system(f"open -a {app_base_name}.app")
+
+        time.sleep(2)
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += KillProcess("Notes", retries=3, sleep_sec=1)
+        self.pbt.batch_accum += KillProcess(app_base_name, retries=3, sleep_sec=1)
         self.pbt.exec_and_capture_output()

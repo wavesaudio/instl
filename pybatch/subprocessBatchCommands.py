@@ -497,22 +497,27 @@ class KillProcess(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         found_process = False
+        look_for = [self.process_name]
+        if sys.platform == 'win32':
+            if not self.process_name.endswith(".exe"):
+                look_for.append(self.process_name+".exe")
         for i in range(self.retries):
-            print(f"looking for process named {self.process_name}")
+            #print(f"looking for process named {self.process_name}")
             for proc in psutil.process_iter():
-                if proc.name() == self.process_name:
-                    print(f"found process named {self.process_name}")
+                proc_name = proc.name()
+                if proc_name in look_for:
+                    #print(f"found process named {proc_name}")
                     found_process = True
                     proc.kill()
                     break
             else:  # no process by that name was found
-                print(f"no process named {self.process_name}")
+                #print(f"no process named {self.process_name}")
                 break
             time.sleep(self.sleep_sec)
 
         if found_process:  # make sure it's down
             for i in range(self.retries):
                 for proc in psutil.process_iter():
-                    if proc.name() == self.process_name:
+                    proc_name = proc.name()
+                    if proc_name in look_for:
                         raise TimeoutError(f"failed to kill process {self.process_name}")
-
