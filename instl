@@ -5,8 +5,18 @@
 
 import sys
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
-sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
-sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
+try:
+    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
+except Exception as ex:
+    # if reopen failed, try to continue anyway
+    print(f"failed to reopen sys.stdout with encoding='utf8' {ex}")
+
+# force stderr to be utf-8. Sometimes it opens in ascii encoding
+try:
+    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
+except Exception as ex:
+    # if reopen failed, try to continue anyway
+    print(f"failed to reopen sys.stderr with encoding='utf8' {ex}")
 
 
 from pyinstl.instl_main import instl_own_main
