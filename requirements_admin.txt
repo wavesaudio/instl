@@ -1,5 +1,5 @@
-awscli
-redis
 aws
+awscli
 boto3
 pip
+redis

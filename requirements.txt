@@ -6,4 +6,4 @@ psutil
 PyInstaller
 PyYAML
 requests
-redis
+xmltodict
