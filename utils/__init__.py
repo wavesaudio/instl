@@ -11,5 +11,7 @@ import platform
 current_os = platform.system()
 if current_os == 'Darwin':
     from .dockutil import dock_util
-from .redisClient import RedisClient
+
+if not getattr(sys, 'frozen', False):
+    from .redisClient import RedisClient
 from .email_utils import send_email, send_email_from_template_file
