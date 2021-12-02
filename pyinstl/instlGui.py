@@ -23,6 +23,9 @@ import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from configVar import config_vars
 
+
+from utils.redisClient import RedisClient
+
 tk_global_master = Tk()
 
 if getattr(os, "setsid", None):
@@ -543,7 +546,7 @@ class ActivateFrameController(FrameController):
         # todo oren - ??
         self.tk_vars["REPO_REV_TO_UPLOAD"] = TkConfigVarStr("REPO_REV_TO_UPLOAD")
         self.tk_vars["REDIS_KEY_VALUE_2"] = TkConfigVarStr("REDIS_KEY_VALUE_2")
-        self.redis_conn: utils.RedisClient = None
+        self.redis_conn: utils.redisClient.RedisClient = None
         self.update_redis_table_working_id = None
         self.last_heartbeat_value = ""
         self.heartbeat_no_diff_counter = 0
@@ -572,7 +575,7 @@ class ActivateFrameController(FrameController):
                 self.redis_conn.close()
                 self.redis_conn = None
         if self.redis_conn is None and host and port:
-            self.redis_conn = utils.RedisClient(host, port)
+            self.redis_conn = utils.redisClient.RedisClient(host, port)
             log.info(f"connected to redis host: {self.redis_conn.host}, port: {self.redis_conn.port}")
             self.start_update_redis_table()
 

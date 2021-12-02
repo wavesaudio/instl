@@ -12,6 +12,10 @@ current_os = platform.system()
 if current_os == 'Darwin':
     from .dockutil import dock_util
 
-if not getattr(sys, 'frozen', False):
-    from .redisClient import RedisClient
+# following line has been commented so redis will no be imported unless it is actually used.
+# redis is used in instGui.py which is used only by admins. Admins do not use pyinstaller
+# compiled instl, and will install redis as part of requirements_admin.txt
+# to import RedisClient use: from utils.redisClient import RedisClient
+# from .redisClient import RedisClient
+
 from .email_utils import send_email, send_email_from_template_file
