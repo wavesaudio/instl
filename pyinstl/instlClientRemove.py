@@ -20,12 +20,12 @@ class InstlClientRemove(InstlClient):
         self.create_remove_instructions()
 
     def init_remove_vars(self):
-        self.action_type_to_progress_message = {'pre_remove': "pre-remove step",
+        self.action_type_to_progress_message.update({'pre_remove': "pre-remove step",
                                                 'post_remove': "post-remove step",
                                                 'pre_remove_from_folder': "pre-remove-from-folder step",
                                                 'post_remove_from_folder': "post-remove-from-folder step",
                                                 'pre_remove_item': "pre-delete step",
-                                                'post_remove_item': "post-delete step"}
+                                                'post_remove_item': "post-delete step"})
 
     def create_remove_instructions(self):
 

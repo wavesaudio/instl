@@ -630,7 +630,7 @@ class CopyBundle(RsyncClone):
         return f"""CopyBundle {os.fspath(self.source)} to '{os.fspath(self.destination)}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        with CopyDirToDir(self.source, self.destination, link_dest=self.link_dest, ignore_patterns=self.ignore_patterns) as cdtd:
+        with CopyDirToDir(self.source, self.destination, hard_links=self.hard_links, ignore_patterns=self.ignore_patterns) as cdtd:
             cdtd()
 
 

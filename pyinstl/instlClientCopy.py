@@ -32,10 +32,10 @@ class InstlClientCopy(InstlClient):
         self.create_copy_instructions()
 
     def init_copy_vars(self) -> None:
-        self.action_type_to_progress_message: Dict[str, str] = {'pre_copy': "pre-install step",
+        self.action_type_to_progress_message.update({'pre_copy': "pre-install step",
                                                 'post_copy': "post-install step",
                                                 'pre_copy_to_folder': "pre-copy step",
-                                                'post_copy_to_folder': "post-copy step"}
+                                                'post_copy_to_folder': "post-copy step"})
         self.bytes_to_copy = 0
         # ratio between wtar file and it's uncompressed contents
         self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
@@ -132,7 +132,7 @@ class InstlClientCopy(InstlClient):
             item_size = a_file_item.size
         return item_size
 
-    def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         retVal = AnonymousAccum()
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
@@ -145,7 +145,7 @@ class InstlClientCopy(InstlClient):
             source_file = source_files[0]
             source_file_full_path = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_file.path)
 
-            retVal += CopyFileToDir(source_file_full_path, os.curdir, link_dest=True)
+            retVal += CopyFileToDir(source_file_full_path, os.curdir, hard_links=use_hard_links)
 
             if  self.mac_current_and_target:
                 if not source_file.path.endswith(".symlink"):
@@ -164,7 +164,7 @@ class InstlClientCopy(InstlClient):
             retVal += Unwtar(first_wtar_full_path, os.curdir)
         return retVal
 
-    def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_dir_cont(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         retVal = AnonymousAccum()
         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
         source_items = self.info_map_table.get_items_in_dir(dir_path=source_path)
@@ -176,7 +176,7 @@ class InstlClientCopy(InstlClient):
             retVal += CopyDirContentsToDir(
                                                         source_path_abs,
                                                         os.curdir,
-                                                        link_dest=True,
+                                                        hard_links=use_hard_links,
                                                         preserve_dest_files=True)  # preserve files already in destination
 
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
@@ -194,7 +194,7 @@ class InstlClientCopy(InstlClient):
 
         return retVal
 
-    def create_copy_instructions_for_dir_extended(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_dir_extended(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal = AnonymousAccum()
@@ -219,17 +219,17 @@ class InstlClientCopy(InstlClient):
             retVal += CopyBundle(source_path_abs, os.curdir, unwtar=has_wtars)
         else:
             # it might be a dir that was wtarred
-            retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
+            retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message, use_hard_links)
         return retVal
 
-    def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_dir(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal = AnonymousAccum()
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             has_wtars = any(source_item.wtarFlag for source_item in source_items)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            retVal += CopyDirToDir(source_path_abs, os.curdir, link_dest=True, delete_extraneous_files=True)
+            retVal += CopyDirToDir(source_path_abs, os.curdir, hard_links=use_hard_links, delete_extraneous_files=True)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -255,16 +255,16 @@ class InstlClientCopy(InstlClient):
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
         return retVal
 
-    def create_copy_instructions_for_source(self, source, name_for_progress_message) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_source(self, source, name_for_progress_message, use_hard_links=True) -> PythonBatchCommandBase:
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = None
         if source[1] == '!dir':  # !dir
-            retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message)
+            retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message, use_hard_links)
         elif source[1] == '!file':  # get a single file
-            retVal = self.create_copy_instructions_for_file(source[0], name_for_progress_message)
+            retVal = self.create_copy_instructions_for_file(source[0], name_for_progress_message, use_hard_links)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
-            retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message)
+            retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message, use_hard_links)
         else:
             raise ValueError(f"unknown source type {source[1]} for {source[0]}")
         return retVal
@@ -341,12 +341,14 @@ class InstlClientCopy(InstlClient):
                     self.current_iid = IID
                     sources_for_iid = self.items_table.get_sources_for_iid(IID)
                     resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
+                    flags_for_iid = config_vars.resolve_list_to_list([flags[1] for flags in self.items_table.get_iids_and_details_for_active_iids("flags", unique_values=False, limit_to_iids=[IID])])
+                    use_hard_links = 'no_hard_links' not in flags_for_iid
                     for source in resolved_sources_for_iid:
                         self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                         with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
                             num_items_copied_to_folder += 1
                             source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item")
-                            source_accum += self.create_copy_instructions_for_source(source, name_and_version)
+                            source_accum += self.create_copy_instructions_for_source(source, name_and_version, use_hard_links=use_hard_links)
                             source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item")
                             if self.mac_current_and_target:
                                 num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])

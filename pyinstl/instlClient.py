@@ -22,7 +22,7 @@ class InstlClient(InstlInstanceBase):
         self.total_self_progress: int = 15000
         self.internal_progress = int(self.total_self_progress / 100) * 2
         self.read_defaults_file(super().__thisclass__.__name__)
-        self.action_type_to_progress_message = None
+        self.action_type_to_progress_message = dict()
         self.__all_iids_by_target_folder = defaultdict(utils.unique_list)
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
         self.auxiliary_iids = utils.unique_list()
