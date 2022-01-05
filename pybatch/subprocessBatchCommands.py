@@ -55,11 +55,7 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
         if self.detach:
-            pid = os.spawnlp(os.P_NOWAIT, *run_args)
-            # in https://docs.python.org/3.6/library/subprocess.html#replacing-the-os-spawn-family
-            # the recommended way to replace os.spawnlp(os.P_NOWAIT,.. is by using subprocess.Popen,
-            # but it does not work properly
-            #pid = subprocess.Popen(run_args).pid
+            pid = subprocess.Popen(run_args).pid
         else:
             if self.script:
                 self.shell = True
@@ -385,7 +381,7 @@ class RunInThread(PythonBatchCommandBase):
 
 
 class Subprocess(RunProcessBase):
-    """ run a single command NOT in a shell """
+    """ run a single command NOT in a shell, possibly with arguments """
 
     def __init__(self, subprocess_exe, *subprocess_args, message=None, ignore_specific_exit_codes=(), **kwargs):
         assert "shell" not in kwargs, "'shell' cannot appear in kwargs for Subprocess"
