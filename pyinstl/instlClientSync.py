@@ -11,6 +11,7 @@ class InstlClientSync(InstlClient):
         super().__init__(initial_vars)
         self.read_defaults_file(super().__thisclass__.__name__)
         self.calc_user_cache_dir_var()
+        self.action_type_to_progress_message.update({'pre_sync': "pre_sync step", 'post_sync': "post_sync step"})
 
     def do_sync(self):
         repo_type = config_vars.get("REPO_TYPE", "URL").str()
@@ -35,4 +36,6 @@ class InstlClientSync(InstlClient):
         syncer.init_sync_vars()
         self.batch_accum.set_current_section('sync')
 
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('pre_sync')
         syncer.create_sync_instructions()
+        self.batch_accum += self.accumulate_unique_actions_for_active_iids('post_sync')

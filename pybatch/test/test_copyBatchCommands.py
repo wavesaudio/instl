@@ -50,7 +50,7 @@ class TestPythonBatchCopy(unittest.TestCase):
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_RsyncClone(self):
-        """ test RsyncClone (with/without using rsync's link_dest option)
+        """ test RsyncClone (with/without using rsync's hard_links option)
             a directory is created and filled with random files and folders.
             This directory is copied and both source and targets dirs are compared to make sure they are the same.
 
@@ -232,7 +232,7 @@ class TestPythonBatchCopy(unittest.TestCase):
     def test_CopyDirContentsToDir_repr(self):
         dir_from = r"\p\o\i"
         dir_to = "/q/w/r"
-        self.pbt.reprs_test_runner(CopyDirContentsToDir(dir_from, dir_to, link_dest=True))
+        self.pbt.reprs_test_runner(CopyDirContentsToDir(dir_from, dir_to, hard_links=True))
 
     def test_CopyDirContentsToDir(self):
         """ see doc string for test_CopyDirToDir, with the difference that the source dir contents
