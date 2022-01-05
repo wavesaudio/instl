@@ -162,7 +162,8 @@ class TestPythonBatchReporting(unittest.TestCase):
         if "STEVE" in config_vars:
             del config_vars["STEVE"]
         unresolved_file = self.pbt.path_inside_test_folder("unresolved_file")
-        resolve_file = self.pbt.path_inside_test_folder("resolve_file")
+        resolve_file_dollar = self.pbt.path_inside_test_folder("resolve_file_dollar")
+        resolve_file_at = self.pbt.path_inside_test_folder("resolve_file_at")
         config_file = self.pbt.path_inside_test_folder("config_file")
 
         config_text = """
@@ -172,18 +173,24 @@ STEVE: Jobs
         with config_file.open("w") as wfd:
             wfd.write(config_text)
 
-        unresolved_text = "li li li, hamizvada lu sheli $(BANANA)!, $(STEVE)!"
-        resolved_text = "li li li, hamizvada lu sheli Rama!, Jobs!"
+        unresolved_text = "li li li, hamizvada lu sheli $(BANANA)!, $(STEVE)!,  @(BANANA)!, @(STEVE)!"
+        expected_text_dollar = "li li li, hamizvada lu sheli Rama!, Jobs!,  @(BANANA)!, @(STEVE)!"
+        expected_text_at = "li li li, hamizvada lu sheli $(BANANA)!, $(STEVE)!,  Rama!, Jobs!"
         with unresolved_file.open("w") as wfd:
             wfd.write(unresolved_text)
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
-        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file, config_file=config_file)
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_dollar, config_file=config_file)
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_at, config_file=config_file, resolve_indicator='@')
         self.pbt.exec_and_capture_output()
 
-        with resolve_file.open("r") as rfd:
+        with resolve_file_dollar.open("r") as rfd:
             resolved_text_from_File = rfd.read()
-            self.assertEqual(resolved_text_from_File, resolved_text_from_File)
+            self.assertEqual(expected_text_dollar, resolved_text_from_File)
+
+        with resolve_file_at.open("r") as rfd:
+            resolved_text_from_File = rfd.read()
+            self.assertEqual(expected_text_at, resolved_text_from_File)
 
     def test_EnvironVarAssign_repr(self):
         obj = EnvironVarAssign("hila", "lulu lin")

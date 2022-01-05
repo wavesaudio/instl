@@ -17,18 +17,6 @@ import aYaml
 from .configVarOne import ConfigVar
 from .configVarParser import var_parse_imp
 
-# regex to identify $(...) references
-value_ref_re = re.compile("""
-                            (?P<varref_pattern>
-                                (?P<varref_marker>[$])      # $
-                                \(                          # (
-                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
-                                    (?P<varref_array>\[
-                                        (?P<array_index>\d+)
-                                    \])?
-                                \)
-                            )                         # )
-                            """, re.X)
 
 
 class ConfigVarStack:
@@ -59,6 +47,7 @@ class ConfigVarStack:
         self.resolve_counter: int = 0
         self.simple_resolve_counter: int = 0
         self.resolve_time: float = 0.0
+        self.resolve_indicator = '$'  # default is $ but can be changed for special cases
 
     def __len__(self) -> int:
         """ From RafeKettler/magicmethods: Returns the length of the container.
@@ -248,7 +237,7 @@ class ConfigVarStack:
         resolved_parts = list()
         num_literals = 0
         num_variables = 0
-        for parser_retVal in var_parse_imp(str_to_resolve):
+        for parser_retVal in var_parse_imp(str_to_resolve, self.resolve_indicator):
             if parser_retVal.literal_text:
                 resolved_parts.append(parser_retVal.literal_text)
                 num_literals += 1
@@ -265,7 +254,7 @@ class ConfigVarStack:
     def resolve_str(self, val_to_resolve: str) -> str:
         #start_time = time.perf_counter()
 
-        if "$" not in val_to_resolve:
+        if self.resolve_indicator not in val_to_resolve:
             # strings without $ do not need resolving
             result = val_to_resolve
             self.simple_resolve_counter += 1
@@ -279,7 +268,7 @@ class ConfigVarStack:
         return result
 
     def is_str_resolved(self, str_to_check):
-        regex = re.compile(r"\$\(.*\)")
+        regex = re.compile(re.escape(self.resolve_indicator)+r"\(.*\)")
         return regex.search(str_to_check) is None
 
     def resolve_str_to_list(self, val_to_resolve: str) -> List:
@@ -294,7 +283,7 @@ class ConfigVarStack:
         #start_time = time.perf_counter()
 
         retVal = list()
-        if "$" not in val_to_resolve:
+        if self.resolve_indicator not in val_to_resolve:
             # strings without $ do not need resolving
             retVal.append(val_to_resolve)
             self.simple_resolve_counter += 1
@@ -391,12 +380,24 @@ class ConfigVarStack:
                         self[env_key_to_read] = os.environ[env_key_to_read]
 
     def replace_unresolved_with_native_var_pattern(self, str_to_replace: str, which_os: str) -> str:
-        pattern = "$(\g<var_name>)"  # default is configVar style
+        pattern = self.resolve_indicator+"(\g<var_name>)"  # default is configVar style
         if which_os == 'Win':
             pattern = "%\g<var_name>%"
         elif which_os == 'Mac':
             pattern = "${\g<var_name>}"
 
+        # regex to identify $(...) references
+        value_ref_re = re.compile(f"""
+                                    (?P<varref_pattern>
+                                        (?P<varref_marker>[{self.resolve_indicator}])       # $
+                                        \(                                                  # (
+                                            (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)        # value
+                                            (?P<varref_array>\[
+                                                (?P<array_index>\d+)
+                                            \])?
+                                        \)
+                                    )                                                       # )
+                                    """, re.X)
         retVal = value_ref_re.sub(pattern, str_to_replace)
         return retVal
 
@@ -424,7 +425,7 @@ class ConfigVarStack:
             although
             shallow_resolve_str("$(A), $(B), $(A)") -> "aaa, aaa, aaa" - since $(A) was replaced twice
         """
-        literal_var_re = re.compile("""(?P<var_ref>\$\((?P<var_name>[^$(]+?)\))""")
+        literal_var_re = re.compile("""(?P<var_ref>"""+ re.escape(self.resolve_indicator) +"""\((?P<var_name>[^"""+self.resolve_indicator+"""(]+?)\))""")
 
         matches = literal_var_re.findall(val_to_resolve)  # will return [('$(A)', 'A'), ('$(C)', 'C')]
         result = val_to_resolve
@@ -432,6 +433,12 @@ class ConfigVarStack:
             result = result.replace(a_match[0], self.get(a_match[1], a_match[0]).str())
         return result
 
+    @contextmanager
+    def push_resolve_indicator(self, resolve_indicator):
+        previous_resolve_indicator = self.resolve_indicator
+        self.resolve_indicator = resolve_indicator
+        yield self
+        self.resolve_indicator = previous_resolve_indicator
 
 # This is the global variable list serving all parts of instl
 config_vars = ConfigVarStack()

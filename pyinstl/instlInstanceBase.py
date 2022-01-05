@@ -42,20 +42,6 @@ if False:
             return decorated_func
 
 
-
-value_ref_re = re.compile(r"""
-                            (?P<varref_pattern>
-                                (?P<varref_marker>[$])      # $
-                                \(                          # (
-                                    (?P<var_name>[\w\s]+?|[\w\s(]+[\w\s)]+?)           # value
-                                    (?P<varref_array>\[
-                                        (?P<array_index>\d+)
-                                    \])?
-                                \)
-                            )                         # )
-                            """, re.X)
-
-
 def check_version_compatibility():
     retVal = True
     message = ""

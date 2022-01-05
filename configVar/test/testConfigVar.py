@@ -96,6 +96,7 @@ class TestConfigVar(unittest.TestCase):
 
         reader = ConfigVarYamlReader(config_vars)
         reader.read_yaml_file(input_file_path)
+        del config_vars["READ_YAML_FILES"]
         variables_as_yaml = config_vars.repr_for_yaml()
         yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
                                               explicit_start=True, sort_mappings=True)
@@ -147,3 +148,49 @@ class TestConfigVar(unittest.TestCase):
         config_vars["__INSTL_VERSION__"] = (1,2,2)
         cur_version_as_list = [int(v) for v in config_vars["__INSTL_VERSION__"].list()]
         self.assertLessEqual(cur_version_as_list, min_version_as_list, f"3 failed {cur_version_as_list} <= {min_version_as_list}")
+
+    def test_alternative_resolve_indicator(self):
+        config_vars["ONE"] = "One"
+        config_vars["TWO"] = "Two"
+        config_vars["ONE_AT"] = "@(ONE)"
+        config_vars["ONE_DOLLAR"] = "$(ONE)"
+        config_vars["TWO_AT"] = "@(TWO)"
+        config_vars["TWO_DOLLAR"] = "$(TWO)"
+
+        config_vars["11"] = "$(ONE) $(TWO)"
+        config_vars["10"] = "$(ONE) @(TWO)"
+        config_vars["01"] = "@(ONE) $(TWO)"
+        config_vars["00"] = "@(ONE) @(TWO)"
+
+        # with default resolve_indicator: '$'
+        self.assertEqual(config_vars["ONE_AT"].str(), "@(ONE)")
+        self.assertEqual(config_vars["ONE_DOLLAR"].str(), "One")
+        self.assertEqual(config_vars["TWO_AT"].str(), "@(TWO)")
+        self.assertEqual(config_vars["TWO_DOLLAR"].str(), "Two")
+        self.assertEqual(config_vars["11"].str(), "One Two")
+        self.assertEqual(config_vars["10"].str(), "One @(TWO)")
+        self.assertEqual(config_vars["01"].str(), "@(ONE) Two")
+        self.assertEqual(config_vars["00"].str(), "@(ONE) @(TWO)")
+
+        # with alternative resolve_indicator: '@'
+        with config_vars.push_resolve_indicator('@'):
+            self.assertEqual(config_vars["ONE_AT"].str(), "One")
+            self.assertEqual(config_vars["ONE_DOLLAR"].str(), "$(ONE)")
+            self.assertEqual(config_vars["TWO_AT"].str(), "Two")
+            self.assertEqual(config_vars["TWO_DOLLAR"].str(), "$(TWO)")
+            self.assertEqual(config_vars["11"].str(), "$(ONE) $(TWO)")
+            self.assertEqual(config_vars["10"].str(), "$(ONE) Two")
+            self.assertEqual(config_vars["01"].str(), "One $(TWO)")
+            self.assertEqual(config_vars["00"].str(), "One Two")
+
+        # make sure all is back to normal with default resolve_indicator: '$'
+        self.assertEqual(config_vars["ONE_AT"].str(), "@(ONE)")
+        self.assertEqual(config_vars["ONE_DOLLAR"].str(), "One")
+        self.assertEqual(config_vars["TWO_AT"].str(), "@(TWO)")
+        self.assertEqual(config_vars["TWO_DOLLAR"].str(), "Two")
+        self.assertEqual(config_vars["11"].str(), "One Two")
+        self.assertEqual(config_vars["10"].str(), "One @(TWO)")
+        self.assertEqual(config_vars["01"].str(), "@(ONE) Two")
+        self.assertEqual(config_vars["00"].str(), "@(ONE) @(TWO)")
+
+

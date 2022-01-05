@@ -79,7 +79,7 @@ vars_split_level_1_re = re.compile("\s*,\s*", re.X)
 vars_split_level_2_re = re.compile("\s*=\s*", re.X)
 
 
-def var_parse_imp(f_string):
+def var_parse_imp(f_string, resolve_indicator='$'):
     """
         Yield parsed sections of f_string consisting of:
             literal_text: prefix text that is not a variable reference (or empty string)
@@ -110,15 +110,15 @@ def var_parse_imp(f_string):
         cont.reset_return_tuple()
         cont.literal_text = new_literal_text
         cont.parenthesis_balance = 0
-        if c == '$':
+        if c == resolve_indicator:
             cont.literal_text = cont.literal_text[:-1]
-            cont.variable_str = "$"
+            cont.variable_str = resolve_indicator
             next_state = var_ref_started_state
         return next_state
 
     def literal_state(c, cont: VarParseImpContext):
-        if c == '$':
-            cont.variable_str = "$"
+        if c == resolve_indicator:
+            cont.variable_str = resolve_indicator
             next_state = var_ref_started_state
         else:
             cont.literal_text += c

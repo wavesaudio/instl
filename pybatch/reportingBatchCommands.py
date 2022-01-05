@@ -322,16 +322,15 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, avoid_resolve_marker='$', **kwargs):
+    def __init__(self, unresolved_file, resolved_file=None, config_file=None, raise_if_unresolved=False,
+                 temp_config_vars=None, resolve_indicator='$', **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
         :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
-        :param config_files: additional files to read config_vars definitions from
+        :param config_file: additional file to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
-        :param avoid_resolve_marker: config vars marked with this char (if != '$') will be ignored and after
-        the resolve will be replaced by '$'. This will enable to mark certain config vars so they are not resolved
+        :param resolve_indicator: config vars marked with this char (default '$') will be resolved
         """
         super().__init__(**kwargs)
         self.unresolved_file = unresolved_file
@@ -339,21 +338,20 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
             self.resolved_file = resolved_file
         else:
             self.resolved_file = self.unresolved_file
-        self.config_files = config_files
+        self.config_file = config_file
         self.raise_if_unresolved = raise_if_unresolved
         self.temp_config_vars = temp_config_vars
-        self.avoid_resolve_marker = avoid_resolve_marker
+        self.resolve_indicator = resolve_indicator
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.unresolved_file))
         if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(self.resolved_file))
-        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
-        all_args.append(self.optional_named__init__param("avoid_resolve_marker", self.avoid_resolve_marker, '$'))
+        all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
+        all_args.append(self.optional_named__init__param("resolve_marker", self.resolve_indicator, '$'))
         if self.temp_config_vars:
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
             all_args.append(complete_repr)
-        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
@@ -363,23 +361,21 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         with config_vars.push_scope_context() as scope_context:
             if self.temp_config_vars:
                 config_vars.update(self.temp_config_vars)
-            if self.config_files is not None:
+            if self.config_file:
                 reader = ConfigVarYamlReader(config_vars)
-                for config_file in self.config_files:
-                    reader.read_yaml_file(config_file)
+                reader.read_yaml_file(self.config_file)
             with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
                 text_to_resolve = rfd.read()
-            resolved_text = config_vars.resolve_str(text_to_resolve)
+
+            with config_vars.push_resolve_indicator(self.resolve_indicator):
+                resolved_text = config_vars.resolve_str(text_to_resolve)
 
             if self.raise_if_unresolved:
-                unresolved_re = re.compile(r"""\$\(.*?\)""")
+                unresolved_re = re.compile(rf"""[{self.resolve_indicator}]\(.*?\)""")
                 all_unresolved = unresolved_re.findall(resolved_text)
                 if all_unresolved:
                     unresolved_references = ", ".join(list(set(all_unresolved)))
                     raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
-
-            if self.avoid_resolve_marker != '$':
-                resolved_text = resolved_text.replace(f"self.avoid_resolve_marker(", "$(")
 
             with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
                 wfd.write(resolved_text)
