@@ -348,7 +348,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(self.resolved_file))
         all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
-        all_args.append(self.optional_named__init__param("resolve_marker", self.resolve_indicator, '$'))
+        all_args.append(self.optional_named__init__param("resolve_indicator", self.resolve_indicator, '$'))
         if self.temp_config_vars:
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
             all_args.append(complete_repr)

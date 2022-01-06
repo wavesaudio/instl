@@ -244,7 +244,7 @@ def var_parse_imp(f_string, resolve_indicator='$'):
             yield yield_val
 
     # Any of the following states means that parsing stopped while in variable
-    # and therefor the whole variable string becomes part of the literal text
+    # and therefore the whole variable string becomes part of the literal text
     if next_state_func in (var_ref_started_state, var_name_state, params_state, array_state,
                       var_name_ended_state, params_ended_state, array_ended_state):
         cont.literal_text += cont.variable_str
