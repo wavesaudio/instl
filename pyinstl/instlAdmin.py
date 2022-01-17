@@ -1159,3 +1159,16 @@ class InstlAdmin(InstlInstanceBase):
         out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with ShortIndexYamlCreator(out_file_path, report_own_progress=False) as short_creator:
             short_creator()
+
+    def do_dump_config_vars(self):
+        if "__MAIN_INPUT_FILE__" in config_vars:
+            self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True))
+
+        output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
+        with open(output_file, "w") as wfd:
+            wfd.write("--- !define\n")
+            for identifier in config_vars.keys():
+                if len(config_vars[identifier]) > 1:
+                    wfd.write(f"{identifier}: [{', '.join(config_vars[identifier].list())}]\n")
+                else:
+                    wfd.write(f"{identifier}: {config_vars[identifier]}\n")
