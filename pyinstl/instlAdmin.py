@@ -16,6 +16,7 @@ import boto3
 import threading
 
 import utils
+import yaml
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
@@ -1168,7 +1169,44 @@ class InstlAdmin(InstlInstanceBase):
         with open(output_file, "w") as wfd:
             wfd.write("--- !define\n")
             for identifier in config_vars.keys():
-                if len(config_vars[identifier]) > 1:
-                    wfd.write(f"{identifier}: [{', '.join(config_vars[identifier].list())}]\n")
+                the_config_var = config_vars[identifier]
+                if len(the_config_var) > 1:
+                    wfd.write(f"{identifier}: [{', '.join(the_config_var.list())}]")
                 else:
-                    wfd.write(f"{identifier}: {config_vars[identifier]}\n")
+                    wfd.write(f"{identifier}: {the_config_var}")
+                if the_config_var.raw() != the_config_var.str():
+                    wfd.write(f"  # {the_config_var.raw()}")
+                wfd.write("\n")
+
+    def do_gather_manifest_files(self):
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
+
+        manifest_nodes = defaultdict(list)
+
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for a_file in files:
+                    a_file_path = Path(root, a_file)
+                    if a_file_path.name.endswith("manifest.yaml"):
+                        print(a_file_path)
+                        with open(a_file_path, "r") as rfd:
+                            for a_node_name, a_node_value in yaml.safe_load(rfd).items():
+                                manifest_nodes[a_node_name].append(a_node_value)
+
+        dup_and_diff_list = list()
+        for iid, content_list in manifest_nodes.items():
+            if len(content_list) == 1:
+                print(f"{iid}: {content_list[0]}")
+            elif len(content_list) == 2:
+                if content_list[0] == content_list[1]:
+                    print(f"{iid}: {content_list[0]}")
+                else:
+                    dup_and_diff_list.append(iid)
+                    for i, content in enumerate(content_list):
+                        print(f"    {i}) {content}")
+            print("...")
+        if dup_and_diff_list:
+            print("duplicate and different iids:")
+            for dup_iid in dup_and_diff_list:
+                print(f"{dup_iid}")

@@ -15,6 +15,7 @@ __CLIENT_GUI_CMD_LIST__:
 __ADMIN_GUI_CMD_LIST__:
   - svn2stage
   - fix-perm
+  - gather-manifest-files
   - wtar
   - fix-symlinks
   - verify-repo
@@ -64,6 +65,17 @@ __ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__:
   - --config-file
   - $(ADMIN_GUI_TARGET_CONFIG_FILE)
   - $(ADMIN_GUI_LOCAL_CONFIG_FILE)
+
+__ADMIN_CALL_DUMP_CONFIG_VARS_TEMPLATE__:
+  - $(__INSTL_EXE_PATH__)
+  - resolve
+  - --in
+  - $(ADMIN_GUI_TARGET_CONFIG_FILE)
+  - --config-file
+  - $(ADMIN_GUI_LOCAL_CONFIG_FILE)
+  - --out
+  - /Users/shai/Desktop/dump_config_vars.txt
+
 
 __STAGING_INDEX_FILE__: $(STAGING_FOLDER)/instl/index.yaml
 
