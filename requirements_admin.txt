@@ -1,5 +1,7 @@
 aws
 awscli
 boto3
+dictdiffer
 pip
 redis
+strictyaml
