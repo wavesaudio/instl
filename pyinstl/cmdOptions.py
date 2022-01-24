@@ -139,7 +139,7 @@ def prepare_args_parser(in_command):
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
             'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
             'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
-            'gather-manifest-files':{'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help': 'gather manifest.yaml files to single index.yaml' },
+            'collect-manifests':    {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help': 'gather manifest.yaml files to single index.yaml' },
             'stage2svn':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
             'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
             'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},

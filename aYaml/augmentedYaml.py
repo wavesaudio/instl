@@ -382,14 +382,30 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         indentor.lineSepAndIndent(out_stream)
 
 
-def nodeToPy(a_node):
+def nodeToPy(a_node, order=None, single_value=None):
+    if order is None:
+        order = []
+    if single_value is None:
+        single_value = []
     retVal = None
     if a_node.isScalar():
-        retVal = str(a_node.value)
+        retVal = a_node.value
     elif a_node.isSequence():
         retVal = [nodeToPy(item) for item in a_node.value]
     elif a_node.isMapping():
-        retVal = {str(_key.value): nodeToPy(_val) for (_key, _val) in a_node.value}
+        retVal = OrderedDict()
+        names_in_order = list()
+        names_from_node = [str(_key) for _key in a_node]
+        for name in order:
+            if name in names_from_node:
+                names_in_order.append(name)
+                names_from_node.remove(name)
+        names_in_order.extend(names_from_node)  # add names in node that do not appear in order
+        for name in names_in_order:
+            value = a_node[name]
+            if name in single_value and value.isSequence() and 1 == len(value):
+                value = value[0]
+            retVal[name] = nodeToPy(value, order, single_value)
     return retVal
 
 
