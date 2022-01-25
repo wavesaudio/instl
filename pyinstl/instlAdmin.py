@@ -233,10 +233,10 @@ class InstlAdmin(InstlInstanceBase):
         """
         do_not_remove_items = list()
 
-        for svn_only_item in sorted(comparator.left_only):
-            # copy items found in stage but not in svn
-            stage_only_item_path = Path(comparator.left, svn_only_item)
-            svn_item_path = Path(comparator.right, svn_only_item)
+        # items found in stage folder but not in svn folder
+        for stage_only_item in sorted(comparator.left_only):
+            stage_only_item_path = Path(comparator.left, stage_only_item)
+            svn_item_path = Path(comparator.right, stage_only_item)
             if stage_only_item_path.is_symlink():
                 raise InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif stage_only_item_path.is_file():
@@ -272,14 +272,14 @@ class InstlAdmin(InstlInstanceBase):
                         self.raise_if_forbidden_dir(item)
 
                 self.batch_accum += CopyDirToDir(stage_only_item_path, comparator.right, hard_links=False, ignore_patterns=[".svn"], preserve_dest_files=False)
-                self.batch_accum += Progress(f"copy dir {stage_only_item_path}")
+                self.batch_accum += SVNAdd(svn_item_path)
             else:
                 raise InstlException(stage_only_item_path+" not a file, dir or symlink, an abomination!")
 
         # copy changed items:
 
         do_not_copy_items = list()  # items that should not be copied even if different, there are items that are part of .wtar where
-                                    # each part might be different but the contents are not. E.g. whe re-wtaring files where only
+                                    # each part might be different but the contents are not. E.g. when re-wtaring files where only
                                     # modification date has changed.
         for diff_item in sorted(comparator.diff_files):
             copy_file = diff_item not in do_not_copy_items
@@ -306,9 +306,9 @@ class InstlAdmin(InstlInstanceBase):
                 raise InstlException(left_item_path+" not a different file or symlink, an abomination!")
 
         # removed items:
-        for svn_only_item in sorted(comparator.right_only):
-            if svn_only_item not in do_not_remove_items:
-                item_to_remove = os.path.join(comparator.right, svn_only_item)
+        for stage_only_item in sorted(comparator.right_only):
+            if stage_only_item not in do_not_remove_items:
+                item_to_remove = os.path.join(comparator.right, stage_only_item)
                 self.batch_accum += SVNRemove(item_to_remove)
 
         # recurse to sub folders
