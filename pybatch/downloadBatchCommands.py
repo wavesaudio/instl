@@ -25,7 +25,7 @@ class DownloadManager(PythonBatchCommandBase):
             all_args.append(f"cookie=\"{self.cookie}\"")
 
     def progress_msg_self(self):
-        the_progress_msg = f"Downloading files'"  # todo  - think how it should be done
+        the_progress_msg = f"Downloading file '"
         return the_progress_msg
 
     def __call__(self, *args, **kwargs):
@@ -69,32 +69,7 @@ class DownloadManager(PythonBatchCommandBase):
         return session
 
 
-# #might be obeslete since it seems we always want cksum
-# class DownloadFiles(DownloadManager):
-#     def __init__(self, url: str, path: str, cookie: str = None, **kwargs) -> None:
-#         super().__init__(**kwargs, cookie=cookie)
-#         self.path = path
-#         self.url = url
-#         self.cookie = cookie
-#
-#     def repr_own_args(self, all_args: List[str]) -> None:
-#
-#         all_args.append(f"url=\"{self.url}\"")
-#         all_args.append(f"path=\"{self.path}\"")
-#         if self.cookie:
-#             all_args.append(f"cookie=\"{self.cookie}\"")
-#
-#     def progress_msg_self(self):
-#         the_progress_msg = f"Downloading files'"  # todo  - think how it should be done
-#         return the_progress_msg
-#
-#     def __call__(self, *args, **kwargs):
-#         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-#         with DownloadManager(cookie=self.cookie) as downloader:
-#             downloader(url=self.url, path=self.path)
-
-
-#to be used externally
+# to be used externally
 class DownloadFileAndCheckChecksum(DownloadManager):
     def __init__(self, url, path, cookie, checksum, **kwargs) -> None:
         super().__init__(cookie, **kwargs)
@@ -104,16 +79,14 @@ class DownloadFileAndCheckChecksum(DownloadManager):
         self.checksum = checksum
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        #super(DownloadFileAndCheckChecksum, self).repr_own_args(*all_args)
         all_args.append(f"url=\"{self.url}\"")
         all_args.append(f"path=\"{self.path}\"")
         if self.cookie:
             all_args.append(f"cookie=\"{self.cookie}\"")
         all_args.append(f"checksum=\"{self.checksum}\"")
-        # all_args.append(self.unnamed__init__param(self.cksum))
 
     def progress_msg_self(self):
-        super(DownloadFileAndCheckChecksum, self).progress_msg_self()
+        super().progress_msg_self()
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
