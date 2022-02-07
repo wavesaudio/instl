@@ -84,7 +84,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
             if os.path.isfile(file_item.download_path):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
-                if not utils.compare_checksums(file_checksum, file_item.checksum):
+                debug_bad_files = ["sequence16.seq","Seq4.seq","sequence26.seq","settings.svg","color.json","shortname.json","VB_logo.png"]
+                shouldRedownload = [file for file in debug_bad_files if file in file_item.download_path]
+                if not utils.compare_checksums(file_checksum, file_item.checksum) or len(shouldRedownload) >0 :
                     self.num_bad_files += 1
                     super().increment_and_output_progress(increment_by=0,
                                                           prog_msg=f"bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
@@ -126,7 +128,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 for file_item in self.lists_of_files["to redownload"]:
                     download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
                     download_path = file_item.download_path
-                    dler(path=download_path, download_url=download_url, cheksum=file_item.checksum)
+                    dler(path=download_path, url=download_url, checksum=file_item.checksum)
                     super().increment_and_output_progress(increment_by=0,
                                                           prog_msg=f"redownloaded {file_item.download_path}")
                     self.num_bad_files -= 1
