@@ -19,13 +19,12 @@ from configVar import config_vars
 import aYaml
 import utils
 
-
 from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import MakeDir
 from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
-from .downloadBatchCommands import DownloadFileAndCheckChecksum
+from .downloadBatchCommands import DownloadFileAndCheckChecksum, DownloadManager
 from svnTree.svnTable import SVNTable
 
 from db import DBManager
@@ -38,7 +37,9 @@ from db import DBManager
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder
     """
-    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=None, **kwargs) -> None:
+
+    def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=None,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         self.print_report = print_report
         self.raise_on_bad_checksum = raise_on_bad_checksum
@@ -55,7 +56,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.optional_named__init__param("print_report", self.print_report, False))
         all_args.append(self.optional_named__init__param("raise_on_bad_checksum", self.raise_on_bad_checksum, False))
-        all_args.append(self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload))
+        all_args.append(
+            self.optional_named__init__param("max_bad_files_to_redownload", self.max_bad_files_to_redownload))
 
     def progress_msg_self(self) -> str:
         return f'''Check download folder checksum'''
@@ -72,7 +74,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
-        utils.wait_for_break_file_to_be_removed(config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"), self.break_file_callback)
+        utils.wait_for_break_file_to_be_removed(
+            config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"),
+            self.break_file_callback)
 
         for file_item in dl_file_items:
             self.doing = f"""check checksum for '{file_item.download_path}'"""
@@ -82,16 +86,21 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 file_checksum = utils.get_file_checksum(file_item.download_path)
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
                     self.num_bad_files += 1
-                    super().increment_and_output_progress(increment_by=0, prog_msg=f"bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
-                    self.lists_of_files["bad_checksum"].append(" ".join(("Bad checksum:", file_item.download_path, "expected", file_item.checksum, "found", file_checksum)))
+                    super().increment_and_output_progress(increment_by=0,
+                                                          prog_msg=f"bad checksum for '{file_item.download_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
+                    self.lists_of_files["bad_checksum"].append(" ".join(("Bad checksum:", file_item.download_path,
+                                                                         "expected", file_item.checksum, "found",
+                                                                         file_checksum)))
                     self.lists_of_files["to redownload"].append(file_item)
             else:
                 self.num_bad_files += 1
-                super().increment_and_output_progress(increment_by=0, prog_msg=f"missing file '{file_item.download_path}'")
+                super().increment_and_output_progress(increment_by=0,
+                                                      prog_msg=f"missing file '{file_item.download_path}'")
                 self.lists_of_files["missing_files"].append(" ".join((file_item.download_path, "was not found")))
                 self.lists_of_files["to redownload"].append(file_item)
             if self.max_bad_files_to_redownload is not None and self.num_bad_files > self.max_bad_files_to_redownload:
-                super().increment_and_output_progress(increment_by=0, prog_msg=f"stopping checksum check too many bad or missing files found")
+                super().increment_and_output_progress(increment_by=0,
+                                                      prog_msg=f"stopping checksum check too many bad or missing files found")
                 break
 
         if not self.is_checksum_ok():
@@ -111,31 +120,20 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def re_download_bad_files(self):
         try:
             download_path = None
-            cookies = self.get_cookie_dict_from_str()
-            with requests.Session() as dl_session:
-                dl_session.cookies = cookiejar_from_dict(cookies)
+
+            with DownloadManager(cookie=config_vars["COOKIE_JAR"].str(),
+                                 report_own_progress=False) as dler:  # should get the cookie from the config vars
                 for file_item in self.lists_of_files["to redownload"]:
                     download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
                     download_path = file_item.download_path
-                    with DownloadFileAndCheckChecksum(download_url, download_path, file_item.checksum, report_own_progress=False) as dler:
-                        dler(session=dl_session)
-                        super().increment_and_output_progress(increment_by=0, prog_msg=f"redownloaded {file_item.download_path}")
-                        self.num_bad_files -=1
+                    dler(path=download_path, url=download_url, checksum=file_item.checksum)
+                    super().increment_and_output_progress(increment_by=0,
+                                                          prog_msg=f"redownloaded {file_item.download_path}")
+                    self.num_bad_files -= 1
         except Exception as ex:
             log.error(f"""Exception while redownloading {download_path}, {ex}""")
-            super().increment_and_output_progress(increment_by=0, prog_msg=f"""Exception while redownloading {download_path}, {ex}""")
-
-    @staticmethod
-    def get_cookie_dict_from_str():
-        cookie_str = config_vars["COOKIE_JAR"].str()
-        cookie = SimpleCookie()
-        cookie.load(cookie_str)
-        cookies = {}
-        for key, morsel in cookie.items():
-            if ":" in key:
-                key = key.split(":")[1]
-            cookies[key] = morsel.value
-        return cookies
+            super().increment_and_output_progress(increment_by=0,
+                                                  prog_msg=f"""Exception while redownloading {download_path}, {ex}""")
 
     def is_checksum_ok(self) -> bool:
         retVal = self.num_bad_files == 0
@@ -144,6 +142,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
     """ set execute permissions for files that need such permission  in the download folder """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -164,6 +163,7 @@ class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
 class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     """ create the download folder hierarchy
     """
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
@@ -257,7 +257,7 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
                 log.info(f"{infomap_file_name} was found so no need to create it")
                 # file already exists, probably copied from the "Common" repository
                 # just checking that the fie is also zipped
-                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name + "$(WZLIB_EXTENSION)")
                 zip_info_map_file_path = self.work_folder.joinpath(zip_infomap_file_name)
                 if not zip_info_map_file_path.is_file():
                     raise FileNotFoundError(f"found {info_map_file_path} but not {zip_info_map_file_path}")
@@ -271,10 +271,11 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         for infomap_file_name, info_map_items in info_map_to_item.items():
             if info_map_items:  # could be that no items are linked to the info map file
                 info_map_file_path = self.work_folder.joinpath(infomap_file_name)
-                self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+                self.info_map_table.write_to_file(in_file=info_map_file_path, items_list=info_map_items,
+                                                  field_to_write=self.fields_relevant_to_info_map)
                 files_to_add_to_default_info_map.append(info_map_file_path)
 
-                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name+"$(WZLIB_EXTENSION)")
+                zip_infomap_file_name = config_vars.resolve_str(infomap_file_name + "$(WZLIB_EXTENSION)")
                 zip_info_map_file_path = self.work_folder.joinpath(zip_infomap_file_name)
                 with Wzip(info_map_file_path, self.work_folder, own_progress_count=0) as wzipper:
                     wzipper()
@@ -284,7 +285,8 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
         default_info_map_file_name = str(config_vars["MAIN_INFO_MAP_FILE_NAME"])
         default_info_map_file_path = self.work_folder.joinpath(default_info_map_file_name)
         info_map_items = self.info_map_table.get_items_for_default_infomap()
-        self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=info_map_items, field_to_write=self.fields_relevant_to_info_map)
+        self.info_map_table.write_to_file(in_file=default_info_map_file_path, items_list=info_map_items,
+                                          field_to_write=self.fields_relevant_to_info_map)
         with Wzip(default_info_map_file_path, self.work_folder, own_progress_count=0) as wzipper:
             wzipper()
 
@@ -358,8 +360,8 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
                     else:
                         short_index_dict[IID]['guid'] = data_dict['install_guid']
 
-
-        defines_dict = config_vars.repr_for_yaml(which_vars=list(config_vars['SHORT_INDEX_FILE_VARS']), resolve=True, ignore_unknown_vars=False)
+        defines_dict = config_vars.repr_for_yaml(which_vars=list(config_vars['SHORT_INDEX_FILE_VARS']), resolve=True,
+                                                 ignore_unknown_vars=False)
         defines_yaml_doc = aYaml.YamlDumpDocWrap(defines_dict, '!define', "Definitions",
                                                  explicit_start=True, sort_mappings=True)
 
@@ -402,8 +404,8 @@ class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
 # CreateRepoRevFile is not a class that uses info map, but this file is the best place for this it
 class CreateRepoRevFile(PythonBatchCommandBase):
     """ create a repo-rev file inside the instl folder
-
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -434,24 +436,27 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         revision_instl_folder_path = Path(config_vars["UPLOAD_REVISION_INSTL_FOLDER"])
 
         # create checksum for the main info_map file, either wzipped or not
-        main_info_map_file_name = "info_map.txt"+zip_extension
+        main_info_map_file_name = "info_map.txt" + zip_extension
         main_info_map_file = revision_instl_folder_path.joinpath(main_info_map_file_name)
         main_info_map_checksum = utils.get_file_checksum(main_info_map_file)
 
-        config_vars["INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+main_info_map_file_name
+        config_vars[
+            "INFO_MAP_FILE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/" + main_info_map_file_name
         config_vars["INFO_MAP_CHECKSUM"] = main_info_map_checksum
 
         # create checksum for the main index.yaml file, either wzipped or not
-        index_file_name = "index.yaml"+zip_extension
+        index_file_name = "index.yaml" + zip_extension
         index_file_path = revision_instl_folder_path.joinpath(index_file_name)
 
         config_vars["INDEX_CHECKSUM"] = utils.get_file_checksum(index_file_path)
-        config_vars["INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+index_file_name
+        config_vars[
+            "INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/" + index_file_name
 
         short_index_file_name = "short-index.yaml"
         short_index_file_path = revision_instl_folder_path.joinpath(short_index_file_name)
         config_vars["SHORT_INDEX_CHECKSUM"] = utils.get_file_checksum(short_index_file_path)
-        config_vars["SHORT_INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+short_index_file_name
+        config_vars[
+            "SHORT_INDEX_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/" + short_index_file_name
 
         config_vars["INSTL_FOLDER_BASE_URL"] = "$(BASE_LINKS_URL)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl"
         config_vars["REPO_REV_FOLDER_HIERARCHY"] = "$(__CURR_REPO_FOLDER_HIERARCHY__)"
@@ -465,9 +470,8 @@ class CreateRepoRevFile(PythonBatchCommandBase):
         # create yaml out of the variables
         variables_as_yaml = config_vars.repr_for_yaml(repo_rev_vars)
         repo_rev_yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
-                                              explicit_start=True, sort_mappings=True)
+                                                  explicit_start=True, sort_mappings=True)
         repo_rev_file_path = config_vars["UPLOAD_REVISION_REPO_REV_FILE"]
         with utils.utf8_open_for_write(repo_rev_file_path, "w") as wfd:
             aYaml.writeAsYaml(repo_rev_yaml_doc, out_stream=wfd, indentor=None, sort=True)
             log.info(f"""create {repo_rev_file_path}""")
-
