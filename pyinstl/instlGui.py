@@ -36,6 +36,7 @@ else:
 admin_command_template_variables = {
     'svn2stage': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'fix-symlinks': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
+    'gather-manifest-files': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'wtar': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
     'verify-repo': '__ADMIN_CALL_INSTL_ONLY_CONFIG_FILE_TEMPLATE__',
     'stage2svn': '__ADMIN_CALL_INSTL_STANDARD_TEMPLATE__',
@@ -107,6 +108,7 @@ TkConfigVarStr  = CreateTkConfigClass(StringVar, str)
 TkConfigVarInt  = CreateTkConfigClass(IntVar, int)
 TkConfigVarBool = CreateTkConfigClass(BooleanVar, bool)
 
+
 class FrameController:
     """ base class for objects controlling a Tk frame """
     def __init__(self, name, instl_obj):
@@ -125,6 +127,19 @@ class FrameController:
                 self.master.clipboard_clear()
                 self.master.clipboard_append(value)
                 log.info("instl command was copied to clipboard!")
+
+    def dump_config_vars(self):
+        command_line_parts = list(config_vars["__ADMIN_CALL_DUMP_CONFIG_VARS_TEMPLATE__"])
+        resolved_command_line_parts = [shlex.quote(p) for p in config_vars.resolve_list_to_list(command_line_parts)]
+
+        if getattr(os, "setsid", None):
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, preexec_fn=os.setsid, stderr=subprocess.PIPE)  # Unix
+        else:
+            admin_process = subprocess.Popen(resolved_command_line_parts, executable=resolved_command_line_parts[0], shell=False, stderr=subprocess.PIPE)  # Windows
+        unused_stdout, unused_stderr = admin_process.communicate()
+        err_str = unused_stderr.decode()
+
+        self.prompt_msg_on_err(admin_process.returncode, resolved_command_line_parts, err_msg=err_str)
 
     def update_state(self, *args, **kwargs):
         pass
@@ -484,9 +499,10 @@ class AdminFrameController(FrameController):
         self.text_widget.grid(row=curr_row, column=1, columnspan=1, sticky=W)
         self.text_widget.configure(state='disabled')
 
-        curr_row += 1
-        Button(self.frame, width=9, text="clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=1, sticky=W)
-        Button(self.frame, width=9, text="Save state", command=self.instl_obj.write_history).grid(row=curr_row, column=1, sticky=E)
+        #curr_row += 1
+        Button(self.frame, width=16, text="Command to clipboard", command=self.copy_to_clipboard).grid(row=curr_row, column=2, sticky=N)
+        Button(self.frame, width=16, text="ConfigVars to clipboard", command=self.dump_config_vars).grid(row=curr_row, column=2)
+        Button(self.frame, width=16, text="Save state", command=self.instl_obj.write_history).grid(row=curr_row, column=2, sticky=S)
 
         return self.frame
 

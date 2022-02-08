@@ -14,8 +14,15 @@ import re
 import redis
 import boto3
 import threading
+import io
+
+from dataclasses import dataclass
+from ruamel.yaml import YAML
+import strictyaml
+import dictdiffer
 
 import utils
+import yaml
 import aYaml
 from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
@@ -1159,3 +1166,137 @@ class InstlAdmin(InstlInstanceBase):
         out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with ShortIndexYamlCreator(out_file_path, report_own_progress=False) as short_creator:
             short_creator()
+
+    def do_dump_config_vars(self):
+        if "__MAIN_INPUT_FILE__" in config_vars:
+            self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True))
+
+        output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
+        with open(output_file, "w") as wfd:
+            wfd.write("--- !define\n")
+            for identifier in config_vars.keys():
+                the_config_var = config_vars[identifier]
+                if len(the_config_var) > 1:
+                    wfd.write(f"{identifier}: [{', '.join(the_config_var.list())}]")
+                else:
+                    wfd.write(f"{identifier}: {the_config_var}")
+                if the_config_var.raw() != the_config_var.str():
+                    wfd.write(f"  # {the_config_var.raw()}")
+                wfd.write("\n")
+
+    def do_gather_manifest_files_ruamel(self):
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
+
+        @dataclass
+        class ManifestItem:
+            iid: str
+            manifest_node: dict
+            origin_path: Path
+
+        yaml_parser = YAML()
+        yaml_parser.indent(mapping=4, sequence=4, offset=4)
+        def represent_none(self, data):
+            return self.represent_scalar('tag:yaml.org,2002:null', '~')
+        yaml_parser.representer.add_representer(type(None), represent_none)
+
+        num_files = 0
+        manifest_nodes = defaultdict(list)
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for a_file in files:
+                    a_file_path = Path(root, a_file)
+                    if a_file_path.name.endswith("manifest.yaml"):
+                        print(a_file_path)
+                        with open(a_file_path, "r") as rfd:
+                            num_files += 1
+                            # convert tabs to spaces, temp until manifest files are free of tabs
+                            manifest_text = rfd.read()
+                            manifest_text = manifest_text.replace('\t', "    ")
+                            manifest_stream = io.StringIO(manifest_text)
+                            loaded_yaml = yaml_parser.load(manifest_stream)
+                            for a_node_name, a_node_value in loaded_yaml.items():
+                                item = ManifestItem(a_node_name, a_node_value, a_file_path)
+                                manifest_nodes[a_node_name].append(item)
+
+        num_singles = 0
+        num_duplicates = 0
+        num_different = 0
+        diffs_dict = dict()
+        for iid, content_list in manifest_nodes.items():
+            if len(content_list) == 1:
+                num_singles += 1
+            elif len(content_list) == 2:
+                num_duplicates += 1
+                the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node))
+                if the_diff:
+                    num_different += 1
+                    diffs_dict[iid] = the_diff
+                else:
+                    del content_list[1]
+        for iid, the_diff in diffs_dict.items():
+            print(f"{iid}: {the_diff}")
+        print(f"scanned {num_files}, found {len(manifest_nodes)} distinct IIDs")
+        print(f"{num_singles} singles, {num_duplicates}, duplicates, {num_different} dup and different")
+
+        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("index_with_manifest.yamal")
+        with open(out_manifests_file, "w") as wfd:
+            for iid, content_list in manifest_nodes.items():
+                yaml_parser.dump(content_list, wfd)
+
+    def do_gather_manifest_files(self):
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
+
+        @dataclass
+        class ManifestItem:
+            iid: str
+            manifest_node: dict
+            origin_path: Path
+
+        num_files = 0
+        manifest_nodes = defaultdict(list)
+        for folder_to_check in folders_to_check:
+            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
+                for a_file in files:
+                    a_file_path = Path(root, a_file)
+                    if a_file_path.name.endswith("manifest.yaml"):
+                        print(a_file_path)
+                        #a_file_path.write_text(a_file_path.read_text().replace('\t', "    "))
+
+                        manifest_text = a_file_path.read_text()
+                        manifest_text = manifest_text.replace("!", "\!")
+
+                        loaded_yaml = strictyaml.load(manifest_text)
+                        num_files += 1
+                        for a_node_name, a_node_value in loaded_yaml.data.items():
+                            item = ManifestItem(a_node_name, a_node_value, a_file_path)
+                            manifest_nodes[a_node_name].append(item)
+
+        num_singles = 0
+        num_duplicates = 0
+        num_different = 0
+        diffs_dict = dict()
+        for iid, content_list in manifest_nodes.items():
+            if len(content_list) == 1:
+                num_singles += 1
+            elif len(content_list) == 2:
+                num_duplicates += 1
+                the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node))
+                if the_diff:
+                    num_different += 1
+                    diffs_dict[iid] = the_diff
+                else:
+                    del content_list[1]
+        for iid, the_diff in diffs_dict.items():
+            print(f"{iid}: {the_diff}")
+        print(f"scanned {num_files}, found {len(manifest_nodes)} distinct IIDs")
+        print(f"{num_singles} singles, {num_duplicates}, duplicates, {num_different} dup and different")
+
+        all_manifests = dict()
+        for iid, content_list in manifest_nodes.items():
+            all_manifests[iid] = content_list[0].manifest_node
+
+        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("index_with_manifest.yaml")
+        with open(out_manifests_file, "w") as wfd:
+            aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd)
