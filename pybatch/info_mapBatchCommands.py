@@ -126,7 +126,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 for file_item in self.lists_of_files["to redownload"]:
                     download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
                     download_path = file_item.download_path
-                    dler(path=download_path, download_url=download_url, cheksum=file_item.checksum)
+                    dler(path=download_path, url=download_url, checksum=file_item.checksum)
                     super().increment_and_output_progress(increment_by=0,
                                                           prog_msg=f"redownloaded {file_item.download_path}")
                     self.num_bad_files -= 1
