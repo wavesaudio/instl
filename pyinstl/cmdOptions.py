@@ -79,6 +79,7 @@ class CommandLineOptions(object):
     SHELL = OptionToConfigVar()
     RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
     __SILENT__ = OptionToConfigVar()
+    __REMAINDER__ = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -416,6 +417,10 @@ def prepare_args_parser(in_command):
         run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
                             nargs='...',
                             )
+    elif 'exec' == in_command:
+        exec_options = command_parser.add_argument_group(description='exec:')
+        exec_options.add_argument('args', nargs=argparse.REMAINDER)
+
 
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',

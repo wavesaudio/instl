@@ -162,7 +162,8 @@ class InstlMisc(InstlInstanceBase):
 
                 for conf_file in config_files:
                     self.read_yaml_file(conf_file)
-            with Exec(py_file_path, config_files, reuse_db=False, own_progress_count=0, report_own_progress=False) as exec_le:
+            args = config_vars.get('__REMAINDER_ARGV__', []).list()
+            with Exec(py_file_path, config_files, reuse_db=False, own_progress_count=0, report_own_progress=False, args=args) as exec_le:
                 exec_le()
         except Exception as ex:
             log.error(f"""Exception while exec {py_file_path}, {ex}""")
