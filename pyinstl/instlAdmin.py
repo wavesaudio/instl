@@ -1251,8 +1251,9 @@ class InstlAdmin(InstlInstanceBase):
         out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("index_with_manifest.yaml")
         utils.safe_remove_file(out_manifests_file)
 
-        yaml_keys_order = ("name", "version", "guid")
-        yaml_single_value_keys = ("name", "version", "remove_item")
+        yaml_keys_order = config_vars["INDEX_YAML_CANONICAL_KEY_ORDER"].list()
+        yaml_single_value_keys = config_vars["INDEX_YAML_SINGLE_VALUE_KEYS"].list()
+
         @dataclass
         class ManifestItem:
             iid: str
@@ -1310,6 +1311,9 @@ class InstlAdmin(InstlInstanceBase):
         for iid, content_list in manifest_nodes.items():
             all_manifests[iid] = content_list[0].manifest_node
 
+        base_index_path = config_vars["STAGING_FOLDER_BASE_INDEX"].Path()
+
         with open(out_manifests_file, "w") as wfd:
+            wfd.write(base_index_path.read_text())
             aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd)
         print(f"collected manifests written to: {out_manifests_file}")

@@ -146,6 +146,9 @@ def instl_own_main(argv):
                         "ACTING_GID": -1,
                         }
 
+        if hasattr(options, 'args'):
+            initial_vars.update({'__REMAINDER_ARGV__': options.args})
+
         if os_family_name != "Win":
             initial_vars.update(
                         {"__USER_ID__": str(os.getuid()),
