@@ -22,7 +22,7 @@ class DownloadManager(PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
 
         if self.cookie:
-            all_args.append(f"cookie=\"{self.cookie}\"")
+            all_args.append(self.named__init__param("cookie", self.cookie))
 
     def progress_msg_self(self):
         the_progress_msg = f"Downloading file '"
@@ -79,11 +79,11 @@ class DownloadFileAndCheckChecksum(DownloadManager):
         self.checksum = checksum
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(f"url=\"{self.url}\"")
-        all_args.append(f"path=\"{self.path}\"")
+        all_args.append(self.named__init__param("url", self.url))
+        all_args.append(self.named__init__param("path", self.path))
         if self.cookie:
-            all_args.append(f"cookie=\"{self.cookie}\"")
-        all_args.append(f"checksum=\"{self.checksum}\"")
+            all_args.append(self.named__init__param("cookie", self.cookie))
+        all_args.append(self.named__init__param("checksum", self.checksum))
 
     def progress_msg_self(self):
         super().progress_msg_self()
@@ -97,3 +97,4 @@ class DownloadFileAndCheckChecksum(DownloadManager):
         except Exception as ex:
             print("error ", str(ex))
             raise
+
