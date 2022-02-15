@@ -1185,21 +1185,19 @@ class InstlAdmin(InstlInstanceBase):
                 wfd.write("\n")
 
     def do_collect_manifests(self):
-        stage_folder = config_vars["STAGING_FOLDER"].Path()
-        folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
-        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
-        utils.safe_remove_file(out_manifests_file)
-
-        yaml_keys_order = config_vars["INDEX_YAML_CANONICAL_KEY_ORDER"].list()
-        yaml_single_value_keys = config_vars["INDEX_YAML_SINGLE_VALUE_KEYS"].list()
-
         @dataclass
         class ManifestItem:
+            """ holds one IID collected from manifest.yaml files"""
             iid: str
             manifest_node: dict
             origin_path: Path
 
+        yaml_keys_order = config_vars["INDEX_YAML_CANONICAL_KEY_ORDER"].list()
+        yaml_single_value_keys = config_vars["INDEX_YAML_SINGLE_VALUE_KEYS"].list()
+
         class ManifestYamlReader(ConfigVarYamlReader):
+            """ overrides ConfigVarYamlReader to read manifest.yaml files
+            """
             def __init__(self, config_vars):
                 super().__init__(config_vars)
                 self.manifest_nodes = defaultdict(list)
@@ -1214,16 +1212,16 @@ class InstlAdmin(InstlInstanceBase):
                     item = ManifestItem(a_node_name, aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys), self.file_read_stack[-1])
                     self.manifest_nodes[a_node_name].append(item)
 
+        stage_folder = config_vars["STAGING_FOLDER"].Path()
         reader = ManifestYamlReader(config_vars)
         num_files = 0
-        for folder_to_check in folders_to_check:
-            for root, dirs, files in os.walk(folder_to_check, followlinks=False):
-                for a_file in files:
-                    a_file_path = Path(root, a_file)
-                    if a_file_path.name.endswith("manifest.yaml"):
-                        print(a_file_path)
-                        reader.read_yaml_file(a_file_path)
-                        num_files += 1
+        for root, dirs, files in os.walk(stage_folder, followlinks=False):
+            for a_file in files:
+                a_file_path = Path(root, a_file)
+                if a_file_path.name.endswith("manifest.yaml"):
+                    print(a_file_path)
+                    reader.read_yaml_file(a_file_path)
+                    num_files += 1
 
         manifest_nodes = reader.manifest_nodes
         num_singles = 0
@@ -1251,9 +1249,9 @@ class InstlAdmin(InstlInstanceBase):
             all_manifests[iid] = content_list[0].manifest_node
 
         base_index_path = config_vars["STAGING_FOLDER_BASE_INDEX"].Path()
-
+        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
         with open(out_manifests_file, "w") as wfd:
-            wfd.write(base_index_path.read_text())
+            wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
             wfd.write("\n# below are IIDs collected from manifest.yaml files\n\n")
             aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
         print(f"collected manifests written to: {out_manifests_file}")

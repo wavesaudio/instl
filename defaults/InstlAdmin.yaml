@@ -2,7 +2,7 @@
 
 
 STAGING_FOLDER_INDEX: "$(STAGING_FOLDER)/instl/index.yaml"
-STAGING_FOLDER_BASE_INDEX: "$(STAGING_FOLDER)/instl/base_index.yaml"
+STAGING_FOLDER_BASE_INDEX: "$(STAGING_FOLDER)/instl/index_base.yaml"
 UP_2_S3_STAMP_FILE_NAME: up2s3.done
 SVN_CLIENT_PATH: wsvn
 MAIN_INFO_MAP_FILE_NAME: info_map.txt
