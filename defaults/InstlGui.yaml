@@ -18,6 +18,7 @@ __ADMIN_GUI_CMD_LIST__:
 #  - gather-manifest-files
   - wtar
   - fix-symlinks
+  - collect-manifests
   - verify-repo
   - stage2svn
   - fix-props
