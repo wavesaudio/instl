@@ -5,6 +5,7 @@ import json
 import re
 from typing import List
 import logging
+from collections.abc import Iterable
 
 from configVar import config_vars
 from configVar import ConfigVarYamlReader
@@ -322,13 +323,14 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_file=None, raise_if_unresolved=False,
+    def __init__(self, unresolved_file, resolved_file=None, config_file=None, config_files=None, raise_if_unresolved=False,
                  temp_config_vars=None, resolve_indicator='$', **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
         :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
-        :param config_file: additional file to read config_vars definitions from
+        :param config_file: deprecated, replaced by config_files, still supported for backward compatibility
+        :param config_files: additional files to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
         :param resolve_indicator: config vars marked with this char (default '$') will be resolved
         """
@@ -338,7 +340,11 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
             self.resolved_file = resolved_file
         else:
             self.resolved_file = self.unresolved_file
-        self.config_file = config_file
+        self.config_files = config_files
+        if config_file:
+            if not isinstance(self.config_files, list):
+                self.config_files = list()
+            self.config_files.append(config_file)
         self.raise_if_unresolved = raise_if_unresolved
         self.temp_config_vars = temp_config_vars
         self.resolve_indicator = resolve_indicator
@@ -347,7 +353,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.unresolved_file))
         if self.resolved_file != self.unresolved_file:
             all_args.append(self.unnamed__init__param(self.resolved_file))
-        all_args.append(self.optional_named__init__param("config_file", self.config_file, None))
+        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
         all_args.append(self.optional_named__init__param("resolve_indicator", self.resolve_indicator, '$'))
         if self.temp_config_vars:
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
@@ -361,9 +367,15 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         with config_vars.push_scope_context() as scope_context:
             if self.temp_config_vars:
                 config_vars.update(self.temp_config_vars)
-            if self.config_file:
+            if self.config_files:
                 reader = ConfigVarYamlReader(config_vars)
-                reader.read_yaml_file(self.config_file)
+                if isinstance(self.config_files, (str, os.PathLike)):
+                    reader.read_yaml_file(self.config_files)
+                elif isinstance(self.config_files, Iterable):
+                    for config_file in self.config_files:
+                        reader.read_yaml_file(config_file)
+                else:
+                    raise ValueError(f"member self.config_files is not a string or a list: {self.config_files}")
             with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
                 text_to_resolve = rfd.read()
 

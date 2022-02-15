@@ -180,8 +180,8 @@ STEVE: Jobs
             wfd.write(unresolved_text)
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += ConfigVarAssign("BANANA", "Rama")
-        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_dollar, config_file=config_file)
-        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_at, config_file=config_file, resolve_indicator='@')
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_dollar, config_files=config_file)
+        self.pbt.batch_accum += ResolveConfigVarsInFile(unresolved_file, resolve_file_at, config_files=config_file, resolve_indicator='@')
         self.pbt.exec_and_capture_output()
 
         with resolve_file_dollar.open("r") as rfd:
