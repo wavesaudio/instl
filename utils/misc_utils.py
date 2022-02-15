@@ -371,7 +371,7 @@ def make_one_list(*things):
     """
     retVal = list()
     for thing in things:
-        if isinstance(thing, collections.Iterable) and not isinstance(thing, str):
+        if isinstance(thing, collections.abc.Iterable) and not isinstance(thing, str):
             retVal.extend(thing)
         else:
             retVal.append(thing)

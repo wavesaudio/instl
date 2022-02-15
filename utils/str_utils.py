@@ -96,9 +96,9 @@ def quoteme_raw_by_type(some_thing, config_vars=None):
         retVal = quoteme_raw_string(some_thing)
     elif isinstance(some_thing, os.PathLike):
         retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
-    elif isinstance(some_thing, collections.Sequence):
+    elif isinstance(some_thing, collections.abc.Sequence):
        retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing),"]"))
-    elif isinstance(some_thing, collections.Mapping):
+    elif isinstance(some_thing, collections.abc.Mapping):
         item_strs = list()
         for k, v in sorted(some_thing.items()):
             item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v, config_vars)}""")
@@ -114,7 +114,7 @@ def quoteme_raw_list(list_of_things):
 def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
     if isinstance(list_of_things, str):
         retVal = quoteme_raw_if_string(list_of_things)
-    elif isinstance(list_of_things, collections.Sequence):
+    elif isinstance(list_of_things, collections.abc.Sequence):
         if one_element_list_as_string and len(list_of_things) == 1:
             retVal = quoteme_raw_if_string(list_of_things[0])
         else:
