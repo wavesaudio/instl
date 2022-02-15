@@ -315,7 +315,7 @@ def alias_for_dict(pyObj, alias_indicator):
     return retVal
 
 
-def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicator=None):
+def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicator=None, top_level_blank_line=False):
     if out_stream is None:
         out_stream = sys.stdout
     if indentor is None:
@@ -330,13 +330,13 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
             for item in pyObj:
                 if isinstance(item, YamlDumpDocWrap):
                     indentor.push(None)  # doc should have no parent
-                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
+                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator, top_level_blank_line)
                     indentor.pop()
                 else:
                     indentor.lineSepAndIndent(out_stream)
                     indentor.write_extra_chars(out_stream, "- ")
                     indentor += 1
-                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
+                    writeAsYaml(item, out_stream, indentor, sort, alias_indicator, top_level_blank_line)
                     indentor -= 1
         indentor.pop()
     elif isinstance(pyObj, (dict, OrderedDict)):
@@ -353,27 +353,29 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
             nl_before_key = (parent_item != 'l')
             if nl_before_key:
                 indentor.lineSepAndIndent(out_stream)
-            writeAsYaml(item, out_stream, indentor, sort, alias_indicator)
+            writeAsYaml(item, out_stream, indentor, sort, alias_indicator, top_level_blank_line)
             indentor.write_extra_chars(out_stream, ":")
             if isScalar(pyObj[item]) or not getattr(pyObj[item], "value", None):  # value is either a scalar or empty list/map
                 indentor.write_extra_chars(out_stream, " ")
             indentor += 1
-            writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator)
+            writeAsYaml(pyObj[item], out_stream, indentor, sort, alias_indicator, top_level_blank_line)
             indentor -= 1
         indentor.pop()
+        if top_level_blank_line and 1 == indentor.cur_indent:
+            out_stream.write("\n")
     elif isinstance(pyObj, YamlDumpWrap):
         pyObj.writePrefix(out_stream, indentor)
-        writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings, alias_indicator)
+        writeAsYaml(pyObj.value, out_stream, indentor, sort or pyObj.sort_mappings, alias_indicator, top_level_blank_line)
         pyObj.writePostfix(out_stream, indentor)
     else:
         if hasattr(pyObj, "repr_for_yaml"):
-            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort, alias_indicator)
+            writeAsYaml(pyObj.repr_for_yaml(), out_stream, indentor, sort, alias_indicator, top_level_blank_line)
         else:
             if pyObj is None:
                 pyObj_as_string = '~'
             else:
                 pyObj_as_string = str(pyObj)
-                if not pyObj_as_string: # it's a string but an empty one
+                if not pyObj_as_string:  # it's a string but an empty one
                     pyObj_as_string = '""'
             out_stream.write(pyObj_as_string)
     # add the final end-of-line. But if writeAsYaml is recursed from outside writeAsYaml
@@ -382,14 +384,30 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         indentor.lineSepAndIndent(out_stream)
 
 
-def nodeToPy(a_node):
+def nodeToPy(a_node, order=None, single_value=None):
+    if order is None:
+        order = []
+    if single_value is None:
+        single_value = []
     retVal = None
     if a_node.isScalar():
-        retVal = str(a_node.value)
+        retVal = a_node.value
     elif a_node.isSequence():
         retVal = [nodeToPy(item) for item in a_node.value]
     elif a_node.isMapping():
-        retVal = {str(_key.value): nodeToPy(_val) for (_key, _val) in a_node.value}
+        retVal = OrderedDict()
+        names_in_order = list()
+        names_from_node = [str(_key) for _key in a_node]
+        for name in order:
+            if name in names_from_node:
+                names_in_order.append(name)
+                names_from_node.remove(name)
+        names_in_order.extend(names_from_node)  # add names in node that do not appear in order
+        for name in names_in_order:
+            value = a_node[name]
+            if name in single_value and value.isSequence() and 1 == len(value):
+                value = value[0]
+            retVal[name] = nodeToPy(value, order, single_value)
     return retVal
 
 

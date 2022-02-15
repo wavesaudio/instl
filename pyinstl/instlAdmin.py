@@ -1187,7 +1187,7 @@ class InstlAdmin(InstlInstanceBase):
     def do_collect_manifests(self):
         stage_folder = config_vars["STAGING_FOLDER"].Path()
         folders_to_check = self.prepare_list_of_dirs_to_work_on(stage_folder)
-        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("index_with_manifest.yaml")
+        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
         utils.safe_remove_file(out_manifests_file)
 
         yaml_keys_order = config_vars["INDEX_YAML_CANONICAL_KEY_ORDER"].list()
@@ -1254,5 +1254,6 @@ class InstlAdmin(InstlInstanceBase):
 
         with open(out_manifests_file, "w") as wfd:
             wfd.write(base_index_path.read_text())
-            aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd)
+            wfd.write("\n# below are IIDs collected from manifest.yaml files\n\n")
+            aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
         print(f"collected manifests written to: {out_manifests_file}")

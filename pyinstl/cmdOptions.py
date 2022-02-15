@@ -133,14 +133,14 @@ def prepare_args_parser(in_command):
         # admin commands
         all_command_details.update({
             # converted to instl 2 style
-            'activate-repo-rev':          {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
+            'activate-repo-rev':    {'mode': 'admin', 'options': ('out', 'run', 'conf',), 'help':  'upload repository revision file to admin folder'},
+            'collect-manifests':    {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help': 'gather manifest.yaml files to single index.yaml' },
             'depend':               {'mode': 'admin', 'options': ('in', 'out',), 'help':  'output a dependencies map for an index file'},
             'dump-config-vars':     {'mode': 'admin', 'options': ('in_opt', 'out','conf_opt'), 'help':  'dump values of all configVars to file'},
             'file-sizes':           {'mode': 'admin', 'options': ('in', 'out'), 'help':  'Create a list of files and their sizes'},
             'fix-perm':             {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'Fix Mac OS permissions'},
             'fix-props':            {'mode': 'admin', 'options': ('out', 'run', 'conf'), 'help':  'create svn commands to remove redundant properties such as executable bit from files that should not be marked executable'},
             'fix-symlinks':         {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'replace symlinks with .symlinks files'},
-            'gather-manifest-files':{'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help': 'gather manifest.yaml files to single index.yaml' },
             'stage2svn':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'add/remove files in staging to svn sync repository'},
             'svn2stage':            {'mode': 'admin', 'options': ('out', 'run', 'conf', 'limit'), 'help':  'svn sync repository and copy to staging folder'},
             'verify-repo':          {'mode': 'admin', 'options': ('conf',), 'help':  'Verify a local repository against its index'},
