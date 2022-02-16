@@ -7,7 +7,7 @@ import abc
 from pathlib import Path
 import appdirs
 import urllib.error
-import io
+import functools
 import datetime
 import time
 import logging
@@ -23,7 +23,6 @@ from db import DBManager
 from pybatch import *
 
 from .curlHelper import CUrlHelper
-import functools
 
 log = logging.getLogger()
 
@@ -61,8 +60,12 @@ class IndexYamlReaderBase(DBManager, ConfigVarYamlReader):
 
     def init_specific_doc_readers(self):
         ConfigVarYamlReader.init_specific_doc_readers(self)
-        self.specific_doc_readers["!index"] = self.read_index
         self.specific_doc_readers["!require"] = self.read_require
+        self.specific_doc_readers["!index"] = self.read_index
+        if "TARGET_OS" in config_vars:
+            self.specific_doc_readers[config_vars.resolve_str("!index_$(TARGET_OS)")] = self.read_index
+            if "!index_Mac" in self.specific_doc_readers and "!index_Win" in self.specific_doc_readers:
+                raise AssertionError("both !index_Mac and !index_Win cannot be defined simultaneously")
 
     def read_index(self, a_node, *args, **kwargs):
         self.items_table.read_index_node(a_node, **kwargs)
@@ -73,7 +76,7 @@ class IndexYamlReaderBase(DBManager, ConfigVarYamlReader):
 
 
 # noinspection PyPep8Naming
-class InstlInstanceBase(DBManager, ConfigVarYamlReader, metaclass=abc.ABCMeta):
+class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
     """ Main object of instl. Keeps the state of variables and install index
         and knows how to create a batch file for installation. InstlInstanceBase
         must be inherited by platform specific implementations, such as InstlInstance_mac
