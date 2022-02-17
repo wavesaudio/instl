@@ -1191,6 +1191,7 @@ class InstlAdmin(InstlInstanceBase):
             iid: str
             manifest_node: dict
             origin_path: Path
+            top_level_tag: str = None  # Mac/Win/Common
 
         yaml_keys_order = config_vars["INDEX_YAML_CANONICAL_KEY_ORDER"].list()
         yaml_single_value_keys = config_vars["INDEX_YAML_SINGLE_VALUE_KEYS"].list()
@@ -1209,19 +1210,24 @@ class InstlAdmin(InstlInstanceBase):
 
             def manifest_node_reader(self, the_node, *args, **kwargs):
                 for a_node_name, a_node_value in the_node.items():
-                    item = ManifestItem(a_node_name, aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys), self.file_read_stack[-1])
+                    yaml_node_as_dict = aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys)
+                    top_level_tag = kwargs.get("top_level_tag", None)
+                    item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)
                     self.manifest_nodes[a_node_name].append(item)
 
         stage_folder = config_vars["STAGING_FOLDER"].Path()
         reader = ManifestYamlReader(config_vars)
         num_files = 0
-        for root, dirs, files in os.walk(stage_folder, followlinks=False):
-            for a_file in files:
-                a_file_path = Path(root, a_file)
-                if a_file_path.name.endswith("manifest.yaml"):
-                    print(a_file_path)
-                    reader.read_yaml_file(a_file_path)
-                    num_files += 1
+        for top_level_dir in stage_folder.glob("*"):
+            if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
+                top_level_tag = top_level_dir.name
+                for root, dirs, files in os.walk(top_level_dir, followlinks=False):
+                    for a_file in files:
+                        a_file_path = Path(root, a_file)
+                        if a_file_path.name.endswith("manifest.yaml"):
+                            print(a_file_path)
+                            reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
+                            num_files += 1
 
         manifest_nodes = reader.manifest_nodes
         num_singles = 0
@@ -1231,27 +1237,40 @@ class InstlAdmin(InstlInstanceBase):
         for iid, content_list in manifest_nodes.items():
             if len(content_list) == 1:
                 num_singles += 1
+                content_list[0].top_level_tag = "Common"
             elif len(content_list) == 2:
                 num_duplicates += 1
-                the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node))
+                the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node, ignore=['top_level_tag']))
                 if the_diff:
                     num_different += 1
-                    #diffs_dict[iid] = the_diff
                 else:
                     del content_list[1]
-#        for iid, the_diff in diffs_dict.items():
-#            print(f"{iid}: {the_diff}")
+                    content_list[0].top_level_tag = "Common"
+            else:
+                print(f"IID {iid} found in more than 2 files")
+                for item in content_list:
+                    print(f"    {item.origin_path}")
+                manifest_nodes[iid].clear()
+
         print(f"scanned {num_files}, found {len(manifest_nodes)} distinct IIDs")
         print(f"{num_singles} singles, {num_duplicates} duplicates, {num_different} dup and different")
 
-        all_manifests = dict()
+        all_manifests = {"Common": dict(), "Mac": dict(), "Win": dict()}
         for iid, content_list in manifest_nodes.items():
-            all_manifests[iid] = content_list[0].manifest_node
+            for contents in content_list:
+                all_manifests[contents.top_level_tag][iid] = contents.manifest_node
 
         base_index_path = config_vars["STAGING_FOLDER_BASE_INDEX"].Path()
         out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
         with open(out_manifests_file, "w") as wfd:
             wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
             wfd.write("\n# below are IIDs collected from manifest.yaml files\n\n")
-            aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests, tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
+            if all_manifests["Common"]:
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Common"], tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
+            if all_manifests["Mac"]:
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Mac"], tag="!index_Mac", sort_mappings=True), wfd,
+                              top_level_blank_line=True)
+            if all_manifests["Win"]:
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Win"], tag="!index_Win", sort_mappings=True), wfd,
+                              top_level_blank_line=True)
         print(f"collected manifests written to: {out_manifests_file}")
