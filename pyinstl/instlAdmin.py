@@ -385,6 +385,7 @@ class InstlAdmin(InstlInstanceBase):
         for a_folder in items_to_check:
             self.batch_accum += Unlock(a_folder, recursive=True)
             self.batch_accum += RmGlob(a_folder, '**/.DS_Store')
+            self.batch_accum += RmGlob(a_folder, '**/*~*')
             self.batch_accum += Progress(f"delete ignored files in {a_folder}")
 
         total_items_to_tar = 0
