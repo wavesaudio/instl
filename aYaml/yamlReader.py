@@ -148,7 +148,11 @@ class YamlReader(object):
     def read_yaml_from_stream(self, the_stream, *args, **kwargs):
         for a_node in yaml.compose_all(the_stream):
             with kwargs['node-stack'](a_node):
-                self.read_yaml_from_node(a_node, *args, **kwargs)
+                try:
+                    self.read_yaml_from_node(a_node, *args, **kwargs)
+                except Exception as ex:
+                    print(ex)
+                    raise
 
     def read_json_from_stream(self, the_stream, *args, **kwargs):
         json_obj = json.load(the_stream)

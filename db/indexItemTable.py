@@ -592,8 +592,11 @@ class IndexItemsTable(object):
             template_match = self.template_re.match(IID)
             with kwargs['node-stack'](a_node[IID]):
                 if template_match:
-                    node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
-                    self.read_index_node_helper(node, index_items, items_details, **kwargs)
+                    try:
+                        node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                        self.read_index_node_helper(node, index_items, items_details, **kwargs)
+                    except:
+                        raise
                 else:
                     item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
                     index_items.append(item)
@@ -626,51 +629,83 @@ class IndexItemsTable(object):
         insert_item_detail_q = """INSERT INTO index_item_detail_t(original_iid, owner_iid, os_id,
                                                                   detail_name, detail_value, tag)
                                                                   VALUES(?,?,?,?,?,?)"""
-        for IID in a_node:
+        current_iid = None       # to keep track which iid is causing problems
+        current_template = None  # to keep track which template is causing problems
+        current_node = a_node  # to keep track which node is causing problems
+        current_detail = None
+        for IID_or_template in a_node:
+            current_iid = IID_or_template
             try:
-                with kwargs['node-stack'](a_node[IID]):
+                current_node = a_node[IID_or_template]
+                with kwargs['node-stack'](a_node[IID_or_template]):
                     index_items = list()
                     items_details = list()
 
-                    template_match = self.template_re.match(IID)
+                    template_match = self.template_re.match(IID_or_template)
                     if template_match:
-                        node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                        current_template = IID_or_template
+                        node = self.read_index_template_node(template_match, a_node[IID_or_template], **kwargs)
                         self.read_index_node_helper(node, index_items, items_details, **kwargs)
                     else:
-                        item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
+                        current_template = None
+                        item, original_item_details = self.item_from_index_node(IID_or_template, a_node[IID_or_template], **kwargs)
                         index_items.append(item)
                         items_details.extend(original_item_details)
 
                     with self.db.transaction() as curs:
-                        curs.executemany(insert_item_q, index_items)
-                        curs.executemany(insert_item_detail_q, items_details)
+                        for item in index_items:
+                            current_iid = item[0]
+                            curs.execute(insert_item_q, item)
+                        for detail in items_details:
+                            current_detail = detail
+                            curs.execute(insert_item_detail_q, detail)
                         curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
                         curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
             except Exception as ex:
-                print(f"failed reading {IID}: {ex}")
+                print(f"failed reading {current_iid}")
+                if current_template and current_template != current_iid:
+                    print(f"    from template {current_template}")
+                if current_detail:
+                    print(f"    {current_detail}")
+                if hasattr(ex, "lines"):
+                    print(f"    lines {ex.lines[0]} -> {ex.lines[0]}")
+                else:
+                    print(f"    lines {current_node.start_mark.line} -> {current_node.end_mark.line}")
+                print(f"    {ex}")
                 raise
 
     def read_index_template_node(self, template_match, instances_node, **kwargs):
-        template_name = template_match['template_name']
-        template_args = template_match['template_args'].split(',')
-        template_args = [a.strip() for a in template_args]
-        template_text = config_vars[template_name].raw()
-        yaml_text = "--- !index\n"
-        for instance_node in instances_node.value:
-            with kwargs['node-stack'](instance_node):
-                if instance_node.isSequence():
-                    with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
-                        arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
-                        for arg, val in arg_values:
-                            pcf[arg] = val
-                        resolved_instance = pcf.shallow_resolve_str(template_text)
-                        yaml_text += resolved_instance
-                        #print("resolved template for ", arg_values[0][1])
-            #print(yaml_text)
-        yaml_stream = io.StringIO(yaml_text)  # convert the test to stream so 'name' attrib can be set,
-        yaml_stream.name = template_name      # which is useful for error reporting
-        out_node = yaml.compose(yaml_stream)
-        YamlReader.convert_standard_tags(out_node)
+        resolve_one_by_one = bool(config_vars.get("DEBUG_INDEX_DB", False))
+        try:
+            lines_range = instances_node.start_mark.line, instances_node.end_mark.line
+            template_name = template_match['template_name']
+            template_args = template_match['template_args'].split(',')
+            template_args = [a.strip() for a in template_args]
+            template_text = config_vars[template_name].raw()
+            yaml_stream = io.StringIO("--- !index\n")
+            for instance_node in instances_node.value:
+                with kwargs['node-stack'](instance_node):
+                    lines_range = instance_node.start_mark.line+1, instance_node.end_mark.line+1
+                    if instance_node.isSequence():
+                        with private_config_vars() as pcf:  # use private config vars so that only template parameters will be resolved
+                            arg_values = list(zip(template_args, [var_val.value for var_val in instance_node.value]))
+                            for arg, val in arg_values:
+                                pcf[arg] = val
+                            resolved_instance = pcf.shallow_resolve_str(template_text)
+                            yaml_stream.write(resolved_instance)
+                            if resolve_one_by_one:  # call yaml.compose so that it will raise exception in case of error
+                                yaml_stream.seek(0, io.SEEK_SET)
+                                yaml.compose(yaml_stream)
+                                yaml_stream.seek(0, io.SEEK_END)
+            # yaml_stream = io.StringIO(yaml_text)  # convert the test to stream so 'name' attrib can be set,
+            yaml_stream.name = template_name      # which is useful for error reporting
+            yaml_stream.seek(0, io.SEEK_SET)
+            out_node = yaml.compose(yaml_stream)
+            YamlReader.convert_standard_tags(out_node)
+        except Exception as ex:
+            new_ex = ValueError(f"while parsing template {template_name}")
+            new_ex.lines = lines_range
+            raise new_ex from ex
         return out_node
 
     def clean_require_items(self, require_details):

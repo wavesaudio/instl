@@ -113,7 +113,7 @@ def prepare_args_parser(in_command):
             'check-checksum':       {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
             'checksum':             {'mode': 'do_something', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
             'command-list':         {'mode': 'do_something', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
-            'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
+            'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt', 'db'), 'help':  'Execute a python scrip'},
             'fail':                 {'mode': 'do_something', 'options': (), 'help': "fail and return exit code"},
             'help':                 {'mode': 'do_something', 'options': (), 'help':  'help'},
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
