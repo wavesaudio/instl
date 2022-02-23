@@ -23,7 +23,7 @@ a = Analysis(['instl'],
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose", 'PyInstaller',
                         "tkinter", "Tkinter", "scipy", "setuptools", "colorama",
-                        "botocore", "boto3", "redis"],
+                        "botocore", "boto3", "redis", "rich"],
              win_no_prefer_redirects=None,
              win_private_assemblies=None,
              cipher=block_cipher)

@@ -4,4 +4,4 @@ boto3
 dictdiffer
 pip
 redis
-
+rich

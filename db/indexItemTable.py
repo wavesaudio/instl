@@ -662,16 +662,26 @@ class IndexItemsTable(object):
                         curs.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ix_index_item_t_iid ON index_item_t(iid)""")
                         curs.execute("""CREATE INDEX IF NOT EXISTS ix_index_item_t_owner_iid ON index_item_detail_t(owner_iid)""")
             except Exception as ex:
-                print(f"failed reading {current_iid}")
+                try:
+                    from rich.console import Console
+                    console = Console()
+                    rich_print = console.print
+                    rich_ruler = console.rule
+                except:
+                    rich_print = print
+                    rich_ruler = print
+
+                rich_ruler(f"[blue underline]failed reading {current_iid}")
                 if current_template and current_template != current_iid:
-                    print(f"    from template {current_template}")
+                    rich_print(f"    from template {current_template}")
                 if current_detail:
-                    print(f"    {current_detail}")
+                    rich_print(f"    {current_detail}")
                 if hasattr(ex, "lines"):
-                    print(f"    lines {ex.lines[0]} -> {ex.lines[0]}")
+                    rich_print(f"    lines {ex.lines[0]} -> {ex.lines[0]}")
                 else:
-                    print(f"    lines {current_node.start_mark.line} -> {current_node.end_mark.line}")
-                print(f"    {ex}")
+                    rich_print(f"    lines {current_node.start_mark.line} -> {current_node.end_mark.line}")
+                rich_print(f"    {ex}")
+                rich_ruler("***")
                 raise
 
     def read_index_template_node(self, template_match, instances_node, **kwargs):
