@@ -17,7 +17,6 @@ import threading
 import io
 
 from dataclasses import dataclass
-import strictyaml
 import dictdiffer
 
 import utils
