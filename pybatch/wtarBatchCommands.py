@@ -44,7 +44,10 @@ class Wtar(PythonBatchCommandBase):
         all_args.append(self.optional_named__init__param("split_threshold", self.split_threshold, 0))
 
     def progress_msg_self(self) -> str:
-        return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
+        if self.where_to_put_wtar:
+            return f"""Compress '{self.what_to_wtar}' to '{self.where_to_put_wtar}'"""
+        else:
+            return f"""Compress '{self.what_to_wtar}' inplace"""
 
     def __call__(self, *args, **kwargs) -> None:
         """ Create a new wtar archive for a file or folder provided in self.what_to_wtar

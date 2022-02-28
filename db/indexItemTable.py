@@ -527,53 +527,61 @@ class IndexItemsTable(object):
         # go through the raw yaml nodes instead of doing "for detail_name in the_node".
         # this is to overcome index.yaml with maps that have two keys with the same name.
         # Although it's not valid yaml some index.yaml versions have this problem.
-        for detail_node in the_node.value:
-            with kwargs['node-stack'](detail_node):
-                detail_name = detail_node[0].value
-                with kwargs['node-stack'](detail_node[1]):
-                    if detail_name in IndexItemsTable.os_names_to_num:
-                        os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name, **kwargs)
-                        details.extend(os_specific_details)
-                    elif detail_name == 'actions':
-                        actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os, **kwargs)
-                        details.extend(actions_details)
-                    elif detail_name.startswith("define"):
-                        self.defines_for_iids[the_iid] = detail_node[1]
-                        self.defines_for_iids[the_iid].tag = "!"+detail_name
-                    else:
-                        for details_line in detail_node[1]:
-                            with kwargs['node-stack'](details_line):
-                                tag = details_line.tag if details_line.tag[0] == '!' else None
-                                value = details_line.value
-                                if detail_name in ("install_sources", "previous_sources") and tag is None:
-                                    tag = '!dir'
-                                elif detail_name == "guid":
-                                    if value:
-                                        value = value.lower()
+        try:
+            detail_name = ""
+            for detail_node in the_node.value:
+                with kwargs['node-stack'](detail_node):
+                    detail_name = detail_node[0].value
+                    with kwargs['node-stack'](detail_node[1]):
+                        if detail_name in IndexItemsTable.os_names_to_num:
+                            os_specific_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os=detail_name, **kwargs)
+                            details.extend(os_specific_details)
+                        elif detail_name == 'actions':
+                            actions_details = self.read_item_details_from_node(the_iid, detail_node[1], the_os, **kwargs)
+                            details.extend(actions_details)
+                        elif detail_name.startswith("define"):
+                            self.defines_for_iids[the_iid] = detail_node[1]
+                            self.defines_for_iids[the_iid].tag = "!"+detail_name
+                        else:
+                            for details_line in detail_node[1]:
+                                with kwargs['node-stack'](details_line):
+                                    tag = details_line.tag if details_line.tag[0] == '!' else None
+                                    value = details_line.value
+                                    if detail_name in ("install_sources", "previous_sources") and tag is None:
+                                        tag = '!dir'
+                                    elif detail_name == "guid":
+                                        if value:
+                                            value = value.lower()
 
-                                if detail_name == "install_sources":
-                                    if value.startswith('/'):  # absolute path
-                                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
-                                                        detail_name, value[1:], tag)
+                                    if detail_name == "install_sources":
+                                        if value.startswith('/'):  # absolute path
+                                            new_detail = (the_iid, the_iid, self.os_names_to_num[the_os],
+                                                            detail_name, value[1:], tag)
+                                            details.append(new_detail)
+                                        else:  # relative path
+                                            # because 'common' is in both groups this will create 2 index_item_detail_t
+                                            # if OS is 'common', and 1 otherwise
+                                            count_insertions = 0
+                                            for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
+                                                             ('common', 'Win', 'Win32', 'Win64')):
+                                                if the_os in os_group:
+                                                    item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
+                                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                                    assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
+                                                    new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
+                                                                    detail_name, "/".join((path_prefix_os, value)), tag)
+                                                    details.append(new_detail)
+                                                    count_insertions += 1
+                                            assert count_insertions < 3, f"count_insertions: {count_insertions}"
+                                    else:
+                                        new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
                                         details.append(new_detail)
-                                    else:  # relative path
-                                        # because 'common' is in both groups this will create 2 index_item_detail_t
-                                        # if OS is 'common', and 1 otherwise
-                                        count_insertions = 0
-                                        for os_group in (('common', 'Mac', 'Mac32', 'Mac64'),
-                                                         ('common', 'Win', 'Win32', 'Win64')):
-                                            if the_os in os_group:
-                                                item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                                path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
-                                                assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
-                                                new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
-                                                                detail_name, "/".join((path_prefix_os, value)), tag)
-                                                details.append(new_detail)
-                                                count_insertions += 1
-                                        assert count_insertions < 3, f"count_insertions: {count_insertions}"
-                                else:
-                                    new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
-                                    details.append(new_detail)
+        except Exception as ex:
+            print(f"exception while reading details for iid {the_iid}")
+            print(f"lines {the_node.start_mark.line} - {the_node.end_mark.line}")
+            if detail_name:
+                print(f"detail name {detail_name}")
+            raise
         return details
 
     def item_from_index_node(self, the_iid: str, the_node: yaml.MappingNode, **kwargs) -> ((str, bool), List):

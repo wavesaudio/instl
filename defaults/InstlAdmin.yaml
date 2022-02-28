@@ -2,6 +2,7 @@
 
 
 STAGING_FOLDER_INDEX: "$(STAGING_FOLDER)/instl/index.yaml"
+STAGING_FOLDER_BASE_INDEX: "$(STAGING_FOLDER)/instl/index_base.yaml"
 UP_2_S3_STAMP_FILE_NAME: up2s3.done
 SVN_CLIENT_PATH: wsvn
 MAIN_INFO_MAP_FILE_NAME: info_map.txt
@@ -54,3 +55,33 @@ FILE_EXCLUDE_REGEX:
     - '\.DS_Store'
 
 DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH: $(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/config.yaml
+
+# preferred order for fields within an IID
+# used in collect-manifests
+INDEX_YAML_CANONICAL_KEY_ORDER:
+    - name
+    - version
+    - guid
+    - pre_sync
+    - post_sync
+    - pre_copy
+    - pre_copy_to_folder
+    - pre_copy_item
+    - post_copy_item
+    - post_copy_to_folder
+    - post_copy
+    - pre_remove
+    - pre_remove_from_folder
+    - pre_remove_item
+    - remove_item
+    - post_remove_item
+    - post_remove_from_folder
+    - post_remove
+
+# the value of these IID fields will be converted from a single item sequence to scalar
+# used in collect-manifests
+INDEX_YAML_SINGLE_VALUE_KEYS:
+    - name
+    - version
+    - guid
+    - remove_item
