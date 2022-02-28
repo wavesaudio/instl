@@ -127,7 +127,7 @@ remove_obstacles:
         parents_stack = list()  # list of non-existing parents
         _parent_path = self.path_to_make
         while not _parent_path.is_dir():
-            if _parent_path.is_symlink() or _parent_path.is_file() and self.remove_obstacles:  # yes that can happen
+            if self.remove_obstacles and (_parent_path.is_symlink() or _parent_path.is_file()) :  # yes that can happen
                 with RmFile(_parent_path, **kwargs_for_subcommands) as remover:
                     remover()
             parents_stack.append(_parent_path)
