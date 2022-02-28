@@ -604,7 +604,7 @@ class IndexItemsTable(object):
 
     def read_index_node(self, a_node: yaml.MappingNode, **kwargs) -> None:
         if bool(config_vars.get("DEBUG_INDEX_DB", False)):
-            print("DEBUG_INDEX_DB is true reading index one by one")
+            print("DEBUG_INDEX_DB is true reading IIDs one by one")
             self.read_index_node_one_by_one(a_node, **kwargs)
             return
 
