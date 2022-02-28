@@ -385,7 +385,7 @@ class DBAccess(object):
     def __get__(self, instance, owner):
         if self._db is None:
             self.get_default_db_file()
-            db_url = config_vars["__MAIN_DB_FILE__"].Path()
+            db_url = config_vars["__MAIN_DB_FILE__"].str()
             ddls_folder = config_vars["__INSTL_DEFAULTS_FOLDER__"].Path()
             self._db = DBMaster(os.fspath(db_url), ddls_folder)
             config_vars["__DATABASE_URL__"] = db_url
@@ -398,7 +398,15 @@ class DBAccess(object):
             self._db = None
 
     def get_default_db_file(self):
-        if "__MAIN_DB_FILE__" not in config_vars:
+        """  :memory: is the default and means db will be in memory and not written to disk
+             :file:   mean db will be in a disk file, but the name and location will be decided by the code
+             any other value will be used as path to db file
+        """
+        db_file = config_vars.setdefault("__MAIN_DB_FILE__", ":memory:").str()
+        if ":memory:" == db_file:
+            pass
+        elif ":file:" == db_file:
+            # decide the path to db according to input or output file name
             db_base_path = None
             if "__MAIN_OUT_FILE__" in config_vars:
                 # try to set the db file next to the output file
@@ -416,6 +424,8 @@ class DBAccess(object):
                 # set the proper extension
                 db_base_path = db_base_path.parent.joinpath(db_base_path.name+config_vars.resolve_str(".$(DB_FILE_EXT)"))
                 config_vars["__MAIN_DB_FILE__"] = db_base_path
+        else:
+            config_vars["__MAIN_DB_FILE__"] = utils.ExpandAndResolvePath(db_file)
         log.info(f'DB FILE: {config_vars["__MAIN_DB_FILE__"].str()}')
         if self._owner.refresh_db_file:
             if config_vars["__MAIN_DB_FILE__"].str() != ":memory:":
@@ -425,10 +435,6 @@ class DBAccess(object):
                     log.info(f'DB FILE REMOVED: {config_vars["__MAIN_DB_FILE__"].str()}')
                 else:
                     log.info(f'DB FILE DOES NOT EXIST: {config_vars["__MAIN_DB_FILE__"].str()}')
-
-
-
-
 
 
 class TableAccess(object):

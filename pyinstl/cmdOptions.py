@@ -100,7 +100,7 @@ def prepare_args_parser(in_command):
     # client commands
     all_command_details.update({
         'copy':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'copy files to target paths'},
-        'read-yaml':        {'mode': 'client', 'options': ('in', 'out', 'db'), 'help': "reads a yaml file to verify it's contents"},
+        'read-yaml':        {'mode': 'client', 'options': ('in', 'out'), 'help': "reads a yaml file to verify it's contents"},
         'remove':           {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'remove items installed by copy'},
         'report-versions':  {'mode': 'client', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
         'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
@@ -114,7 +114,7 @@ def prepare_args_parser(in_command):
             'check-checksum':       {'mode': 'do_something', 'options': ('in', 'prog',), 'help':  'check checksum for a list of files from info_map file'},
             'checksum':             {'mode': 'do_something', 'options': ('in',), 'help':  'calculate checksum for a file or folder'},
             'command-list':         {'mode': 'do_something', 'options': ('conf', 'prog', 'parallel'), 'help': 'do a list of commands from a file'},
-            'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt', 'db'), 'help':  'Execute a python scrip'},
+            'exec':                 {'mode': 'do_something', 'options': ('in', 'out', 'conf_opt'), 'help':  'Execute a python scrip'},
             'fail':                 {'mode': 'do_something', 'options': (), 'help': "fail and return exit code"},
             'help':                 {'mode': 'do_something', 'options': (), 'help':  'help'},
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
@@ -149,7 +149,7 @@ def prepare_args_parser(in_command):
             'wait-on-action-trigger': {'mode': 'admin', 'options': ('conf',), 'help': 'wait for svn commit and upload revision to s3'},
 
             'check-instl-folder-integrity': {'mode': 'admin', 'options': ('in',), 'help': 'check that index and info_maps have correct checksums, and other attributes'},
-            'read-info-map':        {'mode': 'admin', 'options': ('in+', 'db'), 'help':  "reads an info-map file to verify it's contents"},
+            'read-info-map':        {'mode': 'admin', 'options': ('in+'), 'help':  "reads an info-map file to verify it's contents"},
             'short-index':          {'mode': 'admin', 'options': {'in', 'out'}, 'help': 'create short version of the index so report-versions will be faster'},
             'translate-guids':      {'mode': 'admin', 'options': ('in',  'conf'), 'help':  'translate guids to iids'},
             'verify-index':         {'mode': 'admin', 'options': ('in', 'cred'), 'help':  'Verify that index and info map are compatible'},
@@ -310,16 +310,6 @@ def prepare_args_parser(in_command):
                                     dest='__RUN_COMMAND_LIST_IN_PARALLEL__',
                                     help="run the command-list in parallel")
 
-    # optional --db
-    if 'db' in command_details['options']:
-        db_options = command_parser.add_argument_group(description='database path:')
-        db_options.add_argument('--db', '-d',
-                                    required=False,
-                                    nargs=1,
-                                    metavar='path-to-db-file',
-                                    dest='__MAIN_DB_FILE__',
-                                    help="database file")
-
     if 'rev' in command_details['options']:
         rev_options = command_parser.add_argument_group(description='revision:')
         rev_options.add_argument('--rev',
@@ -421,7 +411,6 @@ def prepare_args_parser(in_command):
         exec_options = command_parser.add_argument_group(description='exec:')
         exec_options.add_argument('args', nargs=argparse.REMAINDER)
 
-
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',
                             required=False,
@@ -448,6 +437,12 @@ def prepare_args_parser(in_command):
                             metavar='log_file',
                             dest='__LOG_FILE__',
                             help="log to file(s)")
+    general_options.add_argument('--db',
+                            required=False,
+                            nargs=1,
+                            metavar='path-to-db-file',
+                            dest='__MAIN_DB_FILE__',
+                            help="database file")
 
     return parser, command_names
 

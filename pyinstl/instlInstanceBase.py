@@ -88,7 +88,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                                              'doit', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
                                              'short-index', 'up-short-index', 'report-versions']
-    commands_that_need_memory_db = ['resolve', 'translate-guids']
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -196,7 +195,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             msg = "Prerequisite variables were not defined: " + ", ".join(missing_vars)
             raise ValueError(msg)
 
-    #@DoingDecorator("init_from_cmd_line_options")
     def init_from_cmd_line_options(self, cmd_line_options_obj):
         """ turn command line options into variables """
 
@@ -205,8 +203,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             self.fixed_command = self.the_command.replace('-', '_')
         # to do: in python3.8 with the new sqlite.backup function, memory database
         # can be writen to disk if needed
-        if getattr(sys, 'frozen', False) or self.the_command in self.commands_that_need_memory_db:
-            config_vars['__MAIN_DB_FILE__'] = ':memory:'
 
         db_need_refresh = cmd_line_options_obj.mode == "interactive" or self.the_command in self.commands_that_need_to_refresh_db_file
         DBManager.set_refresh_db_file(db_need_refresh)
