@@ -1146,7 +1146,7 @@ class InstlAdmin(InstlInstanceBase):
                                                               instl_command_name,
                                                                "--config-file", os.fspath(work_config_file),
                                                                "--log", *log_files,
-                                                               "--db", ":file:"    # let instl will decide where the db file is placed
+                                                               "--db", ":file:",    # let instl will decide where the db file is placed
                                                                "--run"],))
 
                             up2s3_process.start()
