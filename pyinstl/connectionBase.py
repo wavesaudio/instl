@@ -2,13 +2,18 @@
 
 
 import abc
-import urllib.request, urllib.parse, urllib.error
-import urllib.parse
-import requests
 import json
+import urllib.error
+import urllib.parse
+import urllib.parse
+import urllib.request
+
+import requests
 import urllib3
+
 urllib3.disable_warnings()
 import logging
+
 log = logging.getLogger()
 
 from typing import Dict
@@ -75,8 +80,11 @@ class ConnectionHTTP(ConnectionBase):
 
     @abc.abstractmethod
     def translate_url(self, in_bare_url):
-        parsed = urllib.parse.urlparse(in_bare_url)
-        quoted_results = urllib.parse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc, path=urllib.parse.quote(parsed.path, "$()/:%"), params=parsed.params, query=parsed.query, fragment=parsed.fragment)
+        parsed = urllib.parse.urlparse(in_bare_url, allow_fragments=False)
+        quoted_path = urllib.parse.quote(parsed.path, "$()/:%")
+        quoted_results = urllib.parse.ParseResult(scheme=parsed.scheme, netloc=parsed.netloc,
+                                                  path=quoted_path, params=parsed.params,
+                                                  query=parsed.query, fragment=parsed.fragment)
         retVal = urllib.parse.urlunparse(quoted_results)
         return retVal
 
