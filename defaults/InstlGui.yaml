@@ -15,7 +15,7 @@ __CLIENT_GUI_CMD_LIST__:
 __ADMIN_GUI_CMD_LIST__:
   - svn2stage
   - fix-perm
-  - collect-manifests
+#  - collect-manifests
   - wtar
   - fix-symlinks
   - verify-repo
