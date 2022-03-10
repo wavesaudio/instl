@@ -1,10 +1,10 @@
 --- !define
 
 __INSTL_VERSION__:
-    - 2         # major version e.g. python-batch
-    - 3         # new major feature e.g. new command
-    - 3        # new minor feature e.g. new option to command, new python batch class
-    - 0        # bug fix
+  - 2         # major version e.g. python-batch
+  - 3         # new major feature e.g. new command
+  - 3        # new minor feature e.g. new option to command, new python batch class
+  - 1        # bug fix
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
 # __INSTL_VERSION_STR_SHORT__ will be defined at run time by InstlInstanceBase.get_version_str
