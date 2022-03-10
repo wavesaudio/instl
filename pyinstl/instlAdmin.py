@@ -49,6 +49,105 @@ def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbea
     x.start()
 
 
+def smart_merge_dicts(by_os_dict):
+    """ merge dicts by OS according to instl conventions
+        by_os_dict is in the form {"Linux": {...}, "Mac": {...}, "Win": {...}}
+        the dicts under by_os_dict are assumed to be different, if they are identical to begin with
+        results are undefined
+    """
+
+    all_os_names = sorted(list(by_os_dict.keys()))
+    merged = dict()
+    for os_name in all_os_names:
+        merged[os_name] = dict()
+
+    # create a set of all top level keys
+    all_keys = set()
+    for os_name in all_os_names:
+        all_keys.update(by_os_dict[os_name].keys())
+
+    # items in already OS specific key should come from the corresponding os dict
+    for os_name in all_os_names:
+        if os_name in by_os_dict[os_name]:  # e.g "Mac" dict has a "Mac" key
+            merged[os_name].update(by_os_dict[os_name][os_name])
+            all_keys.remove(os_name)
+    #print("all_keys", all_keys)
+
+    # keys that are common to all oses
+    keys_common_to_all_oses = all_keys.copy()
+    for os_name in all_os_names:
+        keys_common_to_all_oses.intersection_update(by_os_dict[os_name].keys())
+    #print("keys_common_to_all_oses", keys_common_to_all_oses)
+    keys_not_common_to_all_oses = all_keys - keys_common_to_all_oses
+    #print("keys_not_common_to_all_oses", keys_not_common_to_all_oses)
+
+    # separate keys_not_common_to_all_oses to those who are identical across all oses (keys_common_to_all_oses_with_same_value)
+    # and those that are different between at least 2 oses (keys_common_to_all_oses_with_diff_value)
+    keys_common_to_all_oses_with_same_value = set()
+    keys_common_to_all_oses_with_diff_value = set()
+    for key in keys_common_to_all_oses:
+        # get a first one so we have something to compare against
+        _curr = by_os_dict[all_os_names[0]][key]
+        for os_name in all_os_names:
+            _next = by_os_dict[os_name][key]
+            if list(dictdiffer.diff(_curr, _next)):
+                keys_common_to_all_oses_with_diff_value.add(key)
+                break
+            else:
+                _curr = _next
+        else:
+            keys_common_to_all_oses_with_same_value.add(key)
+    #print("keys_common_to_all_oses_with_same_value", keys_common_to_all_oses_with_same_value)
+    #print("keys_common_to_all_oses_with_diff_value", keys_common_to_all_oses_with_diff_value)
+
+    # all oses have these keys with same value, so assigned merged with a key/value from one of the oses
+    for key in keys_common_to_all_oses_with_same_value:
+        merged[key] = by_os_dict[all_os_names[0]][key]
+
+    # all oses have these keys with different value, so assigned merged with a key/value from each of the oses
+    for key in (keys_common_to_all_oses_with_diff_value | keys_not_common_to_all_oses):
+        for os_name in all_os_names:
+            if key in by_os_dict[os_name]:
+                merged[os_name][key] = by_os_dict[os_name][key]
+
+    # remove empty dicts
+    all_oses = list(merged.keys())
+    for os_name in all_oses:
+        if not merged[os_name]:
+            del merged[os_name]
+
+    return merged
+
+def dict_in_canonical_order(to_order, order=None, single_value=None):
+    if order is None:
+        order = []
+    if single_value is None:
+        single_value = []
+    retVal = None
+    if isinstance(to_order, str):
+        retVal = to_order
+    elif isinstance(to_order, collections.abc.Sequence):
+        retVal = [dict_in_canonical_order(item) for item in to_order]
+    elif isinstance(to_order, collections.abc.Mapping):
+        retVal = collections.OrderedDict()
+        names_in_order = list()
+        names_from_node = [str(_key) for _key in to_order]
+        for name in order:
+            if name in names_from_node:
+                names_in_order.append(name)
+                names_from_node.remove(name)
+        names_in_order.extend(names_from_node)  # add names in node that do not appear in order
+        for name in names_in_order:
+            value = to_order[name]
+            if name in single_value and isinstance(value, collections.abc.Sequence) and 1 == len(value):
+                value = value[0]
+            retVal[name] = dict_in_canonical_order(value, order, single_value)
+    else: # not sequence or mapping or string - assuming scalar
+        retVal = to_order
+    return retVal
+
+
+
 # noinspection PyPep8,PyPep8,PyPep8
 class InstlAdmin(InstlInstanceBase):
 
@@ -1047,7 +1146,7 @@ class InstlAdmin(InstlInstanceBase):
                                                               instl_command_name,
                                                                "--config-file", os.fspath(work_config_file),
                                                                "--log", *log_files,
-                                                               "--db", ":file:"    # let instl will decide where the db file is placed
+                                                               "--db", ":file:",    # let instl will decide where the db file is placed
                                                                "--run"],))
 
                             up2s3_process.start()
@@ -1244,9 +1343,18 @@ class InstlAdmin(InstlInstanceBase):
                 the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node, ignore=['top_level_tag']))
                 if the_diff:
                     num_different += 1
-                else:
-                    del content_list[1]
+                    # they are different so merge them
+                    merged = smart_merge_dicts({content_list[0].top_level_tag: content_list[0].manifest_node,
+                                       content_list[1].top_level_tag: content_list[1].manifest_node})
+                    merged = dict_in_canonical_order(merged, order=yaml_keys_order, single_value=yaml_single_value_keys)
+
+                    content_list[0].manifest_node = merged
                     content_list[0].top_level_tag = "Common"
+                    print(f"unified {iid}")
+                else:
+                    # they are the same so take the first one
+                    content_list[0].top_level_tag = "Common"
+                del content_list[1]
             else:
                 print(f"IID {iid} found in more than 2 files")
                 for item in content_list:
