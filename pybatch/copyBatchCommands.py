@@ -13,19 +13,11 @@ log = logging.getLogger(__name__)
 
 
 def _fast_copy_file(src, dst):
-    # insert faster code here if and when available
+    # since python3.8 shutil.copyfile uses the fastest file copy available each specific operating system
     try:
-        os.unlink(dst)
-    except:
+        shutil.copyfile(src, dst, follow_symlinks=False)
+    except shutil.SameFileError:
         pass
-    length = 256*1024
-    with open(src, 'rb') as rfd:
-        with open(dst, 'wb') as wfd:
-            while 1:
-                buf = rfd.read(length)
-                if not buf:
-                    break
-                wfd.write(buf)
 
 
 class RsyncClone(PythonBatchCommandBase):
