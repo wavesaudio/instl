@@ -37,7 +37,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
     def init_specific_doc_readers(self):
         aYaml.YamlReader.init_specific_doc_readers(self)
         self.specific_doc_readers["__no_tag__"] = self.read_defines
-        self.specific_doc_readers["__unknown_tag__"] = self.read_defines
+        self.specific_doc_readers["__unknown_tag__"] = self.do_nothing_node_reader
         self.specific_doc_readers["!define"] = self.read_defines
         # !define_const is deprecated and read as non-const
         self.specific_doc_readers["!define_const"] = self.read_defines
@@ -114,4 +114,3 @@ class ConfigVarYamlReader(aYaml.YamlReader):
                     self.read_defines(contents, **kwargs)
         else:
             log.warning(f"unknown conditional {identifier}")
-
