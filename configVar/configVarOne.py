@@ -5,9 +5,9 @@
     All rights reserved.
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
+import collections
 import os
 from pathlib import PurePath, Path
-import collections
 from typing import List, Optional, Union
 
 
@@ -116,6 +116,10 @@ class ConfigVar:
             retVal = None
         else:
             retVal = self.join(sep='')
+        return retVal
+
+    def is_path_var(self):
+        retVal = self.name.endswith("_DIR") or self.name.endswith("_PATH")
         return retVal
 
     def __fspath__(self) -> str:

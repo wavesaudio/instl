@@ -1,25 +1,23 @@
-import os
-from pathlib import Path
-import keyword
 import json
-import re
-from typing import List
+import keyword
 import logging
+import os
+import re
 from collections.abc import Iterable
-
-from configVar import config_vars
-from configVar import ConfigVarYamlReader
-import utils
+from pathlib import Path
+from typing import List
 
 import pybatch
+import utils
+from configVar import config_vars, ConfigVarYamlReader
 
 log = logging.getLogger(__name__)
 
 need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 
 
-class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False, is_anonymous=True):
-
+class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False,
+                     is_anonymous=True):
     """ AnonymousAccum: a container for other PythonBatchCommands,
         AnonymousAccum is not meant to be written to python-batch file or executed - only the
         contained commands will be.
@@ -242,11 +240,15 @@ class ConfigVarAssign(pybatch.PythonBatchCommandBase, essential=False, call__cal
         the_repr = ""
         if any(self.var_values):
             adjusted_values = list()
+            config_var_name_ending_denoting_path = config_vars.get("CONFIG_VAR_NAME_ENDING_DENOTING_PATH", [])
             for val in self.var_values:
-                try:
-                    adjusted_values.append(int(val))
-                except:
-                    adjusted_values.append(utils.quoteme_raw_by_type(val))
+                if config_vars[self.var_name].is_path_var():
+                    adjusted_values.append(utils.quoteme_raw_by_type(Path(os.path.expandvars(val)).resolve()))
+                else:
+                    try:
+                        adjusted_values.append(int(val))
+                    except:
+                        adjusted_values.append(utils.quoteme_raw_by_type(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''config_vars['{self.var_name}'] = {adjusted_values[0]}'''
             else:
