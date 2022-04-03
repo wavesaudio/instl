@@ -1,24 +1,27 @@
-import os
-import sys
-import stat
 import abc
-from pathlib import Path
-import shlex
 import collections
+import logging
+import os
+import shlex
+import stat
 import subprocess
-from typing import List
-from threading import Thread
-import utils
-import psutil
+import sys
 import time
+from pathlib import Path
+from threading import Thread
+from typing import List
+
+import psutil
+
+import utils
 from .baseClasses import PythonBatchCommandBase
 
-import logging
 log = logging.getLogger(__name__)
 
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
-                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,"detach": False}):
+                     kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,
+                                      "detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -119,10 +122,10 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
     def handle_completed_process(self, completed_process):
         pass
 
-    def log_result(self, log_lvl, message, exc_val):
+    def log_result(self, log_lvl, message, exception_obj):
         if self.stderr:
             message += f'; STDERR: {utils.unicodify(self.stderr)}'
-        super().log_result(log_lvl, message, exc_val)
+        super().log_result(log_lvl, message, exception_obj)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass

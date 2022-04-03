@@ -7,17 +7,13 @@
     Licensed under BSD 3 clause license, see LICENSE file for details.
 """
 
+import inspect
+import json
+import logging
+import logging.handlers
 import os
 import re
 import sys
-import json
-import inspect
-import multiprocessing
-import threading
-import traceback
-import queue
-import logging
-import logging.handlers
 from pathlib import Path
 
 from utils import misc_utils as utils
@@ -51,7 +47,10 @@ def config_logger(argv=None, config_vars=None):
 def setup_stream_hdlr():
     stdout_stream_hdlr = logging.StreamHandler(stream=sys.stdout)
     stdout_stream_hdlr.setLevel(logging.INFO)
-    stdout_stream_hdlr.addFilter(SameLevelFilter(logging.WARNING))  # Setting stdout to ignore any message higher than warning
+
+    # Setting stdout to ignore any message higher than warning,
+    # which will be handled by stderr_stream_hdlr
+    stdout_stream_hdlr.addFilter(SameLevelFilter(logging.WARNING))
     stdout_stream_hdlr.setFormatter(logging.Formatter('%(message)s'))
     stdout_stream_hdlr.name = "instl stdout handler"
     top_logger.addHandler(stdout_stream_hdlr)

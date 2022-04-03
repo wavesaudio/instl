@@ -1,14 +1,11 @@
 import os
 import shutil
 from collections import defaultdict
-from pathlib import Path
-from typing import List
-import utils
-# ToDo: add unwtar ?
-
 
 from .fileSystemBatchCommands import *
 from .removeBatchCommands import RmFileOrDir
+
+# ToDo: add unwtar ?
 log = logging.getLogger(__name__)
 
 
@@ -449,8 +446,11 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             pass
 
         self._error_dict.update(
-            {'last_src':  {"path": os.fspath(last_src_path), "mode": last_src_mode},
-             'last_dst':  {"path": os.fspath(last_dst_path), "mode": last_dst_mode}})
+            {'last_src': {"path": os.fspath(last_src_path), "mode": last_src_mode},
+             'last_dst': {"path": os.fspath(last_dst_path), "mode": last_dst_mode}})
+
+    def exception_ignored_message(self) -> str:
+        return f"Skipped copy of {utils.ExpandAndResolvePath(self.src)} because source file or directory was not found and ignore_if_not_exist was set to True"
 
 
 class CopyDirToDir(RsyncClone):
