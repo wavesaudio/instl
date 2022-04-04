@@ -8,15 +8,13 @@
 """
 
 import os
-from contextlib import contextmanager
 import re
-import time
+from contextlib import contextmanager
 from typing import Dict, List
 
 import aYaml
 from .configVarOne import ConfigVar
 from .configVarParser import var_parse_imp
-
 
 
 class ConfigVarStack:
@@ -439,6 +437,13 @@ class ConfigVarStack:
         self.resolve_indicator = resolve_indicator
         yield self
         self.resolve_indicator = previous_resolve_indicator
+
+    def does_config_var_name_means_path(self, config_var_name):
+        for ending in self.get("CONFIG_VAR_NAME_ENDING_DENOTING_PATH", []).list():
+            if config_var_name.endswith(ending):
+                return True
+        return False
+
 
 # This is the global variable list serving all parts of instl
 config_vars = ConfigVarStack()

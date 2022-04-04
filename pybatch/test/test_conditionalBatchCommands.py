@@ -1,12 +1,10 @@
 #!/usr/bin/env python3.9
 
 
-import unittest
 import logging
+import unittest
+
 log = logging.getLogger(__name__)
-
-from pybatch import *
-
 
 from .test_PythonBatchBase import *
 
@@ -179,7 +177,71 @@ class TestPythonBatchConditional(unittest.TestCase):
                                    if_true=Touch(PILPEL_is_defined_file),
                                    if_false=Touch(PILPEL_is_not_defined_file))
         self.pbt.exec_and_capture_output()
-        self.assertTrue(MAMA_MIA_is_defined_file.exists(), f"{self.pbt.which_test}: {MAMA_MIA_is_defined_file} should have been created")
-        self.assertFalse(MAMA_MIA_is_not_defined_file.exists(), f"{self.pbt.which_test}: {MAMA_MIA_is_not_defined_file} should have not been created")
-        self.assertFalse(PILPEL_is_defined_file.exists(), f"{self.pbt.which_test}: {PILPEL_is_defined_file} should have not been created")
-        self.assertTrue(PILPEL_is_not_defined_file.exists(), f"{self.pbt.which_test}: {PILPEL_is_not_defined_file} should have been created")
+        self.assertTrue(MAMA_MIA_is_defined_file.exists(),
+                        f"{self.pbt.which_test}: {MAMA_MIA_is_defined_file} should have been created")
+        self.assertFalse(MAMA_MIA_is_not_defined_file.exists(),
+                         f"{self.pbt.which_test}: {MAMA_MIA_is_not_defined_file} should have not been created")
+        self.assertFalse(PILPEL_is_defined_file.exists(),
+                         f"{self.pbt.which_test}: {PILPEL_is_defined_file} should have not been created")
+        self.assertTrue(PILPEL_is_not_defined_file.exists(),
+                        f"{self.pbt.which_test}: {PILPEL_is_not_defined_file} should have been created")
+
+    def test_ForInConfigVar_repr(self):
+        config_vars["TOUCH_ME_LIST"] = ("f1", "f2", "f3")
+        self.pbt.reprs_test_runner(ForInConfigVar("MAMA_MIA_LIST", "MAMA_MIA", r'''Touch("@(MAMA_MIA)")'''),
+                                   ForInConfigVar("MAMA_MIA_LIST", "MAMA_MIA", r'''Touch("@(MAMA_MIA)")''',
+                                                  resolve_indicator='!'))
+
+    def test_ForInConfigVar(self):
+        f0 = self.pbt.path_inside_test_folder("f0.txt")
+        f1 = self.pbt.path_inside_test_folder("f1.txt")
+        f2 = self.pbt.path_inside_test_folder("f2.txt")
+        f3 = self.pbt.path_inside_test_folder("f3.txt")
+        self.assertFalse(f0.is_file())
+        self.assertFalse(f1.is_file())
+        self.assertFalse(f2.is_file())
+        self.assertFalse(f3.is_file())
+        a0 = self.pbt.path_inside_test_folder("a0.txt")
+        a1 = self.pbt.path_inside_test_folder("a1.txt")
+        a2 = self.pbt.path_inside_test_folder("a2.txt")
+        a3 = self.pbt.path_inside_test_folder("a3.txt")
+        self.assertFalse(a0.is_file())
+        self.assertFalse(a1.is_file())
+        self.assertFalse(a2.is_file())
+        self.assertFalse(a3.is_file())
+
+        config_vars["TOUCH_ME_SINGLE_VALUE"] = os.fspath(f0)
+        config_vars["TOUCH_ME_LIST"] = (os.fspath(f1), os.fspath(f2), os.fspath(f3))
+        config_vars["TOUCH_ME_EMPTY_LIST"] = ()
+
+        config_vars["TOUCH_ME_SINGLE_VALUE_ALT"] = os.fspath(a0)
+        config_vars["TOUCH_ME_LIST_ALT"] = (os.fspath(a1), os.fspath(a2), os.fspath(a3))
+        config_vars["TOUCH_ME_EMPTY_LISTE_ALT"] = ()
+
+        self.pbt.batch_accum.clear(section_name="doit")
+
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_SINGLE_VALUE", "TOUCH_ME", r'''Touch("@(TOUCH_ME)")''')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_LIST", "TOUCH_ME", r'''Touch("@(TOUCH_ME)")''')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_EMPTY_LIST", "TOUCH_ME", r'''Touch("@(TOUCH_ME)")''')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_NO_LIST", "TOUCH_ME", r'''Touch("@(TOUCH_ME)")''')
+
+        # same tests with alternative resolve indicator
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_SINGLE_VALUE_ALT", "TOUCH_ME", r'''Touch("!(TOUCH_ME)")''',
+                                               resolve_indicator='!')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_LIST_ALT", "TOUCH_ME", r'''Touch("!(TOUCH_ME)")''',
+                                               resolve_indicator='!')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_EMPTY_LIST_ALT", "TOUCH_ME", r'''Touch("!(TOUCH_ME)")''',
+                                               resolve_indicator='!')
+        self.pbt.batch_accum += ForInConfigVar("TOUCH_ME_NO_LIST_ALT", "TOUCH_ME", r'''Touch("!(TOUCH_ME)")''',
+                                               resolve_indicator='!')
+
+        self.pbt.exec_and_capture_output()
+
+        self.assertTrue(f0.is_file())
+        self.assertTrue(f1.is_file())
+        self.assertTrue(f2.is_file())
+        self.assertTrue(f3.is_file())
+        self.assertTrue(a0.is_file())
+        self.assertTrue(a1.is_file())
+        self.assertTrue(a2.is_file())
+        self.assertTrue(a3.is_file())

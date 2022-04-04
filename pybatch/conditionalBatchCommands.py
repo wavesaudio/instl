@@ -1,6 +1,15 @@
-from typing import List
 import collections.abc
-from .fileSystemBatchCommands import *
+
+from .subprocessBatchCommands import *
+
+# from . import *
+# ... does not work for eval, need to import each file in pybatch explicitly
+# in order for them to be available in eval statement
+if sys.platform == "win32":
+    from .WinOnlyBatchCommands import *
+if sys.platform == "darwin":
+    from .MacOnlyBatchCommands import *
+
 from configVar import config_vars
 
 
@@ -276,3 +285,39 @@ class IsConfigVarDefined:
         # is one IsConfigVarDefined equal to another?
         retVal = self.var_name == other.var_name
         return retVal
+
+
+class ForInConfigVar(PythonBatchCommandBase):
+    """ Calls a pybatch command, given in param call_str in a loop
+        List to loop on is taken from configVar given in param list_var_name
+        For each iteration the value is assigned to a new configVar given in param target_var_name
+        To avoid resolving target_var_name during preparation a different (not $) resolve indicator
+        can be used, the default is to use @ but this can be changed by passing optional param resolve_indicator
+    """
+
+    def __init__(self, list_var_name, target_var_name, call_str, resolve_indicator='@', **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.list_var_name = list_var_name
+        self.target_var_name = target_var_name
+        self.call_str = call_str
+        self.resolve_indicator = resolve_indicator
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.list_var_name))
+        all_args.append(self.unnamed__init__param(self.target_var_name))
+        all_args.append(self.unnamed__init__param(self.call_str))
+        all_args.append(self.optional_named__init__param("resolve_indicator", self.resolve_indicator, '@'))
+
+    def progress_msg_self(self):
+        return f"ForInConfigVar({self.list_var_name} -> {self.target_var_name})"
+
+    def __call__(self, *args, **kwargs) -> None:
+        config_var_values = config_vars.get(self.list_var_name, []).list()
+        for val in config_var_values:
+            with config_vars.push_scope_context():
+                with config_vars.push_resolve_indicator(self.resolve_indicator):
+                    config_vars[self.target_var_name] = val
+                    action_str = config_vars.resolve_str(self.call_str)
+                    action_obj = eval(action_str, globals(), locals())
+                    action_obj()
+                    # todo: check action_obj calling convention (call__call__, is_context_manager,...)

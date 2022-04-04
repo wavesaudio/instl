@@ -240,9 +240,9 @@ class ConfigVarAssign(pybatch.PythonBatchCommandBase, essential=False, call__cal
         the_repr = ""
         if any(self.var_values):
             adjusted_values = list()
-            config_var_name_ending_denoting_path = config_vars.get("CONFIG_VAR_NAME_ENDING_DENOTING_PATH", [])
+            is_path_var = config_vars.does_config_var_name_means_path(self.var_name)
             for val in self.var_values:
-                if config_vars[self.var_name].is_path_var():
+                if is_path_var:
                     adjusted_values.append(utils.quoteme_raw_by_type(Path(os.path.expandvars(val)).resolve()))
                 else:
                     try:

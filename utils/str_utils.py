@@ -1,14 +1,10 @@
 #!/usr/bin/env python3.9
 
 
-import sys
+import collections
+import inspect
 import os
 import re
-import collections
-
-from typing import Any, Dict, List, Set, Tuple
-
-import utils
 
 
 def quoteme(to_quote, quote_char):
@@ -97,12 +93,14 @@ def quoteme_raw_by_type(some_thing, config_vars=None):
     elif isinstance(some_thing, os.PathLike):
         retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
     elif isinstance(some_thing, collections.abc.Sequence):
-       retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing),"]"))
+        retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing), "]"))
     elif isinstance(some_thing, collections.abc.Mapping):
         item_strs = list()
         for k, v in sorted(some_thing.items()):
             item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v, config_vars)}""")
         retVal = "".join(("{", ",".join(item_strs), "}"))
+    elif inspect.isclass(some_thing):
+        retVal = some_thing.__name__
     return retVal
 
 

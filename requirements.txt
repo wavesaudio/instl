@@ -4,6 +4,6 @@ networkx
 packaging
 psutil
 PyInstaller
-PyYAML
+PyYAML==5.4.1
 requests
 xmltodict
