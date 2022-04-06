@@ -93,7 +93,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         self.verbose = verbose
         self.dry_run = dry_run
         self.copy_stat = copy_stat
-        self.top_destination_does_not_exist = False  # will be set to true is destination does not exist saving many checks
+        self.top_source_does_not_exist = False  # will be set to true if source does not exist - saving doing work is ignore_if_not_exist is True
+        self.top_destination_does_not_exist = False  # will be set to true if destination does not exist - saving many checks
 
         self._get_ignored_files_func = None
         self.statistics = defaultdict(int)
@@ -133,12 +134,25 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
     def progress_msg_self(self) -> str:
         return f"""Copy '{os.path.expandvars(self.src)}' to '{os.path.expandvars(self.dst)}'"""
 
+    def enter_self(self) -> None:
+        self.src = utils.ExpandAndResolvePath(self.src)
+        self.dst = utils.ExpandAndResolvePath(self.dst)
+        self.top_source_does_not_exist = not self.src.exists()
+        self.top_destination_does_not_exist = not self.dst.exists()
+
+    def raise_if_top_source_does_not_exist(self):
+        """ raising cannot be done in enter_self because we do want to go though __exit__
+            exception handling logic
+        """
+        if self.top_source_does_not_exist:
+            # if self.ignore_if_not_exist is True, __exit__ will call exception_ignored_message
+            # otherwise __exit__ will reraise the exception
+            raise FileNotFoundError(self.src)
+
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
-        self.top_destination_does_not_exist = not resolved_dst.exists()
-        self.copy_tree(resolved_src, resolved_dst)
+        self.raise_if_top_source_does_not_exist()
+        self.copy_tree(self.src, self.dst)
 
     def should_ignore_file(self, file_path: str):
         retVal = False
@@ -462,11 +476,10 @@ class CopyDirToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
-        final_dst: Path = resolved_dst.joinpath(resolved_src.name)
-        self.top_destination_does_not_exist = not final_dst.exists()
-        self.copy_tree(resolved_src, final_dst)
+        self.raise_if_top_source_does_not_exist()
+        self.dst = self.dst.joinpath(self.src.name)
+        self.top_destination_does_not_exist = not self.dst.exists()
+        self.copy_tree(self.src, self.dst)
 
 
 class MoveDirToDir(CopyDirToDir):
@@ -526,10 +539,8 @@ class CopyFileToDir(RsyncClone):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
-        self.top_destination_does_not_exist = not resolved_dst.exists()
-        self.copy_file_to_dir(resolved_src, resolved_dst)
+        self.raise_if_top_source_does_not_exist()
+        self.copy_file_to_dir(self.src, self.dst)
 
 
 class MoveFileToDir(CopyFileToDir):
@@ -560,16 +571,14 @@ class CopyFileToFile(RsyncClone):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_src: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_dst: Path = utils.ExpandAndResolvePath(self.dst)
+        self.raise_if_top_source_does_not_exist()
         if self.output_script and sys.platform == 'darwin':
-            utils.write_shell_command(f" cp \"{resolved_src}\" \"{resolved_dst}\" \n", self.output_script)
+            utils.write_shell_command(f" cp \"{self.src}\" \"{self.dst}\" \n", self.output_script)
         else:
-
-            with MakeDir(resolved_dst.parent, report_own_progress=False) as md:
+            with MakeDir(self.dst.parent, report_own_progress=False) as md:
                 md()
             self.top_destination_does_not_exist = False
-            self.copy_file_to_file(resolved_src, resolved_dst)
+            self.copy_file_to_file(self.src, self.dst)
 
 
 class MoveFileToFile(CopyFileToFile):
@@ -636,20 +645,19 @@ class CopyGlobToDir(RsyncClone, kwargs_defaults={"only_files": True}):
         super().repr_own_args(all_args)
 
     def __call__(self, *args, **kwargs) -> None:
-        resolved_source_dir: Path = utils.ExpandAndResolvePath(self.src)
-        resolved_destination_dir: Path = utils.ExpandAndResolvePath(self.dst)
-        globed_files =  list(resolved_source_dir.glob(self.glob_pattern))
+        self.raise_if_top_source_does_not_exist()
+        globed_files = list(self.src.glob(self.glob_pattern))
         if globed_files:
-            with MakeDir(resolved_destination_dir, report_own_progress=False) as md:
+            with MakeDir(self.dst, report_own_progress=False) as md:
                 md()
             kwargs = self.all_kwargs_dict()
             kwargs['own_progress_count'] = 0
             for globed_file in globed_files:
                 if globed_file.is_file():
-                    with CopyFileToDir(globed_file, resolved_destination_dir, **kwargs) as copier:
+                    with CopyFileToDir(globed_file, self.dst, **kwargs) as copier:
                         copier()
                 elif not self.only_files:
-                    with CopyDirToDir(globed_file, resolved_destination_dir, **kwargs) as copier:
+                    with CopyDirToDir(globed_file, self.dst, **kwargs) as copier:
                         copier()
 
 

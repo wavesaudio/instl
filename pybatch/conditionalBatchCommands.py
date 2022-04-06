@@ -2,13 +2,7 @@ import collections.abc
 
 from .subprocessBatchCommands import *
 
-# from . import *
-# ... does not work for eval, need to import each file in pybatch explicitly
-# in order for them to be available in eval statement
-if sys.platform == "win32":
-    from .WinOnlyBatchCommands import *
-if sys.platform == "darwin":
-    from .MacOnlyBatchCommands import *
+import pybatch
 
 from configVar import config_vars
 
@@ -318,6 +312,7 @@ class ForInConfigVar(PythonBatchCommandBase):
                 with config_vars.push_resolve_indicator(self.resolve_indicator):
                     config_vars[self.target_var_name] = val
                     action_str = config_vars.resolve_str(self.call_str)
-                    action_obj = eval(action_str, globals(), locals())
-                    action_obj()
-                    # todo: check action_obj calling convention (call__call__, is_context_manager,...)
+                    action_obj = pybatch.EvalShellCommand(action_str, message=f"{self.target_var_name}={val}")
+                    action_obj.report_own_progress = False  # must be done before action_obj.__enter__ is called
+                    with action_obj:
+                        action_obj()

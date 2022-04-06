@@ -362,12 +362,6 @@ class PythonBatchCommandBase(abc.ABC):
         if exc_info is not None:
             raise
 
-    def enter_self(self) -> None:
-        """ classes overriding PythonBatchCommandBase can add code here without
-            repeating __enter__, but not do any actual work!
-        """
-        pass
-
     def __enter__(self):
         PythonBatchCommandBase.stage_stack.append(self)
         self.enter_timing_measure()
@@ -381,18 +375,11 @@ class PythonBatchCommandBase(abc.ABC):
                 raise
         return self
 
-    def exit_self(self, exit_return) -> None:
+    def enter_self(self) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
-            repeating __exit__.
-            exit_self will be called regardless of exceptions
-            param exit_return is what __exit__ will return
+            repeating __enter__, but not do any actual work!
         """
         pass
-
-    def should_ignore__exit__exception(self, exc_type, exc_val, exc_tb):
-        """ child classes can override for finer control on what to ignore"""
-        retVal = exc_type in self.exceptions_to_ignore
-        return retVal
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         suppress_exception = False
@@ -420,6 +407,19 @@ class PythonBatchCommandBase(abc.ABC):
         if suppress_exception:
             PythonBatchCommandBase.stage_stack.pop()
         return suppress_exception
+
+    def exit_self(self, exit_return) -> None:
+        """ classes overriding PythonBatchCommandBase can add code here without
+            repeating __exit__.
+            exit_self will be called regardless of exceptions
+            param exit_return is what __exit__ will return
+        """
+        pass
+
+    def should_ignore__exit__exception(self, exc_type, exc_val, exc_tb):
+        """ child classes can override for finer control on what to ignore"""
+        retVal = exc_type in self.exceptions_to_ignore
+        return retVal
 
     def log_result(self, log_lvl, message, exception_obj):
         full_message = f"{self.progress_msg()} {message}"
