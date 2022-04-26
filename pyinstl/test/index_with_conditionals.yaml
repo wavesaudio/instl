@@ -1,0 +1,56 @@
+--- !index
+
+
+# each IID in this test should produce 1 and only 1 Echo("OK ...")
+
+NO_CONDITIONALS_IID:
+    actions:
+        doit:
+            - Echo("OK No conditionals")
+
+CHECK_UNDEFINED_IID:
+    __ifdef__(UNDEFINED):
+        actions:
+            doit:
+                - Echo("Bad UNDEFINED is defined!")
+    __ifndef__(UNDEFINED):
+        actions:
+            doit:
+                - Echo("OK UNDEFINED is not defined!")
+
+CHECK_DEFINED_IID:
+    __ifdef__(DEFINED):
+        actions:
+            doit:
+                - Echo("OK DEFINED is defined!")
+    __ifndef__(DEFINED):
+        actions:
+            doit:
+                - Echo("Bad DEFINED is not defined!")
+
+CHECK_EVAL_POSITIVE_IID:
+    actions:
+        __if__(1+1 == 2):
+            doit:
+                - Echo("OK 1+1 == 2")
+        __if__(1+1 == 3):
+            doit:
+                - Echo("Bad 1+1 == 3")
+
+CHECK_NEGATIVE_POSITIVE_IID:
+    actions:
+        __if__(not(1+1 != 2)):
+            doit:
+                - Echo("OK 1+1 == 2")
+        __if__(not(1+1 != 3)):
+            doit:
+                - Echo("Bad 1+1 == 3")
+
+CHECK_SOME_MORE_IID:
+    actions:
+        __if__(not(1+1 != 2)):
+            doit:
+                - Echo("OK 1+1 == 2")
+        __if__(not(1+1 != 3)):
+            doit:
+                - Echo("Bad 1+1 == 3")

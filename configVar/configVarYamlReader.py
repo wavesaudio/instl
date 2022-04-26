@@ -17,6 +17,32 @@ internal_identifier_re = re.compile("""
                                     __                  # dunder there
                                     """, re.VERBOSE)
 
+# regex to find conditionals e.g. __ifndef__(S3_BUCKET_NAME)
+conditional_re = re.compile(r"""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)""")
+
+
+def eval_conditional(conditional_text, config_vars):
+    """ read __if...(conditional) and return True is the conditional is True, False otherwise"""
+    retVal = False
+    match = conditional_re.match(conditional_text)
+    if match:
+        condition = match['condition']
+        if_type = match['if_type']
+        if if_type == "def":  # __ifdef__: if configVar is defined
+            if condition in config_vars:
+                retVal = True
+        elif if_type == "ndef":  # __ifndef__: if configVar is not defined
+            if condition not in config_vars:
+                retVal = True
+        elif if_type == "":  # "__if__: eval the condition
+            resolved_condition = config_vars.resolve_str(condition)
+            condition_result = eval(resolved_condition)
+            if condition_result:
+                retVal = True
+    else:
+        log.warning(f"unknown conditional {identifier}")
+    return retVal
+
 
 class ConfigVarYamlReader(aYaml.YamlReader):
     def __init__(self, config_vars, path_searcher=None, url_translator=None) -> None:
@@ -93,24 +119,6 @@ class ConfigVarYamlReader(aYaml.YamlReader):
     def read_include_node(self, i_node, *args, **kwargs):
         pass  # override to handle __include__, __include_if_exist__ nodes
 
-    # regex to find conditionals e.g. __ifndef__(S3_BUCKET_NAME)
-    conditional_re = re.compile("""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)""")
-
     def read_conditional_node(self, identifier, contents, *args, **kwargs):
-        match = self.conditional_re.match(identifier)
-        if match:
-            condition = match['condition']
-            if_type = match['if_type']
-            if if_type == "def":     # __ifdef__: if configVar is defined
-                if condition in self.config_vars:
-                    self.read_defines(contents, **kwargs)
-            elif if_type == "ndef":  # __ifndef__: if configVar is not defined
-                if condition not in self.config_vars:
-                    self.read_defines(contents, **kwargs)
-            elif if_type == "":      # "__if__: eval the condition
-                resolved_condition = self.config_vars.resolve_str(condition)
-                condition_result = eval(resolved_condition)
-                if condition_result:
-                    self.read_defines(contents, **kwargs)
-        else:
-            log.warning(f"unknown conditional {identifier}")
+        if eval_conditional(identifier, self.config_vars):
+            self.read_defines(contents, **kwargs)

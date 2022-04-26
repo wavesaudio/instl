@@ -5,12 +5,16 @@ import sys
 import os
 import unittest
 import time
+from pathlib import Path
+from pybatch.info_mapBatchCommands import IndexYamlReader
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os.pardir)))
 from db.indexItemTable import IndexItemsTable
 import aYaml
 import utils
+from configVar import config_vars
+
 
 def timing(f):
     def wrap(*args):
@@ -21,6 +25,33 @@ def timing(f):
         return ret
 
     return wrap
+
+
+class TestConditionalsInIndex(unittest.TestCase):
+    def setUp(self):
+        config_vars["__INSTL_DEFAULTS_FOLDER__"] = Path(os.path.dirname(__file__), "../..", "defaults")
+        self.in_file_path = Path(os.path.dirname(__file__), 'index_with_conditionals.yaml')
+        self.out_file_path = Path(os.path.dirname(__file__), 'index_with_conditionals.out.yaml')
+
+    def test_conditional(self):
+        config_vars["DEFINED"] = "I'm defined"
+        with IndexYamlReader(self.in_file_path, report_own_progress=False) as it:
+            it()
+            as_yaml = it.items_table.repr_for_yaml()
+            as_yaml_doc = aYaml.YamlDumpDocWrap(as_yaml, '!index')
+            as_yaml_doc.ReduceOneItemLists()
+            with open(self.out_file_path, "w") as wfd:
+                utils.chown_chmod_on_fd(wfd)
+                aYaml.writeAsYaml(as_yaml_doc, wfd)
+        out_text = self.out_file_path.read_text()
+        num_iids = out_text.count('_IID')
+        num_oks = out_text.count('OK')
+        num_bads = out_text.count('Bad')
+
+        self.assertNotEqual(num_iids, 0, "no _IIDs in output")
+        self.assertNotEqual(num_oks, 0, "no OKs in output")
+        self.assertEqual(num_bads, 0, f"{num_bads} bad results in output")
+        self.assertEqual(num_iids, num_oks, f"{num_iids=} != {num_oks=}")
 
 
 class TestReadWrite(unittest.TestCase):
