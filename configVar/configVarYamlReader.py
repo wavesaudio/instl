@@ -3,7 +3,8 @@
 """ ConfigVarYamlReader
 """
 
-import sys
+import os  # do not remove, might be used in eval
+import sys # do not remove, might be used in eval
 import re
 from contextlib import contextmanager
 import logging
@@ -36,11 +37,11 @@ def eval_conditional(conditional_text, config_vars):
                 retVal = True
         elif if_type == "":  # "__if__: eval the condition
             resolved_condition = config_vars.resolve_str(condition)
-            condition_result = eval(resolved_condition)
+            condition_result = eval(resolved_condition, globals(), locals())
             if condition_result:
                 retVal = True
     else:
-        log.warning(f"unknown conditional {identifier}")
+        log.warning(f"unknown conditional {conditional_text}")
     return retVal
 
 
