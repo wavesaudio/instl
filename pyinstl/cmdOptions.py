@@ -80,6 +80,7 @@ class CommandLineOptions(object):
     RUN_PROCESS_ARGUMENTS = OptionToConfigVar()
     __SILENT__ = OptionToConfigVar()
     __REMAINDER__ = OptionToConfigVar()
+    COMPARE_DATES_ON_RESOLVE = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -410,7 +411,14 @@ def prepare_args_parser(in_command):
     elif 'exec' == in_command:
         exec_options = command_parser.add_argument_group(description='exec:')
         exec_options.add_argument('args', nargs=argparse.REMAINDER)
-
+    elif 'resolve' == in_command:
+        resolve_options = command_parser.add_argument_group(description='resolve:')
+        resolve_options.add_argument('--compare-dates',
+                             required=False,
+                             default=False,
+                             action='store_true',
+                             dest='COMPARE_DATES_ON_RESOLVE',
+                             help="avoid resolve if resolved file exists and is younger than unresolved file")
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',
                             required=False,

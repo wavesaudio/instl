@@ -617,7 +617,7 @@ def ExpandAndResolvePath(path_to_resolve, resolve_path=True) -> Path:
     """
     # repeat calling os.path.expandvars until no change
     # because os.path.expandvars does not expand recursively
-    before_expand = path_to_resolve
+    before_expand = os.fspath(path_to_resolve)
     expanded_path = os.path.expandvars(path_to_resolve)
     while before_expand != expanded_path:
         before_expand = expanded_path

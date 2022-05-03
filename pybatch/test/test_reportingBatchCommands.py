@@ -154,7 +154,9 @@ class TestPythonBatchReporting(unittest.TestCase):
         pass
 
     def test_ResolveConfigVarsInFile_repr(self):
-        self.pbt.reprs_test_runner(ResolveConfigVarsInFile("source", "target"), ResolveConfigVarsInFile("source", "target", config_file="I'm a config file"))
+        self.pbt.reprs_test_runner(ResolveConfigVarsInFile("source", "target"),
+                                   ResolveConfigVarsInFile("source", "target", config_file="I'm a config file"),
+                                   ResolveConfigVarsInFile("source", "target", compare_dates=True))
 
     def test_ResolveConfigVarsInFile(self):
         if "BANANA" in config_vars:

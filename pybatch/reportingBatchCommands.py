@@ -1,3 +1,4 @@
+import functools
 import json
 import keyword
 import logging
@@ -326,30 +327,35 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
     def __init__(self, unresolved_file, resolved_file=None, config_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, resolve_indicator='$', **kwargs):
+                 temp_config_vars=None, resolve_indicator='$', compare_dates=False, **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
         :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
-        :param config_file: deprecated, replaced by config_files, still supported for backward compatibility
+        :param config_file: deprecated, replaced by param config_files, still supported for backward compatibility
         :param config_files: additional files to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
         :param resolve_indicator: config vars marked with this char (default '$') will be resolved
+        :param compare_dates: when True skip resolving if both files exist and resolved_file is younger than unresolved_file and the config files
         """
         super().__init__(**kwargs)
-        self.unresolved_file = unresolved_file
+        self.unresolved_file = Path(unresolved_file)
         if resolved_file:
-            self.resolved_file = resolved_file
+            self.resolved_file = Path(resolved_file)
         else:
             self.resolved_file = self.unresolved_file
-        self.config_files = config_files
+        self.config_files = list()
+        if config_files:
+            if isinstance(config_files, list):
+                self.config_files.extend(Path(cf) for cf in config_files)
+            else:
+                self.config_files.append(config_files)
         if config_file:
-            if not isinstance(self.config_files, list):
-                self.config_files = list()
-            self.config_files.append(config_file)
+            self.config_files.append(Path(config_file))
         self.raise_if_unresolved = raise_if_unresolved
         self.temp_config_vars = temp_config_vars
         self.resolve_indicator = resolve_indicator
+        self.compare_dates = compare_dates
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.unresolved_file))
@@ -360,12 +366,21 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         if self.temp_config_vars:
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
             all_args.append(complete_repr)
+        all_args.append(self.optional_named__init__param("compare_dates", self.compare_dates, False))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
 
     def __call__(self, *args, **kwargs) -> None:
         pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        if self.compare_dates and self.resolved_file.exists() and self.resolved_file != self.unresolved_file:
+            resolved_mod_time = self.resolved_file.stat().st_mtime
+            sources_max_mod_time = self.unresolved_file.stat().st_mtime
+            if self.config_files:
+                sources_max_mod_time = functools.reduce(max, (cf.stat().st_mtime for cf in self.config_files), sources_max_mod_time)
+            if resolved_mod_time > sources_max_mod_time:  # sources have not changed
+                return
+
         with config_vars.push_scope_context() as scope_context:
             if self.temp_config_vars:
                 config_vars.update(self.temp_config_vars)

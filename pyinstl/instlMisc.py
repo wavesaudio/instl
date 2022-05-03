@@ -151,7 +151,8 @@ class InstlMisc(InstlInstanceBase):
         input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
         output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
-        ResolveConfigVarsInFile(input_file, output_file, config_files=config_files)()
+        compare_dates = config_vars.get('COMPARE_DATES_ON_RESOLVE', False).bool()
+        ResolveConfigVarsInFile(input_file, output_file, config_files=config_files, compare_dates=compare_dates)()
 
     def do_exec(self):
         try:
