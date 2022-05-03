@@ -15,17 +15,17 @@ block_cipher = None
 
 a = Analysis(['instl'],
              pathex=['instl'],
-             binaries=None,
-             datas=None,
-             hiddenimports=['distutils', 'packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements', 'xmltodict'],
-             hookspath=None,
-             runtime_hooks=None,
+             binaries=[],
+             datas=[],
+             hiddenimports=['asyncio','aYaml','distutils','packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements', 'xmltodict'],
+             hookspath=[],
+             runtime_hooks=[],
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose", 'PyInstaller',
                         "tkinter", "Tkinter", "scipy", "setuptools", "colorama",
                         "botocore", "boto3", "redis", "rich"],
-             win_no_prefer_redirects=None,
-             win_private_assemblies=None,
+             win_no_prefer_redirects=False,
+             win_private_assemblies=False,
              cipher=block_cipher)
 
 instl_defaults_path = os.path.join("defaults")
@@ -72,7 +72,8 @@ exe = EXE(pyz,
           strip=None,
           upx=False, # does not work even if True
           runtime_tmpdir="runtime_tmpdir",
-          console=True )
+          console=True,
+           target_arch='universal2')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
