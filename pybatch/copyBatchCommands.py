@@ -77,8 +77,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                  copy_stat=False,
                  **kwargs):
         super().__init__(**kwargs)
-        self.src = utils.ExpandAndResolvePath(src)
-        self.dst = utils.ExpandAndResolvePath(dst)
+        self.src = src
+        self.dst = dst
         self.ignore_if_not_exist = ignore_if_not_exist
         self.symlinks_as_symlinks = symlinks_as_symlinks
         self.local_ignore_patterns = sorted(ignore_patterns.copy())
