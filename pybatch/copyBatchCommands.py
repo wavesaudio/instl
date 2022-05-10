@@ -215,6 +215,13 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                         rfod()
 
     def copy_symlink(self, src_path: Path, dst_path: Path):
+        """ copy a symlink
+            :param src_path: path to the symlink to be copied
+            :param dst_path path to the new symlink.
+            !! NOTE: dst_path is not the target of the symlink - it's the location of the new symlink !!
+            if src_path is relative (usually it is) dst_path should link to the same relative
+            destination, not to the exact destination of src_path.
+        """
         self.last_src, self.last_dst = os.fspath(src_path), os.fspath(dst_path)
         self.doing = f"""copy symlink '{self.last_src}' to '{self.last_dst}'"""
 

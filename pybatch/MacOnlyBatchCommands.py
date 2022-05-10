@@ -72,9 +72,14 @@ class MacDock(PythonBatchCommandBase):
 
 
 class CreateSymlink(PythonBatchCommandBase):
-    """ create a symbolic link (MacOS only)"""
+    """ create a symbolic link (MacOS only)
+    """
 
     def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, **kwargs) -> None:
+        """
+            :param path_to_symlink: path to the new symlink, if a file or symlink already exists it will be deleted first
+            :param path_to_target: path to the target, can be relative. target need not exists when symlink is created, so creating the symlink and creating the target can be done in any order.
+        """
         super().__init__(**kwargs)
         self.path_to_symlink = path_to_symlink
         self.path_to_target = path_to_target
@@ -88,7 +93,7 @@ class CreateSymlink(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
+        path_to_target = os.path.expandvars(self.path_to_target)
         path_to_symlink = Path(os.path.expandvars(self.path_to_symlink))
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
         with RmFile(path_to_symlink, report_own_progress=False, resolve_path=False) as rf:
@@ -265,4 +270,3 @@ class ResolveSymlinkFilesInFolder(PythonBatchCommandBase):
                     self.doing = f"""resolve symlink file '{self.last_symlink_file}'"""
                     with SymlinkFileToSymlink(item_path, own_progress_count=0) as symlink_converter:
                         symlink_converter()
-
