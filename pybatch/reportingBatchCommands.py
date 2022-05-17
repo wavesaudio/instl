@@ -205,7 +205,7 @@ class PythonVarAssign(pybatch.PythonBatchCommandBase, call__call__=False, is_con
             adjusted_values = list()
             for val in self.var_values:
                 try:
-                    adjusted_values.append(int(val))
+                    adjusted_values.append(utils.str_to_int(val))
                 except:
                     if need_path_resolving:
                         val = os.fspath(Path(os.path.expandvars(val)).resolve())
@@ -247,8 +247,8 @@ class ConfigVarAssign(pybatch.PythonBatchCommandBase, essential=False, call__cal
                     adjusted_values.append(utils.quoteme_raw_by_type(Path(os.path.expandvars(val)).resolve()))
                 else:
                     try:
-                        adjusted_values.append(int(val))
-                    except:
+                        adjusted_values.append(utils.str_to_int(val))
+                    except Exception as ex:
                         adjusted_values.append(utils.quoteme_raw_by_type(val))
             if len(adjusted_values) == 1:
                 the_repr = f'''config_vars['{self.var_name}'] = {adjusted_values[0]}'''

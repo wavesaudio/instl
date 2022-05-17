@@ -325,7 +325,8 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
         for identifier in config_vars.keys():
             if not do_not_write_vars_regex.fullmatch(identifier):
-                in_batch_accum += ConfigVarAssign(identifier, *list(config_vars[identifier]))
+                value_list = list(config_vars[identifier])
+                in_batch_accum += ConfigVarAssign(identifier, *value_list)
 
     def init_python_batch(self, in_batch_accum):
         in_batch_accum.set_current_section("begin")

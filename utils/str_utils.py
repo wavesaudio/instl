@@ -191,6 +191,27 @@ def is_iterable_but_not_str(obj_to_check):
     return retVal
 
 
+def str_to_int(the_str):
+    """ python's builtin int function allows for underscore characters when converting string to int.
+        So int("1_3") returns 13. instl however does not want to consider such strings as integers.
+        For example, a configVar "ExternalVersion_underscore" might hold a value such as "1_2_3_4"
+        and calling configVar["ExternalVersion_underscore"].int() should raise Value error instead
+        of returning 1234.
+        So str_to_int overcomes this problem by raising ValueError when a string contains '_'.
+    """
+    if isinstance(the_str, str) and "_" in the_str:
+        raise ValueError(f"{the_str} contains '_' char and therefor not considered int")
+    return int(the_str)
+
+
+def str_to_float(the_str):
+    """ See doc string for str_to_int function above
+    """
+    if isinstance(the_str, str) and "_" in the_str:
+        raise ValueError(f"{the_str} contains '_' char and therefor not considered a floating number")
+    return float(the_str)
+
+
 if __name__ == "__main__":
     #print(quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"'''))
     #print(quoteme_raw_string("""single-single(') triple-single(''') single-double(") single-triple(\"\"\")"""))

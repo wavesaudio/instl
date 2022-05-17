@@ -10,6 +10,8 @@ import os
 from pathlib import PurePath, Path
 from typing import List, Optional, Union
 
+import utils
+
 
 def something_to_bool(something, default=False):
     retVal = default
@@ -26,6 +28,21 @@ def something_to_bool(something, default=False):
         elif something.lower() in ("no", "false", "n", "f", '0'):
             retVal = False
     return retVal
+
+
+def value_is_set(name, value):
+    """ for debugging 'set' of specific config var.
+        in ConfigVar.__init__ call:
+        if self.name == 'ExternalVersion_underscore':
+            self.set_callback_when_value_is_set(value_is_set)
+            self.set_callback_when_value_is_get(value_is_get)
+    """
+    pass
+
+
+def value_is_get(value):
+    """ see doc string of value_is_set above"""
+    return value
 
 
 class ConfigVar:
@@ -149,11 +166,11 @@ class ConfigVar:
         return retVal
 
     def __int__(self) -> int:
-        retVal = int(self.join(sep=''))
+        retVal = utils.str_to_int(self.join(sep=''))
         return retVal
 
     def __float__(self) -> float:
-        retVal = float(self.join(sep=''))
+        retVal = utils.str_to_float(self.join(sep=''))
         return retVal
 
     def __iter__(self):
@@ -172,7 +189,8 @@ class ConfigVar:
         for val in self.values:
             if self.dynamic:
                 val = self.callback_when_value_is_get(val)
-            yield from self.owner.resolve_str_to_list(val)
+            yield_vals = self.owner.resolve_str_to_list(val)
+            yield from yield_vals
 
     def str(self) -> str:
         return str(self)
@@ -184,13 +202,13 @@ class ConfigVar:
         return set(iter(self))
 
     def int(self) -> int:
-        return int(self)
+        return int(self)  # will call ConfiVar.__int__
 
     def bool(self) -> bool:
         return bool(self)
 
     def float(self) -> float:
-        return float(self)
+        return float(self)  # will call ConfiVar.__float__
 
     def __getitem__(self, index: int) -> str:
         """
