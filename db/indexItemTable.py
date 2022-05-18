@@ -578,6 +578,12 @@ class IndexItemsTable(object):
                                                     details.append(new_detail)
                                                     count_insertions += 1
                                             assert count_insertions < 3, f"count_insertions: {count_insertions}"
+                                    elif detail_name == "depends":
+                                        # depends might have an item which is a list of items when resolving
+                                        values = config_vars.resolve_str_to_list(value)
+                                        for value in values:
+                                            new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
+                                            details.append(new_detail)
                                     else:
                                         new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
                                         details.append(new_detail)

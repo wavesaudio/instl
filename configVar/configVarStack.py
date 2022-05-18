@@ -271,7 +271,7 @@ class ConfigVarStack:
 
     def resolve_str_to_list(self, val_to_resolve: str) -> List:
         """
-            if val_to_resolve is referencing a single configVar
+            if val_to_resolve is referencing a single configVar, e.g "$(SOME_ACTIONS_TO_DO)"
             return the resolved list of value for that var
             otherwise return a list containing 1 item which
             is the resolved string
