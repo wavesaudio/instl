@@ -123,3 +123,33 @@ class ConfigVarYamlReader(aYaml.YamlReader):
     def read_conditional_node(self, identifier, contents, *args, **kwargs):
         if eval_conditional(identifier, self.config_vars):
             self.read_defines(contents, **kwargs)
+
+
+def smart_resolve_yaml(a_node, config_vars):
+    """ read yaml node and resolve $() references
+        the main shtick is that a $() reference in a yaml sequence that itself resolves into a list will
+        extend the sequence. See doc string for class ResolveConfigVarsInYamlFile for an example
+        Note: tags that begin with ! (such as !file, !dir_cont) are preserved
+    """
+    tag = getattr(a_node, "tag", "")
+    if tag and not tag.startswith("!"):
+        tag = ""
+    if isinstance(a_node, str):
+        retVal = aYaml.YamlDumpWrap(config_vars.resolve_str(a_node))
+    elif a_node.isScalar():
+        retVal = aYaml.YamlDumpWrap(config_vars.resolve_str(a_node.value), tag=tag)
+    elif a_node.isSequence():
+        seq = list()
+        for sub_node in a_node:
+            if sub_node.isScalar():
+                sub_item_values = config_vars.resolve_str_to_list(sub_node.value)
+                if len(sub_item_values) == 1:  # did not resolve to multiple values
+                    seq.append(smart_resolve_yaml(sub_node, config_vars))
+                else:
+                    seq.extend([smart_resolve_yaml(sub_item_value, config_vars) for sub_item_value in sub_item_values])
+            else:
+                seq.append(smart_resolve_yaml(sub_node, config_vars))
+        retVal = aYaml.YamlDumpWrap(seq, tag=tag)
+    elif a_node.isMapping():
+        retVal = {smart_resolve_yaml(key, config_vars): smart_resolve_yaml(mapped_node, config_vars) for key, mapped_node in a_node.items()}
+    return retVal

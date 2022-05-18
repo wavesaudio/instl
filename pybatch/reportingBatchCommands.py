@@ -7,10 +7,13 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import List
+import yaml
+import io
 
 import pybatch
 import utils
-from configVar import config_vars, ConfigVarYamlReader
+from configVar import config_vars, ConfigVarYamlReader, smart_resolve_yaml
+import aYaml
 
 log = logging.getLogger(__name__)
 
@@ -404,7 +407,119 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
                 all_unresolved = unresolved_re.findall(resolved_text)
                 if all_unresolved:
                     unresolved_references = ", ".join(list(set(all_unresolved)))
-                    raise ValueError(f"unresolved config_vars in {self.unresolved_file}: {unresolved_references}")
+                    raise ValueError(f"unresolved config_vars in {self.unresolved_file}:\n{unresolved_references}")
+
+            with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
+                wfd.write(resolved_text)
+
+
+
+class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
+    def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False,
+                 temp_config_vars=None, resolve_indicator='$', compare_dates=False, **kwargs):
+        """
+        read a Yaml file and resolve all references to config_vars.
+        ResolveConfigVarsInYamlFile is different from ResolveConfigVarsInFile:
+        - uses config_vars.resolve_str_to_list to resolve items in yaml sequences and the resulting list
+            extends the sequence. For example if we define in the config_files:
+
+        GUITARISTS: [John, George]
+
+        and the yaml to be resolved is:
+        BEATLES:
+            - Paul
+            - $(GUITARISTS)
+            - Ringo
+
+        the resolved yaml will be:
+        BEATLES:
+            - Paul
+            - John
+            - George
+            - Ringo
+
+        Note: configVar definitions ARE NOT READ from the yaml to be resolved only from the config_files
+        :param unresolved_file: file to resolve
+        :param resolved_file: file to write resolved output, if None will overwrite unresolved_file
+        :param config_files: additional files to read config_vars definitions from
+        :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
+        :param resolve_indicator: config vars marked with this char (default '$') will be resolved
+        :param compare_dates: when True skip resolving if both files exist and resolved_file is younger than unresolved_file and the config files
+        """
+        super().__init__(**kwargs)
+        self.unresolved_file = Path(unresolved_file)
+        if resolved_file:
+            self.resolved_file = Path(resolved_file)
+        else:
+            self.resolved_file = self.unresolved_file
+        self.config_files = list()
+        if config_files:
+            if isinstance(config_files, list):
+                self.config_files.extend(Path(cf) for cf in config_files)
+            else:
+                self.config_files.append(config_files)
+        self.raise_if_unresolved = raise_if_unresolved
+        self.temp_config_vars = temp_config_vars
+        self.resolve_indicator = resolve_indicator
+        self.compare_dates = compare_dates
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.unresolved_file))
+        if self.resolved_file != self.unresolved_file:
+            all_args.append(self.unnamed__init__param(self.resolved_file))
+        all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
+        all_args.append(self.optional_named__init__param("resolve_indicator", self.resolve_indicator, '$'))
+        if self.temp_config_vars:
+            complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
+            all_args.append(complete_repr)
+        all_args.append(self.optional_named__init__param("compare_dates", self.compare_dates, False))
+
+    def progress_msg_self(self) -> str:
+        return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        pybatch.PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        if self.compare_dates and self.resolved_file.exists() and self.resolved_file != self.unresolved_file:
+            resolved_mod_time = self.resolved_file.stat().st_mtime
+            sources_max_mod_time = self.unresolved_file.stat().st_mtime
+            if self.config_files:
+                sources_max_mod_time = functools.reduce(max, (cf.stat().st_mtime for cf in self.config_files), sources_max_mod_time)
+            if resolved_mod_time > sources_max_mod_time:  # sources have not changed
+                return
+
+        with config_vars.push_scope_context() as scope_context:
+            if self.temp_config_vars:
+                config_vars.update(self.temp_config_vars)
+            if self.config_files:
+                reader = ConfigVarYamlReader(config_vars)
+                if isinstance(self.config_files, (str, os.PathLike)):
+                    reader.read_yaml_file(self.config_files)
+                elif isinstance(self.config_files, Iterable):
+                    for config_file in self.config_files:
+                        reader.read_yaml_file(config_file)
+                else:
+                    raise ValueError(f"member self.config_files is not a string or a list: {self.config_files}")
+
+            with utils.utf8_open_for_read(self.unresolved_file, "r") as rfd:
+                yaml_docs = list(yaml.compose_all(rfd))
+
+            resolved_docs = list()
+            for ydoc in yaml_docs:
+                resolved_docs.append(smart_resolve_yaml(ydoc, config_vars))
+
+            resolved_text = io.StringIO()
+            # write the resolved text to memory so we can check it in case self.raise_if_unresolved==True
+            for rdoc in resolved_docs:
+                aYaml.writeAsYaml(aYaml.YamlDumpWrap(rdoc, sort_mappings=False), resolved_text, top_level_blank_line=False)
+
+            resolved_text = resolved_text.getvalue()
+
+            if self.raise_if_unresolved:
+                unresolved_re = re.compile(rf"""[{self.resolve_indicator}]\(.*?\)""")
+                all_unresolved = unresolved_re.findall(resolved_text)
+                if all_unresolved:
+                    unresolved_references = ", ".join(list(set(all_unresolved)))
+                    raise ValueError(f"unresolved config_vars in {self.unresolved_file}:\n{unresolved_references}")
 
             with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
                 wfd.write(resolved_text)

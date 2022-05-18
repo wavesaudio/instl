@@ -23,7 +23,7 @@
         needed, YamlDumpWrap can be used to wrap other data types.
         YamlDumpDocWrap adds tags and comments to a whole document.
         Object that are not basic or YamlDumpWrap, can implement repr_for_yaml
-        method to properly represent them selves for yaml writing.
+        method to properly represent themselves for yaml writing.
 """
 
 import sys

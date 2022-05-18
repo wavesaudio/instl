@@ -14,7 +14,7 @@ from .info_mapBatchCommands import CheckDownloadFolderChecksum, SetExecPermissio
     ShortIndexYamlCreator
 from .removeBatchCommands import RmDir, RmFile, RmFileOrDir, RemoveEmptyFolders, RmGlob, RmGlobs, RmDirContents
 from .reportingBatchCommands import AnonymousAccum, Echo, Progress, Remark, Stage, ConfigVarAssign, ConfigVarPrint, \
-    PythonVarAssign, PythonBatchRuntime, RaiseException, PythonDoSomething, ResolveConfigVarsInFile, \
+    PythonVarAssign, PythonBatchRuntime, RaiseException, PythonDoSomething, ResolveConfigVarsInFile, ResolveConfigVarsInYamlFile, \
     ReadConfigVarsFromFile, ReadConfigVarValueFromTextFile, EnvironVarAssign, PatchPyBatchWithTimings, Print
 from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, CUrl, ScriptCommand, Exec, RunInThread, \
     Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess
@@ -99,4 +99,3 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
                     log.warning(f"""'{action_str}' was evaled as ShellCommand not as python batch""")
 
     return retVal
-

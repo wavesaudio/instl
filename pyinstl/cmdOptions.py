@@ -81,6 +81,7 @@ class CommandLineOptions(object):
     __SILENT__ = OptionToConfigVar()
     __REMAINDER__ = OptionToConfigVar()
     COMPARE_DATES_ON_RESOLVE = OptionToConfigVar()
+    RESOLVE_AS_YAML = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -419,6 +420,12 @@ def prepare_args_parser(in_command):
                              action='store_true',
                              dest='COMPARE_DATES_ON_RESOLVE',
                              help="avoid resolve if resolved file exists and is younger than unresolved file")
+        resolve_options.add_argument('--resolve-as-yaml',
+                                         required=False,
+                                         default=False,
+                                         action='store_true',
+                                         dest='RESOLVE_AS_YAML',
+                                         help="correctly resolve configVar lists in yaml sequences")
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',
                             required=False,
