@@ -137,7 +137,10 @@ def smart_resolve_yaml(a_node, config_vars):
     if isinstance(a_node, str):
         retVal = aYaml.YamlDumpWrap(config_vars.resolve_str(a_node))
     elif a_node.isScalar():
-        retVal = aYaml.YamlDumpWrap(config_vars.resolve_str(a_node.value), tag=tag)
+        if a_node.value:
+            retVal = aYaml.YamlDumpWrap(config_vars.resolve_str(a_node.value), tag=tag)
+        else:
+            retVal = aYaml.YamlDumpWrap(a_node.value, tag=tag)
     elif a_node.isSequence():
         seq = list()
         for sub_node in a_node:
