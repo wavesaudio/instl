@@ -44,7 +44,7 @@ FOLDER_EXCLUDE_REGEX:
     - ","
     - '\.svn'
 
-# files who's name matches FOLDER_EXCLUDE_REGEX regex will not be added
+# files whose name matches FOLDER_EXCLUDE_REGEX regex will not be added
 # to the repository by stage2svn.
 # Here it defaults to avoiding adding files with ',' in their names.
 # regexs are used with the re.search function.
@@ -52,6 +52,7 @@ FOLDER_EXCLUDE_REGEX:
 FILE_EXCLUDE_REGEX:
     - ","
     - '\.DS_Store'
+    - Icon\015
 
 DOMAIN_MAJOR_VERSION_CONFIG_FILE_PATH: $(TARGET_DOMAIN)/$(TARGET_MAJOR_VERSION)/config.yaml
 

@@ -27,7 +27,6 @@ from pybatch import *
 from .instlException import InstlException
 from configVar import ConfigVarYamlReader
 
-
 def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbeat_interval):
     """ start a daemon thread that will periodically set a redis key to a string containing the current date/time
         a daemon thread will stop when the application quits, so no need to join the thread
@@ -158,6 +157,7 @@ class InstlAdmin(InstlInstanceBase):
         self.fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
         self.config_vars_stack_size_before_reading_config_files = None
         self.wait_info_counter = 0  # incremented when printing wait info
+        self.compile_exclude_regexi()
 
     def get_default_out_file(self) -> None:
         if "__CONFIG_FILE__" in config_vars and '__MAIN_OUT_FILE__' not in config_vars:
@@ -300,8 +300,6 @@ class InstlAdmin(InstlInstanceBase):
         self.batch_accum.set_current_section('admin')
         stage_folder = config_vars["STAGING_FOLDER"].Path()
         svn_folder = config_vars["SVN_CHECKOUT_FOLDER"].Path()
-
-        self.compile_exclude_regexi()
 
         stage_folder_svn_folder_pairs = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
@@ -744,15 +742,22 @@ class InstlAdmin(InstlInstanceBase):
             for root, dirs, files in os.walk(folder_to_check, followlinks=False):
                 for a_file in files:
                     item_path = os.path.join(root, a_file)
-                    file_is_exec = self.is_file_exec(item_path)
-                    file_should_be_exec = self.should_file_be_exec(item_path)
-                    if file_is_exec != file_should_be_exec:
-                        if file_should_be_exec:
-                            self.batch_accum += Chmod(item_path, "a+x")
-                            files_that_must_be_exec.append(item_path)
-                        else:
-                            self.batch_accum += Chmod(item_path, "a-x")
-                            files_that_should_not_be_exec.append(item_path)
+                    if self.compiled_forbidden_file_regex.search(os.fspath(item_path)):
+                        # removing forbidden files should be done by addin RmFile to self.batch_accum, thus:
+                        # self.batch_accum += RmFile(item_path)
+                        # however MacOS Icon files have \r characters which ii failed to print properly
+                        # to the batch file. Therefor they are deleted immediately here:
+                        os.unlink(item_path)
+                    else:
+                        file_is_exec = self.is_file_exec(item_path)
+                        file_should_be_exec = self.should_file_be_exec(item_path)
+                        if file_is_exec != file_should_be_exec:
+                            if file_should_be_exec:
+                                self.batch_accum += Chmod(item_path, "a+x")
+                                files_that_must_be_exec.append(item_path)
+                            else:
+                                self.batch_accum += Chmod(item_path, "a-x")
+                                files_that_should_not_be_exec.append(item_path)
 
             self.batch_accum += Chmod(folder_to_check, mode="a+rw,+X", recursive=True)  # "-R a+rw,+X"
 
@@ -771,7 +776,6 @@ class InstlAdmin(InstlInstanceBase):
             self.run_batch_file()
 
     def do_file_sizes(self):
-        self.compile_exclude_regexi()
         out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
             what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
