@@ -505,7 +505,8 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
 
             resolved_docs = list()
             for ydoc in yaml_docs:
-                resolved_docs.append(smart_resolve_yaml(ydoc, config_vars))
+                resolved_doc = smart_resolve_yaml(ydoc, config_vars)
+                resolved_docs.append(resolved_doc)
 
             resolved_text = io.StringIO()
             # write the resolved text to memory so we can check it in case self.raise_if_unresolved==True

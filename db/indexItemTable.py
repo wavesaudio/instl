@@ -785,14 +785,21 @@ class IndexItemsTable(object):
 
     def read_require_node(self, a_node: yaml.MappingNode, **kwargs):
 
+        # get list of IIDs that were replaced
+        previous_to_current_iids = dict()
+        previous_from_db = self.get_previous_iids()
+        for current, previous in previous_from_db:
+            previous_to_current_iids[previous] = current
+
         require_items = dict()
         if a_node.isMapping():
             all_iids = self.get_all_iids()
             for IID in a_node:
                 with kwargs['node-stack'](a_node[IID]):
-                    require_details = self.read_item_details_from_require_node(IID, a_node[IID], all_iids)
+                    actuall_iid = previous_to_current_iids.get(IID, IID)
+                    require_details = self.read_item_details_from_require_node(actuall_iid, a_node[IID], all_iids, previous_to_current_iids)
                     if require_details:
-                        require_items[IID] = require_details
+                        require_items[actuall_iid] = require_details
 
             self.clean_require_items(require_items)
 
@@ -817,7 +824,7 @@ class IndexItemsTable(object):
                 curs.executemany(query_text1, all_details)
                 curs.execute(query_text2)
 
-    def read_item_details_from_require_node(self, the_iid, the_node, all_iids):
+    def read_item_details_from_require_node(self, the_iid, the_node, all_iids, previous_to_current_iids):
         the_os_id = self.os_names_to_num['common']
         details = list()
         if the_node.isMapping():
@@ -832,19 +839,21 @@ class IndexItemsTable(object):
                         details.append(new_detail)
                 elif detail_name == "require_by":
                     for require_by in the_node["require_by"]:
-                        if require_by.value in all_iids:
+                        required_by = previous_to_current_iids.get(require_by.value, require_by.value)  # get new iid if any
+                        if required_by in all_iids:
                             detail_name = "require_by"
                         else:
                             detail_name = "deprecated_require_by"
-                        new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": require_by.value}
+                        new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": required_by}
                         details.append(new_detail)
         elif the_node.isSequence():
             for require_by in the_node:
-                if require_by.value in all_iids:
+                required_by = previous_to_current_iids.get(require_by.value, require_by.value)  # get new iid if any
+                if required_by in all_iids:
                     detail_name = "require_by"
                 else:
                     detail_name = "deprecated_require_by"
-                details.append({"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": require_by.value})
+                details.append({"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": required_by})
         return details
 
     def repr_item_for_yaml(self, iid, resolve=False):
@@ -1546,5 +1555,17 @@ class IndexItemsTable(object):
                     WHERE detail_name IN ({action_string}) 
                     ORDER BY _id    
                 """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
+
+    def get_previous_iids(self):
+        """ return original iids with their previous iids
+        """
+
+        query_text = """
+                    SELECT original_iid, detail_value FROM index_item_detail_t
+                    WHERE original_iid==owner_iid
+                    AND detail_name == "previous_iids"
+                    """
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
