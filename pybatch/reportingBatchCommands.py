@@ -330,7 +330,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
     def __init__(self, unresolved_file, resolved_file=None, config_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, resolve_indicator='$', compare_dates=False, **kwargs):
+                 temp_config_vars=None, resolve_indicator='$', unresolve_indicator=None, compare_dates=False, **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
@@ -339,6 +339,8 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         :param config_files: additional files to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
         :param resolve_indicator: config vars marked with this char (default '$') will be resolved
+        :param unresolve_indicator: config marked with this char (probably '@') will be turned to config vars with normal resolve_indicator
+            after the resolve. This allows to skip resolving config vars that should only be resolved later.
         :param compare_dates: when True skip resolving if both files exist and resolved_file is younger than unresolved_file and the config files
         """
         super().__init__(**kwargs)
@@ -359,6 +361,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         self.temp_config_vars = temp_config_vars
         self.resolve_indicator = resolve_indicator
         self.compare_dates = compare_dates
+        self.unresolve_indicator = unresolve_indicator
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.unresolved_file))
@@ -370,6 +373,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
             all_args.append(complete_repr)
         all_args.append(self.optional_named__init__param("compare_dates", self.compare_dates, False))
+        all_args.append(self.optional_named__init__param("unresolve_indicator", self.unresolve_indicator, None))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
@@ -409,6 +413,9 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
                     unresolved_references = ", ".join(list(set(all_unresolved)))
                     raise ValueError(f"unresolved config_vars in {self.unresolved_file}:\n{unresolved_references}")
 
+            if self.unresolve_indicator:  # replace all the @( with $(
+                resolved_text = resolved_text.replace(f"{self.unresolve_indicator}(", f"{self.resolve_indicator}(")
+
             with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
                 wfd.write(resolved_text)
 
@@ -416,7 +423,7 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
 
 class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
     def __init__(self, unresolved_file, resolved_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, resolve_indicator='$', compare_dates=False, **kwargs):
+                 temp_config_vars=None, resolve_indicator='$', unresolve_indicator=None, compare_dates=False, **kwargs):
         """
         read a Yaml file and resolve all references to config_vars.
         ResolveConfigVarsInYamlFile is different from ResolveConfigVarsInFile:
@@ -444,6 +451,8 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
         :param config_files: additional files to read config_vars definitions from
         :param raise_if_unresolved: when True, will raise exception if any unresolved $(...) references are left
         :param resolve_indicator: config vars marked with this char (default '$') will be resolved
+        :param unresolve_indicator: config marked with this char (probably '@') will be turned to config vars with normal resolve_indicator
+            after the resolve. This allows to skip resolving config vars that should only be resolved later.
         :param compare_dates: when True skip resolving if both files exist and resolved_file is younger than unresolved_file and the config files
         """
         super().__init__(**kwargs)
@@ -462,6 +471,7 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
         self.temp_config_vars = temp_config_vars
         self.resolve_indicator = resolve_indicator
         self.compare_dates = compare_dates
+        self.unresolve_indicator = unresolve_indicator
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.unresolved_file))
@@ -473,6 +483,7 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
             complete_repr = f"temp_config_vars="+json.dumps(self.temp_config_vars)
             all_args.append(complete_repr)
         all_args.append(self.optional_named__init__param("compare_dates", self.compare_dates, False))
+        all_args.append(self.optional_named__init__param("unresolve_indicator", self.unresolve_indicator, None))
 
     def progress_msg_self(self) -> str:
         return f'''resolving {self.unresolved_file} to {self.resolved_file}'''
@@ -521,6 +532,9 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
                 if all_unresolved:
                     unresolved_references = ", ".join(list(set(all_unresolved)))
                     raise ValueError(f"unresolved config_vars in {self.unresolved_file}:\n{unresolved_references}")
+
+            if self.unresolve_indicator:  # replace all the @( with $(
+                resolved_text = resolved_text.replace(f"{self.unresolve_indicator}(", f"{self.resolve_indicator}(")
 
             with utils.utf8_open_for_write(self.resolved_file, "w") as wfd:
                 wfd.write(resolved_text)
