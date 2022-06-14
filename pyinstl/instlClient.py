@@ -496,15 +496,17 @@ class InstlClient(InstlInstanceBase):
                         if source_tag == '!dir':
                             source_parent = "/".join(resolved_source_parts[:-1])
                             for item in item_paths:
-                                items_to_update.append({"_id": item['_id'],
-                                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                        "download_root": config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1])))})
+                                item_to_update = {"_id": item['_id'],
+                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                "download_root": config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1])))}
+                                items_to_update.append(item_to_update)
                         else:  # !dir_cont
                             source_parent = source
                             for item in item_paths:
-                                items_to_update.append({"_id": item['_id'],
-                                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                        "download_root": resolved_install_folder})
+                                item_to_update = {"_id": item['_id'],
+                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                "download_root": resolved_install_folder}
+                                items_to_update.append(item_to_update)
                     else:
                         num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
                         if num_ignored_files < 1:
@@ -515,9 +517,10 @@ class InstlClient(InstlInstanceBase):
                     item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
                     self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
                     for item in item_paths:
-                        items_to_update.append({"_id": item['_id'],
+                        item_to_update = {"_id": item['_id'],
                                                 "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
-                                                "download_root": None})
+                                                "download_root": None}
+                        items_to_update.append(item_to_update)
             elif source_tag == '!file':
                 # if the file was wtarred and split it would have multiple items
                 items_for_file = self.info_map_table.get_required_paths_for_file(source)
@@ -525,14 +528,16 @@ class InstlClient(InstlInstanceBase):
                 if direct_sync:
                     config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
                     for item in items_for_file:
-                        items_to_update.append({"_id": item['_id'],
-                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),
-                                                "download_root": config_vars.resolve_str(item.download_path)})
+                        item_to_update = {"_id": item['_id'],
+                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),
+                                        "download_root": config_vars.resolve_str(resolved_install_folder)}
+                        items_to_update.append(item_to_update)
                 else:
                     for item in items_for_file:
-                        items_to_update.append({"_id": item['_id'],
-                                                "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
-                                                "download_root": None})  # no need to set item.download_root here - it will not be used
+                        item_to_update = {"_id": item['_id'],
+                                        "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
+                                        "download_root": None}  # no need to set item.download_root here - it will not be used
+                        items_to_update.append(item_to_update)
 
         self.info_map_table.update_downloads(items_to_update)
 
