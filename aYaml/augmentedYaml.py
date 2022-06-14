@@ -340,6 +340,9 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
                     indentor -= 1
         indentor.pop()
     elif isinstance(pyObj, (dict, OrderedDict)):
+        if tag := getattr(pyObj, "tag", None):
+            print(f"found a tag: {tag}")
+            out_stream.write(tag)
         alias = alias_indicator and alias_for_dict(pyObj, alias_indicator)
         parent_item = indentor.top()
         indentor.push('m')
@@ -355,6 +358,8 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
                 indentor.lineSepAndIndent(out_stream)
             writeAsYaml(item, out_stream, indentor, sort, alias_indicator, top_level_blank_line)
             indentor.write_extra_chars(out_stream, ":")
+            if tag := getattr(item, "tag", None):
+                indentor.write_extra_chars(out_stream, f" {tag}")
             if isScalar(pyObj[item]) or not getattr(pyObj[item], "value", None):  # value is either a scalar or empty list/map
                 indentor.write_extra_chars(out_stream, " ")
             indentor += 1
@@ -384,7 +389,7 @@ def writeAsYaml(pyObj, out_stream=None, indentor=None, sort=False, alias_indicat
         indentor.lineSepAndIndent(out_stream)
 
 
-def nodeToPy(a_node, order=None, single_value=None):
+def nodeToPy(a_node, order=None, single_value=None, preserve_tags=False):
     if order is None:
         order = []
     if single_value is None:
@@ -393,7 +398,7 @@ def nodeToPy(a_node, order=None, single_value=None):
     if a_node.isScalar():
         retVal = a_node.value
     elif a_node.isSequence():
-        retVal = [nodeToPy(item) for item in a_node.value]
+        retVal = [nodeToPy(item, preserve_tags=preserve_tags) for item in a_node.value]
     elif a_node.isMapping():
         retVal = OrderedDict()
         names_in_order = list()
@@ -407,7 +412,12 @@ def nodeToPy(a_node, order=None, single_value=None):
             value = a_node[name]
             if name in single_value and value.isSequence() and 1 == len(value):
                 value = value[0]
-            retVal[name] = nodeToPy(value, order, single_value)
+            retVal[name] = nodeToPy(value, order, single_value, preserve_tags=preserve_tags)
+    if preserve_tags and a_node.tag.startswith("!"):
+        if isinstance(retVal, str):  # str does not support setattr, so add the tag to the front of the string
+            retVal = f"{a_node.tag} {retVal}"
+        else:
+            setattr(retVal, "tag", a_node.tag)
     return retVal
 
 
