@@ -253,12 +253,9 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                     retVal = False
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
-                if retVal:  # destination exists and file should be copied, so make sure it's writable
-                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
-                        mod_changer()
-                    if self.should_no_flags_file(dst):
-                        with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
-                            flags_changer()
+                if retVal:  # destination exists and different from source so source should be copied.
+                    # remove the destination file so os.link() will not fail on FileExistsError
+                    dst.unlink(missing_ok=True)
             except Exception as ex:  # most likely dst.stat() failed because dst does not exist
                 retVal = True
         return retVal
@@ -278,12 +275,9 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
                     retVal = False
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src.path}' to '{dst}'")
-                if retVal:  # destination exists and file should be copied, so make sure it's writable
-                    with Chmod(dst, "a+rw", own_progress_count=0) as mod_changer:
-                        mod_changer()
-                    if self.should_no_flags_file(dst):
-                        with ChFlags(dst, "nohidden", "nosystem", "unlocked", ignore_all_errors=True, own_progress_count=0) as flags_changer:
-                            flags_changer()
+                if retVal:  # destination exists and different from source so source should be copied.
+                            # remove the destination file so os.link() will not fail on FileExistsError
+                    dst.unlink(missing_ok=True)
             except Exception as ex:  # most likely dst.stat() failed because dst does not exist
                 retVal = True
         return retVal
