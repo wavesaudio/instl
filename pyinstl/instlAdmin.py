@@ -657,9 +657,8 @@ class InstlAdmin(InstlInstanceBase):
 
             # check sources
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
-
             for source in source_and_tag_list:
-                source_path, source_type = source[0], source[1]
+                iid, source_path, source_type = source[0], source[1], source[2]
                 num_files_for_source = self.info_map_table.mark_required_for_source(source_path, source_type)
                 if num_files_for_source == 0:
                     case_insensitive_items = self.info_map_table.get_any_item_recursive(source_path, case_sensitive=False)
@@ -668,6 +667,17 @@ class InstlAdmin(InstlInstanceBase):
                         if case_insensitive_items:
                             err_message += f"""\nthere are some files/folders with similar name but different case:\n{[s.path for s in case_insensitive_items]}"""
                         problem_messages_by_iid[iid].append(err_message)
+
+            # check previous sources
+            previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True)
+            for previous_source in previous_sources:
+                iid, previous_source_path, source_type = previous_source[0], previous_source[1], previous_source[2]
+                if not previous_source_path:
+                    err_message = f"previous source for {iid} is empty"
+                    problem_messages_by_iid[iid].append(err_message)
+                if source_type not in ("!dir", "!file"):
+                    err_message = f"previous source for {iid} has type {source_type}, should be !file or !dir"
+                    problem_messages_by_iid[iid].append(err_message)
 
             # check targets
             if len(source_and_tag_list) > 0:

@@ -1233,7 +1233,7 @@ class IndexItemsTable(object):
             limit_to_iids_filter += '")'
 
         query_text = f"""
-            SELECT {distinct} index_item_detail_t.detail_value, index_item_detail_t.tag
+            SELECT {distinct} index_item_t.iid, index_item_detail_t.detail_value, index_item_detail_t.tag
             FROM index_item_detail_t
                 JOIN index_item_t
                     ON  index_item_t.iid=index_item_detail_t.owner_iid
@@ -1244,7 +1244,7 @@ class IndexItemsTable(object):
                 {limit_to_iids_filter}
             ORDER BY index_item_detail_t._id
             """
-        # returns: [(iid, index_version, require_version, index_guid, require_guid, generation), ...]
+        # returns: [(iid, detail_value, tag, index_guid), ...]
         retVal = self.db.select_and_fetchall(query_text, query_params={'detail_name': detail_name})
         return retVal
 

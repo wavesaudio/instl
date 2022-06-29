@@ -561,7 +561,11 @@ class InstlClient(InstlInstanceBase):
         """ source is a tuple (source_folder, tag), where tag is either !file, !dir_cont or !dir """
 
         retVal = AnonymousAccum()
-        source_path, source_type = source[0], source[1]
+        iid, source_path, source_type = source[0], source[1], source[2]
+        if not source_path:
+            log.warning(f"""empty previous source for {iid}""")
+            return retVal
+
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
         if source_type == '!dir':  # remove whole folder
@@ -569,7 +573,8 @@ class InstlClient(InstlInstanceBase):
         elif source_type == '!file':  # remove single file
             retVal += RmFile(to_remove_path)
         elif source_type == '!dir_cont':
-            raise Exception("previous_sources cannot have tag !dir_cont")
+            raise Exception(f"{iid} previous_sources cannot have tag !dir_cont")
+
         return retVal
 
     def name_from_iid(self, iid):
