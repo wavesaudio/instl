@@ -1324,7 +1324,7 @@ class InstlAdmin(InstlInstanceBase):
 
             def manifest_node_reader(self, the_node, *args, **kwargs):
                 for a_node_name, a_node_value in the_node.items():
-                    yaml_node_as_dict = aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys)
+                    yaml_node_as_dict = aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys, preserve_tags=True)
                     top_level_tag = kwargs.get("top_level_tag", None)
                     item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)
                     self.manifest_nodes[a_node_name].append(item)
@@ -1332,11 +1332,12 @@ class InstlAdmin(InstlInstanceBase):
         stage_folder = config_vars["STAGING_FOLDER"].Path()
         reader = ManifestYamlReader(config_vars)
         num_files = 0
-        for top_level_dir in stage_folder.glob("*"):
+        for top_level_dir in sorted(stage_folder.glob("*")):
             if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
                 top_level_tag = top_level_dir.name
                 for root, dirs, files in os.walk(top_level_dir, followlinks=False):
-                    for a_file in files:
+                    dirs.sort()  # to be idempotent, so folders will always be scanned in the same order
+                    for a_file in sorted(files):
                         a_file_path = Path(root, a_file)
                         if a_file_path.name.endswith("manifest.yaml"):
                             print(a_file_path)
