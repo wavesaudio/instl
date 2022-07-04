@@ -16,22 +16,23 @@ import pybatch
 
 
 class HelpItemBase(object):
-    def __init__(self, name) -> None:
+    def __init__(self, name, item_type) -> None:
         self.name = name
+        self.item_type = item_type
         self.texts = dict()
 
-    def get_help_texts(self):
+    def read_help_texts(self):
         raise NotImplementedError(f"HelpItemBase did not implement get_help_texts")
 
     def short_text(self):
         if not self.texts:
-            self.get_help_texts()
+            self.read_help_texts()
         retVal = self.texts.get("short", "")
         return retVal
 
     def long_text(self):
         if not self.texts:
-            self.get_help_texts()
+            self.read_help_texts()
         retVal = self.texts.get("long", "")
         return retVal
 
@@ -39,10 +40,10 @@ class HelpItemBase(object):
 class HelpItemFixed(HelpItemBase):
     """ help item initialized from code """
     def __init__(self, name, help_text_dict) -> None:
-        super().__init__(name)
+        super().__init__(name, "fixed")
         self.texts.update(help_text_dict)
 
-    def get_help_texts(self):
+    def read_help_texts(self):
         pass  # help text already initialized in __init__
 
 
@@ -50,11 +51,12 @@ class HelpItemYaml(HelpItemBase):
     """ help item from a yaml node
         item_node should be a map with keys 'short', 'long'
     """
-    def __init__(self, name, item_node) -> None:
-        super().__init__(name)
+    def __init__(self, name, item_type, item_node) -> None:
+        super().__init__(name, item_type)
         self.item_node = item_node
 
-    def get_help_texts(self):
+    def read_help_texts(self):
+        """ read the help text from file of other means"""
         for value_name, value_text in self.item_node.items():
             self.texts[value_name] = value_text.value
 
@@ -65,10 +67,10 @@ class HelpItemObj(HelpItemBase):
         obj.__doc__ is the 'long' help text
     """
     def __init__(self, obj) -> None:
-        super().__init__(obj.__name__)
+        super().__init__(obj.__name__, "pybatch")
         self.obj = obj
 
-    def get_help_texts(self):
+    def read_help_texts(self):
         def get_full_dict_strings(obj):
             """ get class members that are strings from obj's class in super classes """
             retVal = dict()
@@ -87,7 +89,7 @@ class HelpItemObj(HelpItemBase):
         sig = str(inspect.signature(self.obj.__init__)).replace('self, ', '').replace(' -> None', '').replace(', **kwargs', '')
         #doc_for_class = self.obj.__doc__.split("\n")
         #doc_list = list(filter(None, (dfc.strip() for dfc in doc_for_class)))
-        self.texts['short'] = f"{self.obj.__name__}{sig}"
+        self.texts['short'] = f"Constructor: {self.obj.__name__}{sig}"
         dict_o_strings = get_full_dict_strings(self.obj)
         long_text = prepare_doc_string(self.obj.__doc__).format(**dict_o_strings)
         self.texts['long'] = long_text
@@ -108,7 +110,7 @@ class HelpHelper(object):
         self.additional_commands_help()
 
     def add_item(self, new_item, *topics):
-        self.help_items[new_item.name] = new_item
+        self.help_items[new_item.name.lower()] = new_item
         for a_topic in topics:
             self.topic_items[a_topic].append(new_item.name)
 
@@ -118,7 +120,7 @@ class HelpHelper(object):
                 if a_node.isMapping():
                     for topic_name, topic_items_node in a_node.items():
                         for item_name, item_value_node in topic_items_node.items():
-                            new_item = HelpItemYaml(item_name, item_value_node)
+                            new_item = HelpItemYaml(item_name, topic_name, item_value_node)
                             self.add_item(new_item, topic_name)
 
     def additional_commands_help(self):
@@ -142,7 +144,7 @@ class HelpHelper(object):
         short_list = list()
         if topic in self.topic_items:
             for item_name in self.topic_items[topic]:
-                short_list.append((item_name + ":", self.help_items[item_name].short_text()))
+                short_list.append((item_name + ":", self.help_items[item_name.lower()].short_text()))
         short_list.sort()
         if len(short_list) > 0:
             width_list = [0, 0]
@@ -155,7 +157,7 @@ class HelpHelper(object):
 
     def item_help(self, item_name):
         retVal = "no such item: " + item_name
-        item = self.help_items.get(item_name)
+        item = self.help_items.get(item_name.lower())
         if item:
             import textwrap
 
@@ -164,10 +166,9 @@ class HelpHelper(object):
                                                        initial_indent='    ',
                                                        subsequent_indent='    ') for line in
                                          item.long_text().splitlines()])
-            retVal = "\n".join((
-                item.name + ":\n" + item.short_text(),
-                item.long_text(),
-            ))
+
+            retVal = f"{item.name} ({item.item_type}):\n{item.short_text()}\n{item.long_text()}"
+
         return retVal
 
     def defaults_help(self, var_name=None):
@@ -201,15 +202,19 @@ class HelpHelper(object):
                 print(f"""instl help <topic>: {self.help_items["topic"].short_text()}""")
         elif subject in self.topic_items.keys():
             print(self.topic_summery(subject))
+        elif subject == "pybatch-verbose":
+            # special subject to print all the long docs of pybatch classes
+            print("\n---\n".join(self.pybatch_verbose()))
+        elif subject == "defaults":
+            self.defaults_help()
         else:
-            if subject == "defaults":
-                self.defaults_help()
-            else:
-                subject_lower_case = subject.lower()
-                for sub in self.help_items:
-                    if sub.lower().startswith(subject_lower_case):
-                        print(self.item_help(sub))
+            print(self.item_help(subject))
 
+    def pybatch_verbose(self):
+        retVal = list()
+        for item_name in self.topic_items["pybatch"]:
+            retVal.append(self.item_help(item_name))
+        return retVal
 
 def do_help(subject, help_folder_path, instlObj):
     hh = HelpHelper(instlObj, help_folder_path)
