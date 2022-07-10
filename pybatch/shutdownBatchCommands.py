@@ -32,7 +32,7 @@ class Shutdown(PythonBatchCommandBase):
         all_args.append(self.named__init__param('servers_to_kill', self.servers_to_kill))
         all_args.append(self.named__init__param('tasks_to_kill', self.tasks_to_kill))
 
-    def progress_msg_self(self) -> str :
+    def progress_msg_self(self) -> str:
         return f'shutting down process {str(self.servers_to_kill).strip("[]")}'
 
 
@@ -43,8 +43,10 @@ class Shutdown(PythonBatchCommandBase):
         for task in self.tasks_to_kill:
             if current_os == "Darwin":
                 home = config_vars.get('HOME', expanduser("~"))
-                self.commands.append(f"killall {task}")
-                self.commands.append(f"launchctl unload {home}/Library/LaunchAgents/com.WavesAudio.{task}.plist")
+                self.commands.append(f"killall {task} 2>/dev/null ")
+                plist_file_name = f"{home}/Library/LaunchAgents/com.WavesAudio.{task}.plist"
+                if Path(plist_file_name).is_file():
+                    self.commands.append(f"launchctl unload {plist_file_name}")
             else:
                 self.commands.append(f"taskkill   /im {task}.exe /t /f")
         self.execute_commands()
@@ -72,6 +74,8 @@ class Shutdown(PythonBatchCommandBase):
             self.commands.append(f" '{str(path)}' {arg1}")
 
     def execute_commands(self):
-        self.doing = f"running shell commands f{str(self.commands).strip('[]')}"
-        with ShellCommands(self.commands,ignore_all_errors=True, message="shutting down waves server") as shellCommandsExecution:
+        cmds_str = str(self.commands).strip('[]')
+        self.doing = f"running shell commands {cmds_str}"
+        with ShellCommands(self.commands, ignore_all_errors=True, message=f"executing {cmds_str} ",
+                           report_own_progress=False) as shellCommandsExecution:
             shellCommandsExecution()
