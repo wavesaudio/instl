@@ -52,21 +52,16 @@ class Shutdown(PythonBatchCommandBase):
     @staticmethod
     def find_resources(folder_path, pattern):
         """Return Path object for the relevant path according to the resource"""
-        return [Path(file_path) for file_path in Path(folder_path).glob(pattern)]
-        # return [file_path for file_path in glob(folder_path + '/' + pattern)]
+        return [Path(file_path) for file_path in Path(folder_path).rglob(pattern)]
 
     def kill_waves_local_servers(self):
         all_relevant_paths = []
         if current_os == 'Darwin':
             all_relevant_paths = Shutdown.find_resources(config_vars.get('WAVES_PROGRAMDATA_DIR'),
-                                                     'WavesPluginServer/WavesPluginServerV*.bundle/Contents/MacOS/WavesPluginClient')
-            all_relevant_paths.extend(Shutdown.find_resources(config_vars.get('WAVES_PROGRAMDATA_DIR'),
-                                                          'WavesLocalServer/WavesLocalServer.bundle/Contents/MacOS/WavesLocalClient'))
+                                                     '*/*/Contents/MacOS/Waves*Client')
         else:
             all_relevant_paths.extend(Shutdown.find_resources(config_vars.get('WAVES_PROGRAMDATA_DIR'),
-                                                              'WavesLocalServer\WavesLocalServer.bundle\Contents\Win64\WavesLocalClient.exe'))
-            all_relevant_paths .extend(Shutdown.find_resources(config_vars.get('WAVES_PROGRAMDATA_DIR'),
-                                                         'WavesPluginServer\WavesPluginServerV*.bundle\Contents\Win64\WavesPluginClient.exe'))
+                                                              '*\*\Contents\Win64\Waves*Client.exe'))
         for path in all_relevant_paths:
             version = re.search("V.*\d", str(path), flags=0)
             if version:
