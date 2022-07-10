@@ -21,7 +21,7 @@ from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, C
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \
     SVNInfoReader, SVNSetProp, SVNDelProp, SVNCleanup
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
-
+from .shutdownBatchCommands import Shutdown
 # from .fileSystemBatchCommands import AdvisoryFileLock
 
 if sys.platform == "win32":
