@@ -1,18 +1,13 @@
 from .baseClasses import PythonBatchCommandBase
 from typing import List
-
-from .subprocessBatchCommands import ShellCommands
+from .subprocessBatchCommands import ShellCommand
 from configVar import config_vars
 from os.path import expanduser
-
-
-import os
-import sys
 from pathlib import Path
 
 import re
-import utils
 import platform
+
 SHUTDOWN_VERSION = "1.0.0"  # First release
 
 current_os = platform.system()
@@ -76,6 +71,9 @@ class Shutdown(PythonBatchCommandBase):
     def execute_commands(self):
         cmds_str = str(self.commands).strip('[]')
         self.doing = f"running shell commands {cmds_str}"
-        with ShellCommands(self.commands, ignore_all_errors=True, message=f"executing {cmds_str} ",
-                           report_own_progress=False) as shellCommandsExecution:
-            shellCommandsExecution()
+        for command in self.commands:
+            with ShellCommand(command,ignore_all_errors=True, message=f"executing {cmds_str} ",
+                           report_own_progress=False) as shelli:
+                shelli()
+
+

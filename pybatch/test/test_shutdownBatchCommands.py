@@ -20,9 +20,11 @@ class TestShutdwonProc(unittest.TestCase):
         self.pbt.reprs_test_runner(Shutdown())
 
     def test_ShutDown_action(self):
+        if sys.platform == 'Darwin':
+            config_vars['WAVES_PROGRAMDATA_DIR'] = '/Library/Application Support/Waves'
+        else:
+            config_vars['WAVES_PROGRAMDATA_DIR'] = str(os.getenv('ProgramData')) + "\Waves Audio"
 
-        config_vars['WAVES_PROGRAMDATA_DIR'] = '/Library/Application Support/Waves'
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Shutdown()
         self.pbt.exec_and_capture_output("test_ShutDown")
-
