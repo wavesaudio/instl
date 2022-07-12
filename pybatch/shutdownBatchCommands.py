@@ -69,13 +69,13 @@ class Shutdown(PythonBatchCommandBase):
             else:
                 arg1 = 'wpivot.shutdown'
 
-            self.commands.append(f" '{str(path)}' {arg1}")
+            self.commands.append(f" \"{str(path)}\" {arg1}")
 
     def execute_commands(self):
         for command in self.commands:
             self.doing = f'running command {command}'
             log.info(f'running command:{command}')
-            with ShellCommand(command,ignore_all_errors=True, message=f"executing {command} ",
+            with ShellCommand(command, ignore_all_errors=True, message=f"executing {command} ",
                            report_own_progress=False) as shelli:
                 shelli()
 
