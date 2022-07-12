@@ -45,7 +45,7 @@ class Shutdown(PythonBatchCommandBase):
                 if Path(plist_file_name).is_file():
                     self.commands.append(f"launchctl unload {plist_file_name}")
             else:
-                self.commands.append(f"taskkill.exe   /im \"{task}.exe\" /t /f")
+                self.commands.append(f" \"taskkill.exe\"   /im \"{task}.exe\" /t /f")
         self.execute_commands()
 
     @staticmethod
