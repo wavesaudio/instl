@@ -75,7 +75,7 @@ class Shutdown(PythonBatchCommandBase):
         for command in self.commands:
             self.doing = f'running command {command}'
             log.info(f'running command:{command}')
-            with ShellCommand(command, ignore_all_errors=True, message=f"executing {command} ",
+            with ShellCommand(command, ignore_all_errors=True, suspend=5, message=f"executing {command} ",
                            report_own_progress=False) as shelli:
                 shelli()
 
