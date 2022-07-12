@@ -4,10 +4,12 @@ from .subprocessBatchCommands import ShellCommand
 from configVar import config_vars
 from os.path import expanduser
 from pathlib import Path
-
+import logging
 import re
 import platform
 
+
+log = logging.getLogger(__name__)
 SHUTDOWN_VERSION = "1.0.0"  # First release
 
 current_os = platform.system()
@@ -43,7 +45,7 @@ class Shutdown(PythonBatchCommandBase):
                 if Path(plist_file_name).is_file():
                     self.commands.append(f"launchctl unload {plist_file_name}")
             else:
-                self.commands.append(f"taskkill.exe   /im {task}.exe /t /f")
+                self.commands.append(f"taskkill.exe   /im \"{task}.exe\" /t /f")
         self.execute_commands()
 
     @staticmethod
@@ -60,6 +62,7 @@ class Shutdown(PythonBatchCommandBase):
             all_relevant_paths.extend(Shutdown.find_resources(config_vars.get('WAVES_PROGRAMDATA_DIR'),
                                                               '*\*\Contents\Win64\Waves*Client.exe'))
         for path in all_relevant_paths:
+            log.info(f'found path {path}')
             version = re.search("V.*\d", str(path), flags=0)
             if version:
                 arg1 = "wps.shutdown"
@@ -69,10 +72,10 @@ class Shutdown(PythonBatchCommandBase):
             self.commands.append(f" '{str(path)}' {arg1}")
 
     def execute_commands(self):
-        cmds_str = str(self.commands).strip('[]')
-        self.doing = f"running shell commands {cmds_str}"
         for command in self.commands:
-            with ShellCommand(command,ignore_all_errors=True, message=f"executing {cmds_str} ",
+            self.doing = f'running command {command}'
+            log.info(f'running command:{command}')
+            with ShellCommand(command,ignore_all_errors=True, message=f"executing {command} ",
                            report_own_progress=False) as shelli:
                 shelli()
 
