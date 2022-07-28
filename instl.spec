@@ -14,14 +14,18 @@ import yaml
 
 block_cipher = None
 
+
 with open("defaults/main.yaml", 'r') as stream:
     try:
-        first_doc =  stream.read().split("--- !define")[1]
-        data = yaml.load(first_doc, Loader=yaml.Loader)
-        version  = ".".join([str(i) for i in data['__INSTL_VERSION__']])
-        print (version)
+        for a_node in yaml.compose_all(stream):
+            for _contents in a_node.value:
+                identifier,contents = _contents
+                if identifier.value == '__INSTL_VERSION__':
+                    version = ".".join([i.value for i in contents.value ])
+                    break
     except yaml.YAMLError as exc:
         print(exc)
+
 
 a = Analysis(['instl'],
              pathex=['instl'],
