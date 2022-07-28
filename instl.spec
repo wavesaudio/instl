@@ -10,8 +10,22 @@ import datetime
 import re
 from subprocess import check_output
 from pathlib import Path
+import yaml
 
 block_cipher = None
+
+
+with open("defaults/main.yaml", 'r') as stream:
+    try:
+        for a_node in yaml.compose_all(stream):
+            for _contents in a_node.value:
+                identifier,contents = _contents
+                if identifier.value == '__INSTL_VERSION__':
+                    version = ".".join([i.value for i in contents.value ])
+                    break
+    except yaml.YAMLError as exc:
+        print(exc)
+
 
 a = Analysis(['instl'],
              pathex=['instl'],
@@ -84,5 +98,6 @@ coll = COLLECT(exe,
 
 app = BUNDLE(coll,
          name='instl.bundle',
+         version=version,
          icon=None,
          bundle_identifier=None)
