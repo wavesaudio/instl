@@ -1363,6 +1363,19 @@ class SVNTable(object):
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
 
+    def get_main_bundles(self,level=3) -> List[str]:
+        """ get bundles names from staging folder
+        """
+        query_text = f"""
+            SELECT path,leaf,parent,level
+            FROM svn_item_t
+            WHERE leaf like '%.bundle'
+            AND parent like '%plugins'
+            AND level={level}
+            """
+        retVal = self.db.select_and_fetchall(query_text)
+        return retVal
+
     def mark_items_required_by_infomap(self, infomap_name) -> None:
         """
         mark_items_required_by_infomap will mark as required all items that should be written

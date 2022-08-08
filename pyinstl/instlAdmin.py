@@ -589,9 +589,9 @@ class InstlAdmin(InstlInstanceBase):
 
     def do_verify_repo(self):
         self.read_yaml_file(config_vars["STAGING_FOLDER_INDEX"].str())
-
         the_folder = config_vars["STAGING_FOLDER"].str()
         self.info_map_table.initialize_from_folder(the_folder, progress_callback=self.progress)
+
         self.items_table.activate_all_oses()
         problem_messages_by_iid = defaultdict(list)
         self.verify_inheritance(problem_messages_by_iid)  # must be done before resolve_inheritance
@@ -639,6 +639,10 @@ class InstlAdmin(InstlInstanceBase):
         no_target_folder_ok = config_vars.get("NO_TARGET_FOLDER_OK", []).list()
         common_name_ok = config_vars.get("COMMON_NAME_OK", []).list()
         no_files_or_folders_ok = config_vars.get("NO_FILES_OR_FOLDERS_OK", []).list()
+        found_bundles_in_stage = {}
+        for row in self.info_map_table.get_main_bundles():
+            path,leaf,parent,level = row
+            found_bundles_in_stage[leaf] = f"{parent}_{level}"
 
         all_iids = sorted(self.items_table.get_all_iids())
         self.total_self_progress += len(all_iids)
@@ -646,6 +650,7 @@ class InstlAdmin(InstlInstanceBase):
 
         if problem_messages_by_iid is None:
             problem_messages_by_iid = defaultdict(list)
+
 
         names_to_iids = defaultdict(list)
         for iid in all_iids:
@@ -655,7 +660,7 @@ class InstlAdmin(InstlInstanceBase):
             if name:
                 names_to_iids[name[0]].append(iid)
 
-            # check sources
+            #in the end of the proccess
             source_and_tag_list = self.items_table.get_details_and_tag_for_active_iids("install_sources", unique_values=True, limit_to_iids=(iid,))
             for source in source_and_tag_list:
                 iid, source_path, source_type = source[0], source[1], source[2]
@@ -667,6 +672,11 @@ class InstlAdmin(InstlInstanceBase):
                         if case_insensitive_items:
                             err_message += f"""\nthere are some files/folders with similar name but different case:\n{[s.path for s in case_insensitive_items]}"""
                         problem_messages_by_iid[iid].append(err_message)
+                leaf_name = Path(source_path).name
+                if leaf_name in found_bundles_in_stage:
+                    print (f"found ref for {leaf_name} ")
+                    del found_bundles_in_stage[leaf_name]
+
 
             # check previous sources
             previous_sources = self.items_table.get_details_and_tag_for_active_iids("previous_sources", unique_values=True)
@@ -679,6 +689,7 @@ class InstlAdmin(InstlInstanceBase):
                     err_message = f"previous source for {iid} has type {source_type}, should be !file or !dir"
                     problem_messages_by_iid[iid].append(err_message)
 
+
             # check targets
             if len(source_and_tag_list) > 0:
                 target_folders = set(self.items_table.get_resolved_details_value_for_active_iid(iid, "install_folders", unique_values=True))
@@ -686,6 +697,9 @@ class InstlAdmin(InstlInstanceBase):
                     err_message = f"iid {iid}, does not have target folder"
                     problem_messages_by_iid[iid].append(err_message)
 
+        if len(found_bundles_in_stage) >= 1:
+            for plugin_name in found_bundles_in_stage:
+                problem_messages_by_iid[plugin_name].append(f""" found unrefrenced item {plugin_name}""")
         for name, iids in names_to_iids.items():
             if len(iids) > 1:
                 err_message = f"name '{name}', is common to {len(iids)} iids: {iids}"
