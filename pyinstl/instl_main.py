@@ -169,7 +169,7 @@ def instl_own_main(argv):
             instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
             instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
             instance.init_from_cmd_line_options(options)
-            instance.do_command()# after all preprartion is done, we execute the command itself
+            instance.do_command()  # after all preparations are done - execute the command itself
         elif options.mode == "doit":
             from pyinstl.instlDoIt import InstlDoIt
             instance = InstlDoIt(initial_vars)

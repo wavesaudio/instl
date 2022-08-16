@@ -33,6 +33,9 @@ class InstlDoIt(InstlInstanceBase):
         do_command_func()
 
         self.write_batch_file(self.batch_accum)
+
+        self.write_config_vars_to_file(config_vars.get("__WRITE_CONFIG_VARS_TO_FILE__", None).Path())
+
         if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 

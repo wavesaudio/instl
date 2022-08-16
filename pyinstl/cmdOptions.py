@@ -82,6 +82,7 @@ class CommandLineOptions(object):
     __REMAINDER__ = OptionToConfigVar()
     COMPARE_DATES_ON_RESOLVE = OptionToConfigVar()
     RESOLVE_AS_YAML = OptionToConfigVar()
+    __WRITE_CONFIG_VARS_TO_FILE__ = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -101,13 +102,13 @@ def prepare_args_parser(in_command):
 
     # client commands
     all_command_details.update({
-        'copy':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'copy files to target paths'},
+        'copy':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred', 'write-config-vars'), 'help': 'copy files to target paths'},
         'read-yaml':        {'mode': 'client', 'options': ('in', 'out'), 'help': "reads a yaml file to verify it's contents"},
-        'remove':           {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'remove items installed by copy'},
+        'remove':           {'mode': 'client', 'options': ('in', 'out', 'run', 'write-config-vars'), 'help': 'remove items installed by copy'},
         'report-versions':  {'mode': 'client', 'options': ('in', 'out', 'output_format', 'only_installed'), 'help': 'report what is installed and what needs update'},
-        'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to local disk'},
-        'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
-        'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run',), 'help': 'uninstall previously copied files, considering dependencies'},
+        'sync':             {'mode': 'client', 'options': ('in', 'out', 'run', 'cred', 'write-config-vars'), 'help': 'sync files to be installed from server to local disk'},
+        'synccopy':         {'mode': 'client', 'options': ('in', 'out', 'run', 'cred', 'write-config-vars'), 'help': 'sync files to be installed from server to  local disk and copy files to target paths'},
+        'uninstall':        {'mode': 'client', 'options': ('in', 'out', 'run', 'write-config-vars'), 'help': 'uninstall previously copied files, considering dependencies'},
     })
 
     if in_command not in all_command_details:
@@ -161,7 +162,7 @@ def prepare_args_parser(in_command):
     if in_command not in all_command_details:
         # misc commands, gui, doit
         all_command_details.update({
-            'doit':                 {'mode': 'doit', 'options': ('in', 'out', 'run'), 'help':  'Do something'},
+            'doit':                 {'mode': 'doit', 'options': ('in', 'out', 'run', 'write-config-vars'), 'help':  'Do something'},
             'gui':                  {'mode': 'gui', 'options': (), 'help':  'graphical user interface'}
             })
 
@@ -320,6 +321,15 @@ def prepare_args_parser(in_command):
                                 metavar='revision',
                                 dest='TARGET_REPO_REV',
                                 help="revision to create work on")
+
+    if 'write-config-vars' in command_details['options']:
+        write_yaml_option = command_parser.add_argument_group(description='run arguments:')
+        write_yaml_option.add_argument('--write-config-vars',
+                                       required=False,
+                                       nargs=1,
+                                       metavar='path-to-output-yaml-file',
+                                       dest='__WRITE_CONFIG_VARS_TO_FILE__',
+                                       help="output yaml file")
 
     # the following option groups each belong only to a single command
     if 'read-yaml' == in_command:#__SILENT__

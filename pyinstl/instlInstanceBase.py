@@ -542,3 +542,12 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                                 logging.warning(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
             except Exception:
                 log.warning(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}")
+
+    def write_config_vars_to_file(self, path_to_config_vars_file):
+        if path_to_config_vars_file:
+            variables_as_yaml = config_vars.repr_for_yaml()
+            yaml_doc = aYaml.YamlDumpDocWrap(variables_as_yaml, '!define', "",
+                                             explicit_start=True, sort_mappings=True)
+            with open(path_to_config_vars_file, "w") as wfd:
+                aYaml.writeAsYaml(yaml_doc, wfd)
+            self.progress(f"ConfigVar values written to {path_to_config_vars_file}")
