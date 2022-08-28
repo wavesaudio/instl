@@ -602,7 +602,7 @@ class InstlAdmin(InstlInstanceBase):
             raise AssertionError(f"Found {len(problem_messages_by_iid)} missing inherit/depends")
         else:
             self.items_table.resolve_inheritance()
-            self.verify_actions()
+            self.verify_actions(problem_messages_by_iid)
             self.verify_index_to_repo(problem_messages_by_iid)
 
     def verify_inheritance(self, problem_messages_by_iid):

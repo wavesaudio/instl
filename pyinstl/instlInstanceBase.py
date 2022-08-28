@@ -524,7 +524,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         except Exception as ex:
             pass
 
-    def verify_actions(self):
+    def verify_actions(self, problem_messages_by_iid=None):
 
         self.items_table.activate_all_oses()
         actions_list = self.items_table.get_all_actions_from_index()
@@ -540,8 +540,12 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                                 EvalShellCommand(action, None, all_pybatch_commands, raise_on_error=True)
                             except ValueError as ve:
                                 logging.warning(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
-            except Exception:
+                                if problem_messages_by_iid is not None:
+                                    problem_messages_by_iid[row['original_iid']] = f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}"
+            except Exception as ex:
                 log.warning(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}")
+                if problem_messages_by_iid is not None:
+                    problem_messages_by_iid[row['original_iid']] = f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}; {ex}"
 
     def write_config_vars_to_file(self, path_to_config_vars_file):
         if path_to_config_vars_file:
