@@ -22,7 +22,7 @@ The motivation for creating **instl** grow out of frustration with existing inst
 1. **Discoverability:** Installation builder that create a closed-box binary installers are hard to understand and debug. If something is not working at the use's end, it's virtually impossible to understand what went wrong.
 1. **Programming languages:** Installer builders usually provide a proprietary programming language. Such languages are not cross-platform and usually limited in their functionality and not well documented.
 
-##How does instl improves the situation?
+## How does instl improve the situation?
 1. **Cross-platform:** **instl** uses one database for Mac, Windows and common files. Module content and dependencies between modules can be expressed only once for all platforms, even if the actual files installed are different.
 1. **File formats:** **instl** uses YAML as it's file format, this means that all files are plain text and therefor easily searchable and comparable.
 1. **Version control:** **instl** uses SubVersion as database for all installable files. This makes updating the installer for new versions very straight forward.
