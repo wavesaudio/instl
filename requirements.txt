@@ -1,5 +1,6 @@
 appdirs
 future
+lxml
 networkx
 packaging
 PyInstaller==5.3
