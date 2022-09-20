@@ -155,11 +155,11 @@ class Print(pybatch.PythonBatchCommandBase, essential=False, call__call__=True, 
 
 
 class Remark(pybatch.PythonBatchCommandBase, call__call__=False, is_context_manager=False, kwargs_defaults={'own_progress_count': 0}):
-    """ write a remark in code
+    """ write a remark in python code produced during installation
     """
-    def __init__(self, remark, **kwargs) -> None:
+    def __init__(self, remark_text, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.remark_text = remark
+        self.remark_text = remark_text
 
     def __repr__(self) -> str:
         the_repr = f'''# {self.remark_text}'''
@@ -270,7 +270,7 @@ class ConfigVarAssign(pybatch.PythonBatchCommandBase, essential=False, call__cal
 
 
 class ConfigVarPrint(pybatch.PythonBatchCommandBase, call__call__=True, is_context_manager=False):
-    """
+    """ Prints the resolved value of a configVar to a file
     """
     def __init__(self, var_name, **kwargs) -> None:
         super().__init__(**kwargs)

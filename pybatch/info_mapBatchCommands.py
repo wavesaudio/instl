@@ -35,7 +35,7 @@ from db import DBManager
 
 
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
-    """ check checksums in download folder
+    """ check checksums in download folder, against expected checksums in info_map file
     """
 
     def __init__(self, print_report=True, raise_on_bad_checksum=True, max_bad_files_to_redownload=None,
@@ -141,7 +141,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
-    """ set execute permissions for files that need such permission  in the download folder """
+    """ set execute permissions for files that need such permission  in the download folder
+    """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -193,6 +194,10 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
 
 
 class SetBaseRevision(DBManager, PythonBatchCommandBase):
+    """ Updates revisions in info_map database table svn_item_t.
+        revisions that are smaller than base_rev are changed to base_rev
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, base_rev, **kwargs):
         super().__init__(**kwargs)
         self.base_rev = base_rev
@@ -209,7 +214,9 @@ class SetBaseRevision(DBManager, PythonBatchCommandBase):
 
 
 class InfoMapFullWriter(DBManager, PythonBatchCommandBase):
-    """ write all info map table lines to a single file """
+    """ write all info map table lines to a single file
+        Admin pybatch class, used in deployment, not during installation
+    """
     fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def __init__(self, out_file, in_format='text', **kwargs):
@@ -229,7 +236,9 @@ class InfoMapFullWriter(DBManager, PythonBatchCommandBase):
 
 
 class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
-    """ write all info map table to files according to info_map: field in index.yaml """
+    """ write all info map table to files according to info_map: field in index.yaml
+        Admin pybatch class, used in deployment, not during installation
+    """
     fields_relevant_to_info_map = ('path', 'flags', 'revision', 'checksum', 'size')
 
     def __init__(self, work_folder, in_format='text', **kwargs):
@@ -301,6 +310,9 @@ class InfoMapSplitWriter(DBManager, PythonBatchCommandBase):
 
 
 class IndexYamlReader(DBManager, PythonBatchCommandBase):
+    """ Reads and resolves index.yaml
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, index_yaml_path, resolve_inheritance=True, **kwargs):
         super().__init__(**kwargs)
         self.index_yaml_path = Path(index_yaml_path)
@@ -323,6 +335,9 @@ class IndexYamlReader(DBManager, PythonBatchCommandBase):
 
 
 class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
+    """ Create short_index.yaml from index.yaml
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, short_index_yaml_path, **kwargs):
         super().__init__(**kwargs)
         self.short_index_yaml_path = Path(short_index_yaml_path)
@@ -375,6 +390,9 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
 
 
 class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
+    """ Copy files marked are "required" to the repo-rev folder
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, checkout_folder, repo_rev_folder, repo_rev, **kwargs):
         super().__init__(**kwargs)
         self.checkout_folder = Path(checkout_folder)
@@ -404,6 +422,7 @@ class CopySpecificRepoRev(DBManager, PythonBatchCommandBase):
 # CreateRepoRevFile is not a class that uses info map, but this file is the best place for this it
 class CreateRepoRevFile(PythonBatchCommandBase):
     """ create a repo-rev file inside the instl folder
+        Admin pybatch class, used in deployment, not during installation
     """
 
     def __init__(self, **kwargs):

@@ -209,7 +209,7 @@ class Touch(PythonBatchCommandBase):
 
 class Cd(PythonBatchCommandBase):
     """ change current working directory to 'path'
-        when called as a context manager (with statement), previous working directory will be restored on __exit__
+        when called as a context manager ('with' statement), the previous working directory will be restored on __exit__()
     """
 
     def __init__(self, path: os.PathLike, **kwargs) -> None:
@@ -244,7 +244,7 @@ class Cd(PythonBatchCommandBase):
 
 class CdStage(Cd, essential=False):
     """ change current working directory to 'path' and enter a new Stage
-        when called as a context manager (with statement), previous working directory will be restored on __exit__
+        when called as a context manager ('with' statement), the previous working directory will be restored on __exit__()
     """
 
     def __init__(self, stage_name: str, path: os.PathLike, *titles, **kwargs) -> None:

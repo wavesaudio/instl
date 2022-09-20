@@ -41,7 +41,9 @@ class SVNClient(RunProcessBase, kwargs_defaults={"url": None, "depth": "infinity
 
 
 class SVNCleanup(SVNClient):
-    """ calls svn cleanup """
+    """ calls svn cleanup
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, **kwargs) -> None:
         super().__init__('cleanup', **kwargs)
 
@@ -56,7 +58,9 @@ class SVNCleanup(SVNClient):
 
 
 class SVNSetProp(SVNClient):
-    """ calls svn propset """
+    """ calls svn propset
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, prop_name, prop_value, file_path, **kwargs) -> None:
         super().__init__('propset', **kwargs)
         self.prop_name = prop_name
@@ -76,7 +80,9 @@ class SVNSetProp(SVNClient):
 
 
 class SVNDelProp(SVNClient):
-    """ calls svn propdel """
+    """ calls svn propdel
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, prop_name, file_path, **kwargs) -> None:
         super().__init__('propdel', **kwargs)
         self.prop_name = prop_name
@@ -97,6 +103,7 @@ class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty", "capture_stdo
         the result is placed in a configVar
         :url_param: url to svn repository
         :reply_config_var: the name of the configVar where the last repository revision is placed
+        Admin pybatch class, used in deployment, not during installation
     """
     revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
 
@@ -124,7 +131,9 @@ class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty", "capture_stdo
 
 
 class SVNCheckout(SVNClient):
-    """ calls svn checkout """
+    """ calls svn checkout
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, **kwargs):
         super().__init__("checkout", **kwargs)
 
@@ -133,7 +142,9 @@ class SVNCheckout(SVNClient):
 
 
 class SVNInfo(SVNClient):
-    """ calls svn info """
+    """ calls svn info
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, **kwargs):
         super().__init__("info", **kwargs)
 
@@ -142,7 +153,9 @@ class SVNInfo(SVNClient):
 
 
 class SVNPropList(SVNClient):
-    """ calls svn proplist """
+    """ calls svn proplist
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, with_values=False, **kwargs):
         super().__init__("proplist", **kwargs)
         self.with_values = with_values
@@ -157,7 +170,9 @@ class SVNPropList(SVNClient):
 
 
 class SVNAdd(SVNClient):
-    """ calls svn add """
+    """ calls svn add
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, file_to_add, **kwargs):
         super().__init__("add", **kwargs)
         self.file_to_add = file_to_add
@@ -172,7 +187,9 @@ class SVNAdd(SVNClient):
 
 
 class SVNRemove(SVNClient, kwargs_defaults={"depth": None}):
-    """ calls svn rm """
+    """ calls svn rm
+        Admin pybatch class, used in deployment, not during installation
+    """
     def __init__(self, file_to_remove, **kwargs):
         super().__init__("rm", **kwargs)
         self.file_to_remove = file_to_remove
@@ -191,6 +208,7 @@ class SVNInfoReader(DBManager, PythonBatchCommandBase, kwargs_defaults={"disable
     read a file created by SVNPropList,SVNInfo, file-sizes
     possible formats: "info", "text", "props", "file-sizes"
     self.format = format
+        Admin pybatch class, used in deployment, not during installation
     """
     def __init__(self, file_to_read, format='text', **kwargs):
         super().__init__(**kwargs)
