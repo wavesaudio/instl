@@ -255,6 +255,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
                 if retVal:  # destination exists and different from source so source should be copied.
                     # remove the destination file so os.link() will not fail on FileExistsError
+                    dst_stats_mods = dst_stats.st_mode | stat.S_IWRITE
+                    dst.chmod(dst_stats_mods)  # Windows files might have read-only bit set
                     dst.unlink(missing_ok=True)
             except Exception as ex:  # most likely dst.stat() failed because dst does not exist
                 retVal = True
