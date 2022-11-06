@@ -48,6 +48,7 @@ class IndexItemsTable(object):
         self.add_triggers()
         self.add_views()
         self.defines_for_iids = dict()  # defines which are specific to an iid
+        self.iid_location_in_file = dict()  # for debugging, used in read_index_node_one_by_one to track duplicate IIDs
 
     def __del__(self):
         self.db.unlock_all_tables()
@@ -652,10 +653,15 @@ class IndexItemsTable(object):
         current_template = None  # to keep track which template is causing problems
         current_node = a_node  # to keep track which node is causing problems
         current_detail = None
+
         for IID_or_template in a_node:
             current_iid = IID_or_template
             try:
                 current_node = a_node[IID_or_template]
+                if IID_or_template in self.iid_location_in_file:
+                    print(f"duplicate {IID_or_template} found in lines {self.iid_location_in_file[IID_or_template]} and\n {(current_node.start_mark.line, current_node.end_mark.line)}")
+                else:
+                    self.iid_location_in_file[IID_or_template] = (current_node.start_mark.line, current_node.end_mark.line)
                 with kwargs['node-stack'](a_node[IID_or_template]):
                     index_items = list()
                     items_details = list()
@@ -673,6 +679,7 @@ class IndexItemsTable(object):
 
                     with self.db.transaction() as curs:
                         for item in index_items:
+                            current_detail = None  # so previous details will not be reported in case of exception in this loop
                             current_iid = item[0]
                             curs.execute(insert_item_q, item)
                         for detail in items_details:
@@ -698,6 +705,11 @@ class IndexItemsTable(object):
                 if hasattr(ex, "lines"):
                     rich_print(f"    lines {ex.lines[0]} -> {ex.lines[0]}")
                 else:
+                    path_to_file = kwargs.get('path-to-file', kwargs.get('original-path-to-file', None))
+                    if path_to_file:
+                        rich_print(f"    file {path_to_file}")
+                    if current_iid in self.iid_location_in_file:
+                        rich_print(f"    lines {self.iid_location_in_file[current_iid][0]} -> {self.iid_location_in_file[current_iid][1]}")
                     rich_print(f"    lines {current_node.start_mark.line} -> {current_node.end_mark.line}")
                 rich_print(f"    {ex}")
                 rich_ruler("***")
