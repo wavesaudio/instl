@@ -1,16 +1,17 @@
+import filecmp
+import logging
 import os
 import stat
 import tarfile
+import zipfile
 from collections import OrderedDict
-import logging
 from pathlib import Path
-import filecmp
 from typing import List
 
-from configVar import config_vars
-import utils
 import zlib
 
+import utils
+from configVar import config_vars
 from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import SplitFile, FixAllPermissions, MakeDir
 from .removeBatchCommands import RmDir, RmFile
@@ -400,3 +401,80 @@ class Unwzip(PythonBatchCommandBase):
         with open(resolved_what_to_unwzip, "rb") as rfd, open(target_unwzip_file, "wb") as wfd:
             decompressed = zlib.decompress(rfd.read())
             wfd.write(decompressed)
+
+
+class ZipFlat(PythonBatchCommandBase):
+    """ Create a new zip from a list files, do not compress
+        files are added "flat" i.e. the original folder structure is not
+        kept
+    """
+
+    def __init__(self, target_zip, files_to_zip, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.target_zip = Path(target_zip)
+        self.files_to_zip = [Path(f) for f in files_to_zip]
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("target_zip", self.target_zip))
+        all_args.append(self.named__init__param("files_to_zip", self.files_to_zip))
+
+    def progress_msg_self(self) -> str:
+        return f"""Zip '{len(self.files_to_zip)}' files to '{self.target_zip}'"""
+
+    def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
+        if not self.target_zip.is_file():
+            # create parent folder
+            with MakeDir(self.target_zip.parent, report_own_progress=False) as md:
+                md()
+
+        self.doing = f"""zipping '{len(self.files_to_zip)}' items to '{self.target_zip}'"""
+        with zipfile.ZipFile(self.target_zip, "w") as zfd:
+            for item_to_zip in self.files_to_zip:
+                zfd.write(os.fspath(item_to_zip), arcname=item_to_zip.name)
+
+
+class UnZip(PythonBatchCommandBase):
+    """ unzip .zip file (source_zip) to target_folder
+        if source_zip is a folder, all .zip files will be unzipped
+        if no_artifacts is true the zip files will be deleted
+    """
+
+    def __init__(self, source_zip, target_folder, no_artifacts=False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.source_zip = Path(source_zip)
+        self.target_folder = Path(target_folder)
+        self.no_artifacts = no_artifacts
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("source_zip", self.source_zip))
+        all_args.append(self.named__init__param("target_folder", self.target_folder))
+        all_args.append(self.optional_named__init__param("no_artifacts", self.no_artifacts, False))
+
+    def progress_msg_self(self) -> str:
+        return f"""UnZip '{self.source_zip}' to '{self.target_folder}'"""
+
+    def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+
+        if not self.target_folder.is_dir():
+            with MakeDir(self.target_folder, report_own_progress=False) as md:
+                md()
+
+        if self.source_zip.is_file():
+            self.doing = f"""UnZipping '{self.source_zip}' to '{self.target_folder}'"""
+            with zipfile.ZipFile(self.source_zip, "r") as zfd:
+                zfd.extractall(path=self.target_folder)
+            if self.no_artifacts:
+                with RmFile(self.source_zip, report_own_progress=False) as rm_file:
+                    rm_file()
+        elif self.source_zip.is_dir():
+
+            for zip_file in self.source_zip.glob("*.zip"):
+                self.doing = f"""UnZipping '{zip_file}' to '{self.target_folder}'"""
+                with zipfile.ZipFile(zip_file, "r") as zfd:
+                    zfd.extractall(path=self.target_folder)
+                if self.no_artifacts:
+                    with RmFile(zip_file, report_own_progress=False) as rm_file:
+                        rm_file()

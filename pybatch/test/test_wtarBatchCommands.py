@@ -1,25 +1,9 @@
 #!/usr/bin/env python3.9
 
 
-import sys
-import os
-from pathlib import Path
 import unittest
-import subprocess
-import stat
-import ctypes
-import io
-import contextlib
-import filecmp
-import random
-import string
-from collections import namedtuple
 
-import utils
 from pybatch import *
-from pybatch import PythonBatchCommandAccum
-from pybatch.copyBatchCommands import RsyncClone
-from configVar import config_vars
 
 current_os_names = utils.get_current_os_names()
 os_family_name = current_os_names[0]
@@ -107,18 +91,57 @@ class TestPythonBatchWtar(unittest.TestCase):
 
         # create a file to zip
         with open(wzip_input, "w") as wfd:
-            wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
+            wfd.write(''.join(
+                random.choice(string.ascii_lowercase + string.ascii_uppercase + "\n") for i in range(10 * 1024)))
         self.assertTrue(wzip_input.exists(), f"{self.pbt.which_test}: {wzip_input} should have been created")
 
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum as batchi:
             batchi += Wzip(wzip_input)
         self.pbt.exec_and_capture_output("Wzip a file")
         self.assertTrue(wzip_output.exists(), f"{self.pbt.which_test}: {wzip_output} should exist after test")
         self.assertTrue(wzip_input.exists(), f"{self.pbt.which_test}: {wzip_input} should exist after test")
 
+        self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum as batchi:
             batchi += Unwzip(wzip_output, unwzip_target_folder)
         self.pbt.exec_and_capture_output("Unwzip a file")
-        self.assertTrue(unwzip_target_folder.exists(), f"{self.pbt.which_test}: {unwzip_target_folder} should exist before test")
-        self.assertTrue(unwzip_target_file.exists(), f"{self.pbt.which_test}: {unwzip_target_file} should exist before test")
-        self.assertTrue(filecmp.cmp(wzip_input, unwzip_target_file), f"'{wzip_input}' and '{unwzip_target_file}' should be identical")
+        self.assertTrue(unwzip_target_folder.exists(),
+                        f"{self.pbt.which_test}: {unwzip_target_folder} should exist before test")
+        self.assertTrue(unwzip_target_file.exists(),
+                        f"{self.pbt.which_test}: {unwzip_target_file} should exist before test")
+        self.assertTrue(filecmp.cmp(wzip_input, unwzip_target_file),
+                        f"'{wzip_input}' and '{unwzip_target_file}' should be identical")
+
+    def test_ZipMany_repr(self):
+        file_list = ["a", "b", "c"]
+        self.pbt.reprs_test_runner(ZipFlat(files_to_zip=file_list, target_zip=Path("smirnoff.wzip")))
+
+    def test_ZipMany(self):
+        num_files = 10
+        file_list = list()
+        source_dir = self.pbt.path_inside_test_folder(f"source")
+        source_dir.mkdir(parents=True)
+        for i in range(num_files):
+            file_list.append(source_dir.joinpath(f"to_zip_{i}"))
+        wzip_output = self.pbt.path_inside_test_folder("many_files.wzip")
+        target_dir = self.pbt.path_inside_test_folder(f"target")
+
+        # create files to zip
+        for f in file_list:
+            with open(f, "w") as wfd:
+                wfd.write(''.join(
+                    random.choice(string.ascii_lowercase + string.ascii_uppercase + "\n") for i in range(10 * 1024)))
+            self.assertTrue(f.exists(), f"{self.pbt.which_test}: {f} should have been created")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += ZipFlat(files_to_zip=file_list, target_zip=wzip_output)
+        self.pbt.exec_and_capture_output("WzipMany files")
+        self.assertTrue(wzip_output.exists(), f"{self.pbt.which_test}: {wzip_output} should exist after test")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += UnZip(source_zip=wzip_output, target_folder=target_dir)
+        self.pbt.exec_and_capture_output("UnWzipMany files")
+        dir_comp_wzipmany = filecmp.dircmp(source_dir, target_dir)
+        self.assertTrue(is_identical_dircmp(dir_comp_wzipmany),
+                        f"{self.pbt.which_test} source and target dirs are not the same")

@@ -14,13 +14,14 @@ from .info_mapBatchCommands import CheckDownloadFolderChecksum, SetExecPermissio
     ShortIndexYamlCreator
 from .removeBatchCommands import RmDir, RmFile, RmFileOrDir, RemoveEmptyFolders, RmGlob, RmGlobs, RmDirContents
 from .reportingBatchCommands import AnonymousAccum, Echo, Progress, Remark, Stage, ConfigVarAssign, ConfigVarPrint, \
-    PythonVarAssign, PythonBatchRuntime, RaiseException, PythonDoSomething, ResolveConfigVarsInFile, ResolveConfigVarsInYamlFile, \
+    PythonVarAssign, PythonBatchRuntime, RaiseException, PythonDoSomething, ResolveConfigVarsInFile, \
+    ResolveConfigVarsInYamlFile, \
     ReadConfigVarsFromFile, ReadConfigVarValueFromTextFile, EnvironVarAssign, PatchPyBatchWithTimings, Print
 from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, CUrl, ScriptCommand, Exec, RunInThread, \
     Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \
     SVNInfoReader, SVNSetProp, SVNDelProp, SVNCleanup
-from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip
+from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip, ZipFlat, UnZip
 
 # from .fileSystemBatchCommands import AdvisoryFileLock
 
