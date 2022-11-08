@@ -116,7 +116,7 @@ class TestPythonBatchWtar(unittest.TestCase):
 
     def test_ZipMany_repr(self):
         file_list = ["a", "b", "c"]
-        self.pbt.reprs_test_runner(ZipMany(files_to_zip=file_list, target_wzip=Path("smirnoff.wzip")))
+        self.pbt.reprs_test_runner(ZipFlat(files_to_zip=file_list, target_zip=Path("smirnoff.wzip")))
 
     def test_ZipMany(self):
         num_files = 10
@@ -136,12 +136,12 @@ class TestPythonBatchWtar(unittest.TestCase):
             self.assertTrue(f.exists(), f"{self.pbt.which_test}: {f} should have been created")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += ZipMany(files_to_zip=file_list, target_wzip=wzip_output)
+        self.pbt.batch_accum += ZipFlat(files_to_zip=file_list, target_zip=wzip_output)
         self.pbt.exec_and_capture_output("WzipMany files")
         self.assertTrue(wzip_output.exists(), f"{self.pbt.which_test}: {wzip_output} should exist after test")
 
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += UnZipMany(source_wzip=wzip_output, target_folder=target_dir)
+        self.pbt.batch_accum += UnZip(source_zip=wzip_output, target_folder=target_dir)
         self.pbt.exec_and_capture_output("UnWzipMany files")
         dir_comp_wzipmany = filecmp.dircmp(source_dir, target_dir)
         self.assertTrue(is_identical_dircmp(dir_comp_wzipmany),

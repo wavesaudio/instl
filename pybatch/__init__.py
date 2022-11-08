@@ -21,7 +21,7 @@ from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, C
     Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \
     SVNInfoReader, SVNSetProp, SVNDelProp, SVNCleanup
-from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip, ZipMany, UnZipMany
+from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip, ZipFlat, UnZip
 
 # from .fileSystemBatchCommands import AdvisoryFileLock
 
