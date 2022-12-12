@@ -83,6 +83,7 @@ class CommandLineOptions(object):
     COMPARE_DATES_ON_RESOLVE = OptionToConfigVar()
     RESOLVE_AS_YAML = OptionToConfigVar()
     __WRITE_CONFIG_VARS_TO_FILE__ = OptionToConfigVar()
+    UNRESOLVE_INDICATOR = OptionToConfigVar()
 
     def __init__(self) -> None:
         self.mode = None
@@ -435,7 +436,14 @@ def prepare_args_parser(in_command):
                                          default=False,
                                          action='store_true',
                                          dest='RESOLVE_AS_YAML',
-                                         help="correctly resolve configVar lists in yaml sequences")
+                                         help="resolve configVar lists in yaml sequences")
+        resolve_options.add_argument('--unresolve_indicator',
+                                         required=False,
+                                         default=False,
+                                         nargs=1,
+                                         dest='UNRESOLVE_INDICATOR',
+                                         help="character indicating not to resolve configVar in the file")
+
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',
                             required=False,

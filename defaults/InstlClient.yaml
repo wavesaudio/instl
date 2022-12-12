@@ -3,7 +3,7 @@
 PARALLEL_SYNC: 16
 CURL_CONFIG_FILE_NAME: dl
 CURL_CONNECT_TIMEOUT: 64 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
-CURL_MAX_TIME: 420       # Maximum time in seconds that you allow the whole operation to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
+CURL_MAX_TIME: 600       # Maximum time in seconds that you allow each transfer  to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
 CURL_RETRIES: 12          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 

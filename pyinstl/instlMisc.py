@@ -152,11 +152,12 @@ class InstlMisc(InstlInstanceBase):
         output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         compare_dates = config_vars.get('COMPARE_DATES_ON_RESOLVE', False).bool()
+        unresolve_indicator = config_vars.get('UNRESOLVE_INDICATOR', None).str()
 
         if config_vars.get("RESOLVE_AS_YAML", False):
-            ResolveConfigVarsInYamlFile(input_file, output_file, config_files=config_files, compare_dates=compare_dates)()
+            ResolveConfigVarsInYamlFile(input_file, output_file, config_files=config_files, compare_dates=compare_dates, unresolve_indicator=unresolve_indicator)()
         else:
-            ResolveConfigVarsInFile(input_file, output_file, config_files=config_files, compare_dates=compare_dates)()
+            ResolveConfigVarsInFile(input_file, output_file, config_files=config_files, compare_dates=compare_dates, unresolve_indicator=unresolve_indicator)()
 
     def do_exec(self):
         try:

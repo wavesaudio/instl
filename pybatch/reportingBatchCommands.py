@@ -520,7 +520,7 @@ class ResolveConfigVarsInYamlFile(pybatch.PythonBatchCommandBase):
                 resolved_docs.append(resolved_doc)
 
             resolved_text = io.StringIO()
-            # write the resolved text to memory so we can check it in case self.raise_if_unresolved==True
+            # write the resolved text to memory, so we can check it in case self.raise_if_unresolved==True
             for rdoc in resolved_docs:
                 aYaml.writeAsYaml(aYaml.YamlDumpWrap(rdoc, sort_mappings=False), resolved_text, top_level_blank_line=False)
 
