@@ -288,13 +288,19 @@ class InstlAdmin(InstlInstanceBase):
         forbidden_file_regex_list = list(config_vars["FILE_EXCLUDE_REGEX"])
         self.compiled_forbidden_file_regex = utils.compile_regex_list_ORed(forbidden_file_regex_list)
 
+    def is_forbidden_file(self, item_to_check):
+        return bool(self.compiled_forbidden_file_regex.search(os.fspath(item_to_check)))
+
     def raise_if_forbidden_file(self, item_to_check):
-        if self.compiled_forbidden_file_regex.search(os.fspath(item_to_check)):
-            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+        if self.is_forbidden_file(item_to_check):
+            raise InstlException(f"{item_to_check} is on forbidden file list and should not be committed to svn")
+
+    def is_forbidden_dir(self, item_to_check):
+        return bool(self.compiled_forbidden_folder_regex.search(os.fspath(item_to_check)))
 
     def raise_if_forbidden_dir(self, item_to_check):
-        if self.compiled_forbidden_folder_regex.search(os.fspath(item_to_check)):
-            raise InstlException(f"{item_to_check} has forbidden characters should not be committed to svn")
+        if self.is_forbidden_dir(item_to_check):
+            raise InstlException(f"{item_to_check} is on forbidden folders list and  should not be committed to svn")
 
     def do_stage2svn(self):
         self.batch_accum.set_current_section('admin')
@@ -343,7 +349,9 @@ class InstlAdmin(InstlInstanceBase):
             if stage_only_item_path.is_symlink():
                 raise InstlException(stage_only_item_path+" is a symlink which should not be committed to svn, run instl fix-symlinks and try again")
             elif stage_only_item_path.is_file():
-                self.raise_if_forbidden_file(stage_only_item_path)
+                if self.is_forbidden_file(stage_only_item_path):
+                    self.progress(f"skipping forbidden file {stage_only_item_path}")
+                    continue
 
                 # if stage file is .wtar.aa file but there is an identical .wtar on the right - do not add.
                 # this is done to help transitioning to single wtar files to be .wtar.aa without forcing the users
@@ -366,7 +374,9 @@ class InstlAdmin(InstlInstanceBase):
                     self.batch_accum += Progress(f"not adding {stage_only_item_path} because {svn_item_path_without_aa} exists and is identical")
 
             elif stage_only_item_path.is_dir():
-                self.raise_if_forbidden_dir(stage_only_item_path)
+                if self.is_forbidden_dir(stage_only_item_path):
+                    self.progress(f"skipping forbidden folder {stage_only_item_path}")
+                    continue
                 # check that all items under a new folder pass the forbidden file/folder rule
                 for root, dirs, files in os.walk(stage_only_item_path, followlinks=False):
                     for item in sorted(files):
@@ -381,9 +391,11 @@ class InstlAdmin(InstlInstanceBase):
 
         # copy changed items:
 
-        do_not_copy_items = list()  # items that should not be copied even if different, there are items that are part of .wtar where
-                                    # each part might be different but the contents are not. E.g. when re-wtaring files where only
-                                    # modification date has changed.
+        do_not_copy_items = list()
+        # items that should not be copied even if different.
+        # There are items that are part of .wtar where
+        # each part might be different but the contents are not.
+        # E.g. when re-wtaring files where only modification date has changed.
         for diff_item in sorted(comparator.diff_files):
             copy_file = diff_item not in do_not_copy_items
             left_item_path = Path(comparator.left, diff_item)

@@ -5,7 +5,7 @@ from .batchCommandAccum import PythonBatchCommandAccum
 from .conditionalBatchCommands import If, IsFile, IsDir, IsSymlink, IsEq, IsNotEq, IsConfigVarEq, IsConfigVarNotEq, \
     IsEnvironVarEq, IsEnvironVarNotEq, IsConfigVarDefined, ForInConfigVar
 from .copyBatchCommands import CopyDirContentsToDir, CopyDirToDir, CopyFileToDir, CopyFileToFile, MoveDirToDir, \
-    RenameFile, CopyBundle, CopyGlobToDir
+    RenameFile, CopyBundle, CopyGlobToDir, MoveFileToDir
 from .downloadBatchCommands import DownloadFileAndCheckChecksum, DownloadManager
 from .fileSystemBatchCommands import AppendFileToFile, Cd, ChFlags, Chmod, Chown, MakeDir, MakeRandomDirs, \
     MakeRandomDataFile, touch, Touch, Unlock, Ls, FileSizes, SplitFile, FixAllPermissions, Glober

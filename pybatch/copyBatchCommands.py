@@ -543,6 +543,7 @@ class CopyFileToDir(RsyncClone):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.raise_if_top_source_does_not_exist()
+        self.top_destination_does_not_exist = not self.dst.exists()
         self.copy_file_to_dir(self.src, self.dst)
 
 
