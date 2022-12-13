@@ -437,7 +437,7 @@ def prepare_args_parser(in_command):
                                          action='store_true',
                                          dest='RESOLVE_AS_YAML',
                                          help="resolve configVar lists in yaml sequences")
-        resolve_options.add_argument('--unresolve_indicator',
+        resolve_options.add_argument('--unresolve-indicator',
                                          required=False,
                                          default=False,
                                          nargs=1,
