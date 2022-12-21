@@ -5,28 +5,26 @@ import abc
 import json
 import urllib.error
 import urllib.parse
-import urllib.parse
-import urllib.request
 
 import requests
-import urllib3
 
-urllib3.disable_warnings()
 import logging
 
 log = logging.getLogger()
 
 from typing import Dict
 
-have_boto = True
-try:
-    import boto3
-except Exception:
-    have_boto = False
+have_boto = False
+# try:
+#     import boto3
+#     have_boto = True
+# except Exception:
+#     pass
 
 
 class ConnectionBase(object):
     repo_connection = None # global singleton, holding current connection
+
     def __init__(self, config_vars) -> None:
         self.config_vars = config_vars
 
