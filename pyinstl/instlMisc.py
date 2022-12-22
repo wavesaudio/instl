@@ -5,7 +5,6 @@ import threading
 from collections import namedtuple
 
 from .instlInstanceBase import InstlInstanceBase
-from . import connectionBase
 from pybatch import *
 import utils
 import psutil
@@ -103,6 +102,7 @@ class InstlMisc(InstlInstanceBase):
             sys.exit(17)
 
     def do_translate_url(self):
+        from . import connectionBase  # importing connectionBase take time so do it only when and where needed
         url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)

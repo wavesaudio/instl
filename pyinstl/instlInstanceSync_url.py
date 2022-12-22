@@ -8,7 +8,6 @@ if sys.platform == 'win32':
     import win32api
 
 from .instlInstanceSyncBase import InstlInstanceSync
-from . import connectionBase
 from pybatch import *
 
 
@@ -39,6 +38,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         """ get the cookie for sync_base_url and set config var
             COOKIE_FOR_SYNC_URLS to the text of the cookie
         """
+        from . import connectionBase  # importing connectionBase take time so do it only when and where needed
         net_loc = urllib.parse.urlparse(sync_base_url).netloc
         the_cookie = connectionBase.connection_factory(config_vars).get_cookie(net_loc)
         if the_cookie:

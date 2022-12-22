@@ -438,8 +438,7 @@ class InstlAdmin(InstlInstanceBase):
         # if FOLDER_EXCLUDE_WTAR_REGEX was not found, folder_exclude_wtar_regex_list will default to a^
         # which will not exclude any folder
         folder_exclude_wtar_regex_list = config_vars.get("FOLDER_EXCLUDE_WTAR_REGEX", ['a^']).list()
-        if folder_exclude_wtar_regex_list:
-            self.compiled_folder_exclude_wtar_regex = utils.compile_regex_list_ORed(folder_exclude_wtar_regex_list)
+        self.compiled_folder_exclude_wtar_regex = utils.compile_regex_list_ORed(folder_exclude_wtar_regex_list)
 
         file_wtar_regex_list = list(config_vars["FILE_WTAR_REGEX"])
         self.compiled_file_wtar_regex = utils.compile_regex_list_ORed(file_wtar_regex_list)

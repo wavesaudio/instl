@@ -7,7 +7,6 @@ import logging
 log = logging.getLogger()
 
 import utils
-from . import connectionBase
 from configVar import config_vars
 
 
@@ -41,6 +40,7 @@ class InstlInstanceSync(object, metaclass=abc.ABCMeta):
         """
         info_map_file_url = None
         try:
+            from . import connectionBase  # importing connectionBase take time so do it only when and where needed
             with self.instlObj.info_map_table.reading_files_context():
                 os.makedirs(os.fspath(config_vars["LOCAL_REPO_BOOKKEEPING_DIR"]), exist_ok=True)
                 os.makedirs(os.fspath(config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"]), exist_ok=True)
