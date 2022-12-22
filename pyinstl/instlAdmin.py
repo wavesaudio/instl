@@ -433,6 +433,14 @@ class InstlAdmin(InstlInstanceBase):
     def prepare_conditions_for_wtar(self):
         folder_wtar_regex_list = list(config_vars["FOLDER_WTAR_REGEX"])
         self.compiled_folder_wtar_regex = utils.compile_regex_list_ORed(folder_wtar_regex_list)
+
+        # some folders should not be wtarred even if they pass 'FOLDER_WTAR_REGEX'.
+        # if FOLDER_EXCLUDE_WTAR_REGEX was not found, folder_exclude_wtar_regex_list will default to a^
+        # which will not exclude any folder
+        folder_exclude_wtar_regex_list = config_vars.get("FOLDER_EXCLUDE_WTAR_REGEX", ['a^']).list()
+        if folder_exclude_wtar_regex_list:
+            self.compiled_folder_exclude_wtar_regex = utils.compile_regex_list_ORed(folder_exclude_wtar_regex_list)
+
         file_wtar_regex_list = list(config_vars["FILE_WTAR_REGEX"])
         self.compiled_file_wtar_regex = utils.compile_regex_list_ORed(file_wtar_regex_list)
 
@@ -449,27 +457,30 @@ class InstlAdmin(InstlInstanceBase):
     def should_wtar(self, dir_item: Path):
         _should_wtar = False
         _already_tarred = False
+        dir_item_str = os.fspath(dir_item)
         try:
-            if self.already_wtarred_regex.search(os.fspath(dir_item)):
+            if self.already_wtarred_regex.search(dir_item_str):
                 _should_wtar = False
                 _already_tarred = True
             elif dir_item.is_dir():
-                if self.compiled_folder_wtar_regex.search(os.fspath(dir_item)):
-                    # it's a folder matching one of the filters for wtarring a folder
+                if self.compiled_folder_wtar_regex.search(dir_item_str) \
+                    and not self.compiled_folder_exclude_wtar_regex.search(dir_item_str):
+                    # it's a folder matching one of the filters for wtarring a folder,
+                    # but is not on the excludes filter
                     _should_wtar = True
                     _already_tarred = False
             elif dir_item.is_file():
-                if self.compiled_file_wtar_regex.search(os.fspath(dir_item)):
+                if self.compiled_file_wtar_regex.search(dir_item_str):
                     # it's a file matching one of the filters for wtarring a file
                     _should_wtar = True
                     _already_tarred = False
                 elif dir_item.stat().st_size > self.min_file_size_to_wtar:
-                    # it's a file who's size is big enough to require wtarring
-                    if re.match(self.compiled_wtar_by_file_size_exclude_regex, os.fspath(dir_item)):
+                    # it's a file whose size is big enough to require wtarring
+                    if re.match(self.compiled_wtar_by_file_size_exclude_regex, dir_item_str):
                         _should_wtar = False
                         _already_tarred = False
                     else:
-                         # but not a file who's name matching one of the filters for NOT wtarring
+                         # but not a file whose name matching one of the filters for NOT wtarring
                         _should_wtar = True
                         _already_tarred = False
                 else:
