@@ -357,7 +357,32 @@ class TestPythonBatchCopy(unittest.TestCase):
         pass
 
     def test_MoveFileToFile(self):
-        pass
+        file_name = "hootenanny"
+        dir_to_copy_from = self.pbt.path_inside_test_folder("source_dir")
+        dir_to_copy_to = self.pbt.path_inside_test_folder("target_dir")
+        source_file = dir_to_copy_from.joinpath(file_name).resolve()
+        target_file = dir_to_copy_to.joinpath(file_name).resolve()
+
+        # create source file
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_copy_from)
+        self.pbt.batch_accum += Touch(source_file)
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(source_file.is_file())
+        self.assertFalse(target_file.is_file())
+
+        # move file to target folder
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MoveFileToFile(source_file, target_file)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(source_file.is_file())
+        self.assertTrue(target_file.is_file())
+
+        # move file target file to itself, this should leave the file as is
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MoveFileToFile(target_file, target_file)
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(target_file.is_file())
 
     def test_CopyGlobToDir_repr(self):
         self.pbt.reprs_test_runner(CopyGlobToDir("/a/b/c", "/x/y/z", "*.banana"),

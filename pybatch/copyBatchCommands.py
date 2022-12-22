@@ -594,6 +594,11 @@ class MoveFileToFile(CopyFileToFile):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        try: # avoid moving a file onto itself
+            if self.src.samefile(self.dst):
+                return
+        except:
+            pass
         try:
             super().__call__(*args, **kwargs)
         except Exception as ex:
