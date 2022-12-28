@@ -352,7 +352,7 @@ class PythonBatchCommandBase(abc.ABC):
         """
             WINDOWS ONLY - will do nothing on other platforms
             updates _error_dict with describing who is locking a file - if any
-            function signiture is structured to be suitable to pass to shutil.rmtree onerror param
+            function signature is structured to be suitable to pass to shutil.rmtree onerror param
         """
         who_locks_file_dll_path = config_vars.get("__WHO_LOCKS_FILE_DLL_PATH__", None).Path()
         if who_locks_file_dll_path:

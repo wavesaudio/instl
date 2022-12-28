@@ -5,7 +5,6 @@ from collections import defaultdict
 from .fileSystemBatchCommands import *
 from .removeBatchCommands import RmFileOrDir
 
-# ToDo: add unwtar ?
 log = logging.getLogger(__name__)
 
 
@@ -177,19 +176,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 retVal = True
         return retVal
 
-    def should_hard_link_file_DirEntry(self, a_file: os.DirEntry):
-        assert isinstance(a_file, os.DirEntry)
-        retVal = False
-        if self.hard_links and not self.hard_links_failed and not a_file.is_symlink():
-            for no_hard_link_pattern in self.__all_no_hard_link_patterns:
-                file_path = Path(a_file)  # todo: avoid using Path.match, since converting DirEntry toPath is not efficient
-                if file_path.match(no_hard_link_pattern):
-                    log.debug(f"not hard linking {a_file.path} because it matches pattern {no_hard_link_pattern}")
-                    break
-            else:
-                retVal = True
-        return retVal
-
     def should_no_flags_file(self, file_path: Path):
         retVal = True
         for no_flags_pattern in self.__all_no_flags_patterns:
@@ -208,7 +194,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
 
         for dst_item in os.scandir(dst):
             if dst_item.name not in src_item_names and not self.should_ignore_file(dst_item.path):
-                self.last_step, self.last_src, self.last_dst = "remove redundant file", "", os.fspath(dst_item)
+                self.last_step, self.last_src, self.last_dst = "remove redundant file", Path(), Path(dst_item)
                 log.info(f"delete {dst_item.path}")
                 if not self.dry_run:
                     with RmFileOrDir(dst_item, report_own_progress=False, resolve_path=not dst_item.is_symlink()) as rfod:
@@ -222,7 +208,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             if src_path is relative (usually it is) dst_path should link to the same relative
             destination, not to the exact destination of src_path.
         """
-        self.last_src, self.last_dst = os.fspath(src_path), os.fspath(dst_path)
+        self.last_src, self.last_dst = src_path, dst_path
         self.doing = f"""copy symlink '{self.last_src}' to '{self.last_dst}'"""
 
         link_to = os.readlink(src_path)
@@ -241,7 +227,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             else:
                 self.copy_file_to_file(src_path, dst_path)
 
-    def should_copy_file_Path(self, src: Path, dst: Path):
+    def should_copy_file(self, src: Path, dst: Path):
         retVal = True
         if not self.top_destination_does_not_exist:
             try:
@@ -255,31 +241,12 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                     log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src}' to '{dst}'")
                 if retVal:  # destination exists and different from source so source should be copied.
                     # remove the destination file so os.link() will not fail on FileExistsError
-                    dst_stats_mods = dst_stats.st_mode | stat.S_IWRITE
-                    dst.chmod(dst_stats_mods)  # Windows files might have read-only bit set
-                    dst.unlink(missing_ok=True)
-            except Exception as ex:  # most likely dst.stat() failed because dst does not exist
-                retVal = True
-        return retVal
-
-    def should_copy_file_DirEntry(self, src: os.DirEntry, dst: Path):
-        retVal = True
-        if not self.top_destination_does_not_exist:
-            try:
-                dst_stats = dst.stat()
-                src_stats = src.stat()
-                if src_stats.st_ino == 0:  # on windows os.DirEntry.stat sets st_ino to zero and os.stat should be called
-                                           # see https://docs.python.org/3.6/library/os.html#os.DirEntry
-                    src_stats = os.stat(src.path, follow_symlinks=False)
-                if src_stats.st_ino == dst_stats.st_ino:
-                    retVal = False
-                    log.debug(f"{self.progress_msg()} skip copy file, same inode '{src.path}' to '{dst}'")
-                elif src_stats.st_size == dst_stats.st_size and src_stats.st_mtime == dst_stats.st_mtime:
-                    retVal = False
-                    log.debug(f"{self.progress_msg()} skip copy file, same time and size '{src.path}' to '{dst}'")
-                if retVal:  # destination exists and different from source so source should be copied.
-                            # remove the destination file so os.link() will not fail on FileExistsError
-                    dst.unlink(missing_ok=True)
+                    try:
+                        dst_stats_mods = dst_stats.st_mode | stat.S_IWRITE
+                        dst.chmod(dst_stats_mods)  # On Windows, files might have read-only bit set
+                        dst.unlink(missing_ok=True)
+                    except Exception as ex:
+                        self.who_locks_file_error_dict(None, dst, ex)
             except Exception as ex:  # most likely dst.stat() failed because dst does not exist
                 retVal = True
         return retVal
@@ -304,10 +271,10 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
             is assumed to exist
         """
-        self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
+        self.last_src, self.last_dst = src, dst
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
-        if self.should_copy_file_Path(src, dst):
+        if self.should_copy_file(src, dst):
             try:
                 if not self.should_hard_link_file(src):
                     log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
@@ -338,46 +305,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
             self.statistics['skipped_files'] += 1
         return dst
 
-    def copy_file_to_file_DirEntry(self, src: os.DirEntry, dst: Path, follow_symlinks=True):
-        """ copy the file src to the file dst. dst should either be an existing file
-            or not exists at all - i.e. dst cannot be a folder. The parent folder of dst
-            is assumed to exist.
-            src is assumed to be of type os.DirEntry
-        """
-        self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
-        self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
-
-        if self.should_copy_file_DirEntry(src, dst):
-            try:
-                if not self.should_hard_link_file_DirEntry(src):
-                    log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
-                    if not self.dry_run:
-                        _fast_copy_file(src, dst)
-                        shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
-                else:  # try to create hard link
-                    try:
-                        self.dry_run or os.link(src, dst)
-                        log.debug(f"hard link file '{self.last_src}' to '{self.last_dst}'")
-                        self.statistics['hard_links'] += 1
-                    except OSError as ose:
-                        self.hard_links_failed = True
-                        log.debug(f"copy file '{self.last_src}' to '{self.last_dst}'")
-
-                        if not self.dry_run:
-                            _fast_copy_file(src, dst)
-                            shutil.copystat(src, dst, follow_symlinks=follow_symlinks)
-                if self.copy_owner and self.has_chown:
-                    src_st = src.stat()  # !
-                    os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
-            except Exception as ex:
-                self.who_locks_file_error_dict(_fast_copy_file, self.last_dst)
-                raise
-        else:
-            self.statistics['skipped_files'] += 1
-        return dst
-
     def copy_file_to_dir(self, src: Path, dst: Path, follow_symlinks=True):
-        self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
+        self.last_src, self.last_dst = src, dst
         self.doing = f"""copy file '{self.last_src}' to '{self.last_dst}'"""
 
         if self.top_destination_does_not_exist:
@@ -390,7 +319,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
     def copy_tree(self, src: Path, dst: Path):
         """ based on shutil.copytree
         """
-        self.last_src, self.last_dst = os.fspath(src), os.fspath(dst)
+        self.last_src, self.last_dst = src, dst
         save_top_destination_does_not_exist = self.top_destination_does_not_exist
         self.top_destination_does_not_exist = self.top_destination_does_not_exist or not dst.exists()  # !
 
@@ -429,7 +358,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 else:
                     self.statistics['files'] += 1
                     # Will raise a SpecialFileError for unsupported file types
-                    self.copy_file_to_file_DirEntry(src_item, dst_path)
+                    self.copy_file_to_file(src_item_path, dst_path)
             # catch the Error from the recursive copytree so that we can
             # continue with other files
             except shutil.Error as err:
@@ -449,7 +378,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         last_src_path = "unknown"
         last_src_mode = "unknown"
         try:
-            last_src_path = Path(self.last_src)
+            last_src_path = self.last_src
             last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
         except:
             pass
@@ -457,7 +386,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         last_dst_path = "unknown"
         last_dst_mode = "unknown"
         try:
-            last_dst_path = Path(self.last_dst)
+            last_dst_path = self.last_dst
             last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
         except:
             pass
@@ -577,7 +506,7 @@ class CopyFileToFile(RsyncClone):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.raise_if_top_source_does_not_exist()
         if self.output_script and sys.platform == 'darwin':
-            utils.write_shell_command(f" cp \"{self.src}\" \"{self.dst}\" \n", self.output_script)
+            utils.write_shell_command(f'''cp "{self.src}" "{self.dst}" \n''', self.output_script)
         else:
             with MakeDir(self.dst.parent, report_own_progress=False) as md:
                 md()
@@ -594,10 +523,10 @@ class MoveFileToFile(CopyFileToFile):
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        try: # avoid moving a file onto itself
+        try:  # avoid moving a file onto itself
             if self.src.samefile(self.dst):
                 return
-        except:
+        except Exception:
             pass
         try:
             super().__call__(*args, **kwargs)
