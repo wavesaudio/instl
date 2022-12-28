@@ -479,7 +479,7 @@ class InstlAdmin(InstlInstanceBase):
                         _should_wtar = False
                         _already_tarred = False
                     else:
-                         # but not a file whose name matching one of the filters for NOT wtarring
+                        # but not a file whose name matching one of the filters for NOT wtarring
                         _should_wtar = True
                         _already_tarred = False
                 else:
