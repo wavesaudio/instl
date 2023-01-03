@@ -300,4 +300,3 @@ class RmDirContents(PythonBatchCommandBase):
             if item.name not in self.exclude:
                 with RmFileOrDir(item.path, own_progress_count=0) as rfod:
                     rfod()
-

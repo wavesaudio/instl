@@ -309,7 +309,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
             self.increment_progress()
 
 
-class Exec(PythonBatchCommandBase):
+class ExecPython(PythonBatchCommandBase):
     def __init__(self, python_file, config_files=None, reuse_db=True, args=None, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
@@ -339,6 +339,13 @@ class Exec(PythonBatchCommandBase):
                 sys.argv = [os.fspath(self.python_file), *self.args]
             exec(py_compiled, globals())
             sys.argv = original_argv
+
+
+class Exec(ExecPython):
+    """ deprecated use ExecPython inside"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
 
 class RunInThread(PythonBatchCommandBase):
     """
@@ -429,7 +436,7 @@ class Subprocess(RunProcessBase):
 class ExternalPythonExec(Subprocess):
     """ A class that enables running python processes under the native python installed on the machine"""
     def __init__(self, *subprocess_args, **kwargs):
-        '''Setting subprocess_exe to an empty string to exclude it from the repr'''
+        """Setting subprocess_exe to an empty string to exclude it from the repr"""
         super().__init__('', *subprocess_args, **kwargs)
 
     def repr_own_args(self, all_args: List[str]):
