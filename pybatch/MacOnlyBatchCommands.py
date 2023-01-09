@@ -96,12 +96,12 @@ class CreateSymlink(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         path_to_target = utils.ExpandAndResolvePath(self.path_to_target)
-        path_to_symlink = utils.ExpandAndResolvePath(self.path_to_symlink)
+        path_to_symlink = utils.ExpandAndResolvePath(self.path_to_symlink, resolve_path=False)
         if self.relative:
             try:
                 path_to_target = path_to_target.relative_to(path_to_symlink.parent)
             except:
-                pass  # if paths are not relative default to creating absolute symlink
+                pass  # if paths cannot be relative, default to creating absolute symlink
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
         with RmSymlink(path_to_symlink, report_own_progress=False, resolve_path=False) as rf:
             rf()

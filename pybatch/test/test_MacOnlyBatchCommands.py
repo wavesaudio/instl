@@ -304,3 +304,11 @@ class TestPythonBatchMac(unittest.TestCase):
         self.assertTrue(a_file.is_file())
         self.assertFalse(a_dir_symlink.exists())
         self.assertFalse(a_file_symlink.exists())
+
+    def test_CSL(self):
+        with CreateSymlink(r"/Users/shai/Library/Preferences/Waves Preferences/Waves Plugins V14",
+                           r"/Applications/Waves/Plug-Ins V14", prog_num=1019) as create_symlink_152_1019:
+            create_symlink_152_1019()
+        with CreateSymlink(r"/Users/Shared/Waves/Waves Plugins V14", r"/Applications/Waves/Plug-Ins V14",
+                           prog_num=1020) as create_symlink_153_1020:
+            create_symlink_153_1020()
