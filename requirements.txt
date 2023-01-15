@@ -3,6 +3,6 @@ future
 networkx
 packaging
 PyInstaller==5.3
-PyYAML --no-binary=PyYAML
+PyYAML --use-feature=no-binary-enable-wheel-cache
 requests
 xmltodict
