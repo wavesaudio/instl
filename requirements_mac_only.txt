@@ -1,3 +1,3 @@
 # Mac only
-psutil==5.8.0 --use-feature=no-binary-enable-wheel-cache
-charset-normalizer==2.1.1 --use-feature=no-binary-enable-wheel-cache
+psutil==5.8.0 --no-binary=psutil
+charset-normalizer==2.1.1 --no-binary=charset-normalizer
