@@ -197,11 +197,14 @@ def str_to_int(the_str):
         For example, a configVar "ExternalVersion_underscore" might hold a value such as "1_2_3_4"
         and calling configVar["ExternalVersion_underscore"].int() should raise Value error instead
         of returning 1234.
-        So str_to_int overcomes this problem by raising ValueError when a string contains '_'.
+        So str_to_int overcomes this problem by raising ValueError when converting the int back to
+        string and the result is not identical with the original string.
+        This also make strings starting with 0, to not be considered ints
     """
-    if isinstance(the_str, str) and "_" in the_str:
-        raise ValueError(f"{the_str} contains '_' char and therefor not considered int")
-    return int(the_str)
+    as_int = int(the_str)
+    if str(as_int) != the_str:  # '012' should be considered a string not an int
+        raise ValueError(f"{the_str} is not considered int")
+    return as_int
 
 
 def str_to_float(the_str):
