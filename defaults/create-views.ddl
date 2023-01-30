@@ -1,3 +1,5 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
 -- noinspection SqlResolveForFile
 
 -- iid, index_version, generation
@@ -80,3 +82,45 @@ SELECT version_t.owner_iid AS iid, version_t.detail_value AS version, min(versio
 FROM index_item_detail_t AS version_t
 WHERE version_t.detail_name='version'
 GROUP BY version_t.owner_iid;
+
+CREATE VIEW IF NOT EXISTS "sizes_view" AS
+SELECT index_item_detail_t.owner_iid,
+       index_item_detail_t.detail_value as install_source,
+       SUM(svn_item_t.size) as total_size,
+       CASE
+           WHEN index_item_detail_t.detail_value LIKE "Mac%" THEN
+                1
+           WHEN index_item_detail_t.detail_value LIKE "Win%" THEN
+                4
+            ELSE
+                0
+            END as OS
+FROM index_item_detail_t, svn_item_t
+WHERE
+    index_item_detail_t.detail_name == "install_sources" AND
+    svn_item_t.fileFlag == 1 AND
+    svn_item_t.path LIKE index_item_detail_t.detail_value || '%'
+GROUP BY index_item_detail_t.detail_value
+ORDER BY index_item_detail_t.owner_iid
+
+CREATE VIEW IF NOT EXISTS "sizes_view" AS
+SELECT index_item_detail_t.owner_iid as iid,
+       index_item_detail_t.detail_value as install_source,
+       SUM(svn_item_t.size) as size,
+       CASE
+           WHEN index_item_detail_t.detail_value LIKE "Mac%" THEN
+                1
+           WHEN index_item_detail_t.detail_value LIKE "Win%" THEN
+                4
+           WHEN index_item_detail_t.detail_value LIKE "Linux%" THEN
+                7
+           ELSE
+                0
+           END as OS
+FROM index_item_detail_t, svn_item_t
+WHERE
+    index_item_detail_t.detail_name == "install_sources" AND
+    svn_item_t.fileFlag == 1 AND
+    svn_item_t.path LIKE index_item_detail_t.detail_value || '%'
+GROUP BY index_item_detail_t.detail_value
+ORDER BY index_item_detail_t.owner_iid;
