@@ -1034,7 +1034,6 @@ class InstlAdmin(InstlInstanceBase):
                 sub_accum += FileSizes(folder_to_scan=checkout_base_folder, out_file=info_map_file_sizes_path, skip_action=skip_some_actions)
 
             batch_accum += IndexYamlReader(checkout_folder_index_path)
-            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
             batch_accum += SVNInfoReader(info_map_info_path, format='info', disable_indexes_during_read=True)
             batch_accum += SVNInfoReader(info_map_props_path, format='props')
             batch_accum += SVNInfoReader(info_map_file_sizes_path, format='file-sizes')
@@ -1051,6 +1050,7 @@ class InstlAdmin(InstlInstanceBase):
             batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
             batch_accum += Wzip(revision_instl_index_path)
             batch_accum += CreateRepoRevFile()
+            batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
 
             with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
                 sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")

@@ -349,7 +349,7 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
         return f'''write short index.yaml to {self.short_index_yaml_path}'''
 
     def __call__(self, *args, **kwargs) -> None:
-        short_index_data = self.items_table.get_data_for_short_index()  # iid, name, version_mac, version_win, install_guid, remove_guid
+        short_index_data = self.items_table.get_data_for_short_index()  # iid, name, version_mac, version_win, install_guid, remove_guid, size_mac, size_win
         short_index_dict = defaultdict(dict)
         builtin_iids = list(config_vars["SPECIAL_BUILD_IN_IIDS"])
         for data_line in short_index_data:
