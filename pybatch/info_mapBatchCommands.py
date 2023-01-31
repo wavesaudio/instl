@@ -375,9 +375,9 @@ class ShortIndexYamlCreator(DBManager, PythonBatchCommandBase):
                     else:
                         short_index_dict[IID]['guid'] = data_dict['install_guid']
 
-                if 'size_mac' in data_dict:
+                if 'size_mac' in data_dict and data_dict['size_mac']:
                     short_index_dict[IID]['size_mac'] = data_dict['size_mac']
-                if 'size_win' in data_dict:
+                if 'size_win' in data_dict and data_dict['size_win']:
                     short_index_dict[IID]['size_win'] = data_dict['size_win']
 
         defines_dict = config_vars.repr_for_yaml(which_vars=list(config_vars['SHORT_INDEX_FILE_VARS']), resolve=True,
