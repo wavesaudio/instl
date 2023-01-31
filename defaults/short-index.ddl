@@ -1,3 +1,71 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
+CREATE VIEW IF NOT EXISTS "sizes_view" AS
+SELECT index_item_detail_t.owner_iid as iid,
+       index_item_detail_t.detail_value as install_source,
+       SUM(svn_item_t.size) as size,
+       CASE
+           WHEN index_item_detail_t.detail_value LIKE "Mac%" THEN
+                1
+           WHEN index_item_detail_t.detail_value LIKE "Win%" THEN
+                4
+           WHEN index_item_detail_t.detail_value LIKE "Linux%" THEN
+                7
+           ELSE
+                0
+           END as OS
+FROM index_item_detail_t, svn_item_t
+WHERE
+    index_item_detail_t.detail_name == "install_sources" AND
+    svn_item_t.fileFlag == 1 AND
+    svn_item_t.path LIKE index_item_detail_t.detail_value || '%'
+GROUP BY index_item_detail_t.detail_value
+ORDER BY index_item_detail_t.owner_iid;
+
+DROP TABLE IF EXISTS "sizes_Mac_tt";
+CREATE TEMP TABLE sizes_Mac_tt
+(
+    _id INTEGER PRIMARY KEY,
+    iid TEXT UNIQUE,
+    size INTEGER DEFAULT 0
+);
+
+INSERT INTO sizes_Mac_tt(iid, size)
+SELECT sizes_view.iid, SUM(sizes_view.size)
+FROM sizes_view
+WHERE sizes_view.OS BETWEEN 0 AND 3
+GROUP BY sizes_view.iid
+ORDER BY iid;
+
+DROP TABLE IF EXISTS "sizes_Win_tt";
+CREATE TEMP TABLE sizes_Win_tt
+(
+    _id INTEGER PRIMARY KEY,
+    iid TEXT UNIQUE,
+    size INTEGER DEFAULT 0
+);
+
+INSERT INTO sizes_Win_tt(iid, size)
+SELECT sizes_view.iid, SUM(sizes_view.size)
+FROM sizes_view
+WHERE sizes_view.OS == 0 OR (sizes_view.OS BETWEEN 4 AND 6)
+GROUP BY sizes_view.iid
+ORDER BY iid;
+
+DROP TABLE IF EXISTS "sizes_Linux_tt";
+CREATE TEMP TABLE sizes_Linux_tt
+(
+    _id INTEGER PRIMARY KEY,
+    iid TEXT UNIQUE,
+    size INTEGER DEFAULT 0
+);
+
+INSERT INTO sizes_Linux_tt(iid, size)
+SELECT sizes_view.iid, SUM(sizes_view.size)
+FROM sizes_view
+WHERE sizes_view.OS == 0 OR sizes_view.OS == 7
+GROUP BY sizes_view.iid
+ORDER BY iid;
 
 DROP TABLE IF EXISTS short_index_t;
 DROP TRIGGER IF EXISTS add_mac_version_trigger;
@@ -12,6 +80,8 @@ CREATE TABLE short_index_t
     version_win TEXT,
     install_guid TEXT,
     remove_guid TEXT,
+    size_mac INTEGER DEFAULT 0,
+    size_win INTEGER DEFAULT 0,
     FOREIGN KEY(iid) REFERENCES index_item_t(iid)
 );
 -- having both FOREIGN KEY and UNIQUE INDEX on short_index_t.iid was measured to improve insert and select time
@@ -74,6 +144,20 @@ BEGIN
         WHERE index_item_detail_t.detail_name == "guid"
         AND index_item_detail_t.owner_iid == NEW.iid
         ORDER BY index_item_detail_t.generation DESC
+        LIMIT 1)
+    WHERE short_index_t.iid == NEW.iid;
+
+    UPDATE short_index_t
+    SET size_mac  = (
+    SELECT sizes_Mac_tt.size
+        FROM sizes_Mac_tt
+        LIMIT 1)
+    WHERE short_index_t.iid == NEW.iid;
+
+    UPDATE short_index_t
+    SET size_win  = (
+    SELECT sizes_Win_tt.size
+        FROM sizes_Win_tt
         LIMIT 1)
     WHERE short_index_t.iid == NEW.iid;
 END;
