@@ -1,6 +1,9 @@
 -- noinspection SqlNoDataSourceInspectionForFile
 
-CREATE VIEW IF NOT EXISTS "sizes_view" AS
+BEGIN TRANSACTION;
+
+DROP VIEW IF EXISTS sizes_view;
+CREATE VIEW "sizes_view" AS
 SELECT index_item_detail_t.owner_iid as iid,
        index_item_detail_t.detail_value as install_source,
        SUM(svn_item_t.size) as size,
@@ -23,7 +26,7 @@ GROUP BY index_item_detail_t.detail_value
 ORDER BY index_item_detail_t.owner_iid;
 
 DROP TABLE IF EXISTS "sizes_Mac_tt";
-CREATE TEMP TABLE sizes_Mac_tt
+CREATE TABLE sizes_Mac_tt
 (
     _id INTEGER PRIMARY KEY,
     iid TEXT UNIQUE,
@@ -38,7 +41,7 @@ GROUP BY sizes_view.iid
 ORDER BY iid;
 
 DROP TABLE IF EXISTS "sizes_Win_tt";
-CREATE TEMP TABLE sizes_Win_tt
+CREATE TABLE sizes_Win_tt
 (
     _id INTEGER PRIMARY KEY,
     iid TEXT UNIQUE,
@@ -52,8 +55,10 @@ WHERE sizes_view.OS == 0 OR (sizes_view.OS BETWEEN 4 AND 6)
 GROUP BY sizes_view.iid
 ORDER BY iid;
 
+END TRANSACTION;
+
 DROP TABLE IF EXISTS "sizes_Linux_tt";
-CREATE TEMP TABLE sizes_Linux_tt
+CREATE TABLE sizes_Linux_tt
 (
     _id INTEGER PRIMARY KEY,
     iid TEXT UNIQUE,
@@ -66,6 +71,7 @@ FROM sizes_view
 WHERE sizes_view.OS == 0 OR sizes_view.OS == 7
 GROUP BY sizes_view.iid
 ORDER BY iid;
+
 
 DROP TABLE IF EXISTS short_index_t;
 DROP TRIGGER IF EXISTS add_mac_version_trigger;
@@ -149,8 +155,9 @@ BEGIN
 
     UPDATE short_index_t
     SET size_mac  = (
-    SELECT sizes_Mac_tt.size
+    SELECT size
         FROM sizes_Mac_tt
+        WHERE sizes_Mac_tt.iid == NEW.iid
         LIMIT 1)
     WHERE short_index_t.iid == NEW.iid;
 
@@ -158,6 +165,7 @@ BEGIN
     SET size_win  = (
     SELECT sizes_Win_tt.size
         FROM sizes_Win_tt
+        WHERE sizes_Win_tt.iid == NEW.iid
         LIMIT 1)
     WHERE short_index_t.iid == NEW.iid;
 END;
