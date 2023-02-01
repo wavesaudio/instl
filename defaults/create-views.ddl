@@ -46,6 +46,8 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
           coalesce(require_version.detail_value, "_") AS 'require_version',
           coalesce(remote.detail_value, "_") AS 'remote_version',
           coalesce(secondary_guid.detail_value, item_guid.detail_value, "_") AS 'secondary_guid',
+          CAST(coalesce(size_mac.detail_value, 0) AS INTEGER) AS 'size_mac',
+          CAST(coalesce(size_win.detail_value, 0) AS INTEGER) AS 'size_win',
           min(remote.generation) AS generation
     FROM index_item_detail_t AS remote
 
@@ -66,7 +68,13 @@ CREATE VIEW IF NOT EXISTS "report_versions_view" AS
         AND secondary_guid.owner_iid=remote.owner_iid
         AND secondary_guid._id > item_guid._id
         AND secondary_guid.os_is_active=1
-    WHERE
+     LEFT JOIN index_item_detail_t as size_mac
+        ON  size_mac.detail_name = 'size_mac'
+        AND item_name.owner_iid=size_mac.owner_iid
+     LEFT JOIN index_item_detail_t as size_win
+        ON  size_win.detail_name = 'size_win'
+        AND item_name.owner_iid=size_win.owner_iid
+   WHERE
         remote.detail_name = 'version'
         AND remote.os_is_active=1
     GROUP BY remote.owner_iid;

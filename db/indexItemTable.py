@@ -913,7 +913,10 @@ class IndexItemsTable(object):
             AND remote_version != '_'
             """
         results = self.db.select_and_fetchall(query_text, query_params={}, progress_callback=progress_callback)
-        retVal = [mm[:6] for mm in results]
+        field_names = ("IID", "guid", "name", "installed version", "latest version", "uninstall guid", "size mac", "size win")
+        retVal = [field_names]  # first entry is the field names
+        num_fields_to_take = min(len(results[0]), len(field_names))
+        retVal.extend([mm[:num_fields_to_take] for mm in results])
         return retVal
 
         return retVal
