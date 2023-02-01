@@ -1049,8 +1049,8 @@ class InstlAdmin(InstlInstanceBase):
             batch_accum += InfoMapFullWriter(full_info_map_file_path, in_format='text')
             batch_accum += InfoMapSplitWriter(revision_instl_folder_path, in_format='text')
             batch_accum += Wzip(revision_instl_index_path)
-            batch_accum += CreateRepoRevFile()
             batch_accum += ShortIndexYamlCreator(checkout_folder_short_index_path)
+            batch_accum += CreateRepoRevFile()
 
             with batch_accum.sub_accum(Cd(revision_folder_path)) as sub_accum:
                 sub_accum += Subprocess("aws", "s3", "sync", os.curdir, "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)", "--exclude", "*.DS_Store")

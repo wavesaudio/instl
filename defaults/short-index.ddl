@@ -55,23 +55,22 @@ WHERE sizes_view.OS == 0 OR (sizes_view.OS BETWEEN 4 AND 6)
 GROUP BY sizes_view.iid
 ORDER BY iid;
 
-END TRANSACTION;
+-- DROP TABLE IF EXISTS "sizes_Linux_tt";
+-- CREATE TABLE sizes_Linux_tt
+-- (
+--     _id INTEGER PRIMARY KEY,
+--     iid TEXT UNIQUE,
+--     size INTEGER DEFAULT 0
+-- );
+--
+-- INSERT INTO sizes_Linux_tt(iid, size)
+-- SELECT sizes_view.iid, SUM(sizes_view.size)
+-- FROM sizes_view
+-- WHERE sizes_view.OS == 0 OR sizes_view.OS == 7
+-- GROUP BY sizes_view.iid
+-- ORDER BY iid;
 
-DROP TABLE IF EXISTS "sizes_Linux_tt";
-CREATE TABLE sizes_Linux_tt
-(
-    _id INTEGER PRIMARY KEY,
-    iid TEXT UNIQUE,
-    size INTEGER DEFAULT 0
-);
-
-INSERT INTO sizes_Linux_tt(iid, size)
-SELECT sizes_view.iid, SUM(sizes_view.size)
-FROM sizes_view
-WHERE sizes_view.OS == 0 OR sizes_view.OS == 7
-GROUP BY sizes_view.iid
-ORDER BY iid;
-
+END TRANSACTION;  -- commit new tables otherwise the triggers will not recognize them
 
 DROP TABLE IF EXISTS short_index_t;
 DROP TRIGGER IF EXISTS add_mac_version_trigger;
