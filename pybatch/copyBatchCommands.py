@@ -113,8 +113,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
 
     def repr_own_args(self, all_args: List[str]) -> None:
         params = list()
-        params.append(self.unnamed__init__param(self.src))
-        params.append(self.unnamed__init__param(self.dst))
+        params.append(self.unnamed__init__param(self.src, resolve_path=True))
+        params.append(self.unnamed__init__param(self.dst, resolve_path=True))
         if not self.ignore_all_errors:
             params.append(self.optional_named__init__param("ignore_if_not_exist", self.ignore_if_not_exist, False))
         params.append(self.optional_named__init__param("symlinks_as_symlinks", self.symlinks_as_symlinks, True))

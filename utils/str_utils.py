@@ -82,15 +82,21 @@ def quoteme_raw_if_string(some_thing):
         return str(some_thing)
 
 
-def quoteme_raw_by_type(some_thing, config_vars=None):
+def quoteme_raw_by_type(some_thing, config_vars=None, resolve_path=False):
     retVal = None
     if isinstance(some_thing, types_that_do_not_need_quotation):
         retVal = str(some_thing)
     elif isinstance(some_thing, str):
         if config_vars is not None:
             some_thing = config_vars.resolve_str(some_thing)
+        if resolve_path:
+            from utils import ExpandAndResolvePath
+            some_thing = os.fspath(ExpandAndResolvePath(some_thing))
         retVal = quoteme_raw_string(some_thing)
     elif isinstance(some_thing, os.PathLike):
+        if resolve_path:
+            from utils import ExpandAndResolvePath
+            some_thing = ExpandAndResolvePath(some_thing)
         retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
     elif isinstance(some_thing, collections.abc.Sequence):
         retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing), "]"))
