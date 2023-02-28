@@ -304,7 +304,8 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         time_diff = self.exit_time-self.enter_time
         hours, remainder = divmod(time_diff, 3600)
         minutes, seconds = divmod(remainder, 60)
-        log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds)}")
+        milliseconds = int((seconds - int(seconds))*1000)
+        log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}")
         pybatch.PythonBatchCommandBase.stage_stack.pop()
         self.exit_self(suppress_exception)
 
