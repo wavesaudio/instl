@@ -71,8 +71,9 @@ class FailIfFileNotFound(RaiseException):
         all_args.append(self.unnamed__init__param(self.file_to_find, resolve_path=True))
 
     def __call__(self, *args, **kwargs) -> None:
-        print(f"error: File not found: {self.file_to_find}")
-        super().__call__(*args, **kwargs)
+        if not Path(self.file_to_find).is_file():
+            print(f"error: File not found: {self.file_to_find}")
+            super().__call__(*args, **kwargs)
 
 class Stage(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
