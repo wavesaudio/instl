@@ -16,7 +16,7 @@ from .removeBatchCommands import RmDir, RmFile, RmFileOrDir, RemoveEmptyFolders,
 from .reportingBatchCommands import AnonymousAccum, Echo, Progress, Remark, Stage, ConfigVarAssign, ConfigVarPrint, \
     PythonVarAssign, PythonBatchRuntime, RaiseException, PythonDoSomething, ResolveConfigVarsInFile, \
     ResolveConfigVarsInYamlFile, \
-    ReadConfigVarsFromFile, ReadConfigVarValueFromTextFile, EnvironVarAssign, PatchPyBatchWithTimings, Print
+    ReadConfigVarsFromFile, ReadConfigVarValueFromTextFile, EnvironVarAssign, PatchPyBatchWithTimings, Print, FailIfFileNotFound
 from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, CUrl, ScriptCommand, Exec, RunInThread, \
     Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \

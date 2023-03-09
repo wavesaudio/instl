@@ -42,7 +42,7 @@ class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call
 
 
 class RaiseException(pybatch.PythonBatchCommandBase):
-    """ raise a specific exception - for debugging """
+    """ raise a specific exception """
     def __init__(self, exception_type, exception_message, **kwargs) -> None:
         super().__init__(**kwargs)
         self.exception_type = exception_type
@@ -60,6 +60,20 @@ class RaiseException(pybatch.PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         raise self.exception_type(self.exception_message)
 
+
+class FailIfFileNotFound(RaiseException):
+    """ raise FileNotFoundError exception if a file is missing """
+    def __init__(self, file_to_find, **kwargs):
+        super().__init__(FileNotFoundError, f"FileNotFound: {file_to_find}", **kwargs)
+        self.file_to_find = file_to_find
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.file_to_find, resolve_path=True))
+
+    def __call__(self, *args, **kwargs) -> None:
+        if not Path(self.file_to_find).is_file():
+            print(f"error: File not found: {self.file_to_find}")
+            super().__call__(*args, **kwargs)
 
 class Stage(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
     """ Stage: a container for other PythonBatchCommands, that has a name and is used as a context manager ("with").
@@ -365,9 +379,9 @@ class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
         self.unresolve_indicator = unresolve_indicator
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.unresolved_file))
+        all_args.append(self.unnamed__init__param(self.unresolved_file, resolve_path=True))
         if self.resolved_file != self.unresolved_file:
-            all_args.append(self.unnamed__init__param(self.resolved_file))
+            all_args.append(self.unnamed__init__param(self.resolved_file, resolve_path=True))
         all_args.append(self.optional_named__init__param("config_files", self.config_files, None))
         all_args.append(self.optional_named__init__param("resolve_indicator", self.resolve_indicator, '$'))
         if self.temp_config_vars:

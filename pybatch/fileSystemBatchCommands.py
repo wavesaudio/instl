@@ -103,7 +103,7 @@ remove_obstacles:
         self.path_to_make = path_to_make
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.path_to_make))
+        all_args.append(self.unnamed__init__param(self.path_to_make, resolve_path=True))
 
     def progress_msg_self(self):
         the_progress_msg = f"Create directory {self.path_to_make}"

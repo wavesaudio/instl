@@ -78,7 +78,7 @@ class RmDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.path))
+        all_args.append(self.unnamed__init__param(self.path, resolve_path=True))
 
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""

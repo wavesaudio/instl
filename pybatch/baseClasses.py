@@ -213,8 +213,8 @@ class PythonBatchCommandBase(abc.ABC):
         if self.skip_action:
             raise PythonBatchCommandBase.SkipActionException()
 
-    def unnamed__init__param(self, value):
-        value_str = utils.quoteme_raw_by_type(value, PythonBatchCommandBase.config_vars_for_repr)
+    def unnamed__init__param(self, value, resolve_path=False):
+        value_str = utils.quoteme_raw_by_type(value, PythonBatchCommandBase.config_vars_for_repr, resolve_path=resolve_path)
         return value_str
 
     def named__init__param(self, name, value):
