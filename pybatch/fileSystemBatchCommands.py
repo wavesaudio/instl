@@ -185,12 +185,14 @@ class MakeDirs(MakeDir):
 class Touch(PythonBatchCommandBase):
     """ Create an empty file if it does not already exist or update modification time to now if file exist"""
 
-    def __init__(self, path: os.PathLike, **kwargs) -> None:
+    def __init__(self, path: os.PathLike, only_if_already_exists=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.path = path
+        self.only_if_already_exists = only_if_already_exists
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.path))
+        all_args.append(self.optional_named__init__param("only_if_already_exists", self.only_if_already_exists, False))
 
     def progress_msg_self(self):
         return f"""{self.__class__.__name__} to '{self.path}'"""
@@ -198,13 +200,13 @@ class Touch(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_path = utils.ExpandAndResolvePath(self.path)
-        if resolved_path.is_dir():
+        if resolved_path.is_dir() or resolved_path.is_file():
             os.utime(resolved_path)
-        else:
+        elif not self.only_if_already_exists:
             with MakeDir(resolved_path.parent, report_own_progress=False) as md:
                 md()
                 with open(resolved_path, 'a') as tfd:
-                    os.utime(resolved_path, None)
+                    os.utime(resolved_path)
 
 
 class Cd(PythonBatchCommandBase):

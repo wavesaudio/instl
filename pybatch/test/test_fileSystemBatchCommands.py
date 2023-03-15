@@ -108,7 +108,38 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(file_that_should_be_dir.is_file(), f"{self.pbt.which_test}: {file_that_should_be_dir} should still be a file")
 
     def test_Touch_repr(self):
-        self.pbt.reprs_test_runner(Touch("/f/g/h"))
+        self.pbt.reprs_test_runner(Touch("/f/g/h"),
+                                   Touch("/f/g/h", True),
+                                   Touch("/f/g/h", False),
+                                    Touch("/f/g/h", only_if_already_exists=True),
+                                    Touch("/f/g/h", only_if_already_exists=False))
+
+
+    def test_Touch(self):
+        file_to_touch = self.pbt.path_inside_test_folder("TFolder").joinpath("touched")
+        file_to_not_touch = self.pbt.path_inside_test_folder("TFolder").joinpath("untouched")
+        self.assertFalse(file_to_touch.exists())
+        self.assertFalse(file_to_not_touch.exists())
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(file_to_touch)
+        self.pbt.batch_accum += Touch(file_to_not_touch, only_if_already_exists=True)
+        self.pbt.exec_and_capture_output()
+
+        file_to_touch_mod_time = file_to_touch.stat().st_mtime
+        self.assertTrue(file_to_touch.exists())
+        self.assertFalse(file_to_not_touch.exists())
+        time.sleep(1)
+
+        # now touch the file again, modification time should change
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += Touch(file_to_touch, only_if_already_exists=True)
+        self.pbt.exec_and_capture_output()
+        self.assertTrue(file_to_touch.exists())
+        self.assertFalse(file_to_not_touch.exists())
+        file_to_touch_later_mod_time = file_to_touch.stat().st_mtime
+        self.assertGreater(file_to_touch_later_mod_time, file_to_touch_mod_time)
+
 
     def test_Cd_repr(self):
         self.pbt.reprs_test_runner(Cd("a/b/c"))
@@ -663,4 +694,3 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
         self.assertTrue(the_folder.is_dir(), f"folder {the_folder} was not created")
-
