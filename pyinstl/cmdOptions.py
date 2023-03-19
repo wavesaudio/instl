@@ -250,7 +250,7 @@ def prepare_args_parser(in_command):
 
     if 'output_format' in command_details['options']:
         output_format_option = command_parser.add_argument_group(description='output_format arguments:')
-        output_format_option.add_argument('--output-format',
+        output_format_option.add_argument('--output-format','--output_format',
                                     required=False,
                                     nargs=1,
                                     dest='__OUTPUT_FORMAT__',
@@ -268,7 +268,7 @@ def prepare_args_parser(in_command):
     if ('conf' in command_details['options']) or ('conf_opt' in command_details['options']):
         config_file_options = command_parser.add_argument_group(description='admin arguments:')
         is_required = 'conf' in command_details['options']
-        config_file_options.add_argument('--config-file', '-s',
+        config_file_options.add_argument('--config-file', '-s','--config_file',
                                     required=is_required,
                                     nargs='+',
                                     metavar='path-to-config-file',
@@ -277,19 +277,19 @@ def prepare_args_parser(in_command):
 
     if 'prog' in command_details['options']:
         progress_options = command_parser.add_argument_group(description='dynamic progress report')
-        progress_options.add_argument('--start-progress',
+        progress_options.add_argument('--start-progress','--start_progress',
                                     required=False,
                                     nargs=1,
                                     metavar='start-progress-number',
                                     dest='__START_DYNAMIC_PROGRESS__',
                                     help="num progress items to begin with")
-        progress_options.add_argument('--total-progress',
+        progress_options.add_argument('--total-progress','--total_progress',
                                     required=False,
                                     nargs=1,
                                     metavar='total-progress-number',
                                     dest='__TOTAL_DYNAMIC_PROGRESS__',
                                     help="num total progress items")
-        progress_options.add_argument('--no-numbers-progress',
+        progress_options.add_argument('--no-numbers-progress','--no_numbers_progress',
                                     required=False,
                                     default=False,
                                     action='store_true',
@@ -325,7 +325,7 @@ def prepare_args_parser(in_command):
 
     if 'write-config-vars' in command_details['options']:
         write_yaml_option = command_parser.add_argument_group(description='run arguments:')
-        write_yaml_option.add_argument('--write-config-vars',
+        write_yaml_option.add_argument('--write-config-vars','--write_config_vars',
                                        required=False,
                                        nargs=1,
                                        metavar='path-to-output-yaml-file',
@@ -344,7 +344,7 @@ def prepare_args_parser(in_command):
 
     elif 'activate-repo-rev' == in_command:
         up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        up_repo_rev_options.add_argument('--just-with-number', '-j',
+        up_repo_rev_options.add_argument('--just-with-number', '-j', '--just_with_number',
                             required=False,
                             nargs=1,
                             metavar='just-with-number',
@@ -353,7 +353,7 @@ def prepare_args_parser(in_command):
 
     elif 'unwtar' == in_command:
         unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        unwtar_options.add_argument('--no-artifacts',
+        unwtar_options.add_argument('--no-artifacts','--no_artifacts',
                                 required=False,
                                 default=False,
                                 action='store_true',
@@ -370,14 +370,14 @@ def prepare_args_parser(in_command):
 
     elif 'ls' == in_command:
         ls_options = command_parser.add_argument_group(description='output_format arguments:')
-        ls_options.add_argument('--output-format',
+        ls_options.add_argument('--output-format','--output_format',
                                     required=False,
                                     nargs=1,
                                     dest='LS_FORMAT',
                                     help="specify output format")
     elif 'fail' == in_command:
         fail_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        fail_options.add_argument('--exit-code',
+        fail_options.add_argument('--exit-code', '--exit_code',
                                 required=False,
                                 nargs=1,
                                 metavar='exit-code-to-return',
@@ -391,7 +391,7 @@ def prepare_args_parser(in_command):
                                 help="time to sleep")
     elif 'report-versions' == in_command:
         report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        report_versions_options.add_argument('--only-installed',
+        report_versions_options.add_argument('--only-installed','--only_installed',
                                 required=False,
                                 default=False,
                                 action='store_true',
@@ -404,7 +404,7 @@ def prepare_args_parser(in_command):
 
     elif 'run-process' == in_command:
         run_process_options  = command_parser.add_argument_group(description='run-process:')
-        run_process_options.add_argument('--abort-file',
+        run_process_options.add_argument('--abort-file','--abort_file',
                             required=False,
                             default=None,
                             nargs=1,
@@ -425,19 +425,19 @@ def prepare_args_parser(in_command):
         exec_options.add_argument('args', nargs=argparse.REMAINDER)
     elif 'resolve' == in_command:
         resolve_options = command_parser.add_argument_group(description='resolve:')
-        resolve_options.add_argument('--compare-dates',
+        resolve_options.add_argument('--compare-dates','--compare_dates',
                              required=False,
                              default=False,
                              action='store_true',
                              dest='COMPARE_DATES_ON_RESOLVE',
                              help="avoid resolve if resolved file exists and is younger than unresolved file")
-        resolve_options.add_argument('--resolve-as-yaml',
+        resolve_options.add_argument('--resolve-as-yaml','--resolve_as_yaml',
                                          required=False,
                                          default=False,
                                          action='store_true',
                                          dest='RESOLVE_AS_YAML',
                                          help="resolve configVar lists in yaml sequences")
-        resolve_options.add_argument('--unresolve-indicator',
+        resolve_options.add_argument('--unresolve-indicator','--unresolve_indicator',
                                          required=False,
                                          default=False,
                                          nargs=1,
@@ -452,13 +452,13 @@ def prepare_args_parser(in_command):
                             metavar='define',
                             dest='define',
                             help="define variable(s) format: X=y,A=b")
-    general_options.add_argument('--no-stdout',
+    general_options.add_argument('--no-stdout','--no_stdout',
                             required=False,
                             action='store_const',
                             metavar='no_stdout',
                             const='__NO_STDOUT__',
                             help="do not output to stdout")
-    general_options.add_argument('--no-system-log',
+    general_options.add_argument('--no-system-log','--no_system_log',
                             required=False,
                             action='store_const',
                             metavar='no_system_log',
