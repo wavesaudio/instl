@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.9
-
+import json
 import logging
 log = logging.getLogger()
 
@@ -1351,7 +1351,7 @@ class InstlAdmin(InstlInstanceBase):
                     item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)
                     self.manifest_nodes[a_node_name].append(item)
 
-        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        stage_folder = config_vars["COLLECT_MANIFESTS_DIR"].Path()
         reader = ManifestYamlReader(config_vars)
         num_files = 0
         for top_level_dir in sorted(stage_folder.glob("*")):
@@ -1406,17 +1406,52 @@ class InstlAdmin(InstlInstanceBase):
             for contents in content_list:
                 all_manifests[contents.top_level_tag][iid] = contents.manifest_node
 
-        base_index_path = config_vars["STAGING_FOLDER_BASE_INDEX"].Path()
-        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
+        collect_manifests_results_path = config_vars["COLLECT_MANIFESTS_RESULTS_PATH"].Path()
+
+        if "__OUTPUT_FORMAT__" in config_vars:
+            config_vars["COLLECT_MANIFESTS_FORMAT"] = "$(__OUTPUT_FORMAT__)"
+        output_format = config_vars.get("COLLECT_MANIFESTS_FORMAT", "yaml").str()
+        if "yaml" == output_format:
+            self.write_collected_manifests_yaml(collect_manifests_results_path, all_manifests)
+        elif "json" == output_format:
+            self.write_collected_manifests_json(collect_manifests_results_path, all_manifests)
+
+    def write_collected_manifests_yaml(self, out_manifests_file, all_manifests):
         with open(out_manifests_file, "w") as wfd:
-            wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
+            try:
+                base_index_path = config_vars["COLLECT_MANIFESTS_BASE_INDEX"].Path()
+                wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
+            except:
+                pass
             wfd.write("\n# below are IIDs collected from manifest.yaml files\n\n")
             if all_manifests["Common"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Common"], tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Common"], tag="!index", sort_mappings=True),
+                                  wfd, top_level_blank_line=True)
             if all_manifests["Mac"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Mac"], tag="!index_Mac", sort_mappings=True), wfd,
-                              top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Mac"], tag="!index_Mac", sort_mappings=True),
+                                  wfd,
+                                  top_level_blank_line=True)
             if all_manifests["Win"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Win"], tag="!index_Win", sort_mappings=True), wfd,
-                              top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Win"], tag="!index_Win", sort_mappings=True),
+                                  wfd,
+                                  top_level_blank_line=True)
         print(f"collected manifests written to: {out_manifests_file}")
+
+    def write_collected_manifests_json(self, out_manifests_file, all_manifests):
+        item_list = list()
+        for section, mani_list in all_manifests.items():
+            for iid, a_node in mani_list.items():
+                item = {"IID": iid}
+                if 'name' in a_node:
+                    item['name'] = a_node['name']
+                if 'version' in a_node:
+                    item['version'] = a_node['version']
+                if 'guid' in a_node:
+                    item['guid'] = a_node['guid']
+                item_list.append(item)
+                if 'depends' in a_node:
+                    depends = [{'IID': iid} for iid in a_node['depends']]
+                    item['_children'] = depends
+
+        with open(out_manifests_file, "w") as wfd:
+            wfd.write(json.dumps(item_list, indent=1, default=utils.extra_json_serializer))

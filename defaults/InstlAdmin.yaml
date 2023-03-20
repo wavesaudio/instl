@@ -11,31 +11,37 @@ PUBLIC_KEY_FILE: $(REPO_NAME).public_key
 PRIVATE_KEY_FILE: $(REPO_NAME).private_key
 S3_ACL_VALUE: public-read
 
-# folders or files who's size is > MIN_FILE_SIZE_TO_WTAR AND and who's
-# name does not matches the regex in WTAR_BY_FILE_SIZE_EXCLUDE_REGEX
+# these are defaults for collect-manifests done on deployment machine
+COLLECT_MANIFESTS_DIR: $(STAGING_FOLDER)
+COLLECT_MANIFESTS_BASE_INDEX: $(STAGING_FOLDER_BASE_INDEX)
+COLLECT_MANIFESTS_FORMAT: yaml
+COLLECT_MANIFESTS_RESULTS_PATH: $(COLLECT_MANIFESTS_DIR)/instl/index.$(COLLECT_MANIFESTS_FORMAT)
+
+# folders or files whose size is > MIN_FILE_SIZE_TO_WTAR and whose
+# name does not matche the regex in WTAR_BY_FILE_SIZE_EXCLUDE_REGEX
 # will be wtarred. If WTAR_BY_FILE_SIZE_EXCLUDE_REGEX is not defined
 # all files bigger than MIN_FILE_SIZE_TO_WTAR will be wtarred.
 # WTAR_BY_FILE_SIZE_EXCLUDE_REGEX: ()
 # max file size 5 * 1024 * 1024
 MIN_FILE_SIZE_TO_WTAR: 5242880 # was MAX_FILE_SIZE
 
-# folders who's name matches FOLDER_WTAR_REGEX regex will be wtarred.
-# Here it defaults to non matching regex so you need to define
+# folders whose name matches FOLDER_WTAR_REGEX regex will be wtarred.
+# Here it defaults to non-matching regex, so you need to define
 # FOLDER_WTAR_REGEX in order to wtar some files.
 # regexs are used with the re.search function.
 # regexs are ORed so if any of them matches the folder will be wtarred.
 FOLDER_WTAR_REGEX:
     - "a^"
 
-# folders or files who's name matches FILE_WTAR_REGEX regex will be wtarred
-# regardless of size. Here it defaults to non matching regex so you need
+# folders or files whose name matches FILE_WTAR_REGEX regex will be wtarred
+# regardless of size. Here it defaults to non-matching regex, so you need
 # to define FILE_WTAR_REGEX in order to wtar some files.
 # regexs are used with the re.search function.
 # regexs are ORed so if any of them matches the file will be wtarred.
 FILE_WTAR_REGEX:
     - "a^"
 
-# folders who's name matches FOLDER_EXCLUDE_REGEX regex will not be added
+# folders whose name matches FOLDER_EXCLUDE_REGEX regex will not be added
 # to the repository by stage2svn.
 # Here it defaults to avoiding adding folders with ',' in their names.
 # regexs are used with the re.search function.
