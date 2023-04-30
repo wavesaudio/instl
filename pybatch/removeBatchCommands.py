@@ -66,7 +66,7 @@ class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
                     raise
 
 
-class RmDir(PythonBatchCommandBase):
+class RmDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
     """ remove a directory.
         - it's OK if the directory does not exist.
         - all files and directory under path will be removed recursively
@@ -78,7 +78,7 @@ class RmDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.path, resolve_path=True))
+        all_args.append(self.unnamed__init__param(self.path, resolve_path=self.resolve_path))
 
     def progress_msg_self(self):
         return f"""Remove directory '{self.path}'"""
@@ -92,7 +92,7 @@ class RmDir(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        resolved_path = utils.ExpandAndResolvePath(self.path)
+        resolved_path = utils.ExpandAndResolvePath(self.path, resolve_path=self.resolve_path)
         for attempt in range(2):
             try:
                 self.doing = f"""removing folder '{resolved_path}'"""
@@ -117,7 +117,7 @@ class RmDir(PythonBatchCommandBase):
                     raise
 
 
-class RmFileOrDir(PythonBatchCommandBase):
+class RmFileOrDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
     """ remove a file or directory.
     - it's OK if the path does not exist.
     - all files and directory under path will be removed recursively
@@ -128,7 +128,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         self.exceptions_to_ignore.append(FileNotFoundError)
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.path))
+        all_args.append(self.unnamed__init__param(self.path, resolve_path=self.resolve_path))
 
     def progress_msg_self(self):
         return f"""Remove '{self.path}'"""
@@ -138,7 +138,7 @@ class RmFileOrDir(PythonBatchCommandBase):
         retry = kwargs.get("retry", True)
         try:
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
-            resolved_path = utils.ExpandAndResolvePath(self.path)
+            resolved_path = utils.ExpandAndResolvePath(self.path, resolve_path=self.resolve_path)
             if resolved_path.is_symlink() or resolved_path.is_file():
                 self.doing = f"""removing file'{resolved_path}'"""
                 resolved_path.unlink()
