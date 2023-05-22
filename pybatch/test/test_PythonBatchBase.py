@@ -76,7 +76,8 @@ def is_identical_dircmp(a_dircmp: filecmp.dircmp):
 
 
 def is_identical_dircomp_with_ignore(a_dircmp: filecmp.dircmp, filen_names_to_ignore):
-    '''A non recusive function that tests that two folders are the same, but testing that the ignore list has been ignored (and not copied to trg folder)'''
+    """A non-recursive function that tests that two folders are the same,
+        but testing that the ignore-list has been ignored (and not copied to trg folder)"""
     return a_dircmp.left_only == filen_names_to_ignore and len(a_dircmp.right_only) == 0 and len(a_dircmp.diff_files) == 0
 
 
