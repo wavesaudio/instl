@@ -1351,20 +1351,21 @@ class InstlAdmin(InstlInstanceBase):
                     item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)
                     self.manifest_nodes[a_node_name].append(item)
 
-        stage_folder = config_vars["COLLECT_MANIFESTS_DIR"].Path()
+        folders_to_search_for_manifests = [Path(f) for f in config_vars["COLLECT_MANIFESTS_DIR"].list()]
         reader = ManifestYamlReader(config_vars)
         num_files = 0
-        for top_level_dir in sorted(stage_folder.glob("*")):
-            if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
-                top_level_tag = top_level_dir.name
-                for root, dirs, files in os.walk(top_level_dir, followlinks=False):
-                    dirs.sort()  # to be idempotent, so folders will always be scanned in the same order
-                    for a_file in sorted(files):
-                        a_file_path = Path(root, a_file)
-                        if a_file_path.name.endswith("manifest.yaml"):
-                            print(a_file_path)
-                            reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
-                            num_files += 1
+        for manifests_folder in folders_to_search_for_manifests:
+            for top_level_dir in sorted(manifests_folder.glob("*")):
+                if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
+                    top_level_tag = top_level_dir.name
+                    for root, dirs, files in os.walk(top_level_dir, followlinks=False):
+                        dirs.sort()  # to be idempotent, so folders will always be scanned in the same order
+                        for a_file in sorted(files):
+                            a_file_path = Path(root, a_file)
+                            if a_file_path.name.endswith("manifest.yaml") and not a_file_path.name.startswith("."):
+                                print(a_file_path)
+                                reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
+                                num_files += 1
 
         manifest_nodes = reader.manifest_nodes
         num_singles = 0
@@ -1442,6 +1443,9 @@ class InstlAdmin(InstlInstanceBase):
         for section, mani_list in all_manifests.items():
             for iid, a_node in mani_list.items():
                 item = {"IID": iid}
+                if not a_node:
+                    print(f"no node for iid {iid}")
+                    continue
                 if 'name' in a_node:
                     item['name'] = a_node['name']
                 if 'version' in a_node:
