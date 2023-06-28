@@ -74,6 +74,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             than num_config_files, or might be 0 if downloading is not required.
         """
         dl_commands = AnonymousAccum()
+        self.instlObj.dl_tool.create_download_instructions(dl_commands)
+        return dl_commands
 
         main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
         curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
@@ -96,7 +98,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
             parallel_run_config_file_path = curl_config_folder.joinpath(config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, action_name="Downloading", own_progress_count=num_files_to_download, report_own_progress=False)
+
+            if self.instlObj.dl_tool.internal_parallel:
+                dl_commands += Subprocess()
+            else:
+                dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, action_name="Downloading", own_progress_count=num_files_to_download, report_own_progress=False)
 
             if num_files_to_download > 1:
                 dl_end_message = f"Downloading {num_files_to_download} files done"

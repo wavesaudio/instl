@@ -13,6 +13,7 @@ log = logging.getLogger()
 import utils
 from configVar import config_vars  # √
 from . import connectionBase
+from pybatch import *
 
 
 class CUrlHelper(object, metaclass=abc.ABCMeta):
@@ -29,6 +30,7 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
         self.urls_to_download = list()
         self.urls_to_download_last = list()
         self.short_win_paths_cache = dict()
+        self.internal_parallel = True  # True means curl knows to parallel download
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
         if verbatim:
@@ -85,10 +87,14 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
             max_time = str(config_vars.setdefault("CURL_MAX_TIME", "180"))
             retries = str(config_vars.setdefault("CURL_RETRIES", "2"))
             retry_delay = str(config_vars.setdefault("CURL_RETRY_DELAY", "8"))
-
             sync_urls_cookie = str(config_vars.get("COOKIE_FOR_SYNC_URLS", ""))
+            if self.internal_parallel:
+                pass # more config values
 
-            actual_num_config_files = int(max(0, min(len(self.urls_to_download), num_config_files)))
+            if self.internal_parallel:
+                actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
+            else:
+                actual_num_config_files = int(max(0, min(len(self.urls_to_download), num_config_files)))
             if self.urls_to_download_last:
                 actual_num_config_files += 1
             num_digits = max(len(str(actual_num_config_files)), 2)
@@ -108,7 +114,10 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
                 else:
                     cookie_text = ""
                 curl_write_out_str = CUrlHelper.curl_write_out_str
-                file_header_text = f"""
+                if self.internal_parallel:
+                    pass  # other file_header_text
+                else:
+                    file_header_text = f"""
 insecure
 raw
 fail
@@ -159,3 +168,55 @@ write-out = "Progress: ... of ...; {basename}: {curl_write_out_str}"
                 file_name_list.insert(-1, None)
 
         return file_name_list
+
+    def create_download_instructions(self, dl_commands):
+        """ Download is done be creating files with instructions for curl - curl config files.
+            Another file is created containing invocations of curl with each of the config files
+            - the parallel run file.
+            curl_config_folder: the folder where curl config files and parallel run file will be placed.
+            num_config_files: the maximum number of curl config files.
+            actual_num_config_files: actual number of curl config files created. Might be smaller
+            than num_config_files, or might be 0 if downloading is not required.
+        """
+
+        main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
+        curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
+        MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
+        curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
+
+        num_config_files = int(config_vars["PARALLEL_SYNC"])
+        # TODO: Move class someplace else
+        config_file_list = self.create_config_files(curl_config_file_path, num_config_files)
+
+        actual_num_config_files = len(config_file_list)
+        if actual_num_config_files > 0:
+            if num_config_files > 1:
+                dl_start_message = f"Downloading with {num_config_files} processes in parallel"
+            else:
+                dl_start_message = "Downloading with 1 process"
+            dl_commands += Progress(dl_start_message)
+
+            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
+
+            parallel_run_config_file_path = curl_config_folder.joinpath(config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
+            self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
+
+            if self.internal_parallel:
+                dl_commands += Subprocess("$(DOWNLOAD_TOOL_PATH)", ["--config", f"{parallel_run_config_file_path}"],
+                                          own_progress_count=num_files_to_download,
+                                          report_own_progress=False,
+                                          stderr_to_stdout=True)
+            else:
+                dl_commands += ParallelRun(parallel_run_config_file_path, shell=False,
+                                           action_name="Downloading",
+                                           own_progress_count=num_files_to_download,
+                                           report_own_progress=False)
+
+            if num_files_to_download > 1:
+                dl_end_message = f"Downloading {num_files_to_download} files done"
+            else:
+                dl_end_message = "Downloading 1 file done"
+
+            dl_commands += Progress(dl_end_message)
+
+            return dl_commands
