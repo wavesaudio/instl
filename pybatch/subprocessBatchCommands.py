@@ -346,7 +346,7 @@ class ExecPython(PythonBatchCommandBase):
 
 
 class Exec(ExecPython):
-    """ deprecated use ExecPython inside"""
+    """ deprecated use ExecPython instead"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

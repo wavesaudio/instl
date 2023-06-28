@@ -56,7 +56,7 @@ class PythonBatchCommandBase(abc.ABC):
     ignore_progress = False           # set to True when using batch commands out side python batch file
     config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__()
 
-    # defaults for __init__ of derived classes. Members who's value is not different from these default values
+    # defaults for __init__ of derived classes. Members whose value is not different from these default values
     # can be skipped when __repr__ recreates the object
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,

@@ -75,7 +75,7 @@ cookie = {cookie_text}
         self.urls_to_download = list()
         self.urls_to_download_last = list()
         self.short_win_paths_cache = dict()
-        self.internal_parallel = False  # True means curl knows to parallel download
+        self.internal_parallel = True  # True means curl knows to parallel download internally
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
         if verbatim:
@@ -233,9 +233,9 @@ cookie = {cookie_text}
 
             if self.internal_parallel:
                 for config_file in config_file_list:
-                    dl_commands += Subprocess("$(DOWNLOAD_TOOL_PATH)", "--config", f"{config_file.path}",
+                    dl_commands += ShellCommand(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{config_file.path}"''',
                                           own_progress_count=config_file.num_urls,
-                                          report_own_progress=False,
+                                          report_own_progress=True,
                                           stderr_to_stdout=True)
             else:
                 parallel_run_config_file_path = curl_config_folder.joinpath(
