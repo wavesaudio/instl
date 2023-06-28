@@ -433,7 +433,8 @@ class PythonBatchCommandBase(abc.ABC):
     def increment_progress(self, increment_by=None):
         if increment_by is None:
             increment_by = self.own_progress_count
-        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        PythonBatchCommandBase.running_progress = self.runtime_progress_num
         if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
             log.warning(
                 f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")

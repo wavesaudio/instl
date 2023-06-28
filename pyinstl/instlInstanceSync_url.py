@@ -113,19 +113,6 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
             return dl_commands
 
-    def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
-        with utils.utf8_open_for_write(parallel_run_config_file_path, "w") as wfd:
-            for config_file in config_files:
-                if config_file is None:  # None means to insert a wait
-                    wfd.write("wait\n")
-                else:
-                    if sys.platform == 'win32':
-                        # curl on windows has problem with path to config files that have unicode characters
-                        normalized_path = win32api.GetShortPathName(config_file)
-                    else:
-                        normalized_path = config_file
-                    wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
-
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
 
