@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,
-                                      "detach": False, "stderr_to_stdout": False}):
+                                      "detach": False, "stderr_parser": None}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -39,6 +39,9 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results
+        self.stderr_parser = kwargs.get('stderr_parser', None)
+        if self.stderr_parser is not None:
+            log.info(">>>> new process style detected")
 
 
     @abc.abstractmethod
@@ -89,17 +92,32 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
                 out_stream = subprocess.PIPE
             in_stream = None
 
-            if self.stderr_to_stdout:
-                err_stream = out_stream
-            else:
-                err_stream = subprocess.PIPE
+            if self.stderr_parser is not None:
+                log.info(">>>> new process style detected and now is execution")
+                completed_process = subprocess.Popen(
+                    run_args,
+                    shell=True,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True)
 
-            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell, bufsize=0)
+                # Read and process the stderr output line by line
+                for line in completed_process.stderr:
+                    self.stderr_parser(line)
+
+
+                completed_process.wait()
+            else:
+                # regular run command
+                completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
+                                                   stderr=subprocess.PIPE, shell=self.shell, bufsize=0)
+
+
+
 
             if need_to_close_out_file:
                 out_stream.close()
 
-            if completed_process.stderr:
+            if completed_process.stderr and not self.stderr_parser:
                 self.stderr = utils.unicodify(completed_process.stderr)
                 if self.ignore_all_errors:
                     # in case of ignore_all_errors redirect stderr to stdout so we know there was an error

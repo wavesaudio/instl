@@ -8,6 +8,8 @@ from pathlib import Path, PurePath
 import sys
 import functools
 import logging
+import re
+
 log = logging.getLogger()
 if sys.platform == 'win32':
     import win32api
@@ -56,10 +58,10 @@ write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
     # text for curl config file in case instl running curl with parallel option
     internal_parallel_header_text = """
 parallel
+progress-bar
 insecure
 raw
 fail
-silent
 show-error
 compressed
 create-dirs
@@ -138,6 +140,7 @@ cookie = {cookie_text}
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
             "curl_output_format_str": self.curl_output_format_str
         }
+
         if self.internal_parallel:
             confi_file_text = self.internal_parallel_header_text
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
@@ -232,11 +235,13 @@ cookie = {cookie_text}
 
 
             if self.internal_parallel:
+                parser = self.stderr_parser(num_files_to_download) # create one parser
+
                 for config_file in config_file_list:
                     dl_commands += ShellCommand(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{config_file.path}"''',
                                           own_progress_count=config_file.num_urls,
                                           report_own_progress=True,
-                                          stderr_to_stdout=True)
+                                          stderr_parser=parser)
             else:
                 parallel_run_config_file_path = curl_config_folder.joinpath(
                     config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
@@ -267,3 +272,67 @@ cookie = {cookie_text}
                     else:
                         normalized_path = config_file.path
                     wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
+
+    # this is a helper method that for given stderr line will output the correct progress
+    def stderr_parser(self, max_files, start_from_number_of_files = 0, total_count = 0):
+        r = re.compile(r'[0-9-]+\s+[0-9-]+\s+([a-z0-9.]+)\s+0\s+(\d+).+--:--:--\s+([0-9a-z.]+)\s*$', re.IGNORECASE)
+
+        max_files = str(max_files) if max_files is not None else "..."
+
+        # converts from bytes to a human-readable string - should match Central's representation
+        def bytes_to_string(number):
+            suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+            magnitude = 0
+
+            if number == 0:
+                return "0"
+
+            while number >= 1024 and magnitude < len(suffixes) - 1:
+                number /= 1024
+                magnitude += 1
+
+            decimal_places = 2 if magnitude > 0 else 0
+            formatted_number = "{:.{}f}".format(number, decimal_places)
+
+            return f"{formatted_number}{suffixes[magnitude]}"
+
+        # converts from curl string output 30M 10.2K 12B to the same format we use in bytes_to_string
+        def curl_size_string_to_byte_string(str):
+            m = re.findall(r"([0-9.]+)([a-zA-Z])?", str)
+
+            if len(m) > 0 and len(m[0]) >= 1:
+                size, magnitude = m[0]
+
+                if not magnitude:
+                    magnitude = "" if size == 0 else "B"
+                else:
+                    magnitude = magnitude.upper()
+                    magnitude = magnitude if magnitude == "B" else (magnitude + "B")
+
+                return f"{size}{magnitude}"
+
+            return "0"
+
+        bytes_to_download = bytes_to_string(config_vars['__NUM_BYTES_TO_DOWNLOAD__'].int())
+
+
+        def parser(line):
+            log.info("in parser!!! " + line)
+            m = r.findall(line)
+            if len(m) > 0 and len(m[0]) > 2:
+                downloaded_size, downloaded_files, download_speed = m[0]
+                downloaded_files = int(downloaded_files)
+                # when we switch from the first config file to the second, (there are 2 at most)
+                if downloaded_files < total_count:
+                    start_from_number_of_files = total_count
+
+                total_count = downloaded_files + start_from_number_of_files
+
+                downloaded_size = curl_size_string_to_byte_string(downloaded_size)
+                download_speed = curl_size_string_to_byte_string(download_speed)
+                log.info(
+                    f"Progress: ... of ...; Downloading {str(total_count)} of {max_files}, Downloaded {downloaded_size} of {bytes_to_download}, Speed {download_speed}.")
+
+        return parser
+
+
