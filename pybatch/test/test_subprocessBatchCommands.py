@@ -98,6 +98,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         pass
 
     def test_ShellCommand_ignore_specific_exit_codes(self):
+
         # test that exception from exit code is suppressed with ignore_specific_exit_codes
         with self.pbt.batch_accum as batchi:
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(19,))
