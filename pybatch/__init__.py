@@ -18,7 +18,7 @@ from .reportingBatchCommands import AnonymousAccum, Echo, Progress, Remark, Stag
     ResolveConfigVarsInYamlFile, \
     ReadConfigVarsFromFile, ReadConfigVarValueFromTextFile, EnvironVarAssign, PatchPyBatchWithTimings, Print, FailIfFileNotFound
 from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, CUrl, ScriptCommand, Exec, RunInThread, \
-    Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess, CurlWithParallel
+    Subprocess, ExternalPythonExec, SysExit, Raise, KillProcess, CurlInternalParallel
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \
     SVNInfoReader, SVNSetProp, SVNDelProp, SVNCleanup
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip, ZipFlat, UnZip

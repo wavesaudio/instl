@@ -654,3 +654,58 @@ class KillProcess(PythonBatchCommandBase):
                     proc_name = proc.name()
                     if proc_name in look_for:
                         raise TimeoutError(f"failed to kill process {self.process_name}")
+
+
+class CurlInternalParallel(PythonBatchCommandBase):
+    def __init__(self, curl_path: Path, config_file_path: Path, *argv, **kwargs):
+        super().__init__(*argv, **kwargs)
+        self.curl_path = curl_path
+        self.config_file_path = config_file_path
+
+    def progress_msg_self(self) -> str:
+        return f'''CurlInternalParallel {self.config_file_path}'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.curl_path))
+        all_args.append(self.unnamed__init__param(self.config_file_path))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        process = subprocess.Popen([os.fspath(self.curl_path), "--config", os.fspath(self.config_file_path)],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
+                                   universal_newlines=True,
+                                   bufsize=1)
+        reg = re.compile("""
+                        ^\s*
+                        (?P<DL_percent>[\d-]+(\.\d+)?)\s+
+                        (?P<UL_percent>[\d-]+(\.\d+)?)\s+
+                        (?P<Dled>[\d-]+(\.\d+)?)(?P<Dled_units>[a-z]*)\s+
+                        (?P<Uled>[\d-]+)(?P<Uled_units>[a-z]*)\s+
+                        (?P<Xfers>[a-z0-9]+)\s+
+                        (?P<Live>[a-z0-9]+)\s+
+                        (?P<Qd>[a-z0-9]+)\s+
+                        (?P<Total>[\d-]+:[\d-]+:[\d-]+)\s+
+                        (?P<Current>[\d-]+:[\d-]+:[\d-]+)\s+
+                        (?P<Left>[\d-]+:[\d-]+:[\d-]+)\s+
+                        (?P<Speed>[\d-]+(\.\d+)?)(?P<Speed_units>[a-z]*)
+                        (?P<the_rest>.*)$
+                       """,
+                       re.IGNORECASE | re.VERBOSE)
+
+        while process.poll() is None:
+            stdout_line = process.stdout.readline().strip()
+            stdout_lines = stdout_line.split('\r')
+            for stdout_line in stdout_lines:
+                match = reg.match(stdout_line)
+                if match:
+                    print(f"Dled:{match.group('Dled')}{match.group('Dled_units')}; Speed:{match.group('Speed')}{match.group('Speed_units')}; Xfers:{match.group('Xfers')}")
+                    # print(f"Match:\n{stdout_line}\n")
+                    # for grp, val in match.groupdict().items():
+                    #     print(f"{grp}='{val}'")
+                else:
+                    print(f"No match:\n{stdout_line}")
+            print(f"---")
+        process.stdout.close()
+        process.wait()
+        print(f"Curl ended {process.returncode}")

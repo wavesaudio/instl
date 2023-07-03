@@ -326,3 +326,71 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += KillProcess(app_base_name, retries=3, sleep_sec=1)
         self.pbt.exec_and_capture_output()
+
+    def test_CurlInternalParallel_repr(self):
+        """ validate KillProcess object recreation with ParallelRun.__repr__() """
+        self.pbt.reprs_test_runner(CurlInternalParallel("curl", "mongo.config"))
+
+    def test_CurlInternalParallel(self):
+        config_file = self.pbt.path_inside_test_folder("config_file")
+        downloads_dir = self.pbt.path_inside_test_folder("downloads")
+        config_file_text = f"""
+            parallel
+            progress-bar
+            insecure
+            raw
+            fail
+            show-error
+            compressed
+            create-dirs
+            url = https://www.youtube.com/
+            output = {downloads_dir}/youtube.txt
+            url = https://stackoverflow.com/
+            output = {downloads_dir}/stackoverflow.txt
+            url = https://svnbook.red-bean.com/en/1.7/svn-book.html
+            output = {downloads_dir}/svn-book.html
+            url = https://svnbook.red-bean.com/en/1.7/svn-book.pdf
+            output = {downloads_dir}/svn-book.pdf
+            url = http://www.oss4aix.org/download/KDE/kdebase-3.4.3-1ssl.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdebase-3.4.3-1ssl.aix5.1.ppc.rpm
+            url = http://www.oss4aix.org/download/KDE/kdebindings-3.4.3-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdebindings-3.4.3-1.aix5.1.ppc.rpm
+            url = http://www.oss4aix.org/download/KDE/qt-devel-3.3.5-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/qt-devel-3.3.5-1.aix5.1.ppc.rpm
+            url = http://www.oss4aix.org/download/KDE/kdevelop-3.2.3-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdevelop-3.2.3-1.aix5.1.ppc.rpm
+            url = http://speedtest.ftp.otenet.gr/files/test10Mb.db
+            output = {downloads_dir}/test10Mb.db
+            url = https://speed.hetzner.de/1GB.bin
+            output = {downloads_dir}/1GB.pip
+
+            url = https://www.youtube.com/
+            output = {downloads_dir}/youtube2.txt
+            url = https://stackoverflow.com/
+            output = {downloads_dir}/stackoverflow2.txt
+            url = https://svnbook.red-bean.com/en/1.7/svn-book.html
+            output = {downloads_dir}/svn-book2.html
+            url = https://svnbook.red-bean.com/en/1.7/svn-book.pdf
+            output = {downloads_dir}/svn-book2.pdf
+            url = http://www.oss4aix.org/download/KDE/kdebase-3.4.3-1ssl.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdebase-3.4.3-1ssl.aix5.1.ppc2.rpm
+            url = http://www.oss4aix.org/download/KDE/kdebindings-3.4.3-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdebindings-3.4.3-1.aix5.1.ppc2.rpm
+            url = http://www.oss4aix.org/download/KDE/qt-devel-3.3.5-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/qt-devel-3.3.5-1.aix5.1.ppc2.rpm
+            url = http://www.oss4aix.org/download/KDE/kdevelop-3.2.3-1.aix5.1.ppc.rpm
+            output = {downloads_dir}/kdevelop-3.2.3-1.aix5.1.ppc2.rpm
+            url = http://speedtest.ftp.otenet.gr/files/test10Mb.db
+            output = {downloads_dir}/test10Mb2.db
+            url = https://speed.hetzner.de/1GB.bin
+            output = {downloads_dir}/1GB2.pip
+           """
+
+        config_file = self.pbt.path_inside_test_folder("config_file")
+        config_file.write_text(config_file_text)
+        curl_path = Path("/usr/bin/curl")
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(downloads_dir)
+        self.pbt.batch_accum += CurlInternalParallel(curl_path, config_file)
+        self.pbt.exec_and_capture_output()

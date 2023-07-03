@@ -100,7 +100,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
 
             if self.instlObj.dl_tool.internal_parallel:
-                dl_commands += Subprocess()
+                dl_commands += CurlInternalParallel(config_vars["DOWNLOAD_TOOL_PATH"].Path(), parallel_run_config_file_path)
             else:
                 dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, action_name="Downloading", own_progress_count=num_files_to_download, report_own_progress=False)
 
