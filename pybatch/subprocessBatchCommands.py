@@ -2,6 +2,7 @@ import abc
 import collections
 import logging
 import os
+import re
 import shlex
 import stat
 import subprocess
@@ -14,6 +15,7 @@ from typing import List
 import psutil
 
 import utils
+from configVar import config_vars
 from .baseClasses import PythonBatchCommandBase
 
 log = logging.getLogger(__name__)
@@ -21,7 +23,7 @@ log = logging.getLogger(__name__)
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,
-                                      "detach": False, "stderr_parser": None}):
+                                      "detach": False}):
     """ base class for classes pybatch commands that need to spawn a subprocess
         input, output, stderr can read/writen to files according to in_file, out_file, err_file
         Some subprocesses write to stderr but return exit code 0, in which case if stderr_means_err==True and something was written
@@ -39,10 +41,6 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results
-        self.stderr_parser = kwargs.get('stderr_parser', None)
-        if self.stderr_parser is not None:
-            log.info(">>>> new process style detected")
-
 
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
@@ -92,32 +90,13 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
                 out_stream = subprocess.PIPE
             in_stream = None
 
-            if self.stderr_parser is not None:
-                log.info(">>>> new process style detected and now is execution")
-                completed_process = subprocess.Popen(
-                    run_args,
-                    shell=True,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=True)
-
-                # Read and process the stderr output line by line
-                for line in completed_process.stderr:
-                    self.stderr_parser(line)
-
-
-                completed_process.wait()
-            else:
-                # regular run command
-                completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
                                                    stderr=subprocess.PIPE, shell=self.shell, bufsize=0)
-
-
-
 
             if need_to_close_out_file:
                 out_stream.close()
 
-            if completed_process.stderr and not self.stderr_parser:
+            if completed_process.stderr:
                 self.stderr = utils.unicodify(completed_process.stderr)
                 if self.ignore_all_errors:
                     # in case of ignore_all_errors redirect stderr to stdout so we know there was an error
@@ -202,6 +181,127 @@ class CUrl(RunProcessBase):
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
 
+class CurlWithParallel(PythonBatchCommandBase):
+    """
+    download a file using curl with the --parallel argument
+    This also trigger the --progress-bar param which writes to the stderr instead of the stdour
+    we read and parse this output to our own format:
+    Progress: ... of ...; Downloading 12818 of 13753, Downloaded 13.7GB of 37.67GB, Speed 103MB.
+
+    """
+
+    def __init__(self, shell_command, message=None, **kwargs):
+        super().__init__(**kwargs)
+        self.shell_command = shell_command
+        self.message = message
+
+    # override
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.shell_command))
+        all_args.append(self.optional_named__init__param("message", self.message))
+
+    def progress_msg_self(self):
+        return f"""running {self.shell_command} { self.message if self.message else ''}"""
+
+    def get_run_args(self, run_args) -> None:
+        resolved_shell_command = os.path.expandvars(self.shell_command)
+        run_args.append(resolved_shell_command)
+
+    def __call__(self, *args, **kwargs):
+        """ Normally list of arguments are calculated by calling self.get_run_args,
+            unless kwargs["run_args"] exists.
+        """
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        run_args = list()
+        if "run_args" in kwargs:
+            run_args.extend(kwargs["run_args"])
+        else:
+            self.get_run_args(run_args)
+        run_args = list(map(str, run_args))
+        self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
+
+        CurlWithParallel.max_files = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
+        CurlWithParallel.start_from_number_of_files = 0
+        CurlWithParallel.total_count = 0
+
+        p = subprocess.Popen(
+                run_args,
+                shell=True,
+                stderr=subprocess.PIPE,
+                universal_newlines=True)
+
+        parser = CurlWithParallel.stderr_parser(CurlWithParallel.max_files)
+        # Read and process the stderr output line by line
+        for line in p.stderr:
+            parser(line)
+
+        exit_code = p.wait()
+
+        print (exit_code)
+
+        if exit_code != 0:
+            raise subprocess.CalledProcessError(exit_code)
+    # this is a helper method that for given stderr line will output the correct progress
+    @staticmethod
+    def stderr_parser(max_files):
+        r = re.compile(r'[0-9-]+\s+[0-9-]+\s+([a-z0-9.]+)\s+0\s+(\d+).+--:--:--\s+([0-9a-z.]+)\s*$', re.IGNORECASE)
+        max_files = str(max_files) if max_files is not None else "..."
+
+        # converts from bytes to a human-readable string - should match Central's representation
+        def bytes_to_string(number):
+            suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+            magnitude = 0
+
+            if number == 0:
+                return "0"
+
+            while number >= 1024 and magnitude < len(suffixes) - 1:
+                number /= 1024
+                magnitude += 1
+
+            decimal_places = 2 if magnitude > 0 else 0
+            formatted_number = "{:.{}f}".format(number, decimal_places)
+
+            return f"{formatted_number}{suffixes[magnitude]}"
+
+        # converts from curl string output 30M 10.2K 12B to the same format we use in bytes_to_string
+        def curl_size_string_to_byte_string(str):
+            m = re.findall(r"([0-9.]+)([a-zA-Z])?", str)
+
+            if len(m) > 0 and len(m[0]) >= 1:
+                size, magnitude = m[0]
+
+                # for 0 only display the digit 0, otherwise we add quantifier
+                if not magnitude:
+                    magnitude = "" if size == 0 else "B"
+                else:
+                    magnitude = magnitude.upper()
+                    magnitude = magnitude if magnitude == "B" else (magnitude + "B")
+
+                return f"{size}{magnitude}"
+
+            return "0"
+
+        bytes_to_download = bytes_to_string(config_vars['__NUM_BYTES_TO_DOWNLOAD__'].int())
+
+        # parse a stderr line
+        def parser(line):
+            m = r.findall(line)
+            if len(m) > 0 and len(m[0]) > 2:
+                downloaded_size, downloaded_files, download_speed = m[0]
+                downloaded_files = int(downloaded_files)
+                # when we switch from the first config file to the second, (there are 2 at most)
+                if downloaded_files < CurlWithParallel.total_count:
+                    CurlWithParallel.start_from_number_of_files = CurlWithParallel.total_count
+
+                CurlWithParallel.total_count = downloaded_files + CurlWithParallel.start_from_number_of_files
+
+                downloaded_size = curl_size_string_to_byte_string(downloaded_size)
+                download_speed = curl_size_string_to_byte_string(download_speed)
+                log.info(
+                    f"Progress: ... of ...; Downloading {str(CurlWithParallel.total_count)} of {max_files}, Downloaded {downloaded_size} of {bytes_to_download}, Speed {download_speed}.")
+
+        return parser
 
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
