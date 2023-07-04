@@ -330,7 +330,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_CurlInternalParallel_repr(self):
         """ validate KillProcess object recreation with ParallelRun.__repr__() """
-        self.pbt.reprs_test_runner(CurlInternalParallel("curl", "mongo.config"))
+        self.pbt.reprs_test_runner(CurlWithInternalParallel("curl", "mongo.config"))
 
     def test_CurlInternalParallel(self):
         config_file = self.pbt.path_inside_test_folder("config_file")
@@ -393,5 +393,5 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(downloads_dir)
-        self.pbt.batch_accum += CurlInternalParallel(curl_path, config_file)
+        self.pbt.batch_accum += CurlWithInternalParallel(curl_path, config_file)
         self.pbt.exec_and_capture_output()

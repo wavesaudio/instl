@@ -233,24 +233,39 @@ cookie = {cookie_text}
                 dl_start_message = "Downloading with 1 process"
             dl_commands += Progress(dl_start_message)
 
-            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
+            total_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
+            total_MB_to_download = int(config_vars["__NUM_BYTES_TO_DOWNLOAD__"].int() / (1024*1024))
 
             if self.internal_parallel:
+                dl_commands += Progress(f"Downloading with curl parallel")
+                previously_downloaded_files = 0
                 for config_file in config_file_list:
-                    dl_commands += CurlWithParallel(shell_command=f'''"$(DOWNLOAD_TOOL_PATH)" --config "{config_file.path}"''',
+                    dl_commands += CurlWithInternalParallel(
+                                        curl_path=f"$(DOWNLOAD_TOOL_PATH)",
+                                        config_file_path=config_file.path,
+                                        total_files_to_download = total_files_to_download,
+                                        previously_downloaded_files = previously_downloaded_files,
+                                        total_MB_to_download= total_MB_to_download,
+                                        action_name="Downloading",
                                         own_progress_count=config_file.num_urls,
-                                        report_own_progress=True)
+                                        report_own_progress=False)
+                    previously_downloaded_files += config_file.num_urls
             else:
+                if num_config_files > 1:
+                    dl_start_message = f"Downloading with {num_config_files} processes in parallel"
+                else:
+                    dl_start_message = "Downloading with 1 process"
+                dl_commands += Progress(dl_start_message)
                 parallel_run_config_file_path = curl_config_folder.joinpath(
                     config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
                 self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
                 dl_commands += ParallelRun(parallel_run_config_file_path, shell=False,
                                            action_name="Downloading",
-                                           own_progress_count=num_files_to_download,
+                                           own_progress_count=total_files_to_download,
                                            report_own_progress=False)
 
-            if num_files_to_download > 1:
-                dl_end_message = f"Downloading {num_files_to_download} files done"
+            if total_files_to_download > 1:
+                dl_end_message = f"Downloading {total_files_to_download} files done"
             else:
                 dl_end_message = "Downloading 1 file done"
 

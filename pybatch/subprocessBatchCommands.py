@@ -656,18 +656,30 @@ class KillProcess(PythonBatchCommandBase):
                         raise TimeoutError(f"failed to kill process {self.process_name}")
 
 
-class CurlInternalParallel(PythonBatchCommandBase):
-    def __init__(self, curl_path: Path, config_file_path: Path, *argv, **kwargs):
+class CurlWithInternalParallel(PythonBatchCommandBase):
+    def __init__(self, curl_path: Path,
+                 config_file_path: Path,
+                 total_files_to_download: int,
+                 previously_downloaded_files: int,
+                 total_MB_to_download: int,
+                 *argv, **kwargs):
         super().__init__(*argv, **kwargs)
         self.curl_path = curl_path
         self.config_file_path = config_file_path
+        self.total_files_to_download = total_files_to_download
+        self.previously_downloaded_files = previously_downloaded_files
+        self.total_MB_to_download = total_MB_to_download
+
 
     def progress_msg_self(self) -> str:
         return f'''CurlInternalParallel {self.config_file_path}'''
 
     def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.curl_path))
-        all_args.append(self.unnamed__init__param(self.config_file_path))
+        all_args.append(self.named__init__param("curl_path", self.curl_path))
+        all_args.append(self.named__init__param("config_file_path", self.config_file_path))
+        all_args.append(self.named__init__param("total_files_to_download", self.total_files_to_download))
+        all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
+        all_args.append(self.named__init__param("total_MB_to_download", self.total_MB_to_download))
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -677,21 +689,31 @@ class CurlInternalParallel(PythonBatchCommandBase):
                                    universal_newlines=True,
                                    bufsize=1)
         reg = re.compile("""
-                        ^\s*
-                        (?P<DL_percent>[\d-]+(\.\d+)?)\s+
+                        ^\s*(?P<DL_percent>[\d-]+(\.\d+)?)\s+
                         (?P<UL_percent>[\d-]+(\.\d+)?)\s+
                         (?P<Dled>[\d-]+(\.\d+)?)(?P<Dled_units>[a-z]*)\s+
                         (?P<Uled>[\d-]+)(?P<Uled_units>[a-z]*)\s+
-                        (?P<Xfers>[a-z0-9]+)\s+
-                        (?P<Live>[a-z0-9]+)\s+
-                        (?P<Qd>[a-z0-9]+)\s+
+                        (?P<Xfers>[a-z0-9]+)\s+(?P<Live>[a-z0-9]+)\s+
                         (?P<Total>[\d-]+:[\d-]+:[\d-]+)\s+
                         (?P<Current>[\d-]+:[\d-]+:[\d-]+)\s+
                         (?P<Left>[\d-]+:[\d-]+:[\d-]+)\s+
-                        (?P<Speed>[\d-]+(\.\d+)?)(?P<Speed_units>[a-z]*)
-                        (?P<the_rest>.*)$
+                        (?P<Speed>[\d-]+(\.\d+)?[a-z]*)(?P<the_rest>.*)$
                        """,
                        re.IGNORECASE | re.VERBOSE)
+
+        def Dled_to_MB(num_dled: str, dled_units: str):
+            retVal = 0
+            try:
+                retVal = float(num_dled)
+                if not dled_units:
+                    retVal /= (1024 * 1024)
+                elif dled_units == 'k':
+                    retVal /= 1024
+                elif dled_units == 'M':
+                    pass
+            except:
+                pass
+            return int(retVal)
 
         while process.poll() is None:
             stdout_line = process.stdout.readline().strip()
@@ -699,13 +721,24 @@ class CurlInternalParallel(PythonBatchCommandBase):
             for stdout_line in stdout_lines:
                 match = reg.match(stdout_line)
                 if match:
-                    print(f"Dled:{match.group('Dled')}{match.group('Dled_units')}; Speed:{match.group('Speed')}{match.group('Speed_units')}; Xfers:{match.group('Xfers')}")
-                    # print(f"Match:\n{stdout_line}\n")
-                    # for grp, val in match.groupdict().items():
-                    #     print(f"{grp}='{val}'")
-                else:
-                    print(f"No match:\n{stdout_line}")
-            print(f"---")
+                    # print(f"Dled:{match.group('Dled')}{match.group('Dled_units')}; "
+                    #       f"Xfers:{match.group('Xfers')}; "
+                    #       f"Live:{match.group('Live')}; "
+                    #       f"Speed:{match.group('Speed')}; "
+                    #       )
+                    downloaded_files = self.previously_downloaded_files
+                    try:
+                        downloaded_files += int(match.group('Xfers'))
+                    except:
+                        pass  # in case 'Xfers' could not be converted to int
+                    Dled_in_MB = Dled_to_MB(match.group('Dled'), match.group('Dled_units'))
+                    message = f"Progress ... of ...; " \
+                              f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
+                              f"Downloaded {Dled_in_MB} of {self.total_MB_to_download}MB, " \
+                              f"Speed {match.group('Speed')}"
+                    log.info(message)
+
         process.stdout.close()
         process.wait()
         print(f"Curl ended {process.returncode}")
+        self.increment_progress()
