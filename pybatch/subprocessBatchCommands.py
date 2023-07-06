@@ -592,7 +592,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
            (?P<Uled>[\d.a-z]+)\s+
            (?P<Xfers>[\d]+)\s+
            (?P<Live>[\d]+)\s+
-           (?P<Queue>[\d]+)\s+                        
+           (?P<Queue>[\d]+)?\s*?                        
            (?P<Total>[\d:-]+)\s+
            (?P<Current>[\d:-]+)\s+
            (?P<Left>[\d:-]+)\s+
