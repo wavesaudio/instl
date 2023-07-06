@@ -181,128 +181,6 @@ class CUrl(RunProcessBase):
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
 
-class CurlWithParallel(PythonBatchCommandBase):
-    """
-    download a file using curl with the --parallel argument
-    This also trigger the --progress-bar param which writes to the stderr instead of the stdour
-    we read and parse this output to our own format:
-    Progress: ... of ...; Downloading 12818 of 13753, Downloaded 13.7GB of 37.67GB, Speed 103MB.
-
-    """
-
-    def __init__(self, shell_command, message=None, **kwargs):
-        super().__init__(**kwargs)
-        self.shell_command = shell_command
-        self.message = message
-
-    # override
-    def repr_own_args(self, all_args: List[str]) -> None:
-        all_args.append(self.unnamed__init__param(self.shell_command))
-        all_args.append(self.optional_named__init__param("message", self.message))
-
-    def progress_msg_self(self):
-        return f"""running {self.shell_command} { self.message if self.message else ''}"""
-
-    def get_run_args(self, run_args) -> None:
-        resolved_shell_command = os.path.expandvars(self.shell_command)
-        run_args.append(resolved_shell_command)
-
-    def __call__(self, *args, **kwargs):
-        """ Normally list of arguments are calculated by calling self.get_run_args,
-            unless kwargs["run_args"] exists.
-        """
-        PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        run_args = list()
-        if "run_args" in kwargs:
-            run_args.extend(kwargs["run_args"])
-        else:
-            self.get_run_args(run_args)
-        run_args = list(map(str, run_args))
-        self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
-
-        CurlWithParallel.max_files = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
-        CurlWithParallel.start_from_number_of_files = 0
-        CurlWithParallel.total_count = 0
-
-        p = subprocess.Popen(
-                run_args,
-                shell=True,
-                stderr=subprocess.PIPE,
-                universal_newlines=True)
-
-        parser = CurlWithParallel.stderr_parser(CurlWithParallel.max_files)
-        # Read and process the stderr output line by line
-        for line in p.stderr:
-            parser(line)
-
-        exit_code = p.wait()
-
-        print (exit_code)
-
-        if exit_code != 0:
-            raise subprocess.CalledProcessError(exit_code)
-    # this is a helper method that for given stderr line will output the correct progress
-    @staticmethod
-    def stderr_parser(max_files):
-        r = re.compile(r'[0-9-]+\s+[0-9-]+\s+([a-z0-9.]+)\s+0\s+(\d+).+--:--:--\s+([0-9a-z.]+)\s*$', re.IGNORECASE)
-        max_files = str(max_files) if max_files is not None else "..."
-
-        # converts from bytes to a human-readable string - should match Central's representation
-        def bytes_to_string(number):
-            suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-            magnitude = 0
-
-            if number == 0:
-                return "0"
-
-            while number >= 1024 and magnitude < len(suffixes) - 1:
-                number /= 1024
-                magnitude += 1
-
-            decimal_places = 2 if magnitude > 0 else 0
-            formatted_number = "{:.{}f}".format(number, decimal_places)
-
-            return f"{formatted_number}{suffixes[magnitude]}"
-
-        # converts from curl string output 30M 10.2K 12B to the same format we use in bytes_to_string
-        def curl_size_string_to_byte_string(str):
-            m = re.findall(r"([0-9.]+)([a-zA-Z])?", str)
-
-            if len(m) > 0 and len(m[0]) >= 1:
-                size, magnitude = m[0]
-
-                # for 0 only display the digit 0, otherwise we add quantifier
-                if not magnitude:
-                    magnitude = "" if size == 0 else "B"
-                else:
-                    magnitude = magnitude.upper()
-                    magnitude = magnitude if magnitude == "B" else (magnitude + "B")
-
-                return f"{size}{magnitude}"
-
-            return "0"
-
-        bytes_to_download = bytes_to_string(config_vars['__NUM_BYTES_TO_DOWNLOAD__'].int())
-
-        # parse a stderr line
-        def parser(line):
-            m = r.findall(line)
-            if len(m) > 0 and len(m[0]) > 2:
-                downloaded_size, downloaded_files, download_speed = m[0]
-                downloaded_files = int(downloaded_files)
-                # when we switch from the first config file to the second, (there are 2 at most)
-                if downloaded_files < CurlWithParallel.total_count:
-                    CurlWithParallel.start_from_number_of_files = CurlWithParallel.total_count
-
-                CurlWithParallel.total_count = downloaded_files + CurlWithParallel.start_from_number_of_files
-
-                downloaded_size = curl_size_string_to_byte_string(downloaded_size)
-                download_speed = curl_size_string_to_byte_string(download_speed)
-                log.info(
-                    f"Progress: ... of ...; Downloading {str(CurlWithParallel.total_count)} of {max_files}, Downloaded {downloaded_size} of {bytes_to_download}, Speed {download_speed}.")
-
-        return parser
-
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
 
@@ -661,15 +539,34 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                  config_file_path: Path,
                  total_files_to_download: int,
                  previously_downloaded_files: int,
-                 total_MB_to_download: int,
+                 total_bytes_to_download: int,
                  *argv, **kwargs):
         super().__init__(*argv, **kwargs)
         self.curl_path = curl_path
         self.config_file_path = config_file_path
         self.total_files_to_download = total_files_to_download
         self.previously_downloaded_files = previously_downloaded_files
-        self.total_MB_to_download = total_MB_to_download
+        self.total_bytes_to_download = total_bytes_to_download
 
+    # converts a number of bytes to human-readable string
+    # 0 => 0
+    # 1024 => 1K
+    #
+    def bytes_to_string(self, number):
+        suffixes = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+        magnitude = 0
+
+        if number == 0:
+            return "0"
+
+        while number >= 1024 and magnitude < len(suffixes) - 1:
+            number /= 1024
+            magnitude += 1
+
+        decimal_places = 2 if magnitude > 0 else 0
+        formatted_number = "{:.{}f}".format(number, decimal_places)
+
+        return f"{formatted_number}{suffixes[magnitude]}"
 
     def progress_msg_self(self) -> str:
         return f'''CurlInternalParallel {self.config_file_path}'''
@@ -679,7 +576,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
         all_args.append(self.named__init__param("config_file_path", self.config_file_path))
         all_args.append(self.named__init__param("total_files_to_download", self.total_files_to_download))
         all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
-        all_args.append(self.named__init__param("total_MB_to_download", self.total_MB_to_download))
+        all_args.append(self.named__init__param("total_bytes_to_download", self.total_bytes_to_download))
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -688,32 +585,22 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
                                    bufsize=1)
-        reg = re.compile("""
-                        ^\s*(?P<DL_percent>[\d-]+(\.\d+)?)\s+
-                        (?P<UL_percent>[\d-]+(\.\d+)?)\s+
-                        (?P<Dled>[\d-]+(\.\d+)?)(?P<Dled_units>[a-z]*)\s+
-                        (?P<Uled>[\d-]+)(?P<Uled_units>[a-z]*)\s+
-                        (?P<Xfers>[a-z0-9]+)\s+(?P<Live>[a-z0-9]+)\s+
-                        (?P<Total>[\d-]+:[\d-]+:[\d-]+)\s+
-                        (?P<Current>[\d-]+:[\d-]+:[\d-]+)\s+
-                        (?P<Left>[\d-]+:[\d-]+:[\d-]+)\s+
-                        (?P<Speed>[\d-]+(\.\d+)?[a-z]*)(?P<the_rest>.*)$
-                       """,
-                       re.IGNORECASE | re.VERBOSE)
+        reg = re.compile("""^\s*
+           (?P<DL_percent>[\d.-]+)\s+
+           (?P<UL_percent>[\d.-]+)\s+
+           (?P<Dled>[\d.a-z]+)\s+
+           (?P<Uled>[\d.a-z]+)\s+
+           (?P<Xfers>[\d]+)\s+
+           (?P<Live>[\d]+)\s+
+           (?P<Queue>[\d]+)\s+                        
+           (?P<Total>[\d:-]+)\s+
+           (?P<Current>[\d:-]+)\s+
+           (?P<Left>[\d:-]+)\s+
+           (?P<Speed>[\d.a-z]+)
+           (?P<the_rest>.*)?$""",
+           re.IGNORECASE | re.VERBOSE)
 
-        def Dled_to_MB(num_dled: str, dled_units: str):
-            retVal = 0
-            try:
-                retVal = float(num_dled)
-                if not dled_units:
-                    retVal /= (1024 * 1024)
-                elif dled_units == 'k':
-                    retVal /= 1024
-                elif dled_units == 'M':
-                    pass
-            except:
-                pass
-            return int(retVal)
+        bytes_to_download_str = self.bytes_to_string(self.total_bytes_to_download)
 
         while process.poll() is None:
             stdout_line = process.stdout.readline().strip()
@@ -721,20 +608,21 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
             for stdout_line in stdout_lines:
                 match = reg.match(stdout_line)
                 if match:
-                    # print(f"Dled:{match.group('Dled')}{match.group('Dled_units')}; "
+                    # print(f"Dled:{match.group('Dled')}; "
                     #       f"Xfers:{match.group('Xfers')}; "
                     #       f"Live:{match.group('Live')}; "
                     #       f"Speed:{match.group('Speed')}; "
                     #       )
                     downloaded_files = self.previously_downloaded_files
                     try:
-                        downloaded_files += int(match.group('Xfers'))
+                        # Add the total Xfers, Reduce by the live count
+                        downloaded_files += int(match.group('Xfers')) - int(match.group('Live'))
                     except:
                         pass  # in case 'Xfers' could not be converted to int
-                    Dled_in_MB = Dled_to_MB(match.group('Dled'), match.group('Dled_units'))
+
                     message = f"Progress ... of ...; " \
                               f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
-                              f"Downloaded {Dled_in_MB} of {self.total_MB_to_download}MB, " \
+                              f"Downloaded {match.group('Dled')} of {bytes_to_download_str}, " \
                               f"Speed {match.group('Speed')}"
                     log.info(message)
 

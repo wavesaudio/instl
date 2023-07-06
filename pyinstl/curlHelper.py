@@ -4,8 +4,10 @@
 import os
 import abc
 import itertools
+import subprocess
 from pathlib import Path, PurePath
 import sys
+from distutils.version import StrictVersion
 import functools
 import logging
 import re
@@ -73,11 +75,53 @@ cookie = {cookie_text}
 
 
 """
+    min_supported_parallel_curl_version = "7.66.0"
+    cached_internal_parallel = None  # True means curl knows to parallel download internally, set to None
+
+
+
     def __init__(self) -> None:
         self.urls_to_download = list()
         self.urls_to_download_last = list()
         self.short_win_paths_cache = dict()
-        self.internal_parallel = True  # True means curl knows to parallel download internally
+
+
+    # this is done as lazy load, since the actual "curl" location is known a bit later after the class is created
+    # executes and reads the version of the curl if it matches the expected version, returns True, otherwise returns False
+    # If we've already computed the value no need to check this again
+    def is_internal_parallel_supported(self):
+        if CUrlHelper.cached_internal_parallel is None:
+            CUrlHelper.cached_internal_parallel = False
+            try:
+                # The curl --version output is
+                # curl 7.79.1 (x86_64-apple-darwin21.0) libcurl/7.79.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.11 nghttp2/1.45.1
+                # Release-Date: 2021-09-22
+                # Protocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtsp smb smbs smtp smtps telnet tftp
+                # Features: alt-svc AsynchDNS GSS-API HSTS HTTP2 HTTPS-proxy IPv6 Kerberos Largefile libz MultiSSL NTLM NTLM_WB SPNEGO SSL UnixSockets
+                # So we take the fist line after the "curl" word
+
+                exe_name = config_vars.resolve_str("curl")
+                proc = subprocess.Popen(
+                        f"{exe_name} --version",
+                        shell=True,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        universal_newlines=True)
+
+                match = re.search(r"curl\s+([0-9.]+)\s", proc.stdout.read())
+
+                if match is not None and len(match.groups()) > 0:
+                    curl_version = StrictVersion(match.group(1))
+                    min_version = StrictVersion(CUrlHelper.min_supported_parallel_curl_version)
+                    if min_version > curl_version:
+                        log.info(f"Detected a legacy curl version {match.group(1)}")
+                    else:
+                        CUrlHelper.cached_internal_parallel = True
+            except Exception:
+                log.info(f"Could not parse CURL version, assuming legacy version")
+        return CUrlHelper.cached_internal_parallel
+
+
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
         if verbatim:
@@ -141,7 +185,7 @@ cookie = {cookie_text}
             "curl_output_format_str": self.curl_output_format_str
         }
 
-        if self.internal_parallel:
+        if self.is_internal_parallel_supported():
             confi_file_text = self.internal_parallel_header_text
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
         else:
@@ -176,7 +220,7 @@ cookie = {cookie_text}
         cfig_file_cycler = itertools.cycle(config_file_list)
         total_url_num = 0
         # No sorting for curl's parallel as the progress looks better when there are mixed sizes
-        sorted_by_size = self.urls_to_download if self.internal_parallel else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
+        sorted_by_size = self.urls_to_download if self.is_internal_parallel_supported() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
 
         for url, path, size in sorted_by_size:
             fixed_path = self.fix_path(path)
@@ -201,7 +245,7 @@ cookie = {cookie_text}
             # insert None which means "wait" before the config file that downloads urls_to_download_last.
             # but only if there were actually download files other than urls_to_download_last.
             # it might happen that there are only urls_to_download_last - so no need to "wait".
-            if not self.internal_parallel and len(config_file_list) > 0:
+            if not self.is_internal_parallel_supported() and len(config_file_list) > 0:
                 config_file_list.append(None)
             config_file_list.append(last_file)
 
@@ -234,9 +278,9 @@ cookie = {cookie_text}
             dl_commands += Progress(dl_start_message)
 
             total_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
-            total_MB_to_download = int(config_vars["__NUM_BYTES_TO_DOWNLOAD__"].int() / (1024*1024))
+            total_bytes_to_download = int(config_vars["__NUM_BYTES_TO_DOWNLOAD__"])
 
-            if self.internal_parallel:
+            if self.is_internal_parallel_supported():
                 dl_commands += Progress(f"Downloading with curl parallel")
                 previously_downloaded_files = 0
                 for config_file in config_file_list:
@@ -245,7 +289,7 @@ cookie = {cookie_text}
                                         config_file_path=config_file.path,
                                         total_files_to_download = total_files_to_download,
                                         previously_downloaded_files = previously_downloaded_files,
-                                        total_MB_to_download= total_MB_to_download,
+                                        total_bytes_to_download= total_bytes_to_download,
                                         action_name="Downloading",
                                         own_progress_count=config_file.num_urls,
                                         report_own_progress=False)
