@@ -74,51 +74,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             than num_config_files, or might be 0 if downloading is not required.
         """
         dl_commands = AnonymousAccum()
-
-        main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
-        curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
-        MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
-        curl_config_file_path = curl_config_folder.joinpath(config_vars["CURL_CONFIG_FILE_NAME"].str())
-
-        num_config_files = int(config_vars["PARALLEL_SYNC"])
-        # TODO: Move class someplace else
-        config_file_list = self.instlObj.dl_tool.create_config_files(curl_config_file_path, num_config_files)
-
-        actual_num_config_files = len(config_file_list)
-        if actual_num_config_files > 0:
-            if num_config_files > 1:
-                dl_start_message = f"Downloading with {num_config_files} processes in parallel"
-            else:
-                dl_start_message = "Downloading with 1 process"
-            dl_commands += Progress(dl_start_message)
-
-            num_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
-
-            parallel_run_config_file_path = curl_config_folder.joinpath(config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
-            self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-            dl_commands += ParallelRun(parallel_run_config_file_path, shell=False, action_name="Downloading", own_progress_count=num_files_to_download, report_own_progress=False)
-
-            if num_files_to_download > 1:
-                dl_end_message = f"Downloading {num_files_to_download} files done"
-            else:
-                dl_end_message = "Downloading 1 file done"
-
-            dl_commands += Progress(dl_end_message)
-
-            return dl_commands
-
-    def create_parallel_run_config_file(self, parallel_run_config_file_path, config_files):
-        with utils.utf8_open_for_write(parallel_run_config_file_path, "w") as wfd:
-            for config_file in config_files:
-                if config_file is None:  # None means to insert a wait
-                    wfd.write("wait\n")
-                else:
-                    if sys.platform == 'win32':
-                        # curl on windows has problem with path to config files that have unicode characters
-                        normalized_path = win32api.GetShortPathName(config_file)
-                    else:
-                        normalized_path = config_file
-                    wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
+        self.instlObj.dl_tool.create_download_instructions(dl_commands)
+        return dl_commands
 
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()

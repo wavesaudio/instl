@@ -56,7 +56,7 @@ class PythonBatchCommandBase(abc.ABC):
     ignore_progress = False           # set to True when using batch commands out side python batch file
     config_vars_for_repr = None       # set to global config_vars just before writing to batch file in PythonBatchCommandAccum.__repr__()
 
-    # defaults for __init__ of derived classes. Members who's value is not different from these default values
+    # defaults for __init__ of derived classes. Members whose value is not different from these default values
     # can be skipped when __repr__ recreates the object
     kwargs_defaults = {'own_progress_count': 1,
                        'report_own_progress': True,
@@ -433,7 +433,8 @@ class PythonBatchCommandBase(abc.ABC):
     def increment_progress(self, increment_by=None):
         if increment_by is None:
             increment_by = self.own_progress_count
-        PythonBatchCommandBase.running_progress = self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        self.runtime_progress_num = PythonBatchCommandBase.running_progress + increment_by
+        PythonBatchCommandBase.running_progress = self.runtime_progress_num
         if PythonBatchCommandBase.running_progress > PythonBatchCommandBase.total_progress:
             log.warning(
                 f"running_progress ({PythonBatchCommandBase.running_progress}) > total_progress ({PythonBatchCommandBase.total_progress})")

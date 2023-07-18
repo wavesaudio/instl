@@ -2,6 +2,7 @@ import abc
 import collections
 import logging
 import os
+import re
 import shlex
 import stat
 import subprocess
@@ -14,6 +15,7 @@ from typing import List
 import psutil
 
 import utils
+from configVar import config_vars
 from .baseClasses import PythonBatchCommandBase
 
 log = logging.getLogger(__name__)
@@ -39,7 +41,6 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results
-
 
     @abc.abstractmethod
     def get_run_args(self, run_args) -> None:
@@ -88,9 +89,9 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
                 # so objects overriding handle_completed_process will have access to stdout
                 out_stream = subprocess.PIPE
             in_stream = None
-            err_stream = subprocess.PIPE
 
-            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream, stderr=err_stream, shell=self.shell, bufsize=0)
+            completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
+                                                   stderr=subprocess.PIPE, shell=self.shell, bufsize=0)
 
             if need_to_close_out_file:
                 out_stream.close()
@@ -179,7 +180,6 @@ class CUrl(RunProcessBase):
         # TODO
         # download_command_parts.append("write-out")
         # download_command_parts.append(CUrlHelper.curl_write_out_str)
-
 
 class ShellCommand(RunProcessBase):
     """ run a single command in a shell """
@@ -342,7 +342,7 @@ class ExecPython(PythonBatchCommandBase):
 
 
 class Exec(ExecPython):
-    """ deprecated use ExecPython inside"""
+    """ deprecated use ExecPython instead"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -532,3 +532,101 @@ class KillProcess(PythonBatchCommandBase):
                     proc_name = proc.name()
                     if proc_name in look_for:
                         raise TimeoutError(f"failed to kill process {self.process_name}")
+
+
+class CurlWithInternalParallel(PythonBatchCommandBase):
+    def __init__(self, curl_path: Path,
+                 config_file_path: Path,
+                 total_files_to_download: int,
+                 previously_downloaded_files: int,
+                 total_bytes_to_download: int,
+                 *argv, **kwargs):
+        super().__init__(*argv, **kwargs)
+        self.curl_path = curl_path
+        self.config_file_path = config_file_path
+        self.total_files_to_download = total_files_to_download
+        self.previously_downloaded_files = previously_downloaded_files
+        self.total_bytes_to_download = total_bytes_to_download
+
+    # converts a number of bytes to human-readable string
+    # 0 => 0
+    # 1024 => 1K
+    #
+    def bytes_to_string(self, number):
+        suffixes = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+        magnitude = 0
+
+        if number == 0:
+            return "0"
+
+        while number >= 1024 and magnitude < len(suffixes) - 1:
+            number /= 1024
+            magnitude += 1
+
+        decimal_places = 2 if magnitude > 0 else 0
+        formatted_number = "{:.{}f}".format(number, decimal_places)
+
+        return f"{formatted_number}{suffixes[magnitude]}"
+
+    def progress_msg_self(self) -> str:
+        return f'''CurlInternalParallel {self.config_file_path}'''
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.named__init__param("curl_path", self.curl_path))
+        all_args.append(self.named__init__param("config_file_path", self.config_file_path))
+        all_args.append(self.named__init__param("total_files_to_download", self.total_files_to_download))
+        all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
+        all_args.append(self.named__init__param("total_bytes_to_download", self.total_bytes_to_download))
+
+    def __call__(self, *args, **kwargs):
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        process = subprocess.Popen([os.fspath(self.curl_path), "--config", os.fspath(self.config_file_path)],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
+                                   universal_newlines=True,
+                                   bufsize=1)
+        reg = re.compile("""^\s*
+           (?P<DL_percent>[\d.-]+)\s+
+           (?P<UL_percent>[\d.-]+)\s+
+           (?P<Dled>[\d.a-z]+)\s+
+           (?P<Uled>[\d.a-z]+)\s+
+           (?P<Xfers>[\d]+)\s+
+           (?P<Live>[\d]+)\s+
+           (?P<Queue>[\d]+)?\s*?                        
+           (?P<Total>[\d:-]+)\s+
+           (?P<Current>[\d:-]+)\s+
+           (?P<Left>[\d:-]+)\s+
+           (?P<Speed>[\d.a-z]+)
+           (?P<the_rest>.*)?$""",
+           re.IGNORECASE | re.VERBOSE)
+
+        bytes_to_download_str = self.bytes_to_string(self.total_bytes_to_download)
+
+        while process.poll() is None:
+            stdout_line = process.stdout.readline().strip()
+            stdout_lines = stdout_line.split('\r')
+            for stdout_line in stdout_lines:
+                match = reg.match(stdout_line)
+                if match:
+                    # print(f"Dled:{match.group('Dled')}; "
+                    #       f"Xfers:{match.group('Xfers')}; "
+                    #       f"Live:{match.group('Live')}; "
+                    #       f"Speed:{match.group('Speed')}; "
+                    #       )
+                    downloaded_files = self.previously_downloaded_files
+                    try:
+                        # Add the total Xfers, Reduce by the live count
+                        downloaded_files += int(match.group('Xfers')) - int(match.group('Live'))
+                    except:
+                        pass  # in case 'Xfers' could not be converted to int
+
+                    message = f"Progress ... of ...; " \
+                              f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
+                              f"Downloaded {match.group('Dled')} of {bytes_to_download_str}, " \
+                              f"Speed {match.group('Speed')}"
+                    log.info(message)
+
+        process.stdout.close()
+        process.wait()
+        print(f"Curl ended {process.returncode}")
+        self.increment_progress()

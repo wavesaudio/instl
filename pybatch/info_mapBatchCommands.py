@@ -167,7 +167,8 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
+        if "own_progress_count" not in kwargs:
+            self.own_progress_count = self.info_map_table.num_items(item_filter="need-download-dirs")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         pass
@@ -184,8 +185,8 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
         super().__call__(*args, **kwargs)
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
         for dl_dir in dl_dir_items:
-            # direct_sync items have absolute path in member .download_path
-            # cache items have relative path in member .path
+            # direct_sync items have absolute path in member dl_dir.download_path
+            # cached items have relative path in member dl_dir.path
             path_to_create = dl_dir.download_path if dl_dir.download_path else dl_dir.path
             super().increment_and_output_progress(increment_by=1, prog_msg=f"create sync folder {path_to_create}")
             self.doing = f"""creating sync folder '{path_to_create}'"""
