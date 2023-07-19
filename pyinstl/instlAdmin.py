@@ -1366,6 +1366,13 @@ class InstlAdmin(InstlInstanceBase):
                                 print(a_file_path)
                                 reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
                                 num_files += 1
+                # add manifest.yaml's if they are on the top level too
+                # not sure is top_level_tag will be appropriate
+                elif top_level_dir.is_file() and top_level_dir.name.endswith("manifest.yaml") and not top_level_dir.name.startswith("."):
+                    top_level_tag = manifests_folder.name
+                    print(top_level_dir)
+                    reader.read_yaml_file(top_level_dir, top_level_tag=top_level_tag)
+                    num_files += 1
 
         manifest_nodes = reader.manifest_nodes
         num_singles = 0
