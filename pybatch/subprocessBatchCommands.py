@@ -580,7 +580,15 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        process = subprocess.Popen([os.fspath(self.curl_path), "--config", os.fspath(self.config_file_path)],
+
+        config_file_path_fixed = os.fspath(self.config_file_path)
+        if 'Win' in utils.get_current_os_names():
+            # on windows curl fail to read long paths or paths with unicode chars
+            # so convert the path to short path (DOS style 8.3 chars)
+            import win32api
+            config_file_path_fixed = win32api.GetShortPathName(config_file_path_fixed)
+
+        process = subprocess.Popen([os.fspath(self.curl_path), "--config", config_file_path_fixed],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
