@@ -395,3 +395,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += MakeDir(downloads_dir)
         self.pbt.batch_accum += CurlWithInternalParallel(curl_path, config_file)
         self.pbt.exec_and_capture_output()
+
+    def test_Dummy(self):
+        pass
