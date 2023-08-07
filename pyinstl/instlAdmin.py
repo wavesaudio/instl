@@ -1379,7 +1379,9 @@ class InstlAdmin(InstlInstanceBase):
         num_duplicates = 0
         num_different = 0
         diffs_dict = dict()
-        for iid, content_list in manifest_nodes.items():
+        filtered_manifest_nodes = {key: value for key, value in manifest_nodes.items() if key.endswith("_IID")}
+
+        for iid, content_list in filtered_manifest_nodes.items():
             if len(content_list) == 1:
                 num_singles += 1
                 content_list[0].top_level_tag = "Common"
@@ -1404,13 +1406,13 @@ class InstlAdmin(InstlInstanceBase):
                 print(f"IID {iid} found in more than 2 files")
                 for item in content_list:
                     print(f"    {item.origin_path}")
-                manifest_nodes[iid].clear()
+                filtered_manifest_nodes[iid].clear()
 
-        print(f"scanned {num_files}, found {len(manifest_nodes)} distinct IIDs")
+        print(f"scanned {num_files}, found {len(filtered_manifest_nodes)} distinct IIDs")
         print(f"{num_singles} singles, {num_duplicates} duplicates, {num_different} dup and different")
 
         all_manifests = {"Common": dict(), "Mac": dict(), "Win": dict()}
-        for iid, content_list in manifest_nodes.items():
+        for iid, content_list in filtered_manifest_nodes.items():
             for contents in content_list:
                 all_manifests[contents.top_level_tag][iid] = contents.manifest_node
 
