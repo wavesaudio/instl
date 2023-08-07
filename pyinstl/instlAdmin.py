@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.9
-
+import json
 import logging
 log = logging.getLogger()
 
@@ -1351,27 +1351,37 @@ class InstlAdmin(InstlInstanceBase):
                     item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)
                     self.manifest_nodes[a_node_name].append(item)
 
-        stage_folder = config_vars["STAGING_FOLDER"].Path()
+        folders_to_search_for_manifests = [Path(f) for f in config_vars["COLLECT_MANIFESTS_DIR"].list()]
         reader = ManifestYamlReader(config_vars)
         num_files = 0
-        for top_level_dir in sorted(stage_folder.glob("*")):
-            if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
-                top_level_tag = top_level_dir.name
-                for root, dirs, files in os.walk(top_level_dir, followlinks=False):
-                    dirs.sort()  # to be idempotent, so folders will always be scanned in the same order
-                    for a_file in sorted(files):
-                        a_file_path = Path(root, a_file)
-                        if a_file_path.name.endswith("manifest.yaml"):
-                            print(a_file_path)
-                            reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
-                            num_files += 1
+        for manifests_folder in folders_to_search_for_manifests:
+            for top_level_dir in sorted(manifests_folder.glob("*")):
+                if top_level_dir.is_dir() and not top_level_dir.name.startswith('.'):
+                    top_level_tag = top_level_dir.name
+                    for root, dirs, files in os.walk(top_level_dir, followlinks=False):
+                        dirs.sort()  # to be idempotent, so folders will always be scanned in the same order
+                        for a_file in sorted(files):
+                            a_file_path = Path(root, a_file)
+                            if a_file_path.name.endswith("manifest.yaml") and not a_file_path.name.startswith("."):
+                                print(a_file_path)
+                                reader.read_yaml_file(a_file_path, top_level_tag=top_level_tag)
+                                num_files += 1
+                # add manifest.yaml's if they are on the top level too
+                # not sure is top_level_tag will be appropriate
+                elif top_level_dir.is_file() and top_level_dir.name.endswith("manifest.yaml") and not top_level_dir.name.startswith("."):
+                    top_level_tag = manifests_folder.name
+                    print(top_level_dir)
+                    reader.read_yaml_file(top_level_dir, top_level_tag=top_level_tag)
+                    num_files += 1
 
         manifest_nodes = reader.manifest_nodes
         num_singles = 0
         num_duplicates = 0
         num_different = 0
         diffs_dict = dict()
-        for iid, content_list in manifest_nodes.items():
+        filtered_manifest_nodes = {key: value for key, value in manifest_nodes.items() if key.endswith("_IID")}
+
+        for iid, content_list in filtered_manifest_nodes.items():
             if len(content_list) == 1:
                 num_singles += 1
                 content_list[0].top_level_tag = "Common"
@@ -1396,27 +1406,65 @@ class InstlAdmin(InstlInstanceBase):
                 print(f"IID {iid} found in more than 2 files")
                 for item in content_list:
                     print(f"    {item.origin_path}")
-                manifest_nodes[iid].clear()
+                filtered_manifest_nodes[iid].clear()
 
-        print(f"scanned {num_files}, found {len(manifest_nodes)} distinct IIDs")
+        print(f"scanned {num_files}, found {len(filtered_manifest_nodes)} distinct IIDs")
         print(f"{num_singles} singles, {num_duplicates} duplicates, {num_different} dup and different")
 
         all_manifests = {"Common": dict(), "Mac": dict(), "Win": dict()}
-        for iid, content_list in manifest_nodes.items():
+        for iid, content_list in filtered_manifest_nodes.items():
             for contents in content_list:
                 all_manifests[contents.top_level_tag][iid] = contents.manifest_node
 
-        base_index_path = config_vars["STAGING_FOLDER_BASE_INDEX"].Path()
-        out_manifests_file = config_vars["STAGING_FOLDER"].Path().joinpath("instl", "index.yaml")
+        collect_manifests_results_path = config_vars["COLLECT_MANIFESTS_RESULTS_PATH"].Path()
+
+        if "__OUTPUT_FORMAT__" in config_vars:
+            config_vars["COLLECT_MANIFESTS_FORMAT"] = "$(__OUTPUT_FORMAT__)"
+        output_format = config_vars.get("COLLECT_MANIFESTS_FORMAT", "yaml").str()
+        if "yaml" == output_format:
+            self.write_collected_manifests_yaml(collect_manifests_results_path, all_manifests)
+        elif "json" == output_format:
+            self.write_collected_manifests_json(collect_manifests_results_path, all_manifests)
+
+    def write_collected_manifests_yaml(self, out_manifests_file, all_manifests):
         with open(out_manifests_file, "w") as wfd:
-            wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
+            try:
+                base_index_path = config_vars["COLLECT_MANIFESTS_BASE_INDEX"].Path()
+                wfd.write(base_index_path.read_text())  # copy the index_base.yaml verbatim
+            except:
+                pass
             wfd.write("\n# below are IIDs collected from manifest.yaml files\n\n")
             if all_manifests["Common"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Common"], tag="!index", sort_mappings=True), wfd, top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Common"], tag="!index", sort_mappings=True),
+                                  wfd, top_level_blank_line=True)
             if all_manifests["Mac"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Mac"], tag="!index_Mac", sort_mappings=True), wfd,
-                              top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Mac"], tag="!index_Mac", sort_mappings=True),
+                                  wfd,
+                                  top_level_blank_line=True)
             if all_manifests["Win"]:
-                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Win"], tag="!index_Win", sort_mappings=True), wfd,
-                              top_level_blank_line=True)
+                aYaml.writeAsYaml(aYaml.YamlDumpDocWrap(all_manifests["Win"], tag="!index_Win", sort_mappings=True),
+                                  wfd,
+                                  top_level_blank_line=True)
         print(f"collected manifests written to: {out_manifests_file}")
+
+    def write_collected_manifests_json(self, out_manifests_file, all_manifests):
+        item_list = list()
+        for section, mani_list in all_manifests.items():
+            for iid, a_node in mani_list.items():
+                item = {"IID": iid}
+                if not a_node:
+                    print(f"no node for iid {iid}")
+                    continue
+                if 'name' in a_node:
+                    item['name'] = a_node['name']
+                if 'version' in a_node:
+                    item['version'] = a_node['version']
+                if 'guid' in a_node:
+                    item['guid'] = a_node['guid']
+                item_list.append(item)
+                if 'depends' in a_node:
+                    depends = [{'IID': iid} for iid in a_node['depends']]
+                    item['_children'] = depends
+
+        with open(out_manifests_file, "w") as wfd:
+            wfd.write(json.dumps(item_list, indent=1, default=utils.extra_json_serializer))
