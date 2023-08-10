@@ -325,7 +325,7 @@ cookie = {cookie_text}
                 else:
                     if sys.platform == 'win32':
                         # curl on windows has problem with path to config files that have unicode characters
-                        normalized_path = win32api.GetShortPathName(config_file.path)
+                        normalized_path = win32api.GetShortPathName(str(config_file.path))
                     else:
                         normalized_path = config_file.path
                     wfd.write(config_vars.resolve_str(f'''"$(DOWNLOAD_TOOL_PATH)" --config "{normalized_path}"\n'''))
