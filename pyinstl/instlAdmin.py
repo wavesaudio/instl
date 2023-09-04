@@ -1342,10 +1342,12 @@ class InstlAdmin(InstlInstanceBase):
             def init_specific_doc_readers(self):
                 ConfigVarYamlReader.init_specific_doc_readers(self)
                 self.specific_doc_readers["__no_tag__"] = self.manifest_node_reader
-                self.specific_doc_readers["__unknown_tag__"] = self.manifest_node_reader
+                self.specific_doc_readers["!index"] = self.manifest_node_reader
 
             def manifest_node_reader(self, the_node, *args, **kwargs):
                 for a_node_name, a_node_value in the_node.items():
+                    if a_node_name.startswith("template"):
+                        continue
                     yaml_node_as_dict = aYaml.nodeToPy(a_node_value, order=yaml_keys_order, single_value=yaml_single_value_keys, preserve_tags=True)
                     top_level_tag = kwargs.get("top_level_tag", None)
                     item = ManifestItem(a_node_name, yaml_node_as_dict, self.file_read_stack[-1], top_level_tag)

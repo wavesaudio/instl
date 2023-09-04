@@ -71,7 +71,9 @@ class YamlReader(object):
 
     def get_read_function_for_doc(self, a_node):
         is_post_tag = False  # post tags should be read only after all documents where read
+        effective_tag = None
         if not a_node.tag:
+            effective_tag = "__no_tag__"
             retVal = self.specific_doc_readers.get("__no_tag__", None)
         else:
             effective_tag = a_node.tag
@@ -82,7 +84,7 @@ class YamlReader(object):
                 retVal = self.specific_doc_readers[effective_tag]
             else:
                 retVal = self.specific_doc_readers.get("__unknown_tag__", None)
-        return retVal, is_post_tag
+        return retVal, is_post_tag, effective_tag
 
     def do_nothing_node_reader(self, a_node, *args, **kwargs):
         pass
@@ -173,7 +175,8 @@ class YamlReader(object):
         YamlReader.convert_standard_tags(the_node)
         self.specific_doc_readers.clear()
         self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
-        read_func, is_post_tag = self.get_read_function_for_doc(the_node)
+        read_func, is_post_tag, effective_tag = self.get_read_function_for_doc(the_node)
+        print(str(read_func), effective_tag)
         if read_func is not None:
             if is_post_tag:
                 self.post_nodes.append((the_node, read_func))
