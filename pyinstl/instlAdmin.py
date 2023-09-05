@@ -1342,6 +1342,7 @@ class InstlAdmin(InstlInstanceBase):
             def init_specific_doc_readers(self):
                 ConfigVarYamlReader.init_specific_doc_readers(self)
                 self.specific_doc_readers["__no_tag__"] = self.manifest_node_reader
+                self.specific_doc_readers['tag:yaml.org,2002:map'] = self.manifest_node_reader # standalone manifest files will be identified by this tag
                 self.specific_doc_readers["!index"] = self.manifest_node_reader
 
             def manifest_node_reader(self, the_node, *args, **kwargs):

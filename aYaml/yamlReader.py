@@ -176,7 +176,7 @@ class YamlReader(object):
         self.specific_doc_readers.clear()
         self.init_specific_doc_readers()  # in case previous reading changed the assigned readers (ACCEPTABLE_YAML_DOC_TAGS)
         read_func, is_post_tag, effective_tag = self.get_read_function_for_doc(the_node)
-        print(str(read_func), effective_tag)
+        #print(str(read_func), effective_tag)
         if read_func is not None:
             if is_post_tag:
                 self.post_nodes.append((the_node, read_func))
