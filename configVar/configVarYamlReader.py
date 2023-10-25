@@ -11,6 +11,7 @@ import logging
 log = logging.getLogger()
 
 import aYaml
+from utils import SearchPaths
 
 internal_identifier_re = re.compile("""
                                     __                  # dunder here
@@ -53,6 +54,7 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         # only when allow_reading_of_internal_vars is true, variables who's name begins and ends with "__"
         # can be read from file
         self._allow_reading_of_internal_vars = False
+        self.path_searcher = SearchPaths(config_vars, "__SEARCH_PATHS__")
 
     @contextmanager
     def allow_reading_of_internal_vars(self, allow=True):
@@ -118,7 +120,13 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         return values
 
     def read_include_node(self, i_node, *args, **kwargs):
-        pass  # override to handle __include__, __include_if_exist__ nodes
+        if i_node.isScalar():
+            kwargs['original-path-to-file'] = i_node.value
+            resolved_file_name = self.config_vars.resolve_str(i_node.value)
+            self.read_yaml_file(resolved_file_name, *args, **kwargs)
+        elif i_node.isSequence():
+            for sub_i_node in i_node:
+                self.read_include_node(sub_i_node, *args, **kwargs)
 
     def read_conditional_node(self, identifier, contents, *args, **kwargs):
         if eval_conditional(identifier, self.config_vars):

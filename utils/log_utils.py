@@ -85,7 +85,7 @@ class PerLevelFormatter(logging.Formatter):
 
 
 def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_vars=None):
-    ''' Setting up a file logging handler '''
+    """ Setting up a file logging handler """
     log_file_path = Path(log_file_path).resolve()
     log_file_folder = log_file_path.parent
     os.makedirs(log_file_path.parent, exist_ok=True)

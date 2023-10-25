@@ -337,6 +337,7 @@ class ExecPython(PythonBatchCommandBase):
 
             if self.args:
                 sys.argv = [os.fspath(self.python_file), *self.args]
+            sys.path.append(os.fspath(self.python_file.parent))  # add python_file's parent so python_file can import files located in the same folder as python_file
             exec(py_compiled, globals())
             sys.argv = original_argv
 
