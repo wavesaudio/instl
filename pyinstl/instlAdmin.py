@@ -1460,8 +1460,16 @@ class InstlAdmin(InstlInstanceBase):
                     continue
                 if 'name' in a_node:
                     item['name'] = a_node['name']
+
                 if 'version' in a_node:
                     item['version'] = a_node['version']
+                elif 'Mac' in a_node:
+                    if 'version' in a_node['Mac']:
+                        item['version'] = a_node['Mac']['version']
+                elif 'Win' in a_node:
+                    if 'version' in a_node['Win']:
+                        item['version'] = a_node['Win']['version']
+
                 if 'guid' in a_node:
                     item['guid'] = a_node['guid']
                 item_list.append(item)
