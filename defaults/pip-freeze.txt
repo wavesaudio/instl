@@ -1,0 +1,17 @@
+altgraph==0.17.3
+appdirs==1.4.4
+certifi==2022.9.24
+charset-normalizer==2.1.1
+future==0.18.2
+idna==3.4
+macholib==1.16.2
+networkx==2.8.7
+packaging==21.3
+psutil==5.8.0
+pyinstaller==5.3
+pyinstaller-hooks-contrib==2022.10
+pyparsing==3.0.9
+PyYAML==6.0
+requests==2.28.1
+urllib3==1.26.12
+xmltodict==0.13.0

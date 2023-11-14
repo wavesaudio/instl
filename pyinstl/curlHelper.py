@@ -121,7 +121,8 @@ cookie = {cookie_text}
                 log.info(f"Could not parse CURL version, assuming legacy version")
         return CUrlHelper.cached_internal_parallel
 
-
+    def use_internal_parallel(self):
+        return "__EXTERNAL_PARALLEL_DL__" not in config_vars and self.is_internal_parallel_supported()
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
         if verbatim:
@@ -185,7 +186,7 @@ cookie = {cookie_text}
             "curl_output_format_str": self.curl_output_format_str
         }
 
-        if self.is_internal_parallel_supported():
+        if self.use_internal_parallel():
             confi_file_text = self.internal_parallel_header_text
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
         else:
@@ -220,7 +221,7 @@ cookie = {cookie_text}
         cfig_file_cycler = itertools.cycle(config_file_list)
         total_url_num = 0
         # No sorting for curl's parallel as the progress looks better when there are mixed sizes
-        sorted_by_size = self.urls_to_download if self.is_internal_parallel_supported() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
+        sorted_by_size = self.urls_to_download if self.use_internal_parallel() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
 
         for url, path, size in sorted_by_size:
             fixed_path = self.fix_path(path)
@@ -245,7 +246,7 @@ cookie = {cookie_text}
             # insert None which means "wait" before the config file that downloads urls_to_download_last.
             # but only if there were actually download files other than urls_to_download_last.
             # it might happen that there are only urls_to_download_last - so no need to "wait".
-            if not self.is_internal_parallel_supported() and len(config_file_list) > 0:
+            if not self.use_internal_parallel() and len(config_file_list) > 0:
                 config_file_list.append(None)
             config_file_list.append(last_file)
 
@@ -280,7 +281,7 @@ cookie = {cookie_text}
             total_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             total_bytes_to_download = int(config_vars["__NUM_BYTES_TO_DOWNLOAD__"])
 
-            if self.is_internal_parallel_supported():
+            if self.use_internal_parallel():
                 dl_commands += Progress(f"Downloading with curl parallel")
                 previously_downloaded_files = 0
                 for config_file in config_file_list:
