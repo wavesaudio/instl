@@ -18,7 +18,7 @@ if sys.platform == 'win32':
 def default_extract_info(in_os, in_path):
     return None
 
-plugin_version_and_guid_re = re.compile("""
+plugin_version_and_guid_re = re.compile(r"""
     .+?
     <LicenseGUID>\s*
     (?P<guid>[a-fA-F0-9-]{36})

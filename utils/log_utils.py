@@ -110,7 +110,7 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_v
 class ParentLogFilter(logging.Filter):
     '''Adds additional info to the log message - stack level, parent info: module, function name, line number.'''
     def filter(self, record):
-        record.name = re.sub('.*\.', '', record.name)
+        record.name = re.sub(r'.*\.', '', record.name)
         try:
             stack = inspect.stack()
             record.stack_lvl = '  ' * (len(stack) - 9)
