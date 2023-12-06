@@ -190,7 +190,7 @@ cookie = {cookie_text}
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
 
             # Multiply timeout value by a generous amount, based on the number of files in a single parallel run
-            max_time_factor = int(config_vars["PARALLEL_SYNC"]) * 5 / 4
+            max_time_factor = max(int(config_vars["PARALLEL_SYNC"]), 16) * 5 / 4
             config_options["max_time"] = int(config_options["max_time"]) * int(max_time_factor)
         else:
             confi_file_text = self.external_parallel_header_text
