@@ -43,7 +43,7 @@ def quoteme_single_list_for_sql(to_quote_list):
 escape_quotations_re = re.compile("['\"\\\\]")
 def escape_quotations(simple_string):
     """ escape the characters ', '. \ """
-    retVal = escape_quotations_re.sub(lambda match_obj: '\\'+match_obj.group(0), simple_string)
+    retVal = escape_quotations_re.sub(lambda match_obj: r'\\'+match_obj.group(0), simple_string)
     return retVal
 
 

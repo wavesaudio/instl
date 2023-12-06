@@ -378,14 +378,14 @@ class ConfigVarStack:
                         self[env_key_to_read] = os.environ[env_key_to_read]
 
     def replace_unresolved_with_native_var_pattern(self, str_to_replace: str, which_os: str) -> str:
-        pattern = self.resolve_indicator+"(\g<var_name>)"  # default is configVar style
+        pattern = self.resolve_indicator+r"(\g<var_name>)"  # default is configVar style
         if which_os == 'Win':
-            pattern = "%\g<var_name>%"
+            pattern = r"%\g<var_name>%"
         elif which_os == 'Mac':
-            pattern = "${\g<var_name>}"
+            pattern = r"${\g<var_name>}"
 
         # regex to identify $(...) references
-        value_ref_re = re.compile(f"""
+        value_ref_re = re.compile(fr"""
                                     (?P<varref_pattern>
                                         (?P<varref_marker>[{self.resolve_indicator}])       # $
                                         \(                                                  # (
