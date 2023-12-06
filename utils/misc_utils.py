@@ -387,7 +387,7 @@ def P4GetPathFromDepotPath(depot_path):
     return_code = p4_process.returncode
     if return_code == 0:
         lines = _stdout.split("\n")
-        where_line_reg_str = "".join((re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)"))
+        where_line_reg_str = "".join((re.escape(depot_path), r"\s+", r"//.+", r"\s+", r"(?P<disk_path>/.+)"))
         match = re.match(where_line_reg_str, lines[0])
         if match:
             retVal = match['disk_path']
@@ -573,7 +573,7 @@ class Timer_CM(object):
         return Decimal(default_timer())
 
 
-wtar_file_re = re.compile("""
+wtar_file_re = re.compile(r"""
     (?P<base_name>.+?)
     (?P<wtar_extension>\.wtar)
     (?P<split_numerator>\.[a-z]{2})?$""",

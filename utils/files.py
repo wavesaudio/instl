@@ -199,7 +199,7 @@ def patch_verify_ssl(verify_ssl):
         ssl._create_default_https_context = original_create_default_https_context
 
 
-protocol_header_re = re.compile("""
+protocol_header_re = re.compile(r"""
                         \w+
                         ://
                         """, re.VERBOSE)
