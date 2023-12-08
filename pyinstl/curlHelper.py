@@ -122,8 +122,7 @@ cookie = {cookie_text}
         return CUrlHelper.cached_internal_parallel
 
     def use_internal_parallel(self):
-        # return not config_vars["__EXTERNAL_PARALLEL_DL__"] and self.is_internal_parallel_supported()
-        return self.is_internal_parallel_supported()
+        return config_vars["PARALLEL_DOWNLOAD_METHOD"].str() == "internal" and self.is_internal_parallel_supported()
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
         if verbatim:

@@ -67,7 +67,6 @@ class CommandLineOptions(object):
     __RUN_AS_ADMIN__ = OptionToConfigVar()
     __RUN_BATCH__ = OptionToConfigVar()
     __RUN_COMMAND_LIST_IN_PARALLEL__ = OptionToConfigVar()
-    __EXTERNAL_PARALLEL_DL__ = OptionToConfigVar()
     __SHA1_CHECKSUM__ = OptionToConfigVar()
     __SHORTCUT_PATH__ = OptionToConfigVar()
     __SHORTCUT_TARGET_PATH__ = OptionToConfigVar()
@@ -477,12 +476,6 @@ def prepare_args_parser(in_command):
                             metavar='path-to-db-file',
                             dest='__MAIN_DB_FILE__',
                             help="database file")
-    general_options.add_argument('--external-parallel-dl',
-                            required=False,
-                            default=False,
-                            action='store_true',
-                            dest='__EXTERNAL_PARALLEL_DL__',
-                            help="spawn threads rather than use cUrl internal parallel download")
 
     return parser, command_names
 
