@@ -2,7 +2,7 @@ appdirs
 future
 networkx
 packaging
-PyInstaller==5.3
+PyInstaller==5.13.1
 PyYAML --no-binary=PyYAML
 requests
 xmltodict
