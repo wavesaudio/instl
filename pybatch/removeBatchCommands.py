@@ -2,6 +2,7 @@ import os
 import stat
 import shutil
 import re
+import sys
 from pathlib import Path
 from typing import List
 import logging
@@ -131,7 +132,10 @@ class RmFileOrDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}
         all_args.append(self.unnamed__init__param(self.path, resolve_path=self.resolve_path))
 
     def progress_msg_self(self):
-        return f"""Remove '{self.path}'"""
+        if self.output_script and sys.platform == 'darwin':
+            return f"""Adding to post install script remove command for '{self.path}'"""
+        else:
+            return f"""Remove '{self.path}'"""
 
     def __call__(self, *args, **kwargs):
         resolved_path = None
@@ -139,12 +143,16 @@ class RmFileOrDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}
         try:
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
             resolved_path = utils.ExpandAndResolvePath(self.path, resolve_path=self.resolve_path)
-            if resolved_path.is_symlink() or resolved_path.is_file():
-                self.doing = f"""removing file'{resolved_path}'"""
-                resolved_path.unlink()
-            elif resolved_path.is_dir():
-                self.doing = f"""removing folder'{resolved_path}'"""
-                shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
+            if self.output_script and sys.platform == 'darwin':
+                utils.write_shell_command(f'''rm -f '{resolved_path}' \n''', self.output_script)
+                self.doing = f"""adding to post install script 'rm -f {resolved_path}'"""
+            else:
+                if resolved_path.is_symlink() or resolved_path.is_file():
+                    self.doing = f"""removing file'{resolved_path}'"""
+                    resolved_path.unlink()
+                elif resolved_path.is_dir():
+                    self.doing = f"""removing folder'{resolved_path}'"""
+                    shutil.rmtree(resolved_path, onerror=self.who_locks_file_error_dict)
         except Exception as ex:
             if retry and resolved_path is not None:
                 kwargs["retry"] = False
