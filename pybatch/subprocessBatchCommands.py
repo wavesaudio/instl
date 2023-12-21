@@ -202,6 +202,8 @@ class ShellCommand(RunProcessBase):
     def progress_msg_self(self):
         if self.message:
             return f"""{self.message}"""
+        elif self.output_script and sys.platform == 'darwin':
+            return f"""adding to post install script '{self.shell_command}'"""
         else:
             return f"""running {self.shell_command}"""
 
@@ -209,6 +211,12 @@ class ShellCommand(RunProcessBase):
         resolved_shell_command = os.path.expandvars(self.shell_command)
         run_args.append(resolved_shell_command)
 
+    def __call__(self, *args, **kwargs):
+        if self.output_script and sys.platform == 'darwin':
+            PythonBatchCommandBase.__call__(self, *args, **kwargs)
+            utils.write_shell_command(f'''{self.shell_command} \n''', self.output_script)
+        else:
+            RunProcessBase.__call__(self, *args, **kwargs)
 
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
