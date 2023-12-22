@@ -128,6 +128,11 @@ class RmFileOrDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}
         self.path: os.PathLike = path
         self.exceptions_to_ignore.append(FileNotFoundError)
 
+        if self.post_install:
+            script_path = config_vars.get("POST_INSTALL_SCRIPT_FILE", "").str()
+            if script_path:
+                self.output_script = script_path
+
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.path, resolve_path=self.resolve_path))
 

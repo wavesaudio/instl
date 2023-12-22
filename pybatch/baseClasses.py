@@ -70,6 +70,7 @@ class PythonBatchCommandBase(abc.ABC):
                        'skip_chmod': False, # when set to True, all file/dir permission code will be bypassed
                        'skip_chown': False,       # when set to True, all file/dir ownership  code will be bypassed
                        'output_script': None,
+                       'post_install': False
                        }
 
     @classmethod

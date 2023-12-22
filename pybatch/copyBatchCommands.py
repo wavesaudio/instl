@@ -504,6 +504,14 @@ class CopyFileToFile(RsyncClone):
     def __init__(self, src, dst, **kwargs):
         super().__init__(src, dst, **kwargs)
 
+        if self.post_install:
+            script_path = config_vars.get("POST_INSTALL_SCRIPT_FILE", "").str()
+            if script_path:
+                self.output_script = config_vars.get("POST_INSTALL_SCRIPT_FILE", "").str()
+                self.ignore_all_errors = True
+            else:
+                self.ignore_if_not_exist = True
+
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.raise_if_top_source_does_not_exist()

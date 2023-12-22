@@ -190,6 +190,14 @@ class ShellCommand(RunProcessBase):
         self.shell_command = shell_command
         self.message = message
 
+        if self.post_install:
+            script_path = config_vars.get("POST_INSTALL_SCRIPT_FILE", "").str()
+            if script_path:
+                self.output_script = script_path
+            else:
+                self.ignore_all_errors = True
+                self.shell_command = f"""sudo {self.shell_command}"""
+
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.shell_command))
         all_args.append(self.optional_named__init__param("message", self.message))
