@@ -132,6 +132,11 @@ class PythonBatchCommandBase(abc.ABC):
         self.runtime_progress_num = 0
         self.command_time_sec = 0
 
+        if config_vars.defined("BATCH_VIA_SHELL_SCRIPT") and sys.platform == 'darwin':
+            script_path = config_vars.get("POST_INSTALL_SCRIPT_FILE", "").str()
+            if script_path:
+                self.output_script = script_path
+
     def all_kwargs_dict(self, only_non_default_values=False):
         """ return a dict containing all __init__(kwargs) and their values
             if only_non_default_values==False dict will include those with default values
