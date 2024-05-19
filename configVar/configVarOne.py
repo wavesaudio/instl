@@ -212,7 +212,7 @@ class ConfigVar:
 
     def __getitem__(self, index: int) -> str:
         """
-        calls the owner to resolve one of the values by it's index.
+        calls the owner to resolve one of the values by its index.
         e.g.:
             var_list["a"].extend("a", "b")
             print(str(var_list["a"][1]))
