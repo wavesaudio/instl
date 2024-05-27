@@ -5,6 +5,7 @@ from packaging.version import Version
 import re
 from .fileSystemBatchCommands import *
 from .removeBatchCommands import RmFileOrDir
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -282,8 +283,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                               version_re = info_plist_version_re
                         if src_version_found := version_re.search(src_marker.read_text()):
                             src_version = Version(src_version_found.group("version"))
-                            with open("/Users/shai/Desktop/Info.plist", "w") as f:
-                                f.write(dst_marker.read_text())
                             if dst_version_found := version_re.search(dst_marker.read_text()):
                                 dst_version = Version(dst_version_found.group("version"))
                                 retVal = src_version > dst_version
