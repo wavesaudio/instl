@@ -1,12 +1,16 @@
 import os
 import shutil
 from collections import defaultdict
-
+from packaging.version import Version
+import re
 from .fileSystemBatchCommands import *
 from .removeBatchCommands import RmFileOrDir
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+info_xml_version_re = re.compile(r'<Version>(?P<version>\d+\.\d+\.\d+(\.\d+)?)</Version>')
+info_plist_version_re = re.compile(r'<key>CFBundleShortVersionString</key>\s+<string>(?P<version>\d+\.\d+\.\d+(\.\d+)?)</string>', re.DOTALL)
 
 def _fast_copy_file(src, dst):
     # since python3.8 shutil.copyfile uses the fastest file copy available each specific operating system
@@ -74,6 +78,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                  verbose=0,
                  dry_run=False,
                  copy_stat=False,
+                 dont_downgrade=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.src = src
@@ -92,6 +97,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         self.verbose = verbose
         self.dry_run = dry_run
         self.copy_stat = copy_stat
+        self.dont_downgrade = dont_downgrade
         self.top_source_does_not_exist = False  # will be set to true if source does not exist - saving doing work is ignore_if_not_exist is True
         self.top_destination_does_not_exist = False  # will be set to true if destination does not exist - saving many checks
 
@@ -130,6 +136,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
         params.append(self.optional_named__init__param("copy_stat", self.copy_stat, False))
+        params.append(self.optional_named__init__param("dont_downgrade", self.dont_downgrade, False))
         all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
@@ -264,6 +271,26 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                     if not retVal:
                         log.debug(f"{self.progress_msg()} skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
                         break
+                    # hackish way to prevent downgrading specific bundles.
+                    # When the flag 'dont_downgrade' is present in IID,
+                    # the bundle is copied only if the source version is greater than the destination version.
+                    # version is checked by reading Info.xml file and looking for <Version>1.2.3.4</Version> element.
+                    # OR by reading Info.plist and looking for <key>CFBundleShortVersionString</key><string>1.2.3.4</string>
+                    elif self.dont_downgrade:
+                        if avoid_copy_marker == "Info.xml":
+                            version_re  = info_xml_version_re
+                        elif avoid_copy_marker == "Info.plist":
+                              version_re = info_plist_version_re
+                        if src_version_found := version_re.search(src_marker.read_text()):
+                            src_version = Version(src_version_found.group("version"))
+                            if dst_version_found := version_re.search(dst_marker.read_text()):
+                                dst_version = Version(dst_version_found.group("version"))
+                                retVal = src_version > dst_version
+                                if not retVal:
+                                    log.debug(
+                                        f"{self.progress_msg()} skip copy folder, source version '{src_version}' <= destination version '{dst_version}'")
+                                    break
+
             else:
                 retVal = True
         return retVal
