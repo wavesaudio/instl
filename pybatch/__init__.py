@@ -1,4 +1,5 @@
 import sys
+import os
 
 from .baseClasses import PythonBatchCommandBase
 from .batchCommandAccum import PythonBatchCommandAccum
@@ -38,13 +39,16 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import FullACLForEveryone
 
 if sys.platform == "darwin":
-    from .MacOnlyBatchCommands import CreateSymlink
-    from .MacOnlyBatchCommands import RmSymlink
-    from .MacOnlyBatchCommands import CreateSymlinkFilesInFolder
     from .MacOnlyBatchCommands import MacDock
-    from .MacOnlyBatchCommands import ResolveSymlinkFilesInFolder
-    from .MacOnlyBatchCommands import SymlinkFileToSymlink
-    from .MacOnlyBatchCommands import SymlinkToSymlinkFile
+
+if os.name == "posix":
+    from .PosixOnlyBatchCommands import CreateSymlink
+    from .PosixOnlyBatchCommands import RmSymlink
+    from .PosixOnlyBatchCommands import CreateSymlinkFilesInFolder
+    from .PosixOnlyBatchCommands import ResolveSymlinkFilesInFolder
+    from .PosixOnlyBatchCommands import SymlinkFileToSymlink
+    from .PosixOnlyBatchCommands import SymlinkToSymlinkFile
+
 
     #Added for test purposes, without those classes verify_actions gives false positives/negatives
     class PythonBatchCommandDummy(PythonBatchCommandBase):
