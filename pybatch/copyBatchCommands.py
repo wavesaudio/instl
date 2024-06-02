@@ -78,7 +78,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                  verbose=0,
                  dry_run=False,
                  copy_stat=False,
-                 dont_downgrade=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.src = src
@@ -97,7 +96,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         self.verbose = verbose
         self.dry_run = dry_run
         self.copy_stat = copy_stat
-        self.dont_downgrade = dont_downgrade
         self.top_source_does_not_exist = False  # will be set to true if source does not exist - saving doing work is ignore_if_not_exist is True
         self.top_destination_does_not_exist = False  # will be set to true if destination does not exist - saving many checks
 
@@ -136,7 +134,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         params.append(self.optional_named__init__param("verbose", self.verbose, 0))
         params.append(self.optional_named__init__param("dry_run", self.dry_run, False))
         params.append(self.optional_named__init__param("copy_stat", self.copy_stat, False))
-        params.append(self.optional_named__init__param("dont_downgrade", self.dont_downgrade, False))
         all_args.extend(filter(None, params))
 
     def progress_msg_self(self) -> str:
@@ -149,7 +146,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         self.top_destination_does_not_exist = not self.dst.exists()
 
     def raise_if_top_source_does_not_exist(self):
-        """ raising cannot be done in enter_self because we do want to go though __exit__
+        """ raising cannot be done in enter_self because we do want to go through __exit__
             exception handling logic
         """
         if self.top_source_does_not_exist:
@@ -271,26 +268,6 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                     if not retVal:
                         log.debug(f"{self.progress_msg()} skip copy folder, same checksum '{src_marker}' and '{dst_marker}'")
                         break
-                    # hackish way to prevent downgrading specific bundles.
-                    # When the flag 'dont_downgrade' is present in IID,
-                    # the bundle is copied only if the source version is greater than the destination version.
-                    # version is checked by reading Info.xml file and looking for <Version>1.2.3.4</Version> element.
-                    # OR by reading Info.plist and looking for <key>CFBundleShortVersionString</key><string>1.2.3.4</string>
-                    elif self.dont_downgrade:
-                        if avoid_copy_marker == "Info.xml":
-                            version_re  = info_xml_version_re
-                        elif avoid_copy_marker == "Info.plist":
-                              version_re = info_plist_version_re
-                        if src_version_found := version_re.search(src_marker.read_text()):
-                            src_version = Version(src_version_found.group("version"))
-                            if dst_version_found := version_re.search(dst_marker.read_text()):
-                                dst_version = Version(dst_version_found.group("version"))
-                                retVal = src_version > dst_version
-                                if not retVal:
-                                    log.debug(
-                                        f"{self.progress_msg()} skip copy folder, source version '{src_version}' <= destination version '{dst_version}'")
-                                    break
-
             else:
                 retVal = True
         return retVal
@@ -650,3 +627,74 @@ class BreakHardLink(PythonBatchCommandBase):
             mv1()
         with MoveFileToFile(temp_file, self.link_to_break, hard_links=True, **kwargs_to_inherit) as mv2:
             mv2()
+
+
+class ShouldCopySource(RsyncClone):
+    def __init__(self, src, dst, dont_downgrade=False, skip_progress_count=0, **kwargs) -> None:
+        super().__init__(src, dst, **kwargs)
+        self.dont_downgrade = dont_downgrade
+        self.skip_progress_count = skip_progress_count  # num progress steps to skip if not copying source
+        self.reason_not_to_copy = ""
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        super().repr_own_args(all_args)
+        all_args.append(self.optional_named__init__param("dont_downgrade", self.dont_downgrade, False))
+        all_args.append(self.optional_named__init__param("skip_progress_count", self.skip_progress_count, 0))
+
+    def progress_msg_self(self) -> str:
+        return f"{self.__class__.__name__}"
+
+    def __call__(self, *args, **kwargs) -> None:
+        PythonBatchCommandBase.__call__(self, *args, **kwargs)
+        should_copy = True
+        try:
+            top_src = self.src
+            top_trg = self.dst.joinpath(top_src.name)
+            if top_src.is_dir():
+                # trying (src/Info.xml, trg/Info.xml), (src/Contents/Info.xml, trg/Contents/Info.xml)
+                for src, trg in ( (top_src, top_trg),
+                                  (top_src.joinpath("Contents"), top_trg.joinpath("Contents"))):
+                    if should_copy and trg.exists():
+                        for avoid_copy_marker in self._RsyncClone__global_avoid_copy_markers:
+                            src_marker = src.joinpath(avoid_copy_marker)
+                            dst_marker = trg.joinpath(avoid_copy_marker)
+                            if not src_marker.exists() or not dst_marker.exists():
+                                continue
+                            if self.dont_downgrade:  # check that src version is bigger than trg version
+                                if avoid_copy_marker == "Info.xml":
+                                    version_re = info_xml_version_re
+                                elif avoid_copy_marker == "Info.plist":
+                                    version_re = info_plist_version_re
+                                if src_version_found := version_re.search(src_marker.read_text()):
+                                    src_version = Version(src_version_found.group("version"))
+                                    if dst_version_found := version_re.search(dst_marker.read_text()):
+                                        dst_version = Version(dst_version_found.group("version"))
+                                        should_copy = src_version > dst_version
+                                        if not should_copy:
+                                            self.reason_not_to_copy = f"source version ({src_version}) <= target version({dst_version}))"
+                                            break
+                            else:  # dont_downgrade is False, just check if the files are the same
+                                should_copy = not utils.compare_files_by_checksum(dst_marker, src_marker)
+                                if not should_copy:
+                                    self.reason_not_to_copy = f"source and target's {avoid_copy_marker} are identical"  # type: ignore
+                                    break
+            elif top_src.is_file():
+                if top_src.stat().st_ino == top_trg.stat().st_ino:
+                    self.reason_not_to_copy = f"source and target have same inode"  # type: ignore
+                    should_copy = False
+        except:  # if checking failed for any reason, just return True
+            pass
+
+        if not should_copy:
+            raise PythonBatchCommandBase.SkipActionException()
+        else:
+            self.skip_progress_count = 0
+
+    def exception_ignored_message(self) -> str:
+        return f"Skipped copy of {self.src} because {self.reason_not_to_copy}"
+
+    def exit_self(self, exit_return) -> None:
+        if self.skip_progress_count:
+            self.prog_num += self.skip_progress_count
+            self.increment_progress(self.skip_progress_count)
+
