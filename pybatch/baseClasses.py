@@ -29,7 +29,7 @@ class PythonBatchCommandBase(abc.ABC):
         __exit__: will handle exceptions and print warning/error messages, or ignore errors if needed
                  derived classes should not override __exit__. If something must be done in __exit__ override exit_self and do it there.
         Derived classes must implement some additional methods:
-        __repr__: must be implemented correctly so the returned string can be passed to eval to recreate the object
+        repr_own_args: must be implemented correctly so the returned string can be passed to eval to recreate the object
         __init__: must record all parameters needed to implement __repr__ and must not do any actual work!
         __call__: here the real work is done (if any)
 

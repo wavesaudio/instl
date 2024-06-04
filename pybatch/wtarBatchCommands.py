@@ -253,7 +253,7 @@ class Unwtar(PythonBatchCommandBase):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
 
-        self.what_to_unwtar: Path = utils.ExpandAndResolvePath(self.what_to_unwtar)
+        self.what_to_unwtar = utils.ExpandAndResolvePath(self.what_to_unwtar)
 
         if self.what_to_unwtar.is_file():
             if utils.is_first_wtar_file(self.what_to_unwtar):
@@ -266,7 +266,7 @@ class Unwtar(PythonBatchCommandBase):
 
         elif self.what_to_unwtar.is_dir():
             if self.where_to_unwtar:
-                destination_folder: Path = Path(self.where_to_unwtar, self.what_to_unwtar.name)
+                destination_folder = Path(self.where_to_unwtar, self.what_to_unwtar.name)
             else:
                 destination_folder = self.what_to_unwtar
             self.doing = f"""unwtar folder '{self.what_to_unwtar}' to '{destination_folder}''"""

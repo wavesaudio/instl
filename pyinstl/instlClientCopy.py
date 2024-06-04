@@ -4,6 +4,7 @@
 import sys
 import os
 from pathlib import Path
+import re
 import utils
 import functools
 from typing import Dict, List, Optional
@@ -224,8 +225,7 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_dir(self, source_path: str,
                                                 name_for_progress_message: str,
-                                                use_hard_links=True,
-                                                dont_downgrade=False) -> PythonBatchCommandBase:
+                                                use_hard_links=True) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal = AnonymousAccum()
@@ -235,8 +235,7 @@ class InstlClientCopy(InstlClient):
             retVal += CopyDirToDir(source_path_abs,
                                    os.curdir,
                                    hard_links=use_hard_links,
-                                   delete_extraneous_files=True,
-                                   dont_downgrade=dont_downgrade)
+                                   delete_extraneous_files=True)
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             source_path_dir, source_path_name = os.path.split(source_path)
@@ -264,13 +263,12 @@ class InstlClientCopy(InstlClient):
 
     def create_copy_instructions_for_source(self, source,
                                                 name_for_progress_message,
-                                                use_hard_links=True,
-                                                dont_downgrade=False) -> PythonBatchCommandBase:
+                                                use_hard_links=True) -> PythonBatchCommandBase:
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = None
         if source[1] == '!dir':  # !dir
-            retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message, use_hard_links, dont_downgrade)
+            retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message, use_hard_links)
         elif source[1] == '!file':  # get a single file
             retVal = self.create_copy_instructions_for_file(source[0], name_for_progress_message, use_hard_links)
         elif source[1] == '!dir_cont':  # get all files and folders from a folder
@@ -295,46 +293,6 @@ class InstlClientCopy(InstlClient):
         except:
             pass
         return resolved_path
-
-    def should_copy_source(self, source, target_folder_path):
-        retVal = True
-        reason_not_to_copy = None
-        if not self.update_mode:
-            top_src = config_vars["COPY_SOURCES_ROOT_DIR"].Path(resolve=True).joinpath(source[0])
-            top_trg = Path(config_vars.resolve_str(target_folder_path), top_src.name)
-            if top_trg.exists():
-                if source[1] == "!dir":
-                    trg = top_trg.joinpath("Contents")
-                    if trg.exists():
-                         # try to Info.xml or Info.plist under contents
-                        src = top_src.joinpath("Contents")
-                        for avoid_copy_marker in self.avoid_copy_markers:
-                            src_marker = src.joinpath(avoid_copy_marker)
-                            dst_marker = trg.joinpath(avoid_copy_marker)
-                            same_checksums = utils.compare_files_by_checksum(dst_marker, src_marker)
-                            if same_checksums:
-                                reason_not_to_copy = f"same checksum Contents/{avoid_copy_marker}"
-                                retVal = False
-                                break
-                    else:
-                        # try to Info.xml or Info.plist at top level
-                        for avoid_copy_marker in self.avoid_copy_markers:
-                            src_marker = top_src.joinpath(avoid_copy_marker)
-                            dst_marker = top_trg.joinpath(avoid_copy_marker)
-                            same_checksums = utils.compare_files_by_checksum(dst_marker, src_marker)
-                            if same_checksums:
-                                reason_not_to_copy = f"same checksum {avoid_copy_marker} in top level"
-                                retVal = False
-                                break
-                elif source[1] == "!file":
-                    try:
-                        if top_src.stat().st_ino == top_trg.stat().st_ino:
-                            retVal = False
-                            reason_not_to_copy = f"same inode"
-                    except:
-                        pass
-        return retVal, reason_not_to_copy
-
     def create_copy_instructions_for_target_folder(self, target_folder_path) -> None:
         with self.batch_accum.sub_accum(CdStage("copy_to_folder", target_folder_path)) as copy_to_folder_accum:
             self.current_destination_folder = target_folder_path
@@ -356,13 +314,16 @@ class InstlClientCopy(InstlClient):
                     dont_downgrade = 'dont_downgrade' in flags_for_iid
                     for source in resolved_sources_for_iid:
                         self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
-                        with iid_accum.sub_accum(Stage("copy source", source[0])) as source_accum:
-                            num_items_copied_to_folder += 1
-                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item")
-                            source_accum += self.create_copy_instructions_for_source(source, name_and_version, use_hard_links=use_hard_links, dont_downgrade=dont_downgrade)
-                            source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item")
-                            if self.mac_current_and_target:
-                                num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                        source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source[0])
+                        with iid_accum.sub_accum(ShouldCopySource(source_path_abs, target_folder_path, dont_downgrade=dont_downgrade)) as scs:
+                            with scs.sub_accum(Stage("copy source", source[0])) as source_accum:
+                                num_items_copied_to_folder += 1
+                                source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item")
+                                source_accum += self.create_copy_instructions_for_source(source, name_and_version, use_hard_links=use_hard_links)
+                                source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="post_copy_item")
+                                if self.mac_current_and_target:
+                                    num_symlink_items += self.info_map_table.count_symlinks_in_dir(source[0])
+                            scs.skip_progress_count = source_accum.total_progress_count()
             self.current_iid = None
 
             # only if items were actually copied there's need to (Mac only) resolve symlinks
