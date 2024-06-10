@@ -18,7 +18,7 @@ from configVar import config_vars, private_config_vars
 from configVar import eval_conditional
 
 # when adding a new OS name also add the name in init-values.ddl
-os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'Win', 'Win32', 'Win64', 'Linux')
+os_names = ('common', 'Mac', 'Mac32', 'Mac64', 'MacArm', 'MacIntel', 'Win', 'Win32', 'Win64', 'Linux')
 allowed_item_keys = ('name', 'guid','install_sources', 'install_folders', 'inherit',
                      'depends', 'actions', 'remark', 'version', 'phantom_version',
                      'direct_sync', 'previous_sources', 'info_map')
@@ -28,7 +28,10 @@ file_types = ('!dir_cont', '!file', '!dir')
 
 class IndexItemsTable(object):
     # when adding a new OS name also add the name in init-values.ddl
-    os_names_to_num = OrderedDict([('common', 0), ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('Win', 4), ('Win32', 5), ('Win64', 6), ('Linux', 7)])
+    os_names_to_num = OrderedDict([('common', 0),
+                                   ('Mac', 1), ('Mac32', 2), ('Mac64', 3), ('MacArm', 4), ('MacIntel', 5),
+                                   ('Win', 6), ('Win32', 7), ('Win64', 8),
+                                   ('Linux', 9)])
     install_status = {"none": 0, "main": 1, "update": 2, "depend": 3, "remove": -1}
     action_types = ('pre_sync', 'post_sync', 'pre_copy', 'pre_copy_to_folder', 'pre_copy_item',
                     'post_copy_item', 'post_copy_to_folder', 'post_copy',
@@ -572,7 +575,7 @@ class IndexItemsTable(object):
                                                              ('common', 'Win', 'Win32', 'Win64')):
                                                 if the_os in os_group:
                                                     item_detail_os = {'Mac32': 'Mac32', 'Mac64': 'Mac64', 'Win32': 'Win32', 'Win64': 'Win64'}.get(the_os, os_group[1])
-                                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
+                                                    path_prefix_os = {'Mac32': 'Mac', 'Mac64': 'Mac', 'MacArm': 'Mac', 'MacIntel': 'Mac', 'Win32': 'Win', 'Win64': 'Win'}.get(the_os, os_group[1])
                                                     assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
                                                     new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
                                                                     detail_name, "/".join((path_prefix_os, value)), tag)
@@ -1567,8 +1570,8 @@ class IndexItemsTable(object):
         action_string = "'" + action_string + "'"
         query_text = f""" SELECT original_iid, detail_name, detail_value, os_id, _id
                     FROM index_item_detail_t
-                    WHERE detail_name IN ({action_string}) 
-                    ORDER BY _id    
+                    WHERE detail_name IN ({action_string})
+                    ORDER BY _id
                 """
         retVal = self.db.select_and_fetchall(query_text)
         return retVal
