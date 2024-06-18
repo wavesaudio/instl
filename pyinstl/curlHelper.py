@@ -60,6 +60,7 @@ write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
     # text for curl config file in case instl running curl with parallel option
     internal_parallel_header_text = """
 parallel
+parallel-max = {parallel_max}
 progress-bar
 insecure
 raw
@@ -72,6 +73,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 cookie = {cookie_text}
+
 
 
 """
@@ -143,8 +145,8 @@ cookie = {cookie_text}
     def fix_path(self, in_some_path_to_fix):
         """  On Windows: to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
                 short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
-                does not work for paths that do not yet exist so we need to also create the folder.
-                However if the creation requires admin permissions - it could fail -
+                does not work for paths that do not yet exist, so we need to also create the folder.
+                However, if the creation requires admin permissions - it could fail -
                 in which case we revert to using the long path.
         """
 
@@ -153,7 +155,7 @@ cookie = {cookie_text}
             # to overcome cUrl inability to handle path with unicode chars, we try to calculate the windows
             # short path (DOS style 8.3 chars). The function that does that, win32api.GetShortPathName,
             # does not work for paths that do not yet exist so we need to also create the folder.
-            # However if the creation requires admin permissions - it could fail -
+            # However, if the creation requires admin permissions - it could fail -
             # in which case we revert to using the long path.
             import win32api
             fixed_path_parent = str(fixed_path.parent)
@@ -183,7 +185,8 @@ cookie = {cookie_text}
             "retries": str(config_vars.setdefault("CURL_RETRIES", "2")),
             "retry_delay": str(config_vars.setdefault("CURL_RETRY_DELAY", "8")),
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
-            "curl_output_format_str": self.curl_output_format_str
+            "curl_output_format_str": self.curl_output_format_str,
+            "parallel_max": str(config_vars.get("PARALLEL_SYNC", "16"))
         }
 
         if self.use_internal_parallel():

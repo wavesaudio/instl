@@ -391,7 +391,7 @@ class PythonBatchCommandBase(abc.ABC):
         else:
             if not hasattr(exc_val, "raising_obj"):
                 setattr(exc_val, "raising_obj", self)
-        self.exit_self(exit_return=suppress_exception)
+        self.exit_self(exc_type, exc_val, exc_tb, exit_return=suppress_exception)
 
         self.exit_timing_measure()
 
@@ -408,7 +408,7 @@ class PythonBatchCommandBase(abc.ABC):
             PythonBatchCommandBase.stage_stack.pop()
         return suppress_exception
 
-    def exit_self(self, exit_return) -> None:
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return) -> None:
         """ classes overriding PythonBatchCommandBase can add code here without
             repeating __exit__.
             exit_self will be called regardless of exceptions

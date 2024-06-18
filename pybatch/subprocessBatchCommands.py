@@ -645,5 +645,5 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
 
         process.stdout.close()
         process.wait()
-        print(f"Curl ended {process.returncode}")
+        print(f"Curl ended return code {process.returncode}")
         self.increment_progress()

@@ -321,7 +321,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         milliseconds = int((seconds - int(seconds))*1000)
         log.info(f"{self.name} Time: {int(hours):02}:{int(minutes):02}:{int(seconds):02}.{milliseconds:03}")
         pybatch.PythonBatchCommandBase.stage_stack.pop()
-        self.exit_self(suppress_exception)
+        self.exit_self(exc_type, exc_val, exc_tb, suppress_exception)
 
         return suppress_exception
 

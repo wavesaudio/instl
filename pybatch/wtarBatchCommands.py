@@ -446,6 +446,7 @@ class UnZip(PythonBatchCommandBase):
         self.source_zip = Path(source_zip)
         self.target_folder = Path(target_folder)
         self.no_artifacts = no_artifacts
+        self.currently_being_zipped = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.named__init__param("source_zip", self.source_zip))
@@ -463,18 +464,37 @@ class UnZip(PythonBatchCommandBase):
                 md()
 
         if self.source_zip.is_file():
-            self.doing = f"""UnZipping '{self.source_zip}' to '{self.target_folder}'"""
-            with zipfile.ZipFile(self.source_zip, "r") as zfd:
+            self.currently_being_zipped = self.source_zip
+            self.doing = f"""UnZipping '{self.currently_being_zipped}' to '{self.target_folder}'"""
+            with zipfile.ZipFile(self.currently_being_zipped, "r") as zfd:
                 zfd.extractall(path=self.target_folder)
             if self.no_artifacts:
-                with RmFile(self.source_zip, report_own_progress=False) as rm_file:
+                with RmFile(self.currently_being_zipped, report_own_progress=False) as rm_file:
                     rm_file()
-        elif self.source_zip.is_dir():
+            self.currently_being_zipped = None
 
+        elif self.source_zip.is_dir():
             for zip_file in self.source_zip.glob("*.zip"):
-                self.doing = f"""UnZipping '{zip_file}' to '{self.target_folder}'"""
-                with zipfile.ZipFile(zip_file, "r") as zfd:
+                self.currently_being_zipped = zip_file
+                self.doing = f"""UnZipping '{self.currently_being_zipped}' to '{self.target_folder}'"""
+                with zipfile.ZipFile(self.currently_being_zipped, "r") as zfd:
                     zfd.extractall(path=self.target_folder)
                 if self.no_artifacts:
-                    with RmFile(zip_file, report_own_progress=False) as rm_file:
+                    with RmFile(self.currently_being_zipped, report_own_progress=False) as rm_file:
                         rm_file()
+            self.currently_being_zipped = None
+
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return) -> None:
+        """ if exception was raised while unzipping, remove the offending zip file
+            so when installer runs again it will download the zip file again.
+            Also remove Info.xml file in the target folder because when using direct_sync
+            Info.xml is an indication that there is no need to download anything.
+        """
+        if exc_type:  # there was an exception
+            if self.currently_being_zipped:
+                with RmFile(self.currently_being_zipped, report_own_progress=False) as rm_file:
+                    rm_file()
+            target_folder_info_xml = self.target_folder.joinpath("Info.xml")
+            with RmFile(target_folder_info_xml, report_own_progress=False) as rm_file:
+                rm_file()
+

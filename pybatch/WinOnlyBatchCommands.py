@@ -120,7 +120,7 @@ class BaseRegistryKey(PythonBatchCommandBase):
             winreg.CloseKey(self.key_handle)
             self.key_handle = None
 
-    def exit_self(self, exit_return):
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return):
         self._close_key()
 
     def __call__(self, *args, **kwargs):

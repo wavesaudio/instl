@@ -94,7 +94,7 @@ class InvocationReporter(PythonBatchRuntime):
         except Exception as e:
             log.warning(f'instl log file report start failed - {e}')
 
-    def exit_self(self, exit_return) -> None:
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return) -> None:
         # self.doing = self.doing if self.doing else utils.get_latest_action_from_stack()
         try:
             end_time = datetime.datetime.now()

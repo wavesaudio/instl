@@ -234,7 +234,7 @@ class Cd(PythonBatchCommandBase):
         os.chdir(self.resolved_new_path)
         assert self.resolved_new_path.samefile(Path.cwd()), f"failed to cd into '{self.resolved_new_path}'"
 
-    def exit_self(self, exit_return):
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return):
         os.chdir(self.old_path)
 
     def error_dict_self(self, exc_type, exc_val, exc_tb) -> None:
@@ -1071,7 +1071,7 @@ class AdvisoryFileLock(PythonBatchCommandBase, call__call__=False):
         print(f"before lock: {self.lock_file_path}")
         print(f"after lock: {self.lock_file_path}")
 
-    def exit_self(self, exit_return) -> None:
+    def exit_self(self, exc_type, exc_val, exc_tb, exit_return) -> None:
         print(f"before unlock: {self.lock_file_path}")
         exclusive_unlock_fileno(self.lock_fileno)
         self.lock_fileno.close()
