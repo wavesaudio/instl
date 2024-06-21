@@ -391,14 +391,15 @@ class RunInThread(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         thread_thingy = None
-        if self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is False:
-            thread_thingy = None  # wtf?
-        elif self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is True:
-            thread_thingy = None # wtf?
-        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is False:
-            thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
-        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is True:
-            thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
+        match self.what_to_run.call__call__, self.what_to_run.is_context_manager:
+            case False, False:
+                thread_thingy = None  # wtf?
+            case False, True:
+                thread_thingy = None # wtf?
+            case True, False:
+                thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
+            case True, True:
+                thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
 
         if thread_thingy:
             thread_thingy.start()
@@ -602,7 +603,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
                                    bufsize=1)
-        reg = re.compile("""^\s*
+        reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+
            (?P<Dled>[\d.a-z]+)\s+

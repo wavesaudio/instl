@@ -344,16 +344,17 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
     def calc_user_cache_dir_var(self):
         if "USER_CACHE_DIR" not in config_vars:
             os_family_name = config_vars["__CURRENT_OS__"].str()
-            if os_family_name == "Mac":
-                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
-            elif os_family_name == "Win":
-                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(VENDOR_NAME)")
-            elif os_family_name == "Linux":
-                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
-            else:
-                raise RuntimeError(f"Unknown operating system {os_family_name}")
+            match os_family_name:
+                case "Mac":
+                    user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                    user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+                case "Win":
+                    user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(VENDOR_NAME)")
+                case "Linux":
+                    user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                    user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+                case _:
+                    raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
 
     def get_aux_cache_dir(self, make_dir=True):
@@ -383,21 +384,23 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
     def relative_sync_folder_for_source(self, source):
         source_path, source_type = source[0], source[1]
-        if source_type in ('!dir', '!file'):
-            retVal = "/".join(source_path.split("/")[0:-1])
-        elif source_type in ('!dir_cont', ):
-            retVal = source_path
-        else:
-            raise ValueError(f"unknown tag for source {source_path}: {source_type}")
+        match source_type:
+            case '!dir' | '!file':
+                retVal = "/".join(source_path.split("/")[0:-1])
+            case '!dir_cont':
+                retVal = source_path
+            case _:
+                raise ValueError(f"unknown tag for source {source_path}: {source_type}")
         return retVal
 
     def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
-        if source_type in ('!dir', '!file'):
-            retVal = "/".join(adjusted_source.split("/")[0:-1])
-        elif source_type in ('!dir_cont', ):
-            retVal = adjusted_source
-        else:
-            raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
+        match source_type:
+            case '!dir' | '!file':
+                retVal = "/".join(adjusted_source.split("/")[0:-1])
+            case '!dir_cont':
+                retVal = adjusted_source
+            case _:
+                raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):

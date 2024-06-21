@@ -379,10 +379,11 @@ class ConfigVarStack:
 
     def replace_unresolved_with_native_var_pattern(self, str_to_replace: str, which_os: str) -> str:
         pattern = self.resolve_indicator+r"(\g<var_name>)"  # default is configVar style
-        if which_os == 'Win':
-            pattern = r"%\g<var_name>%"
-        elif which_os == 'Mac':
-            pattern = r"${\g<var_name>}"
+        match which_os:
+            case 'Win':
+                pattern = r"%\g<var_name>%"
+            case 'Mac':
+                pattern = r"${\g<var_name>}"
 
         # regex to identify $(...) references
         value_ref_re = re.compile(fr"""

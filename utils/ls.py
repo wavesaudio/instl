@@ -93,26 +93,24 @@ def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='tex
         opening_remarks.append(f"error listing {len(error_items)} of {len(listing_items)+len(error_items)} items")
 
     total_list = list()
-    if output_format == 'text':
-        total_list.extend(opening_remarks)
-        total_list.extend("Error: " + ", ".join(error) for error in error_items)
-        total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
-        total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
-    elif output_format == 'dicts':
-        total_list.extend("Error: " + ", ".join(error) for error in error_items)
-        for item in listing_items:
-            total_list.append(translate_item_dict_to_be_keyed_by_path(item))
-    elif output_format == 'json':
-        total_list.extend({"Error": + ", ".join(error) for error in error_items})
-        total_list.append({os.fspath(files_or_folder_to_list): translate_json_key_names(listing_items)})
+    match output_format:
+        case 'text':
+            total_list.extend(opening_remarks)
+            total_list.extend("Error: " + ", ".join(error) for error in error_items)
+            total_list.extend(list_of_dicts_describing_disk_items_to_text_lines(listing_items, ls_format))
+            total_list.append("")  # line break at the end so not to be joined with the next line when printing to Terminal
+            retVal = "\n".join(total_list)
+        case 'dicts':
+            total_list.extend("Error: " + ", ".join(error) for error in error_items)
+            for item in listing_items:
+                total_list.append(translate_item_dict_to_be_keyed_by_path(item))
+            retVal = total_list
+        case  'json':
+            total_list.extend({"Error": + ", ".join(error) for error in error_items})
+            total_list.append({os.fspath(files_or_folder_to_list): translate_json_key_names(listing_items)})
+            output_json = json.dumps(total_list, indent=1, default=utils.extra_json_serializer)
+            retVal = output_json
 
-    if output_format == 'text':
-        retVal = "\n".join(total_list)
-    elif output_format == 'dicts':
-        retVal = total_list
-    elif output_format == 'json':
-        output_json = json.dumps(total_list, indent=1, default=utils.extra_json_serializer)
-        retVal = output_json
     return retVal
 
 
@@ -219,77 +217,78 @@ def unix_item_ls(the_path, ls_format, root_folder=None):
         the_stats = os.lstat(the_path)
 
         for format_char in ls_format:
-            if format_char == 'I':
-                the_parts[format_char] = the_stats[stat.ST_INO]  # inode number
-            elif format_char == 'R':
-                the_parts[format_char] = utils.unix_permissions_to_str(the_stats.st_mode)  # permissions
-            elif format_char == 'L':
-                the_parts[format_char] = the_stats[stat.ST_NLINK]  # num links
-            elif format_char == 'u':
-                try:
-                    the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
-                except Exception:
-                    the_parts[format_char] = "no_uid"
-            elif format_char == 'U':
-                try:
-                    the_parts[format_char] = pwd.getpwuid(the_stats[stat.ST_UID])[0]  # user
-                except KeyError:
-                    the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
-                except Exception:
-                    the_parts[format_char] = "no_uid"
-            elif format_char == 'g':
-                try:
-                    the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
-                except Exception:
-                    the_parts[format_char] = "no_gid"
-            elif format_char == 'G':
-                try:
-                    the_parts[format_char] = grp.getgrgid(the_stats[stat.ST_GID])[0]  # group
-                except KeyError:
-                    the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
-                except Exception:
-                    the_parts[format_char] = "no_gid"
-            elif format_char == 'S':
-                the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
-            elif format_char == 'T':
-                the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME])))  # modification time
-            elif format_char == 'C':
-                if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-                    the_parts[format_char] = utils.get_file_checksum(the_path)
-                else:
-                    the_parts[format_char] = ""
-            elif format_char == 'P' or format_char == 'p':
-                path_to_return = the_path_str
-                if format_char == 'p' and root_folder is not None:
-                    path_to_return = os.path.relpath(the_path, start=root_folder)
-
-                # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
-                if stat.S_ISDIR(the_stats.st_mode) and 'D' in ls_format:
-                    path_to_return += '/'
-
-                if 'E' in ls_format:
-                    if stat.S_ISLNK(the_stats.st_mode):
-                        path_to_return += '@'
-                    elif not stat.S_ISDIR(the_stats.st_mode) and (the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-                        path_to_return += '*'
-                    elif stat.S_ISSOCK(the_stats.st_mode):
-                        path_to_return += '='
-                    elif stat.S_ISFIFO(the_stats.st_mode):
-                        path_to_return += '|'
-
-                the_parts[format_char] = path_to_return
-            elif format_char == 'a' or format_char == 'f':
-                import subprocess
-                completed_process = subprocess.run(f'ls -lO "{the_path_str}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if completed_process.returncode != 0:
-                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
-                else:
-                    ls_line = utils.unicodify(completed_process.stdout)
-                    flag_matches = re.findall("arch|archived|opaque|nodump|sappnd|sappend|schg|schange|simmutable|uappnd|uappend|uchg|uchange|uimmutable|hidden", ls_line)
-                    if flag_matches:
-                        the_parts[format_char] = ",".join(flag_matches)
+            match format_char:
+                case 'I':
+                    the_parts[format_char] = the_stats[stat.ST_INO]  # inode number
+                case 'R':
+                    the_parts[format_char] = utils.unix_permissions_to_str(the_stats.st_mode)  # permissions
+                case 'L':
+                    the_parts[format_char] = the_stats[stat.ST_NLINK]  # num links
+                case 'u':
+                    try:
+                        the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
+                    except Exception:
+                        the_parts[format_char] = "no_uid"
+                case 'U':
+                    try:
+                        the_parts[format_char] = pwd.getpwuid(the_stats[stat.ST_UID])[0]  # user
+                    except KeyError:
+                        the_parts[format_char] = str(the_stats[stat.ST_UID])[0]  # unknown user name, get the number
+                    except Exception:
+                        the_parts[format_char] = "no_uid"
+                case 'g':
+                    try:
+                        the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
+                    except Exception:
+                        the_parts[format_char] = "no_gid"
+                case 'G':
+                    try:
+                        the_parts[format_char] = grp.getgrgid(the_stats[stat.ST_GID])[0]  # group
+                    except KeyError:
+                        the_parts[format_char] = str(the_stats[stat.ST_GID])[0]  # unknown group name, get the number
+                    except Exception:
+                        the_parts[format_char] = "no_gid"
+                case 'S':
+                    the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
+                case 'T':
+                    the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME])))  # modification time
+                case 'C':
+                    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+                        the_parts[format_char] = utils.get_file_checksum(the_path)
                     else:
-                        the_parts[format_char] = "[]"
+                        the_parts[format_char] = ""
+                case 'P' | 'p':
+                    path_to_return = the_path_str
+                    if format_char == 'p' and root_folder is not None:
+                        path_to_return = os.path.relpath(the_path, start=root_folder)
+
+                    # E will bring us Extra data (path postfix) but we want to know if it's DIR in any case
+                    if stat.S_ISDIR(the_stats.st_mode) and 'D' in ls_format:
+                        path_to_return += '/'
+
+                    if 'E' in ls_format:
+                        if stat.S_ISLNK(the_stats.st_mode):
+                            path_to_return += '@'
+                        elif not stat.S_ISDIR(the_stats.st_mode) and (the_stats.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
+                            path_to_return += '*'
+                        elif stat.S_ISSOCK(the_stats.st_mode):
+                            path_to_return += '='
+                        elif stat.S_ISFIFO(the_stats.st_mode):
+                            path_to_return += '|'
+
+                    the_parts[format_char] = path_to_return
+                case 'a' | 'f':
+                    import subprocess
+                    completed_process = subprocess.run(f'ls -lO "{the_path_str}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    if completed_process.returncode != 0:
+                        the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                    else:
+                        ls_line = utils.unicodify(completed_process.stdout)
+                        flag_matches = re.findall("arch|archived|opaque|nodump|sappnd|sappend|schg|schange|simmutable|uappnd|uappend|uchg|uchange|uimmutable|hidden", ls_line)
+                        if flag_matches:
+                            the_parts[format_char] = ",".join(flag_matches)
+                        else:
+                            the_parts[format_char] = "[]"
 
     except Exception as ex:
         the_error = [the_path_str, ex.strerror]
@@ -340,59 +339,60 @@ def win_item_ls(the_path, ls_format, root_folder=None):
         the_stats = os.lstat(the_path)
 
         for format_char in ls_format:
-            if format_char == 'T':
-                the_parts[format_char] = time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME])))  # modification time
-            elif format_char == 'D':
-                if 'p' in ls_format.lower():  # 'p' or 'P'
-                    if stat.S_ISDIR(the_stats.st_mode):
-                        the_parts[format_char] = "<DIR>"
+            match format_char:
+                case 'T':
+                    the_parts[format_char] = time.strftime("%Y/%m/%d %H:%M:%S", time.gmtime((the_stats[stat.ST_MTIME])))  # modification time
+                case 'D':
+                    if 'p' in ls_format.lower():  # 'p' or 'P'
+                        if stat.S_ISDIR(the_stats.st_mode):
+                            the_parts[format_char] = "<DIR>"
+                        else:
+                            the_parts[format_char] = ""
+                case 'S':
+                    the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
+                case 'U':
+                    try:
+                        sd = win32security.GetFileSecurity(the_path_str, win32security.OWNER_SECURITY_INFORMATION)
+                        owner_sid = sd.GetSecurityDescriptorOwner()
+                        name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                        the_parts[format_char] = domain+"\\"+name  # user
+                    except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                        the_parts[format_char] = "Unknown user"
+
+                case 'G':
+                    try:
+                        sd = win32security.GetFileSecurity(the_path_str, win32security.GROUP_SECURITY_INFORMATION)
+                        owner_sid = sd.GetSecurityDescriptorGroup()
+                        name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
+                        the_parts[format_char] = domain+"\\"+name  # group
+                    except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                        the_parts[format_char] = "Unknown group"
+
+                case 'C':
+                    if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
+                        the_parts[format_char] = utils.get_file_checksum(the_path)
                     else:
                         the_parts[format_char] = ""
-            elif format_char == 'S':
-                the_parts[format_char] = the_stats[stat.ST_SIZE]  # size in bytes
-            elif format_char == 'U':
-                try:
-                    sd = win32security.GetFileSecurity(the_path_str, win32security.OWNER_SECURITY_INFORMATION)
-                    owner_sid = sd.GetSecurityDescriptorOwner()
-                    name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-                    the_parts[format_char] = domain+"\\"+name  # user
-                except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
-                    the_parts[format_char] = "Unknown user"
-
-            elif format_char == 'G':
-                try:
-                    sd = win32security.GetFileSecurity(the_path_str, win32security.GROUP_SECURITY_INFORMATION)
-                    owner_sid = sd.GetSecurityDescriptorGroup()
-                    name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
-                    the_parts[format_char] = domain+"\\"+name  # group
-                except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
-                    the_parts[format_char] = "Unknown group"
-
-            elif format_char == 'C':
-                if not (stat.S_ISLNK(the_stats.st_mode) or stat.S_ISDIR(the_stats.st_mode)):
-                    the_parts[format_char] = utils.get_file_checksum(the_path)
-                else:
-                    the_parts[format_char] = ""
-            elif format_char == 'P':
-                as_posix = PurePath(the_path).as_posix()
-                the_parts[format_char] = str(as_posix)
-            elif format_char == 'p' and root_folder is not None:
-                relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
-                the_parts[format_char] = str(relative_path.as_posix())
-            elif format_char == 'a' or format_char == 'f':
-                import subprocess
-                the_parts[format_char] = "[]"
-                completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
-                                                   stderr=subprocess.PIPE)
-                if completed_process.returncode != 0:
-                    the_parts[format_char] = utils.unicodify(completed_process.stderr)
-                else:
-                    ls_line = utils.unicodify(completed_process.stdout)
-                    flag_matches = re.search("(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
-                    if flag_matches:
-                        flags = "".join(flag_matches.group('attribs').split())
-                        if flags:
-                            the_parts[format_char] = flags
+                case 'P':
+                    as_posix = PurePath(the_path).as_posix()
+                    the_parts[format_char] = str(as_posix)
+                case 'p' if root_folder is not None:
+                    relative_path = PurePath(the_path).relative_to(PurePath(root_folder))
+                    the_parts[format_char] = str(relative_path.as_posix())
+                case 'a' | 'f':
+                    import subprocess
+                    the_parts[format_char] = "[]"
+                    completed_process = subprocess.run(f'attrib "{the_path_str}"', shell=True, stdout=subprocess.PIPE,
+                                                       stderr=subprocess.PIPE)
+                    if completed_process.returncode != 0:
+                        the_parts[format_char] = utils.unicodify(completed_process.stderr)
+                    else:
+                        ls_line = utils.unicodify(completed_process.stdout)
+                        flag_matches = re.search("(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
+                        if flag_matches:
+                            flags = "".join(flag_matches.group('attribs').split())
+                            if flags:
+                                the_parts[format_char] = flags
 
     except Exception as ex:
         the_error = [the_path_str, ex.strerror]
@@ -422,50 +422,53 @@ def wtar_ls_func(root_file_or_folder_path, ls_format):
 def wtar_item_ls_func(item, ls_format):
     the_parts = dict()
     for format_char in ls_format:
-        if format_char == 'R':
-            the_parts[format_char] = utils.unix_permissions_to_str(item.mode)  # permissions
-        elif format_char == 'u':
-            the_parts[format_char] = item.uid
-        elif format_char == 'U':
-            the_parts[format_char] = item.uname
-        elif format_char == 'g':
-            the_parts[format_char] = item.gid
-        elif format_char == 'G':
-            the_parts[format_char] = item.gname
-        elif format_char == 'S':
-            the_parts[format_char] = item.size
-        elif format_char == 'T':
-            the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime(item.mtime))  # modification time
-        elif format_char == 'C':
-            the_parts[format_char] = item.pax_headers.get("checksum", "")
-        elif format_char == 'P' or format_char == 'p':
-            path_to_return = item.name
-            if item.isdir() and 'D' in ls_format:
-                path_to_return += '/'
+        match format_char:
+            case 'R':
+                the_parts[format_char] = utils.unix_permissions_to_str(item.mode)  # permissions
+            case 'u':
+                the_parts[format_char] = item.uid
+            case 'U':
+                the_parts[format_char] = item.uname
+            case 'g':
+                the_parts[format_char] = item.gid
+            case 'G':
+                the_parts[format_char] = item.gname
+            case 'S':
+                the_parts[format_char] = item.size
+            case 'T':
+                the_parts[format_char] = time.strftime("%Y/%m/%d-%H:%M:%S", time.gmtime(item.mtime))  # modification time
+            case 'C':
+                the_parts[format_char] = item.pax_headers.get("checksum", "")
+            case 'P' | 'p':
+                path_to_return = item.name
+                if item.isdir() and 'D' in ls_format:
+                    path_to_return += '/'
 
-            if 'E' in ls_format:
-                if item.issym():
-                    path_to_return += '@'
-                elif item.isfifo():
-                    path_to_return += '|'
+                if 'E' in ls_format:
+                    if item.issym():
+                        path_to_return += '@'
+                    elif item.isfifo():
+                        path_to_return += '|'
 
-            the_parts[format_char] = path_to_return
+                the_parts[format_char] = path_to_return
     return the_parts
 
 
 def single_disk_item_listing(the_path, ls_format="PuUgGRTf", root_folder=None, output_format="text"):
     retVal = None
-    if sys.platform in ('darwin', 'linux'):
-        item_ls_dict, the_error = unix_item_ls(the_path, ls_format, root_folder)
-    elif sys.platform == 'win32':
-        item_ls_dict, the_error = win_item_ls(the_path, ls_format, root_folder)
+    match sys.platform:
+        case 'darwin' | 'linux':
+            item_ls_dict, the_error = unix_item_ls(the_path, ls_format, root_folder)
+        case 'win32':
+            item_ls_dict, the_error = win_item_ls(the_path, ls_format, root_folder)
 
-    if output_format == "text":
-        item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
-        retVal = item_ls_lines[0]
-    elif output_format == "json":
-        item_ls_lines= translate_json_key_names([item_ls_dict])
-        retVal = item_ls_lines[0]
-    elif output_format == 'dicts':
-        retVal = translate_item_dict_to_be_keyed_by_path(item_ls_dict)
+    match output_format:
+        case "text":
+            item_ls_lines = list_of_dicts_describing_disk_items_to_text_lines([item_ls_dict], ls_format)
+            retVal = item_ls_lines[0]
+        case "json":
+            item_ls_lines= translate_json_key_names([item_ls_dict])
+            retVal = item_ls_lines[0]
+        case 'dicts':
+            retVal = translate_item_dict_to_be_keyed_by_path(item_ls_dict)
     return retVal

@@ -143,12 +143,13 @@ class ReadRegistryValue(BaseRegistryKey):
         try:
             self._open_key()
             key_val, key_type = winreg.QueryValueEx(self.key_handle, self.value_name)
-            if key_type == 3:  # reg type 3 is REG_BINARY
-                self.the_value = key_val
-            elif key_type == 7:  # reg type 7 is REG_MULTI_SZ - A list of null-terminated strings
-                self.the_value = ''.join(map(str, key_val))
-            else:
-                self.the_value = str(key_val)
+            match key_type:
+                case 3:  # reg type 3 is REG_BINARY
+                    self.the_value = key_val
+                case 7:  # reg type 7 is REG_MULTI_SZ - A list of null-terminated strings
+                    self.the_value = ''.join(map(str, key_val))
+                case _:
+                    self.the_value = str(key_val)
         finally:
             self._close_key()
         if self.reply_environ_var is not None:
