@@ -17,7 +17,7 @@ import aYaml
 
 log = logging.getLogger(__name__)
 
-need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
+need_path_resolving_re = re.compile(r".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 
 
 class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False,
@@ -631,7 +631,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
         return super(PatchPyBatchWithTimings, self).progress_msg_self()
 
     def __call__(self, *args, **kwargs):
-        progress_comment_re = re.compile(""".+prog_num=(?P<progress>\d+).+\s+$""")
+        progress_comment_re = re.compile(r""".+prog_num=(?P<progress>\d+).+\s+$""")
         py_batch_with_timings = self.path_to_py_batch.with_suffix(".timings.py")
         last_progress_reported = 0
         with utils.utf8_open_for_read(self.path_to_py_batch) as rfd, utils.utf8_open_for_write(py_batch_with_timings, "w") as wfd:

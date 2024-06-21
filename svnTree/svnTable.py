@@ -361,7 +361,7 @@ class SVNTable(object):
             items are inserted in lexicographic directory order, so '/'
             sorts before other characters: key=lambda x: x['path'].split('/')
         """
-        svn_info_line_re = re.compile("""
+        svn_info_line_re = re.compile(r"""
                     ^
                     (?P<key>Path|Last\ Changed\ Rev|Node\ Kind|Revision|Checksum|Tree\ conflict)
                     :\s*
@@ -429,7 +429,7 @@ class SVNTable(object):
                 curs.executemany(insert_q, rows)
 
     def read_from_text(self, rfd, progress_callback=None):
-        dl_path_re = re.compile("dl_path:'(?P<ld_path>.+)'")
+        dl_path_re = re.compile(r"dl_path:'(?P<ld_path>.+)'")
 
         def yield_row(_rfd_):
             reader = csv.reader(_rfd_, skipinitialspace=True)
@@ -571,30 +571,31 @@ class SVNTable(object):
         count = 0
         select_q = None
         with self.db.selection() as curs:
-            if item_filter == "all-items":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t;"""
-            elif item_filter == "all-files":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==1;"""
-            elif item_filter == "all-dirs":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==0;"""
-            if item_filter == "required-items":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1;"""
-            elif item_filter == "required-files":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==1;"""
-            elif item_filter == "required-dirs":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==0;"""
-            elif item_filter == "required-exec":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND instr(flags, 'x') != 0;"""
-            if item_filter == "unrequired-item":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0;"""
-            elif item_filter == "unrequired-files":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==1;"""
-            elif item_filter == "unrequired-dirs":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==0;"""
-            elif item_filter == "need-download-files":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==1;"""
-            elif item_filter == "need-download-dirs":
-                select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==0;"""
+            match item_filter:
+                case "all-items":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t;"""
+                case "all-files":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==1;"""
+                case "all-dirs":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE fileFlag==0;"""
+                case "required-items":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1;"""
+                case "required-files":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==1;"""
+                case "required-dirs":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND fileFlag==0;"""
+                case "required-exec":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==1 AND instr(flags, 'x') != 0;"""
+                case "unrequired-item":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0;"""
+                case "unrequired-files":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==1;"""
+                case "unrequired-dirs":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE required==0 AND fileFlag==0;"""
+                case "need-download-files":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==1;"""
+                case "need-download-dirs":
+                    select_q = """SELECT COUNT(_id) FROM svn_item_t WHERE need_download==1 AND fileFlag==0;"""
             count = curs.execute(select_q).fetchone()[0]
         return count
 
@@ -637,7 +638,7 @@ class SVNTable(object):
                 curs.executemany(update_q, rows)
 
     def read_props(self, rfd, progress_callback=None) -> None:
-        props_line_re = re.compile("""
+        props_line_re = re.compile(r"""
                     ^
                     (
                     Properties\son\s
@@ -933,26 +934,27 @@ class SVNTable(object):
         if what not in ("any", "file", "dir"):
             raise ValueError(what + " not a valid filter for get_item")
 
-        if what == "file":
-            query_text = """
-                SELECT * FROM svn_item_t
-                WHERE need_download == 1
-                AND fileFlag = 1
-                ORDER BY _id
-                """
-        elif what == "dir":
-            query_text = """
-                SELECT * FROM svn_item_t
-                WHERE need_download == 1
-                AND fileFlag = 0
-                ORDER BY _id
-                """
-        else:
-            query_text = """
-                SELECT * FROM svn_item_t
-                WHERE need_download == 1
-                ORDER BY _id
-                """
+        match what:
+            case "file":
+                query_text = """
+                    SELECT * FROM svn_item_t
+                    WHERE need_download == 1
+                    AND fileFlag = 1
+                    ORDER BY _id
+                    """
+            case "dir":
+                query_text = """
+                    SELECT * FROM svn_item_t
+                    WHERE need_download == 1
+                    AND fileFlag = 0
+                    ORDER BY _id
+                    """
+            case _:
+                query_text = """
+                    SELECT * FROM svn_item_t
+                    WHERE need_download == 1
+                    ORDER BY _id
+                    """
 
         with self.db.selection() as curs:
             curs.execute(query_text)
@@ -1171,10 +1173,11 @@ class SVNTable(object):
             :return: None
         """
         num_required_files = 0
-        if source_type in ('!dir', '!dir_cont'):  # !dir and !dir_cont are only different when copying
-            num_required_files = self.mark_required_for_dir(source_path)
-        elif source_type == '!file':
-            num_required_files = self.mark_required_for_file(source_path)
+        match source_type:
+            case '!dir' | '!dir_cont':  # !dir and !dir_cont are only different when copying
+                num_required_files = self.mark_required_for_dir(source_path)
+            case '!file':
+                num_required_files = self.mark_required_for_file(source_path)
         return num_required_files
 
     def mark_required_completion(self, progress_callback=None) -> int:

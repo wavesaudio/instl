@@ -42,7 +42,7 @@ def quoteme_single_list_for_sql(to_quote_list):
 #no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
 escape_quotations_re = re.compile("['\"\\\\]")
 def escape_quotations(simple_string):
-    """ escape the characters ', '. \ """
+    """ escape the characters ', '. \\ """
     retVal = escape_quotations_re.sub(lambda match_obj: r'\\'+match_obj.group(0), simple_string)
     return retVal
 
@@ -81,32 +81,57 @@ def quoteme_raw_if_string(some_thing):
     else:
         return str(some_thing)
 
+def quoteme_raw_string(simple_string):
+    assert isinstance(simple_string, str), f"{simple_string} is not of type str"
 
-def quoteme_raw_by_type(some_thing, config_vars=None, resolve_path=False):
+    if not simple_string:
+        retVal = 'r""'
+
+    else:
+        simple_string = os.fspath(simple_string)
+
+        possible_quote_marks = ('"', "'", '"""', "'''")
+        if "\n" in simple_string:  # multiline strings need triple quotation
+            possible_quote_marks = ('"""', "'''")
+
+        for quote_mark in possible_quote_marks:
+            # 1st priority is to create a raw string. Strings that end with the quotation mark or with \ cannot be raw.
+            if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1] and simple_string[-1] != '\\':
+                retVal = "".join(('r', quote_mark, simple_string, quote_mark))
+                break
+        else:
+            # if all possible quotations marks are present in the string - do proper escaping and return non-raw string
+            retVal = "".join(('"', escape_quotations(simple_string), '"'))
+
+    return retVal
+
+def quoteme_raw_by_type(some_thing, config_vars=None, resolve_path=False) -> str:
     retVal = None
-    if isinstance(some_thing, types_that_do_not_need_quotation):
-        retVal = str(some_thing)
-    elif isinstance(some_thing, str):
-        if config_vars is not None:
-            some_thing = config_vars.resolve_str(some_thing)
-        if resolve_path:
-            from utils import ExpandAndResolvePath
-            some_thing = os.fspath(ExpandAndResolvePath(some_thing))
-        retVal = quoteme_raw_string(some_thing)
-    elif isinstance(some_thing, os.PathLike):
-        if resolve_path:
-            from utils import ExpandAndResolvePath
-            some_thing = ExpandAndResolvePath(some_thing)
-        retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
-    elif isinstance(some_thing, collections.abc.Sequence):
-        retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing), "]"))
-    elif isinstance(some_thing, collections.abc.Mapping):
-        item_strs = list()
-        for k, v in sorted(some_thing.items()):
-            item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v, config_vars)}""")
-        retVal = "".join(("{", ",".join(item_strs), "}"))
-    elif inspect.isclass(some_thing):
-        retVal = some_thing.__name__
+    match some_thing:
+        case int() | float() | bool():
+            retVal = str(some_thing)
+        case str():
+            if config_vars is not None:
+                some_thing = config_vars.resolve_str(some_thing)
+            if resolve_path:
+                from utils import ExpandAndResolvePath
+                some_thing = os.fspath(ExpandAndResolvePath(some_thing))
+            retVal = quoteme_raw_string(some_thing)
+        case os.PathLike():
+            if resolve_path:
+                from utils import ExpandAndResolvePath
+                some_thing = ExpandAndResolvePath(some_thing)
+            retVal = quoteme_raw_by_type(os.fspath(some_thing), config_vars)
+        case collections.abc.Sequence():
+            retVal = "".join(("[", ",".join(quoteme_raw_by_type(t, config_vars) for t in some_thing), "]"))
+        case collections.abc.Mapping():
+            item_strs = list()
+            for k, v in sorted(some_thing.items()):
+                item_strs.append(f"""{quoteme_raw_by_type(k)}:{quoteme_raw_by_type(v, config_vars)}""")
+            retVal = "".join(("{", ",".join(item_strs), "}"))
+        case some_thing if inspect.isclass(some_thing):
+            retVal = some_thing.__name__
+
     return retVal
 
 
@@ -139,7 +164,7 @@ def quote_path_properly(path_to_quote):
     return quoted_path
 
 
-detect_quotations = re.compile("(?P<prefix>[\"'])(?P<the_unquoted_text>.+)(?P=prefix)")
+detect_quotations = re.compile(r'''(?P<prefix>["'])(?P<the_unquoted_text>.+)(?P=prefix)''')
 
 
 def unquoteme(to_unquote):
@@ -151,15 +176,15 @@ def unquoteme(to_unquote):
 
 
 def unicodify(in_something, encoding='utf-8'):
-    if in_something is not None:
-        if isinstance(in_something, str):
+    retVal = None
+    match in_something:
+        case str():
             retVal = in_something
-        elif isinstance(in_something, bytes):
+        case bytes():
             retVal = in_something.decode(encoding, errors='backslashreplace')
-        else:
+        case in_something if in_something:
             retVal = str(in_something)
-    else:
-        retVal = None
+
     return retVal
 
 
@@ -183,12 +208,13 @@ def bool_int_to_str(in_bool_int):
 
 
 def str_to_bool_int(the_str):
-    if the_str.lower() in ("yes", "true", "y", 't', '1'):
-        retVal = 1
-    elif the_str.lower() in ("no", "false", "n", "f", '0'):
-        retVal = 0
-    else:
-        raise ValueError(f"Cannot translate {the_str} to bool-int")
+    match the_str.lower():
+        case "yes" | "true" | "y" | 't' | '1':
+            retVal = 1
+        case "no" | "false" | "n" | "f" | '0':
+            retVal = 0
+        case _:
+            raise ValueError(f"Cannot translate {the_str} to bool-int")
     return retVal
 
 
@@ -225,7 +251,7 @@ if __name__ == "__main__":
     #print(quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"'''))
     #print(quoteme_raw_string("""single-single(') triple-single(''') single-double(") single-triple(\"\"\")"""))
 
-    rere = re.compile("['\"\\\\]")
+    rere = re.compile(r"""['"\\]""")
     s = r"""A"B'C'''D'\\EFG"""
     rs = rere.sub(lambda matchobj: '\\'+matchobj.group(0), s)
     print(rs)

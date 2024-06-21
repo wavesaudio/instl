@@ -347,7 +347,7 @@ def need_to_download_file(file_path, file_checksum):
     return retVal
 
 
-guid_re = re.compile("""
+guid_re = re.compile(r"""
                 [a-f0-9]{8}
                 (-[a-f0-9]{4}){3}
                 -[a-f0-9]{12}
@@ -822,12 +822,13 @@ def iter_grouper(n, iterable):
 
 @lru_cache(maxsize=None)
 def get_os_description():
-    if sys.platform == 'darwin':
-        retVal = f"macOS {platform.mac_ver()[0]}"
-    elif sys.platform == 'linux':
-        retVal = f"Linux {platform.uname().version}"
-    elif sys.platform == 'win32':
-        retVal = f"Windows {platform.version()}"
+    match sys.platform:
+        case 'darwin':
+            retVal = f"macOS {platform.mac_ver()[0]}"
+        case 'linux':
+            retVal = f"Linux {platform.uname().version}"
+        case 'win32':
+            retVal = f"Windows {platform.version()}"
     return retVal
 
 
