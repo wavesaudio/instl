@@ -86,8 +86,8 @@ class ConfigVarStack:
             Again, you should raise KeyError and TypeError where appropriate.
 
             sets the values for a ConfigVar on the top of the stack.
-            If ConfigVar exists it's current values are replaced.
-            Otherwise a new ConfigVar is created with the values.
+            If ConfigVar exists its current values are replaced.
+            Otherwise, a new ConfigVar is created with the values.
             NOTE: if ConfigVar with same name exists on lower level,
             it is NOT changed and a new one is created on the top stack level
         """

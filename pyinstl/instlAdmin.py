@@ -122,7 +122,6 @@ def dict_in_canonical_order(to_order, order=None, single_value=None):
         order = []
     if single_value is None:
         single_value = []
-    retVal = None
 
     match to_order:
         case str():
