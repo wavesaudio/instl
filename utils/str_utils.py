@@ -141,16 +141,17 @@ def quoteme_raw_list(list_of_things):
 
 
 def quoteme_raw_if_list(list_of_things, one_element_list_as_string=False):
-    if isinstance(list_of_things, str):
-        retVal = quoteme_raw_if_string(list_of_things)
-    elif isinstance(list_of_things, collections.abc.Sequence):
-        if one_element_list_as_string and len(list_of_things) == 1:
-            retVal = quoteme_raw_if_string(list_of_things[0])
-        else:
-            retVal = quoteme_raw_list(list_of_things)
-            retVal = "".join(("[", ",".join(retVal), "]"))
-    else:
-        retVal = quoteme_raw_if_string(list_of_things)
+    match list_of_things:
+        case str():
+            retVal = quoteme_raw_if_string(list_of_things)
+        case collections.abc.Sequence():
+            if one_element_list_as_string and len(list_of_things) == 1:
+                retVal = quoteme_raw_if_string(list_of_things[0])
+            else:
+                retVal = quoteme_raw_list(list_of_things)
+                retVal = "".join(("[", ",".join(retVal), "]"))
+        case _:
+            retVal = quoteme_raw_if_string(list_of_things)
     return retVal
 
 
@@ -226,7 +227,7 @@ def is_iterable_but_not_str(obj_to_check):
 def str_to_int(the_str):
     """ python's builtin int function allows for underscore characters when converting string to int.
         So int("1_3") returns 13. instl however does not want to consider such strings as integers.
-        For example, a configVar "ExternalVersion_underscore" might hold a value such as "1_2_3_4"
+        For example, the configVar "ExternalVersion_underscore" might hold a value such as "1_2_3_4"
         and calling configVar["ExternalVersion_underscore"].int() should raise Value error instead
         of returning 1234.
         So str_to_int overcomes this problem by raising ValueError when converting the int back to
