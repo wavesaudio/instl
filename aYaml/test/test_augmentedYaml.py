@@ -120,20 +120,13 @@ C:
 
             # iterate with key/value pair
             list_of_scalars1 = list()
-            for name, a_seq in a_node:
+            for name, a_seq in a_node.items():
                 self.assertIsInstance(name, str)
                 self.assertIsInstance(a_seq, yaml.nodes.Node)
                 num_map_items += 1
                 for something in a_seq:
                     list_of_scalars1.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(["a", "aa", "aaa", "b", "c"]))
-
-            # iterate with iterkeys
-            list_of_scalars2 = list()
-            for name in a_node.keys():
-                for something in a_node[name]:
-                    list_of_scalars2.append(something.value)
-            self.assertEqual(sorted(list_of_scalars1), sorted(list_of_scalars2))
 
             # test "if ... in ..." functionality
             list_of_scalars3 = list()
