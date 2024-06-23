@@ -197,7 +197,7 @@ class YamlReader(object):
     def handle_yaml_parse_error(self, **kwargs):
         """
             override if something needs to be done when parsing a yaml file fails
-            this function will be called for yaml.reader.ReaderError and like
-            minded errors, NOT for FileNotFoundError or URLError
+            this function will be called for yaml.reader.ReaderError and like-minded errors,
+            NOT for FileNotFoundError or URLError
         """
         pass

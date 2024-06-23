@@ -808,10 +808,10 @@ class IndexItemsTable(object):
             all_iids = self.get_all_iids()
             for IID in a_node:
                 with kwargs['node-stack'](a_node[IID]):
-                    actuall_iid = previous_to_current_iids.get(IID, IID)
-                    require_details = self.read_item_details_from_require_node(actuall_iid, a_node[IID], all_iids, previous_to_current_iids)
+                    actual_iid = previous_to_current_iids.get(IID, IID)
+                    require_details = self.read_item_details_from_require_node(actual_iid, a_node[IID], all_iids, previous_to_current_iids)
                     if require_details:
-                        require_items[actuall_iid] = require_details
+                        require_items[actual_iid] = require_details
 
             self.clean_require_items(require_items)
 

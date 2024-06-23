@@ -182,8 +182,8 @@ def find_file_log_handler(log_file_path):
 
 
 def get_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
-    '''Returning a list of all logger handlers, based on the requested handler class type.
-       The default type is FileHandlerPlus. hdlr_name is an optional argument to be able to fetch specific handler'''
+    """Returning a list of all logger handlers, based on the requested handler class type.
+       The default type is FileHandlerPlus. hdlr_name is an optional argument to be able to fetch specific handler"""
     root_logger = logging.getLogger()
     return [hdlr for hdlr in root_logger.handlers if isinstance(hdlr, hdlr_cls) and (not hdlr_name or hdlr_name == hdlr.baseFilename)]
 
@@ -223,7 +223,7 @@ def func_log_wrapper(logged_func):
                 """ override Logger.findCaller to pass our own caller info """
                 return (
                     inspect.getsourcefile(logged_func),
-                    # 2nd value was supposed to be inspect.getsourcelines(logged_func)[1],
+                    # 2nd value was supposed to be inspecting.getsourcelines(logged_func)[1],
                     # however it does not work when compiled with pyinstaller
                     None,
                     logged_func.__name__)
@@ -251,8 +251,8 @@ def remove_log_handler(handler_to_remove_name):
 
 
 def close_log_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
-    '''Walks through all logging handlers (based on the requested handler class type), and closes them
-       The default type is FileHandlerPlus'''
+    """Walks through all logging handlers (based on the requested handler class type), and closes them
+       The default type is FileHandlerPlus"""
     root_logger = logging.getLogger()
     hdlrs_to_close = sorted(get_hdlrs(hdlr_cls=hdlr_cls, hdlr_name=hdlr_name), key=lambda hdlr: str(hdlr) == 'DEBUG')  # Placing debug handler at the end
     for hdlr in hdlrs_to_close:
@@ -264,7 +264,7 @@ def close_log_hdlrs(hdlr_cls=logging.FileHandler, hdlr_name=None):
 
 
 class SameLevelFilter(logging.Filter):
-    '''This filter will force the log file handler to include only messages from the same level/type. This is done to quickly count and collect messages.'''
+    """This filter will force the log file handler to include only messages from the same level/type. This is done to quickly count and collect messages."""
     def __init__(self, level, **kwargs):
         self.__level = level
         super().__init__(**kwargs)

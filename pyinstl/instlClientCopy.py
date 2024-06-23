@@ -278,7 +278,7 @@ class InstlClientCopy(InstlClient):
                 raise ValueError(f"unknown source type {source[1]} for {source[0]}")
         return retVal
 
-    # special handling when running on Mac OS
+    # special handling when running on macOS
     def pre_copy_mac_handling(self) -> None:
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:

@@ -383,7 +383,7 @@ def P4GetPathFromDepotPath(depot_path):
     command_parts = ["p4", "where", depot_path]
     p4_process = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
     _stdout, _stderr = p4_process.communicate()
-    _stdout, _stderr = unicodify(_stdout), unicodify(_stderr)
+    _stdout, _stderr = utils.unicodify(_stdout), utils.unicodify(_stderr)
     return_code = p4_process.returncode
     if return_code == 0:
         lines = _stdout.split("\n")
@@ -631,14 +631,14 @@ def get_recursive_checksums(some_path, ignore=None):
 
         total_checksum is calculated by concatenating two lists:
          - list of all the individual file checksums
-         - list of all individual paths paths
+         - list of all individual paths
         The combined list is sorted and all members are concatenated into one string.
         The sha1 checksum of that string is the total_checksum
         Sorting is done to ensure same total_checksum is returned regardless the order
         in which os.scandir returned the files, but that a different checksum will be
-        returned if a file changed it's name without changing contents.
+        returned if a file changed its name without changing contents.
         Note:
-            - If you have a file called total_checksum your'e f**d.
+            - If you have a file called total_checksum you're f**d.
             - Symlinks are not followed and are checksum as regular files (by calling readlink).
     """
     if ignore is None:
