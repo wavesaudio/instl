@@ -31,20 +31,20 @@ plugin_version_and_guid_re = re.compile(r"""
     </PluginExternalVersion>""", re.MULTILINE | re.DOTALL | re.VERBOSE)
 
 
-# cross platform
+# cross-platform
 def plugin_bundle(in_os, in_path: Path):
     retVal = None
     xml_path = in_path.joinpath('Contents', 'Info.xml')
-    if xml_path.exists():
-        with utils.utf8_open_for_read(xml_path, "r") as rfd:
-            info_xml = rfd.read()
-            match = plugin_version_and_guid_re.match(info_xml)
-            if match:
-                retVal = (in_path, match['version'], match['guid'])
-    else:
-        if in_os == 'Mac':
+    match xml_path.exists(), in_os:
+        case True, _:
+            with utils.utf8_open_for_read(xml_path, "r") as rfd:
+                info_xml = rfd.read()
+                match = plugin_version_and_guid_re.match(info_xml)
+                if match:
+                    retVal = (in_path, match['version'], match['guid'])
+        case False, 'Mac':
             retVal = Mac_bundle(in_os, in_path)
-        elif in_os == 'Win':
+        case False, 'Win':
             retVal = Win_bundle(in_os, in_path)
     return retVal
 

@@ -424,7 +424,7 @@ class ConfigVarStack:
             although
             shallow_resolve_str("$(A), $(B), $(A)") -> "aaa, aaa, aaa" - since $(A) was replaced twice
         """
-        literal_var_re = re.compile("""(?P<var_ref>"""+ re.escape(self.resolve_indicator) +"""\((?P<var_name>[^"""+self.resolve_indicator+"""(]+?)\))""")
+        literal_var_re = re.compile(r"""(?P<var_ref>"""+ re.escape(self.resolve_indicator) +r"""\((?P<var_name>[^"""+self.resolve_indicator+r"""(]+?)\))""")
 
         matches = literal_var_re.findall(val_to_resolve)  # will return [('$(A)', 'A'), ('$(C)', 'C')]
         result = val_to_resolve

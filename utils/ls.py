@@ -43,8 +43,8 @@ def disk_item_listing(files_or_folder_to_list, ls_format='*', output_format='tex
     'T': modification time, format is "%Y/%m/%d-%H:%M:%S" as used by time.strftime
     'u': Mac: uid
          Win: Not applicable
-    'U': Mac: User name or uid if name not found
-         Win: domain+"\\"+user name
+    'U': Mac: Username or uid if name not found
+         Win: domain+"\\"+username
     'W': for wtar files only, total checksum
     '*' if ls_format contains only '*' it is and alias to the default and means:
         Mac: MIRLUGSTCPE
@@ -388,7 +388,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                         the_parts[format_char] = utils.unicodify(completed_process.stderr)
                     else:
                         ls_line = utils.unicodify(completed_process.stdout)
-                        flag_matches = re.search("(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
+                        flag_matches = re.search(r"(?P<attribs>(A|R|S|H|O|I|X|P|U|\s)+?)\s+[A-Z]:", ls_line)
                         if flag_matches:
                             flags = "".join(flag_matches.group('attribs').split())
                             if flags:
