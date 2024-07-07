@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 """ YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally

@@ -457,7 +457,7 @@ class ExternalPythonExec(Subprocess):
     def get_run_args(self, run_args) -> None:
         """ Injecting the relevant OS python process into the run args instead of the empty string"""
         super().get_run_args(run_args)
-        python_executables = {'win32': ['py',  '-3.9'], 'darwin': ['python3.9']}
+        python_executables = {'win32': ['py',  '-3.12'], 'darwin': ['python3.12']}
         run_args.pop(0)  # Removing empty string
         for arg in reversed(python_executables[sys.platform]):
             run_args.insert(0, arg)
