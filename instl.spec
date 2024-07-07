@@ -88,7 +88,7 @@ exe = EXE(pyz,
           exclude_binaries=True,
           name='instl',
           debug=False,
-          strip=None,
+          strip=False,
           upx=False, # does not work even if True
           runtime_tmpdir="runtime_tmpdir",
           console=True,
@@ -97,7 +97,7 @@ coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
-                strip=None,
+               strip=False,
                upx=False,
                name='instl')
 
