@@ -1,6 +1,7 @@
 #!/bin/bash
 
-echo ---* creating virtual env in $(pwd) *---
+echo ---* creating virtual env in: $(pwd) *---
+echo ---* python is: $(which python3.12) *---
 
 python3.12 -m venv venv
 source venv/bin/activate
