@@ -4,5 +4,5 @@ networkx
 packaging
 PyInstaller
 PyYAML --no-binary=PyYAML
-requests
+requests --no-binary=requests
 xmltodict
