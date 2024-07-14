@@ -34,12 +34,13 @@ a = Analysis(['instl'],
                             'packaging.version',
                             'packaging.specifiers',
                             'packaging.requirements',
-                            'xmltodict'],
+                            'xmltodict',
+                            'pkg_resources.extern'],
              hookspath=[],
              runtime_hooks=[],
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose", 'PyInstaller',
-                        "tkinter", "Tkinter", "scipy", "setuptools", "colorama",
+                        "tkinter", "Tkinter", "scipy", "colorama",
                         "botocore", "boto3", "redis", "rich"],
              win_no_prefer_redirects=False,
              win_private_assemblies=False)
@@ -97,8 +98,9 @@ coll = COLLECT(exe,
                upx=False,
                name='instl')
 
-app = BUNDLE(coll,
-         name='instl.bundle',
-         version=version,
-         icon=None,
-         bundle_identifier=None)
+# app = BUNDLE(coll,
+#          name='instl.bundle',
+#          version=version,
+#          icon=None,
+#          bundle_identifier=None)
+#

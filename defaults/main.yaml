@@ -72,6 +72,7 @@ DONT_WRITE_CONFIG_VARS:
     - SVN_REVISION
     - .+_template
     - template_.+
+    - Clean_old_plist_Native_NI
 
 --- !define_Win
 
