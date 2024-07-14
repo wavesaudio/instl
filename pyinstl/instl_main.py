@@ -70,7 +70,10 @@ def get_data_folder():
         or instl.exe (in case running frozen). In both cases this is the parent folder of instl.
     """
     application_path = get_path_to_instl_app()
-    data_folder = Path(application_path).parent
+    if getattr(sys, 'frozen', False):
+        data_folder = Path(application_path).parent.parent.joinpath("Resources")
+    elif __file__:
+        data_folder = Path(application_path).parent
     return data_folder
 
 

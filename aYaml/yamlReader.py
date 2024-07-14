@@ -71,7 +71,6 @@ class YamlReader(object):
 
     def get_read_function_for_doc(self, a_node):
         is_post_tag = False  # post tags should be read only after all documents where read
-        effective_tag = None
         if not a_node.tag:
             effective_tag = "__no_tag__"
             retVal = self.specific_doc_readers.get("__no_tag__", None)
