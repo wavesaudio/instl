@@ -12,8 +12,6 @@ from subprocess import check_output
 from pathlib import Path
 import yaml
 
-block_cipher = None
-
 
 with open("defaults/main.yaml", 'r') as stream:
     try:
@@ -44,8 +42,7 @@ a = Analysis(['instl'],
                         "tkinter", "Tkinter", "scipy", "setuptools", "colorama",
                         "botocore", "boto3", "redis", "rich"],
              win_no_prefer_redirects=False,
-             win_private_assemblies=False,
-             cipher=block_cipher)
+             win_private_assemblies=False)
 
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
@@ -80,8 +77,7 @@ for help_file in os.listdir(instl_help_path):
 
 
 
-pyz = PYZ(a.pure, a.zipped_data,
-             cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 exe = EXE(pyz,
           a.scripts,
@@ -92,7 +88,7 @@ exe = EXE(pyz,
           upx=False, # does not work even if True
           runtime_tmpdir="runtime_tmpdir",
           console=True,
-           target_arch='universal2')
+          target_arch='universal2')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
