@@ -102,8 +102,8 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         self._get_ignored_files_func = None
         self.statistics = defaultdict(int)
         self.last_step = None
-        self.last_src = None
-        self.last_dst = None
+        self.last_src = self.src
+        self.last_dst = self.dst
 
         if self.ignore_all_errors:
             self.ignore_if_not_exist = True  # self.ignore_if_not_exist is passed to shutil calls that do not know about self.ignore_all_errors
