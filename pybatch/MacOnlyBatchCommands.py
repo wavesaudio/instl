@@ -91,7 +91,7 @@ class CreateSymlink(PythonBatchCommandBase):
         all_args.append(self.unnamed__init__param(self.path_to_symlink))
         all_args.append(self.unnamed__init__param(self.path_to_target))
         all_args.append(self.optional_named__init__param("relative", self.relative, True))
-        all_args.append(self.optional_named__init__param("target_relative", self.target_relative, True))
+        all_args.append(self.optional_named__init__param("resolve_target", self.resolve_target, True))
         all_args.append(self.optional_named__init__param("target_is_directory", self.target_is_directory, False))
 
     def progress_msg_self(self) -> str:
