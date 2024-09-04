@@ -75,7 +75,7 @@ class CreateSymlink(PythonBatchCommandBase):
     """ create a symbolic link (MacOS only)
     """
 
-    def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, relative=True, resolve_target=True, **kwargs) -> None:
+    def __init__(self, path_to_symlink: os.PathLike, path_to_target: os.PathLike, relative=True, resolve_target=True, target_is_directory=False, **kwargs) -> None:
         """
             :param path_to_symlink: path to the new symlink, if a file or symlink already exists it will be deleted first
             :param path_to_target: path to the target, can be relative. target need not exists when symlink is created, so creating the symlink and creating the target can be done in any order.
@@ -85,12 +85,14 @@ class CreateSymlink(PythonBatchCommandBase):
         self.path_to_target = path_to_target
         self.relative = relative
         self.resolve_target = resolve_target
+        self.target_is_directory = target_is_directory
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.path_to_symlink))
         all_args.append(self.unnamed__init__param(self.path_to_target))
         all_args.append(self.optional_named__init__param("relative", self.relative, True))
-        all_args.append(self.optional_named__init__param("target_relative", self.resolve_target, True))
+        all_args.append(self.optional_named__init__param("target_relative", self.target_relative, True))
+        all_args.append(self.optional_named__init__param("target_is_directory", self.target_is_directory, False))
 
     def progress_msg_self(self) -> str:
         return f"""Create symlink '{self.path_to_symlink}' to '{self.path_to_target}'"""
@@ -104,7 +106,7 @@ class CreateSymlink(PythonBatchCommandBase):
         path_to_symlink = path_to_symlink.resolve()
 
         path_to_target = self.path_to_target
-        
+
         if self.resolve_target:
             path_to_target = utils.ExpandAndResolvePath(path_to_target)
             if self.relative:
@@ -114,7 +116,7 @@ class CreateSymlink(PythonBatchCommandBase):
                     pass  # if paths cannot be relative, default to creating absolute symlink
         self.doing = f"""create symlink '{path_to_symlink}' to target '{path_to_target}'"""
 
-        path_to_symlink.symlink_to(path_to_target)
+        path_to_symlink.symlink_to(path_to_target, self.target_is_directory)
 
 
 class RmSymlink(PythonBatchCommandBase):
