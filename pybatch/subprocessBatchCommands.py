@@ -1,3 +1,4 @@
+import _thread
 import abc
 import collections
 import logging
@@ -7,7 +8,9 @@ import shlex
 import stat
 import subprocess
 import sys
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from threading import Thread
 from typing import List
@@ -189,10 +192,12 @@ class ShellCommand(RunProcessBase):
         super().__init__(ignore_specific_exit_codes=ignore_specific_exit_codes, **kwargs)
         self.shell_command = shell_command
         self.message = message
+        self.timeout = kwargs.get("timeout", None)
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.shell_command))
         all_args.append(self.optional_named__init__param("message", self.message))
+        all_args.append(self.optional_named__init__param("timeout", self.timeout))
         if self.ignore_specific_exit_codes:
             if len(self.ignore_specific_exit_codes,) == 1:
                 all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes[0]))
@@ -216,7 +221,18 @@ class ShellCommand(RunProcessBase):
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
             utils.write_shell_command(f'''{self.shell_command} \n''', self.output_script)
         else:
-            RunProcessBase.__call__(self, *args, **kwargs)
+            if self.timeout:
+                try:
+                    with timeout_bound(self.timeout, self.message):
+                        RunProcessBase.__call__(self, *args, **kwargs)
+                except TimeoutException as ex:
+                    if self.ignore_all_errors:
+                        log.error(ex.msg)
+                    else:
+                        raise ex
+            else:
+                RunProcessBase.__call__(self, *args, **kwargs)
+
 
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
@@ -647,3 +663,19 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
         process.wait()
         print(f"Curl ended {process.returncode}")
         self.increment_progress()
+
+class TimeoutException(Exception):
+    def __init__(self, msg=''):
+        self.msg = msg
+
+@contextmanager
+def timeout_bound(seconds, msg=''):
+    timer = threading.Timer(seconds, lambda: _thread.interrupt_main())
+    timer.start()
+    try:
+        yield
+    except KeyboardInterrupt:
+        raise TimeoutException(f"Timed out after {seconds} seconds for operation {msg}")
+    finally:
+        # if the action ends in specified time, timer is canceled
+        timer.cancel()
