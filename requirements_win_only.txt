@@ -2,5 +2,4 @@
 pypiwin32
 pywin32
 pywin32-ctypes
---no-binary=psutil
 psutil
