@@ -72,6 +72,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 cookie = {cookie_text}
+parallel-max = {max_parallel_downloads}
 
 
 """
@@ -183,6 +184,7 @@ cookie = {cookie_text}
             "retries": str(config_vars.setdefault("CURL_RETRIES", "2")),
             "retry_delay": str(config_vars.setdefault("CURL_RETRY_DELAY", "8")),
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
+            "max_parallel_downloads": str(config_vars.get("PARALLEL_SYNC", "50")),
             "curl_output_format_str": self.curl_output_format_str
         }
 
