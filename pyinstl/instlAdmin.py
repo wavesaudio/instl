@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 import json
 import logging
 log = logging.getLogger()
@@ -122,27 +122,28 @@ def dict_in_canonical_order(to_order, order=None, single_value=None):
         order = []
     if single_value is None:
         single_value = []
-    retVal = None
-    if isinstance(to_order, str):
-        retVal = to_order
-    elif isinstance(to_order, collections.abc.Sequence):
-        retVal = [dict_in_canonical_order(item) for item in to_order]
-    elif isinstance(to_order, collections.abc.Mapping):
-        retVal = collections.OrderedDict()
-        names_in_order = list()
-        names_from_node = [str(_key) for _key in to_order]
-        for name in order:
-            if name in names_from_node:
-                names_in_order.append(name)
-                names_from_node.remove(name)
-        names_in_order.extend(names_from_node)  # add names in node that do not appear in order
-        for name in names_in_order:
-            value = to_order[name]
-            if name in single_value and isinstance(value, collections.abc.Sequence) and 1 == len(value):
-                value = value[0]
-            retVal[name] = dict_in_canonical_order(value, order, single_value)
-    else: # not sequence or mapping or string - assuming scalar
-        retVal = to_order
+
+    match to_order:
+        case str():
+            retVal = to_order
+        case collections.abc.Sequence():
+            retVal = [dict_in_canonical_order(item) for item in to_order]
+        case collections.abc.Mapping():
+            retVal = collections.OrderedDict()
+            names_in_order = list()
+            names_from_node = [str(_key) for _key in to_order]
+            for name in order:
+                if name in names_from_node:
+                    names_in_order.append(name)
+                    names_from_node.remove(name)
+            names_in_order.extend(names_from_node)  # add names in node that do not appear in order
+            for name in names_in_order:
+                value = to_order[name]
+                if name in single_value and isinstance(value, collections.abc.Sequence) and 1 == len(value):
+                    value = value[0]
+                retVal[name] = dict_in_canonical_order(value, order, single_value)
+        case _: # not sequence or mapping or string - assuming scalar
+            retVal = to_order
     return retVal
 
 
@@ -250,10 +251,11 @@ class InstlAdmin(InstlInstanceBase):
                 shouldBeExec = self.should_be_exec(item)
                 for extra_prop in item.extra_props_list():
                     repo_folder_accum += SVNDelProp("svn:"+extra_prop, item.path)
-                if item.isExecutable() and not shouldBeExec:
-                    repo_folder_accum += SVNDelProp('svn:executable', item.path)
-                elif not item.isExecutable() and shouldBeExec:
-                    repo_folder_accum += SVNSetProp('svn:executable', 'yes', item.path)
+                match item.isExecutable(), shouldBeExec:
+                    case True, False:
+                        repo_folder_accum += SVNDelProp('svn:executable', item.path)
+                    case False, True:
+                        repo_folder_accum += SVNSetProp('svn:executable', 'yes', item.path)
 
         self.write_batch_file(self.batch_accum)
         if bool(config_vars["__RUN_BATCH__"]):
@@ -892,7 +894,7 @@ class InstlAdmin(InstlInstanceBase):
     def translate_guids_in_file(self, in_file, out_file):
         num_translated_guids = 0
         guid_to_iid = dict((guid.lower(), iid) for iid, guid in self.items_table.get_all_iids_with_guids())
-        guid_re = re.compile("""
+        guid_re = re.compile(r"""
                 (?P<guid>[a-fA-F0-9]{8}
                 (-[a-fA-F0-9]{4}){3}
                 -[a-fA-F0-9]{12})
@@ -1132,64 +1134,66 @@ class InstlAdmin(InstlInstanceBase):
                 r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), value)
 
                 log.info(f"popped key: {key}, value: {value}")
-                if value == "stop":
-                    log.info(f"received stop")
-                    break
-                elif value == "ping":
-                    ping_redis_key = f"{key}:ping"
-                    r.incr(ping_redis_key, 1)
-                    log.info(f"ping incremented {ping_redis_key}")
-                elif value == "reload-config-files":
-                    log.info(f"reloading config files {config_vars['__CONFIG_FILE__'].list()}")
-                    self.read_config_files(reset_previous=True)
-                else:
-                    with config_vars.push_scope_context(use_cache=True):
-                        try:
-                            what_to_do, domain, major_version, repo_rev = value.split(":")
-                            instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev", "short-index": "up-short-index" }[what_to_do.lower()]
-                            config_vars["TARGET_DOMAIN"] = domain
-                            config_vars["TARGET_MAJOR_VERSION"] = major_version
-                            config_vars["TARGET_REPO_REV"] = repo_rev
-                            log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
-                            config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
 
-                            domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
-                            domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
-                            up2s3_yaml_dict = {
-                                "__include__": [os.fspath(domain_major_version_config_file),
-                                                os.fspath(main_input_file)],
-                                'TARGET_DOMAIN': domain,
-                                'TARGET_MAJOR_VERSION': major_version,
-                                'TARGET_REPO_REV': repo_rev,
-                                'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
-                            }
-                            define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
-                                                                '!define', "definitions",
-                                                                explicit_start=True, sort_mappings=False)
+                match value:
+                    case "stop":
+                        log.info(f"received stop")
+                        break
+                    case "ping":
+                        ping_redis_key = f"{key}:ping"
+                        r.incr(ping_redis_key, 1)
+                        log.info(f"ping incremented {ping_redis_key}")
+                    case "reload-config-files":
+                        log.info(f"reloading config files {config_vars['__CONFIG_FILE__'].list()}")
+                        self.read_config_files(reset_previous=True)
+                    case _:
+                        with config_vars.push_scope_context(use_cache=True):
+                            try:
+                                what_to_do, domain, major_version, repo_rev = value.split(":")
+                                instl_command_name = {'upload': "up2s3", 'up2s3': "up2s3", 'activate': "activate-repo-rev", "short-index": "up-short-index" }[what_to_do.lower()]
+                                config_vars["TARGET_DOMAIN"] = domain
+                                config_vars["TARGET_MAJOR_VERSION"] = major_version
+                                config_vars["TARGET_REPO_REV"] = repo_rev
+                                log.info(f"{key} triggered domain: {domain} major_version: {major_version} repo-rev {repo_rev}")
+                                config_vars["TARGET_WORK_FOLDER"] = self.get_work_folder()
 
-                            work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
-                            with utils.utf8_open_for_write(work_config_file, "w") as wfd:
-                                aYaml.writeAsYaml(define_dict, wfd)
+                                domain_major_version_config_folder = main_config_folder.joinpath(domain, major_version)
+                                domain_major_version_config_file = domain_major_version_config_folder.joinpath("config.yaml")
+                                up2s3_yaml_dict = {
+                                    "__include__": [os.fspath(domain_major_version_config_file),
+                                                    os.fspath(main_input_file)],
+                                    'TARGET_DOMAIN': domain,
+                                    'TARGET_MAJOR_VERSION': major_version,
+                                    'TARGET_REPO_REV': repo_rev,
+                                    'TARGET_WORK_FOLDER': config_vars["TARGET_WORK_FOLDER"].str(),
+                                }
+                                define_dict = aYaml.YamlDumpDocWrap(up2s3_yaml_dict,
+                                                                    '!define', "definitions",
+                                                                    explicit_start=True, sort_mappings=False)
 
-                            work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
-                            log_files = config_vars.get("OPEN_LOG_FILES", []).list()
-                            log_files.append(work_log_file)
-                            log_files = [os.fspath(log_file) for log_file in log_files]
-                            mp_context = mp.get_context("spawn")
-                            up2s3_process = mp_context.Process (target=instl_own_main,
-                                                        name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
-                                                        args=([str(config_vars["__INSTL_EXE_PATH__"]),
-                                                              instl_command_name,
-                                                               "--config-file", os.fspath(work_config_file),
-                                                               "--log", *log_files,
-                                                               "--db", ":file:",    # let instl will decide where the db file is placed
-                                                               "--run"],))
+                                work_config_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.yaml")
+                                with utils.utf8_open_for_write(work_config_file, "w") as wfd:
+                                    aYaml.writeAsYaml(define_dict, wfd)
 
-                            up2s3_process.start()
-                            up2s3_process.join()
+                                work_log_file = config_vars["TARGET_WORK_FOLDER"].Path().joinpath(f"{instl_command_name}_{domain}_{major_version}_{repo_rev}.log")
+                                log_files = config_vars.get("OPEN_LOG_FILES", []).list()
+                                log_files.append(work_log_file)
+                                log_files = [os.fspath(log_file) for log_file in log_files]
+                                mp_context = mp.get_context("spawn")
+                                up2s3_process = mp_context.Process (target=instl_own_main,
+                                                            name=f"{instl_command_name}_{domain}_{major_version}_{repo_rev}",
+                                                            args=([str(config_vars["__INSTL_EXE_PATH__"]),
+                                                                  instl_command_name,
+                                                                   "--config-file", os.fspath(work_config_file),
+                                                                   "--log", *log_files,
+                                                                   "--db", ":file:",    # let instl will decide where the db file is placed
+                                                                   "--run"],))
 
-                        except Exception as ex:
-                            log.info(f"Exception {ex} while handling {key} {value}")
+                                up2s3_process.start()
+                                up2s3_process.join()
+
+                            except Exception as ex:
+                                log.info(f"Exception {ex} while handling {key} {value}")
 
             r.set(config_vars["IN_PROGRESS_REDIS_KEY"].str(), "waiting...")
             time.sleep(2)
@@ -1385,31 +1389,32 @@ class InstlAdmin(InstlInstanceBase):
         filtered_manifest_nodes = {key: value for key, value in manifest_nodes.items() if key.endswith("_IID")}
 
         for iid, content_list in filtered_manifest_nodes.items():
-            if len(content_list) == 1:
-                num_singles += 1
-                content_list[0].top_level_tag = "Common"
-            elif len(content_list) == 2:
-                num_duplicates += 1
-                the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node, ignore=['top_level_tag']))
-                if the_diff:
-                    num_different += 1
-                    # they are different so merge them
-                    merged = smart_merge_dicts({content_list[0].top_level_tag: content_list[0].manifest_node,
-                                       content_list[1].top_level_tag: content_list[1].manifest_node})
-                    merged = dict_in_canonical_order(merged, order=yaml_keys_order, single_value=yaml_single_value_keys)
+            match len(content_list):
+                case 1:
+                    num_singles += 1
+                    content_list[0].top_level_tag = "Common"
+                case 2:
+                    num_duplicates += 1
+                    the_diff = list(dictdiffer.diff(content_list[0].manifest_node, content_list[1].manifest_node, ignore=['top_level_tag']))
+                    if the_diff:
+                        num_different += 1
+                        # they are different so merge them
+                        merged = smart_merge_dicts({content_list[0].top_level_tag: content_list[0].manifest_node,
+                                           content_list[1].top_level_tag: content_list[1].manifest_node})
+                        merged = dict_in_canonical_order(merged, order=yaml_keys_order, single_value=yaml_single_value_keys)
 
-                    content_list[0].manifest_node = merged
-                    content_list[0].top_level_tag = "Common"
-                    print(f"unified {iid}")
-                else:
-                    # they are the same so take the first one
-                    content_list[0].top_level_tag = "Common"
-                del content_list[1]
-            else:
-                print(f"IID {iid} found in more than 2 files")
-                for item in content_list:
-                    print(f"    {item.origin_path}")
-                filtered_manifest_nodes[iid].clear()
+                        content_list[0].manifest_node = merged
+                        content_list[0].top_level_tag = "Common"
+                        print(f"unified {iid}")
+                    else:
+                        # they are the same so take the first one
+                        content_list[0].top_level_tag = "Common"
+                    del content_list[1]
+                case _:
+                    print(f"IID {iid} found in more than 2 files")
+                    for item in content_list:
+                        print(f"    {item.origin_path}")
+                    filtered_manifest_nodes[iid].clear()
 
         print(f"scanned {num_files}, found {len(filtered_manifest_nodes)} distinct IIDs")
         print(f"{num_singles} singles, {num_duplicates} duplicates, {num_different} dup and different")
@@ -1424,10 +1429,11 @@ class InstlAdmin(InstlInstanceBase):
         if "__OUTPUT_FORMAT__" in config_vars:
             config_vars["COLLECT_MANIFESTS_FORMAT"] = "$(__OUTPUT_FORMAT__)"
         output_format = config_vars.get("COLLECT_MANIFESTS_FORMAT", "yaml").str()
-        if "yaml" == output_format:
-            self.write_collected_manifests_yaml(collect_manifests_results_path, all_manifests)
-        elif "json" == output_format:
-            self.write_collected_manifests_json(collect_manifests_results_path, all_manifests)
+        match output_format:
+            case "yaml":
+                self.write_collected_manifests_yaml(collect_manifests_results_path, all_manifests)
+            case "json":
+                self.write_collected_manifests_json(collect_manifests_results_path, all_manifests)
 
     def write_collected_manifests_yaml(self, out_manifests_file, all_manifests):
         with open(out_manifests_file, "w") as wfd:

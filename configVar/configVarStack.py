@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 
 """
@@ -86,8 +86,8 @@ class ConfigVarStack:
             Again, you should raise KeyError and TypeError where appropriate.
 
             sets the values for a ConfigVar on the top of the stack.
-            If ConfigVar exists it's current values are replaced.
-            Otherwise a new ConfigVar is created with the values.
+            If ConfigVar exists its current values are replaced.
+            Otherwise, a new ConfigVar is created with the values.
             NOTE: if ConfigVar with same name exists on lower level,
             it is NOT changed and a new one is created on the top stack level
         """
@@ -378,14 +378,15 @@ class ConfigVarStack:
                         self[env_key_to_read] = os.environ[env_key_to_read]
 
     def replace_unresolved_with_native_var_pattern(self, str_to_replace: str, which_os: str) -> str:
-        pattern = self.resolve_indicator+"(\g<var_name>)"  # default is configVar style
-        if which_os == 'Win':
-            pattern = "%\g<var_name>%"
-        elif which_os == 'Mac':
-            pattern = "${\g<var_name>}"
+        pattern = self.resolve_indicator+r"(\g<var_name>)"  # default is configVar style
+        match which_os:
+            case 'Win':
+                pattern = r"%\g<var_name>%"
+            case 'Mac':
+                pattern = r"${\g<var_name>}"
 
         # regex to identify $(...) references
-        value_ref_re = re.compile(f"""
+        value_ref_re = re.compile(fr"""
                                     (?P<varref_pattern>
                                         (?P<varref_marker>[{self.resolve_indicator}])       # $
                                         \(                                                  # (
@@ -423,7 +424,7 @@ class ConfigVarStack:
             although
             shallow_resolve_str("$(A), $(B), $(A)") -> "aaa, aaa, aaa" - since $(A) was replaced twice
         """
-        literal_var_re = re.compile("""(?P<var_ref>"""+ re.escape(self.resolve_indicator) +"""\((?P<var_name>[^"""+self.resolve_indicator+"""(]+?)\))""")
+        literal_var_re = re.compile(r"""(?P<var_ref>"""+ re.escape(self.resolve_indicator) +r"""\((?P<var_name>[^"""+self.resolve_indicator+r"""(]+?)\))""")
 
         matches = literal_var_re.findall(val_to_resolve)  # will return [('$(A)', 'A'), ('$(C)', 'C')]
         result = val_to_resolve

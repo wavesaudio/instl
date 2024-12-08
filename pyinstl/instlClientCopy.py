@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 
 import sys
@@ -267,17 +267,18 @@ class InstlClientCopy(InstlClient):
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = None
-        if source[1] == '!dir':  # !dir
-            retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message, use_hard_links)
-        elif source[1] == '!file':  # get a single file
-            retVal = self.create_copy_instructions_for_file(source[0], name_for_progress_message, use_hard_links)
-        elif source[1] == '!dir_cont':  # get all files and folders from a folder
-            retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message, use_hard_links)
-        else:
-            raise ValueError(f"unknown source type {source[1]} for {source[0]}")
+        match source[1]:
+            case '!dir':  # !dir
+                retVal = self.create_copy_instructions_for_dir(source[0], name_for_progress_message, use_hard_links)
+            case '!file':  # get a single file
+                retVal = self.create_copy_instructions_for_file(source[0], name_for_progress_message, use_hard_links)
+            case '!dir_cont':  # get all files and folders from a folder
+                retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message, use_hard_links)
+            case _:
+                raise ValueError(f"unknown source type {source[1]} for {source[0]}")
         return retVal
 
-    # special handling when running on Mac OS
+    # special handling when running on macOS
     def pre_copy_mac_handling(self) -> None:
         num_files_to_set_exec = self.info_map_table.num_items(item_filter="required-exec")
         if num_files_to_set_exec > 0:

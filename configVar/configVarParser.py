@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 import re
 import string
@@ -75,8 +75,8 @@ class VarParseImpContext(object):
                            self.array_index_int)
 
 
-vars_split_level_1_re = re.compile("\s*,\s*", re.X)
-vars_split_level_2_re = re.compile("\s*=\s*", re.X)
+vars_split_level_1_re = re.compile(r"\s*,\s*", re.X)
+vars_split_level_2_re = re.compile(r"\s*=\s*", re.X)
 
 
 def var_parse_imp(f_string, resolve_indicator='$'):
@@ -129,29 +129,31 @@ def var_parse_imp(f_string, resolve_indicator='$'):
         next_state = var_name_state
         yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
-        if c in cont.variable_name_acceptable_characters:
-            cont.variable_name += c
-        elif c == ')':
-            cont.parenthesis_balance -= 1
-            if cont.parenthesis_balance == 0:
-                yield_val = cont.get_return_tuple()
-                cont.reset_return_tuple()
-                next_state = literal_state
-            else:
+
+        match c:
+            case c if c in cont.variable_name_acceptable_characters:
                 cont.variable_name += c
-        elif c == '(':
-            cont.parenthesis_balance += 1
-            cont.variable_name += c
-        elif c == '<':
-            cont.variable_params_str = ""
-            next_state = params_state
-        elif c == '[':
-            cont.array_index_str = ""
-            next_state = array_state
-        elif c in string.whitespace:
-            next_state = var_name_ended_state
-        else:  # unrecognised character so default to literal
-            next_state = discard_variable(c, cont)
+            case ')':
+                cont.parenthesis_balance -= 1
+                if cont.parenthesis_balance == 0:
+                    yield_val = cont.get_return_tuple()
+                    cont.reset_return_tuple()
+                    next_state = literal_state
+                else:
+                    cont.variable_name += c
+            case '(':
+                cont.parenthesis_balance += 1
+                cont.variable_name += c
+            case '<':
+                cont.variable_params_str = ""
+                next_state = params_state
+            case '[':
+                cont.array_index_str = ""
+                next_state = array_state
+            case string.whitespace:
+                next_state = var_name_ended_state
+            case _:  # unrecognised character so default to literal
+                next_state = discard_variable(c, cont)
         return next_state, yield_val
 
     def var_ref_started_state(c, cont: VarParseImpContext):  # '$' was found
@@ -168,18 +170,19 @@ def var_parse_imp(f_string, resolve_indicator='$'):
         next_state = var_name_ended_state
         yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
-        if c == ')':
-            cont.parenthesis_balance -= 1
-            yield_val = cont.get_return_tuple()
-            cont.reset_return_tuple()
-            next_state = literal_state
-        elif c == '<':
-            cont.variable_params_str = ""
-            next_state = params_state
-        elif c in string.whitespace:
-            pass
-        else: # unrecognised character so default to literal
-            next_state = discard_variable(c, cont)
+        match c:
+            case ')':
+                cont.parenthesis_balance -= 1
+                yield_val = cont.get_return_tuple()
+                cont.reset_return_tuple()
+                next_state = literal_state
+            case '<':
+                cont.variable_params_str = ""
+                next_state = params_state
+            case c if c in string.whitespace:
+                pass
+            case _: # unrecognised character so default to literal
+                next_state = discard_variable(c, cont)
         return next_state, yield_val
 
     def params_state(c, cont: VarParseImpContext):
@@ -205,35 +208,37 @@ def var_parse_imp(f_string, resolve_indicator='$'):
         next_state = params_ended_state
         yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
-        if c == ')':
-            cont.parenthesis_balance -= 1
-            parse_var_params(cont)
-            yield_val = cont.get_return_tuple()
-            cont.reset_return_tuple()
-            next_state = literal_state
-        elif c in string.whitespace:
-            pass
-        else:  # unrecognised character so default to literal
-            next_state = discard_variable(c, cont)
+        match c:
+            case ')':
+                cont.parenthesis_balance -= 1
+                parse_var_params(cont)
+                yield_val = cont.get_return_tuple()
+                cont.reset_return_tuple()
+                next_state = literal_state
+            case c if c in string.whitespace:
+                pass
+            case _:  # unrecognised character so default to literal
+                next_state = discard_variable(c, cont)
         return next_state, yield_val
 
     def array_ended_state(c, cont: VarParseImpContext):
         next_state = array_ended_state
         yield_val: Optional[ParseRetVal] = None
         cont.variable_str += c
-        if c == ')':
-            cont.parenthesis_balance -= 1
-            try:
-                cont.array_index_int = int(cont.array_index_str)
-                yield_val = cont.get_return_tuple()
-                cont.reset_return_tuple()
-                next_state = literal_state
-            except ValueError:
+        match c:
+            case ')':
+                cont.parenthesis_balance -= 1
+                try:
+                    cont.array_index_int = int(cont.array_index_str)
+                    yield_val = cont.get_return_tuple()
+                    cont.reset_return_tuple()
+                    next_state = literal_state
+                except ValueError:
+                    next_state = discard_variable(c, cont)
+            case c if c in string.whitespace:
+                pass
+            case _:  # unrecognised character so default to literal
                 next_state = discard_variable(c, cont)
-        elif c in string.whitespace:
-            pass
-        else:  # unrecognised character so default to literal
-            next_state = discard_variable(c, cont)
         return next_state, yield_val
 
     cont: VarParseImpContext = VarParseImpContext()

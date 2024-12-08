@@ -391,14 +391,15 @@ class RunInThread(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         thread_thingy = None
-        if self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is False:
-            thread_thingy = None  # wtf?
-        elif self.what_to_run.call__call__ is False and self.what_to_run.is_context_manager is True:
-            thread_thingy = None # wtf?
-        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is False:
-            thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
-        elif self.what_to_run.call__call__ is True and self.what_to_run.is_context_manager is True:
-            thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
+        match self.what_to_run.call__call__, self.what_to_run.is_context_manager:
+            case False, False:
+                thread_thingy = None  # wtf?
+            case False, True:
+                thread_thingy = None # wtf?
+            case True, False:
+                thread_thingy = Thread(target=self.run_without, name=self.thread_name, daemon=self.daemon)
+            case True, True:
+                thread_thingy = Thread(target=self.run_with, name=self.thread_name, daemon=self.daemon)
 
         if thread_thingy:
             thread_thingy.start()
@@ -456,7 +457,7 @@ class ExternalPythonExec(Subprocess):
     def get_run_args(self, run_args) -> None:
         """ Injecting the relevant OS python process into the run args instead of the empty string"""
         super().get_run_args(run_args)
-        python_executables = {'win32': ['py',  '-3.9'], 'darwin': ['python3.9']}
+        python_executables = {'win32': ['py',  '-3.12'], 'darwin': ['python3.12']}
         run_args.pop(0)  # Removing empty string
         for arg in reversed(python_executables[sys.platform]):
             run_args.insert(0, arg)
@@ -602,7 +603,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
                                    bufsize=1)
-        reg = re.compile("""^\s*
+        reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+
            (?P<Dled>[\d.a-z]+)\s+
