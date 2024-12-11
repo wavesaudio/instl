@@ -70,7 +70,10 @@ def get_data_folder():
         or instl.exe (in case running frozen). In both cases this is the parent folder of instl.
     """
     application_path = get_path_to_instl_app()
-    data_folder = Path(application_path).parent
+    if getattr(sys, 'frozen', False):
+        data_folder = Path(application_path).parent.parent.joinpath("Resources")
+    elif __file__:
+        data_folder = Path(application_path).parent
     return data_folder
 
 
@@ -163,27 +166,30 @@ def instl_own_main(argv):
         if options.__MAIN_COMMAND__ == "command-list":
             from pyinstl.instlCommandList import run_commands_from_file
             run_commands_from_file(initial_vars, options)
-        elif options.mode == "client": #shai, maybe add a log here?  before all imports
-            log.debug("begin, importing instl object") #added by oren
-            from pyinstl.instlClient import InstlClientFactory
-            instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
-            instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()  # after all preparations are done - execute the command itself
-        elif options.mode == "doit":
-            from pyinstl.instlDoIt import InstlDoIt
-            instance = InstlDoIt(initial_vars)
-            instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()
-        elif options.mode == "do_something":
-            from pyinstl.instlMisc import InstlMisc
-            instance = InstlMisc(initial_vars, options.__MAIN_COMMAND__)
-            instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
-            instance.init_from_cmd_line_options(options)
-            instance.do_command()
-        elif not getattr(sys, 'frozen', False):  # these modes are not available in compiled instl to avoid issues such as import errors for users
-            if options.mode == "admin":
+            return
+
+        is_compiled = getattr(sys, 'frozen', False)
+        match options.mode, is_compiled:
+            case "client", _:
+                log.debug("begin, importing instl object") #added by oren
+                from pyinstl.instlClient import InstlClientFactory
+                instance = InstlClientFactory(initial_vars, options.__MAIN_COMMAND__)
+                instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
+                instance.init_from_cmd_line_options(options)
+                instance.do_command()  # after all preparations are done - execute the command itself
+            case "doit", _:
+                from pyinstl.instlDoIt import InstlDoIt
+                instance = InstlDoIt(initial_vars)
+                instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
+                instance.init_from_cmd_line_options(options)
+                instance.do_command()
+            case "do_something", _:
+                from pyinstl.instlMisc import InstlMisc
+                instance = InstlMisc(initial_vars, options.__MAIN_COMMAND__)
+                instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
+                instance.init_from_cmd_line_options(options)
+                instance.do_command()
+            case "admin", False:
                 if os_family_name not in ("Linux", "Mac"):
                     raise EnvironmentError("instl admin commands can only run under Mac or Linux")
                 from pyinstl.instlAdmin import InstlAdmin
@@ -191,7 +197,7 @@ def instl_own_main(argv):
                 instance.progress("welcome to instl", instance.get_version_str(short=True), options.__MAIN_COMMAND__)
                 instance.init_from_cmd_line_options(options)
                 instance.do_command()
-            elif options.mode == "interactive":
+            case "interactive", False:
                 from pyinstl.instlClient import InstlClient
                 client = InstlClient(initial_vars)
                 client.init_from_cmd_line_options(options)
@@ -200,7 +206,7 @@ def instl_own_main(argv):
                 admin = InstlAdmin(initial_vars)
                 admin.init_from_cmd_line_options(options)
                 go_interactive(client, admin)
-            elif options.mode == "gui":
+            case "gui", False:
                 from pyinstl.instlGui import InstlGui
                 instance = InstlGui(initial_vars)
                 instance.init_from_cmd_line_options(options)

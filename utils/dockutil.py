@@ -345,7 +345,7 @@ def dock_util(args):
             if tile_type is None:  # if type was not specified, we try to figure that out using the filesystem
                 if os.path.isdir(real_add_path) and section != 'persistent-apps': # app bundles are directories too
                     tile_type = 'directory-tile'
-                elif re.match('\w*://', real_add_path): # regex to determine a url in the form xyz://abcdef.adsf.com/adsf
+                elif re.match(r'\w*://', real_add_path): # regex to determine a url in the form xyz://abcdef.adsf.com/adsf
                     tile_type = 'url-tile'
                     section = 'persistent-others'
                 else:

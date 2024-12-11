@@ -17,8 +17,8 @@ from configVar import config_vars
 import utils
 
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
+first_cap_re = re.compile(r'(.)([A-Z][a-z]+)')
+all_cap_re = re.compile(r'([a-z0-9])([A-Z])')
 
 
 def camel_to_snake_case(identifier):
@@ -140,31 +140,32 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
             else:
                 running_progress_count += batch_items.own_progress_count
                 batch_items.prog_num = running_progress_count
-                if batch_items.call__call__ is False and batch_items.is_context_manager is False:
-                    text_to_write = f"""{indent_str}{repr(batch_items)}\n"""
-                    io_str.write(text_to_write)
-                    _repr_helper(batch_items.child_batch_commands, io_str, indent)
-                elif batch_items.call__call__ is False and batch_items.is_context_manager is True:
-                    text_to_write = f"""{indent_str}with {repr(batch_items)}:\n"""
-                    io_str.write(text_to_write)
-                    if batch_items.child_batch_commands:
-                        _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
-                    else:
-                        text_to_write = f"""{indent_str}{single_indent}pass\n"""
+                match batch_items.call__call__, batch_items.is_context_manager:
+                    case False, False:
+                        text_to_write = f"""{indent_str}{repr(batch_items)}\n"""
                         io_str.write(text_to_write)
-                elif batch_items.call__call__ is True and batch_items.is_context_manager is False:
-                    text_to_write = f"""{indent_str}{repr(batch_items)}()\n"""
-                    io_str.write(text_to_write)
-                    _repr_helper(batch_items.child_batch_commands, io_str, indent)
-                elif batch_items.call__call__ is True and batch_items.is_context_manager is True:
-                    obj_name = _create_unique_obj_name(batch_items, running_progress_count)
-                    text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n"""
-                    io_str.write(text_to_write)
+                        _repr_helper(batch_items.child_batch_commands, io_str, indent)
+                    case False, True:
+                        text_to_write = f"""{indent_str}with {repr(batch_items)}:\n"""
+                        io_str.write(text_to_write)
+                        if batch_items.child_batch_commands:
+                            _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                        else:
+                            text_to_write = f"""{indent_str}{single_indent}pass\n"""
+                            io_str.write(text_to_write)
+                    case True, False:
+                        text_to_write = f"""{indent_str}{repr(batch_items)}()\n"""
+                        io_str.write(text_to_write)
+                        _repr_helper(batch_items.child_batch_commands, io_str, indent)
+                    case True, True:
+                        obj_name = _create_unique_obj_name(batch_items, running_progress_count)
+                        text_to_write = f"""{indent_str}with {repr(batch_items)} as {obj_name}:\n"""
+                        io_str.write(text_to_write)
 
-                    text_to_write = f"""{indent_str}{single_indent}{obj_name}("""
-                    text_to_write += ")\n"
-                    io_str.write(text_to_write)
-                    _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
+                        text_to_write = f"""{indent_str}{single_indent}{obj_name}("""
+                        text_to_write += ")\n"
+                        io_str.write(text_to_write)
+                        _repr_helper(batch_items.child_batch_commands, io_str, indent+1)
 
         self.set_current_section('epilog')
         self += PatchPyBatchWithTimings(config_vars['__MAIN_OUT_FILE__'])
