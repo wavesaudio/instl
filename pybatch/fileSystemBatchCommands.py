@@ -561,13 +561,12 @@ class Chmod(RunProcessBase):
         actual_names = list() # suited for users names
         actual_codes = list()
         for w in symbolic_who:
-            match w:
-                case "u":
-                    actual_names.append(getpass.getuser()) #there are different handling between users an universal code
-                case "g":
-                    actual_codes.append("S-1-5-32-549") #universal code for Users
-                case "o":
-                    actual_codes.append("S-1-1-0") #universal code for Everyone
+            if w == "u":
+                actual_names.append(getpass.getuser()) #there are different handling between users an universal code
+            elif w == "g":
+                actual_codes.append("S-1-5-32-549") #universal code for Users
+            elif w == "o":
+                actual_codes.append("S-1-1-0") #universal code for Everyone
         actual_who = {"names": actual_names, "codes": actual_codes}
 
         actual_perms = match.group('perm')
@@ -943,14 +942,13 @@ class FixAllPermissions(PythonBatchCommandBase):
         with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False,
                      recursive=self.recursive) as chflager:
             chflager()
-        match sys.platform:
-            case 'darwin' | 'linux':
-                the_mode = config_vars.get("FIX_ALL_PERMISSIONS_SYMBOLIC_MODE", "u+rwx,go+rx").str()
-                with Chmod(path=self.path, mode=the_mode, report_own_progress=False, recursive=self.recursive) as chmoder:
-                    chmoder()
-            case 'win32':
-                with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
-                    acler()
+        if sys.platform in ('darwin', 'linux'):
+            the_mode = config_vars.get("FIX_ALL_PERMISSIONS_SYMBOLIC_MODE", "u+rwx,go+rx").str()
+            with Chmod(path=self.path, mode=the_mode, report_own_progress=False, recursive=self.recursive) as chmoder:
+                chmoder()
+        elif sys.platform == 'win32':
+            with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
+                acler()
 
 
 class Glober(PythonBatchCommandBase):

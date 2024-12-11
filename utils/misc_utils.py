@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 import sys
@@ -347,7 +347,7 @@ def need_to_download_file(file_path, file_checksum):
     return retVal
 
 
-guid_re = re.compile(r"""
+guid_re = re.compile("""
                 [a-f0-9]{8}
                 (-[a-f0-9]{4}){3}
                 -[a-f0-9]{12}
@@ -383,11 +383,11 @@ def P4GetPathFromDepotPath(depot_path):
     command_parts = ["p4", "where", depot_path]
     p4_process = subprocess.Popen(command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
     _stdout, _stderr = p4_process.communicate()
-    _stdout, _stderr = utils.unicodify(_stdout), utils.unicodify(_stderr)
+    _stdout, _stderr = unicodify(_stdout), unicodify(_stderr)
     return_code = p4_process.returncode
     if return_code == 0:
         lines = _stdout.split("\n")
-        where_line_reg_str = "".join((re.escape(depot_path), r"\s+", r"//.+", r"\s+", r"(?P<disk_path>/.+)"))
+        where_line_reg_str = "".join((re.escape(depot_path), "\s+", "//.+", "\s+", "(?P<disk_path>/.+)"))
         match = re.match(where_line_reg_str, lines[0])
         if match:
             retVal = match['disk_path']
@@ -573,7 +573,7 @@ class Timer_CM(object):
         return Decimal(default_timer())
 
 
-wtar_file_re = re.compile(r"""
+wtar_file_re = re.compile("""
     (?P<base_name>.+?)
     (?P<wtar_extension>\.wtar)
     (?P<split_numerator>\.[a-z]{2})?$""",
@@ -631,14 +631,14 @@ def get_recursive_checksums(some_path, ignore=None):
 
         total_checksum is calculated by concatenating two lists:
          - list of all the individual file checksums
-         - list of all individual paths
+         - list of all individual paths paths
         The combined list is sorted and all members are concatenated into one string.
         The sha1 checksum of that string is the total_checksum
         Sorting is done to ensure same total_checksum is returned regardless the order
         in which os.scandir returned the files, but that a different checksum will be
-        returned if a file changed its name without changing contents.
+        returned if a file changed it's name without changing contents.
         Note:
-            - If you have a file called total_checksum you're f**d.
+            - If you have a file called total_checksum your'e f**d.
             - Symlinks are not followed and are checksum as regular files (by calling readlink).
     """
     if ignore is None:
@@ -822,13 +822,12 @@ def iter_grouper(n, iterable):
 
 @lru_cache(maxsize=None)
 def get_os_description():
-    match sys.platform:
-        case 'darwin':
-            retVal = f"macOS {platform.mac_ver()[0]}"
-        case 'linux':
-            retVal = f"Linux {platform.uname().version}"
-        case 'win32':
-            retVal = f"Windows {platform.version()}"
+    if sys.platform == 'darwin':
+        retVal = f"macOS {platform.mac_ver()[0]}"
+    elif sys.platform == 'linux':
+        retVal = f"Linux {platform.uname().version}"
+    elif sys.platform == 'win32':
+        retVal = f"Windows {platform.version()}"
     return retVal
 
 

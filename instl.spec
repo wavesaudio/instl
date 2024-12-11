@@ -12,6 +12,8 @@ from subprocess import check_output
 from pathlib import Path
 import yaml
 
+block_cipher = None
+
 
 with open("defaults/main.yaml", 'r') as stream:
     try:
@@ -39,10 +41,11 @@ a = Analysis(['instl'],
              runtime_hooks=[],
              excludes=['PyQt4', 'matplotlib', "PIL", "numpy", "wx", "tornado", "networkx",
                          "pygraphviz", "unittest", "nose", 'PyInstaller',
-                        "tkinter", "Tkinter", "scipy", "colorama",
+                        "tkinter", "Tkinter", "scipy", "setuptools", "colorama",
                         "botocore", "boto3", "redis", "rich"],
              win_no_prefer_redirects=False,
-             win_private_assemblies=False)
+             win_private_assemblies=False,
+             cipher=block_cipher)
 
 instl_defaults_path = os.path.join("defaults")
 for defaults_file in os.listdir(instl_defaults_path):
@@ -77,29 +80,29 @@ for help_file in os.listdir(instl_help_path):
 
 
 
-pyz = PYZ(a.pure, a.zipped_data)
+pyz = PYZ(a.pure, a.zipped_data,
+             cipher=block_cipher)
 
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
           name='instl',
           debug=False,
-          strip=False,
+          strip=None,
           upx=False, # does not work even if True
           runtime_tmpdir="runtime_tmpdir",
           console=True,
-          target_arch='universal2')
+           target_arch='universal2')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
-               strip=False,
+                strip=None,
                upx=False,
                name='instl')
 
-# app = BUNDLE(coll,
-#          name='instl.bundle',
-#          version=version,
-#          icon=None,
-#          bundle_identifier=None)
-#
+app = BUNDLE(coll,
+         name='instl.bundle',
+         version=version,
+         icon=None,
+         bundle_identifier=None)

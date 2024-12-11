@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 import sys
@@ -17,13 +17,12 @@ from .instlException import InstlException
 
 
 current_os = platform.system()
-match current_os:
-    case 'Darwin':
-        current_os = 'Mac'
-    case 'Windows':
-        current_os = 'Win'
-    case 'Linux':
-        current_os = 'Linux'
+if current_os == 'Darwin':
+    current_os = 'Mac'
+elif current_os == 'Windows':
+    current_os = 'Win'
+elif current_os == 'Linux':
+    current_os = 'Linux'
 
 try:
     import cmd
@@ -587,23 +586,22 @@ def do_list_imp(self, what=None, stream=sys.stdout):
     whole_sections_to_write = list()
     individual_items_to_write = list()
     for item_to_do in list_to_do:
-        match item_to_do:
-            case item_to_do if utils.guid_re.match(item_to_do):
-                translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
-                whole_sections_to_write.append({item_to_do: translated_iids})
-            case "define":
-                whole_sections_to_write.append(aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True))
-            case "index":
-                whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
-            case "guid":
-                guid_dict = dict()
-                all_guids = self.items_table.get_detail_values_by_name_for_all_iids("guid")
-                for a_guid in all_guids:
-                    translated_iids, orphaned_guids = self.items_table.iids_from_guids([a_guid])
-                    guid_dict[a_guid] = translated_iids
-                whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
-            case _:
-                individual_items_to_write.append(item_to_do)
+        if utils.guid_re.match(item_to_do):
+            translated_iids, orphaned_guids = self.items_table.iids_from_guids([item_to_do])
+            whole_sections_to_write.append({item_to_do: translated_iids})
+        elif item_to_do == "define":
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(config_vars, '!define', "Definitions", explicit_start=True, sort_mappings=True))
+        elif item_to_do == "index":
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(self.items_table.repr_for_yaml(), '!index', "Installation index", explicit_start=True, sort_mappings=True))
+        elif item_to_do == "guid":
+            guid_dict = dict()
+            all_guids = self.items_table.get_detail_values_by_name_for_all_iids("guid")
+            for a_guid in all_guids:
+                translated_iids, orphaned_guids = self.items_table.iids_from_guids([a_guid])
+                guid_dict[a_guid] = translated_iids
+            whole_sections_to_write.append(aYaml.YamlDumpDocWrap(guid_dict, '!guid', "guid to IID", explicit_start=True, sort_mappings=True))
+        else:
+            individual_items_to_write.append(item_to_do)
 
     aYaml.writeAsYaml(whole_sections_to_write + self.repr_for_yaml(individual_items_to_write, resolve=True), stream)
 

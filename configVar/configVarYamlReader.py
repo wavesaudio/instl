@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 """ ConfigVarYamlReader
 """
@@ -13,7 +13,7 @@ log = logging.getLogger()
 import aYaml
 from utils import SearchPaths
 
-internal_identifier_re = re.compile(r"""
+internal_identifier_re = re.compile("""
                                     __                  # dunder here
                                     (?P<internal_identifier>\w*)
                                     __                  # dunder there
@@ -26,22 +26,21 @@ conditional_re = re.compile(r"""__if(?P<if_type>.*)__\s*\((?P<condition>.+)\)"""
 def eval_conditional(conditional_text, config_vars):
     """ read __if...(conditional) and return True is the conditional is True, False otherwise"""
     retVal = False
-    re_match = conditional_re.match(conditional_text)
-    if re_match:
-        condition = re_match['condition']
-        if_type = re_match['if_type']
-        match if_type:
-            case "def":  # __ifdef__: if configVar is defined
-                if condition in config_vars:
-                    retVal = True
-            case "ndef":  # __ifndef__: if configVar is not defined
-                if condition not in config_vars:
-                    retVal = True
-            case "":  # "__if__: eval the condition
-                resolved_condition = config_vars.resolve_str(condition)
-                condition_result = eval(resolved_condition, globals(), locals())
-                if condition_result:
-                    retVal = True
+    match = conditional_re.match(conditional_text)
+    if match:
+        condition = match['condition']
+        if_type = match['if_type']
+        if if_type == "def":  # __ifdef__: if configVar is defined
+            if condition in config_vars:
+                retVal = True
+        elif if_type == "ndef":  # __ifndef__: if configVar is not defined
+            if condition not in config_vars:
+                retVal = True
+        elif if_type == "":  # "__if__: eval the condition
+            resolved_condition = config_vars.resolve_str(condition)
+            condition_result = eval(resolved_condition, globals(), locals())
+            if condition_result:
+                retVal = True
     else:
         log.warning(f"unknown conditional {conditional_text}")
     return retVal
@@ -79,24 +78,23 @@ class ConfigVarYamlReader(aYaml.YamlReader):
         if a_node.isMapping():
             for identifier, contents in a_node.items():
                 with kwargs['node-stack'](contents):
-                    match identifier:
-                        case identifier if identifier.startswith("__if"):  # __if__, __ifdef__, __ifndef__
-                            self.read_conditional_node(identifier, contents, *args, **kwargs)
-                        case '__include__':
-                            self.read_include_node(contents, *args, **kwargs)
-                        case "__include_if_exist__":
-                            kwargs.update({'ignore_if_not_exist': True})
-                            self.read_include_node(contents, *args, **kwargs)
-                        case "__environment__":
-                            contents_list = [c.value for c in contents]
-                            self.config_vars.read_environment(contents_list)
-                        case identifier if self._allow_reading_of_internal_vars or not internal_identifier_re.match(
-                                identifier):  # do not read internal state identifiers
-                            values = self.read_values_for_config_var(contents, identifier, **kwargs)
-                            the_config_var = self.config_vars.setdefault(key=identifier, default=None, callback_when_value_is_set=None)
-                            if contents.tag != "!+=":
-                                the_config_var.clear()
-                            the_config_var.extend(values)
+                    if identifier.startswith("__if"):  # __if__, __ifdef__, __ifndef__
+                        self.read_conditional_node(identifier, contents, *args, **kwargs)
+                    elif identifier == '__include__':
+                        self.read_include_node(contents, *args, **kwargs)
+                    elif identifier == "__include_if_exist__":
+                        kwargs.update({'ignore_if_not_exist': True})
+                        self.read_include_node(contents, *args, **kwargs)
+                    elif identifier == "__environment__":
+                        contents_list = [c.value for c in contents]
+                        self.config_vars.read_environment(contents_list)
+                    elif self._allow_reading_of_internal_vars or not internal_identifier_re.match(
+                            identifier):  # do not read internal state identifiers
+                        values = self.read_values_for_config_var(contents, identifier, **kwargs)
+                        the_config_var = self.config_vars.setdefault(key=identifier, default=None, callback_when_value_is_set=None)
+                        if contents.tag != "!+=":
+                            the_config_var.clear()
+                        the_config_var.extend(values)
 
     def read_defines_if_not_exist(self, a_node, *args, **kwargs):
         # if document is empty we get a scalar node

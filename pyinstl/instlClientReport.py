@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 import os
@@ -28,18 +28,19 @@ class InstlClientReport(InstlClient):
 
     def command_output(self):
         if not bool(config_vars.get('__SILENT__', False)):
+
             output_format = str(config_vars.get("OUTPUT_FORMAT", 'text'))
-            match output_format:
-                case "json":
-                    output_text = json.dumps(self.output_data, indent=1, default=utils.extra_json_serializer)
-                case "yaml":
-                    io_str = io.StringIO()
-                    for yaml_data in self.output_data:
-                         aYaml.writeAsYaml(yaml_data, io_str)
-                    output_text = io_str.getvalue()
-                case _:  # output_format == "text":  text is the default format
-                    lines = [", ".join(line_data) for line_data in self.output_data]
-                    output_text = "\n".join(lines)
+
+            if output_format == "json":
+                output_text = json.dumps(self.output_data, indent=1, default=utils.extra_json_serializer)
+            elif output_format == "yaml":
+                io_str = io.StringIO()
+                for yaml_data in self.output_data:
+                     aYaml.writeAsYaml(yaml_data, io_str)
+                output_text = io_str.getvalue()
+            else:  # output_format == "text":  text is the default format
+                lines = [", ".join(line_data) for line_data in self.output_data]
+                output_text = "\n".join(lines)
 
             out_file = config_vars.get("__MAIN_OUT_FILE__", None).Path()
             with utils.write_to_file_or_stdout(out_file) as wfd:

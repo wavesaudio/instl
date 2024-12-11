@@ -105,7 +105,7 @@ class SVNLastRepoRev(SVNClient, kwargs_defaults={"depth": "empty", "capture_stdo
         :reply_config_var: the name of the configVar where the last repository revision is placed
         Admin pybatch class, used in deployment, not during installation
     """
-    revision_line_re = re.compile(r"^Revision:\s+(?P<revision>\d+)$")
+    revision_line_re = re.compile("^Revision:\s+(?P<revision>\d+)$")
 
     def __init__(self, **kwargs):
         super().__init__("info", **kwargs)
