@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 
 import os
@@ -194,21 +194,22 @@ class HelpHelper(object):
             print(a_line)
 
     def print_help(self, subject):
-        if not subject:
-            for topic_name in sorted(self.topic_items.keys()):
-                if topic_name != "topic":
-                    print(f"instl help <{topic_name}>: {self.help_items[topic_name].short_text()}")
-            if "topic" in self.topic_items:
-                print(f"""instl help <topic>: {self.help_items["topic"].short_text()}""")
-        elif subject in self.topic_items.keys():
-            print(self.topic_summery(subject))
-        elif subject == "pybatch-verbose":
-            # special subject to print all the long docs of pybatch classes
-            print("\n---\n".join(self.pybatch_verbose()))
-        elif subject == "defaults":
-            self.defaults_help()
-        else:
-            print(self.item_help(subject))
+        match subject:
+            case subject if not subject:
+                for topic_name in sorted(self.topic_items.keys()):
+                    if topic_name != "topic":
+                        print(f"instl help <{topic_name}>: {self.help_items[topic_name].short_text()}")
+                if "topic" in self.topic_items:
+                    print(f"""instl help <topic>: {self.help_items["topic"].short_text()}""")
+            case subject if subject in self.topic_items.keys():
+                print(self.topic_summery(subject))
+            case "pybatch-verbose":
+                # special subject to print all the long docs of pybatch classes
+                print("\n---\n".join(self.pybatch_verbose()))
+            case "defaults":
+                self.defaults_help()
+            case _:
+                print(self.item_help(subject))
 
     def pybatch_verbose(self):
         retVal = list()

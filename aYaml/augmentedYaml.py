@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 
 """
@@ -31,10 +31,22 @@ import os
 import yaml
 from collections import OrderedDict
 from typing import Any, List
+from enum import Enum
+
+class YAML_TYPE(Enum):
+    UNKNOWN = 0
+    SCALAR = 1
+    SEQUENCE = 2
+    MAPPING = 3
 
 yaml.Node.isNone = lambda self: self.tag.endswith(":null")
 
 # patch yaml.Node derivatives to identify themselves.
+
+yaml.ScalarNode.GetYamlType = lambda self: YAML_TYPE.SCALAR
+yaml.SequenceNode.GetYamlType = lambda self: YAML_TYPE.SEQUENCE
+yaml.MappingNode.GetYamlType = lambda self: YAML_TYPE.MAPPING
+
 yaml.ScalarNode.isScalar = lambda self: True
 yaml.SequenceNode.isScalar = lambda self: False
 yaml.MappingNode.isScalar = lambda self: False
@@ -46,10 +58,6 @@ yaml.MappingNode.isSequence = lambda self: False
 yaml.ScalarNode.isMapping = lambda self: False
 yaml.SequenceNode.isMapping = lambda self: False
 yaml.MappingNode.isMapping = lambda self: True
-
-yaml.ScalarNode.yamlType = lambda self: "scalar"
-yaml.SequenceNode.yamlType = lambda self: "sequence"
-yaml.MappingNode.yamlType = lambda self: "mapping"
 
 # patch yaml.Node derivatives to return their length
 yaml.ScalarNode.__len__ = lambda self: 1
@@ -157,6 +165,9 @@ class YamlDumpWrap(object):
 
     def __lt__(self, other):
         return self.value < other.value
+
+    def GetYamlType(self):
+        return GetYamlType(self.value)
 
     def isMapping(self):
         return isMapping(self.value)
@@ -277,6 +288,21 @@ class Indentor(object):
             out_stream.write(" " * num_chars_to_fill)
             self.num_extra_chars = 0
 
+def GetYamlType(obj) -> YAML_TYPE:
+    retVal: YAML_TYPE
+    match obj:
+        case str() | int() | float() | complex() | bool() | bytes() | None:
+            retVal = YAML_TYPE.SCALAR
+        case list() | tuple():
+            retVal = YAML_TYPE.SEQUENCE
+        case dict() | OrderedDict():
+            retVal = YAML_TYPE.MAPPING
+        case YamlDumpWrap():
+            retVal = obj.GetYamlType()
+        case _:
+            retVal = YAML_TYPE.UNKNOWN
+
+    return retVal
 
 def isMapping(item):
     retVal = False
@@ -423,14 +449,15 @@ def nodeToPy(a_node, order=None, single_value=None, preserve_tags=False):
 
 def nodeToYamlDumpWrap(a_node):
     retVal = None
-    if a_node.isScalar():
-        retVal = YamlDumpWrap(str(a_node.value))
-    elif a_node.isSequence():
-        seq = [nodeToYamlDumpWrap(item) for item in a_node.value]
-        retVal = YamlDumpWrap(seq)
-    elif a_node.isMapping():
-        amap = {str(_key.value): nodeToYamlDumpWrap(_val) for (_key, _val) in a_node.value}
-        retVal = YamlDumpWrap(amap)
+    match a_node.GetYamlType():
+        case YAML_TYPE.SCALAR:
+            retVal = YamlDumpWrap(str(a_node.value))
+        case YAML_TYPE.SEQUENCE:
+            seq = [nodeToYamlDumpWrap(item) for item in a_node.value]
+            retVal = YamlDumpWrap(seq)
+        case YAML_TYPE.MAPPING:
+            amap = {str(_key.value): nodeToYamlDumpWrap(_val) for (_key, _val) in a_node.value}
+            retVal = YamlDumpWrap(amap)
     return retVal
 
 
