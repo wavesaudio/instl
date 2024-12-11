@@ -2,4 +2,4 @@
 pypiwin32
 pywin32
 pywin32-ctypes
-psutil
+psutil==5.8.0

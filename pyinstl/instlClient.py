@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 import os
 import sys
@@ -480,70 +480,69 @@ class InstlClient(InstlInstanceBase):
             else:
                 resolved_install_folder = install_folder
 
-            match source_tag:
-                case '!dir' | '!dir_cont':
-                    if direct_sync:
-                        # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
-                        # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
-                        need_to_sync = True
-                        if not self.update_mode:
-                            info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
-                            if info_xml_item:
-                                info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
-                                need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
-                        if need_to_sync:
-                            config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
-                            item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
-                            self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
-                            if source_tag == '!dir':
-                                source_parent = "/".join(resolved_source_parts[:-1])
-                                for item in item_paths:
-                                    item_to_update = {"_id": item['_id'],
-                                                    "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1])))}
-                                    items_to_update.append(item_to_update)
-                            else:  # !dir_cont
-                                source_parent = source
-                                for item in item_paths:
-                                    item_to_update = {"_id": item['_id'],
-                                                    "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
-                                                    "download_root": resolved_install_folder}
-                                    items_to_update.append(item_to_update)
-                        else:
-                            num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
-                            if num_ignored_files < 1:
-                                num_ignored_files = ""  # sqlite curs.rowcount does not always returns the number of effected rows
-                            self.progress(f"avoid download {num_ignored_files} files of {iid}, Info.xml has not changed")
-
-                    else:
-                        item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
-                        self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
-                        for item in item_paths:
-                            item_to_update = {"_id": item['_id'],
-                                                    "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
-                                                    "download_root": None}
-                            items_to_update.append(item_to_update)
-                case '!file':
-                    # if the file was wtarred and split it would have multiple items
-                    items_for_file = self.info_map_table.get_required_paths_for_file(source)
-                    self.progress(f"mark for download {len(items_for_file)} files of {iid}/{source}")
-                    if direct_sync:
+            if source_tag in ('!dir', '!dir_cont'):
+                if direct_sync:
+                    # for direct-sync source, if one of the sources is Info.xml and it exists on disk AND source & file
+                    # have the same checksum, then no sync is needed at all. All the above is not relevant in repair mode.
+                    need_to_sync = True
+                    if not self.update_mode:
+                        info_xml_item = self.info_map_table.get_file_item("/".join((source, "Info.xml")))
+                        if info_xml_item:
+                            info_xml_of_target = config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1], "Info.xml")))
+                            need_to_sync = not utils.check_file_checksum(info_xml_of_target, info_xml_item.checksum)
+                    if need_to_sync:
                         config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
-                        for item in items_for_file:
-                            item_to_update = {"_id": item['_id'],
-                                            "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),
-                                            "download_root": config_vars.resolve_str(resolved_install_folder)}
-                            items_to_update.append(item_to_update)
+                        item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source, what="any")
+                        self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
+                        if source_tag == '!dir':
+                            source_parent = "/".join(resolved_source_parts[:-1])
+                            for item in item_paths:
+                                item_to_update = {"_id": item['_id'],
+                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                "download_root": config_vars.resolve_str("/".join((resolved_install_folder, resolved_source_parts[-1])))}
+                                items_to_update.append(item_to_update)
+                        else:  # !dir_cont
+                            source_parent = source
+                            for item in item_paths:
+                                item_to_update = {"_id": item['_id'],
+                                                "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['path'][len(source_parent)+1:]))),
+                                                "download_root": resolved_install_folder}
+                                items_to_update.append(item_to_update)
                     else:
-                        for item in items_for_file:
-                            item_to_update = {"_id": item['_id'],
-                                            "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
-                                            "download_root": None}  # no need to set item.download_root here - it will not be used
-                            items_to_update.append(item_to_update)
+                        num_ignored_files = self.info_map_table.ignore_file_paths_of_dir(dir_path=source)
+                        if num_ignored_files < 1:
+                            num_ignored_files = ""  # sqlite curs.rowcount does not always returns the number of effected rows
+                        self.progress(f"avoid download {num_ignored_files} files of {iid}, Info.xml has not changed")
+
+                else:
+                    item_paths = self.info_map_table.get_recursive_paths_in_dir(dir_path=source)
+                    self.progress(f"mark for download {len(item_paths)} files of {iid}/{source}")
+                    for item in item_paths:
+                        item_to_update = {"_id": item['_id'],
+                                                "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
+                                                "download_root": None}
+                        items_to_update.append(item_to_update)
+            elif source_tag == '!file':
+                # if the file was wtarred and split it would have multiple items
+                items_for_file = self.info_map_table.get_required_paths_for_file(source)
+                self.progress(f"mark for download {len(items_for_file)} files of {iid}/{source}")
+                if direct_sync:
+                    config_vars["ALL_SYNC_DIRS"].append(resolved_install_folder)
+                    for item in items_for_file:
+                        item_to_update = {"_id": item['_id'],
+                                        "download_path": config_vars.resolve_str("/".join((resolved_install_folder, item['leaf']))),
+                                        "download_root": config_vars.resolve_str(resolved_install_folder)}
+                        items_to_update.append(item_to_update)
+                else:
+                    for item in items_for_file:
+                        item_to_update = {"_id": item['_id'],
+                                        "download_path": config_vars.resolve_str("/".join((local_repo_sync_dir, item['path']))),
+                                        "download_root": None}  # no need to set item.download_root here - it will not be used
+                        items_to_update.append(item_to_update)
 
         self.info_map_table.update_downloads(items_to_update)
 
-    #TODO: oren - understand this functionality
+    #TODO: oren - understand this functionallity
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
         target_folder_path_resolved = utils.ExpandAndResolvePath(config_vars.resolve_str(target_folder_path))
@@ -570,13 +569,12 @@ class InstlClient(InstlInstanceBase):
 
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
 
-        match source_type:
-            case '!dir':  # remove whole folder
-                retVal += RmDir(to_remove_path)
-            case '!file':  # remove single file
-                retVal += RmFile(to_remove_path)
-            case '!dir_cont':
-                raise Exception(f"{iid} previous_sources cannot have tag !dir_cont")
+        if source_type == '!dir':  # remove whole folder
+            retVal += RmDir(to_remove_path)
+        elif source_type == '!file':  # remove single file
+            retVal += RmFile(to_remove_path)
+        elif source_type == '!dir_cont':
+            raise Exception(f"{iid} previous_sources cannot have tag !dir_cont")
 
         return retVal
 
@@ -627,35 +625,33 @@ class InstlClient(InstlInstanceBase):
 
 def InstlClientFactory(initial_vars, command):
     retVal = None
+    if command == "sync":
+        from .instlClientSync import InstlClientSync
+        retVal = InstlClientSync(initial_vars)
+    elif command == "copy":
+        from .instlClientCopy import InstlClientCopy
+        retVal = InstlClientCopy(initial_vars)
+    elif command == "remove":
+        from .instlClientRemove import InstlClientRemove
+        retVal = InstlClientRemove(initial_vars)
+    elif command == "uninstall":
+        from .instlClientUninstall import InstlClientUninstall
+        retVal = InstlClientUninstall(initial_vars)
+    elif command in ('report-installed', 'report-update', 'report-versions', 'report-gal', 'read-yaml', 'short-index'):
+        from .instlClientReport import InstlClientReport
+        retVal = InstlClientReport(initial_vars)
+    elif command == "synccopy":
+        from .instlClientSync import InstlClientSync
+        from .instlClientCopy import InstlClientCopy
 
-    match command:
-        case "sync":
-            from .instlClientSync import InstlClientSync
-            retVal = InstlClientSync(initial_vars)
-        case "copy":
-            from .instlClientCopy import InstlClientCopy
-            retVal = InstlClientCopy(initial_vars)
-        case "remove":
-            from .instlClientRemove import InstlClientRemove
-            retVal = InstlClientRemove(initial_vars)
-        case "uninstall":
-            from .instlClientUninstall import InstlClientUninstall
-            retVal = InstlClientUninstall(initial_vars)
-        case 'report-installed' | 'report-update' | 'report-versions' | 'report-gal' | 'read-yaml' | 'short-index':
-            from .instlClientReport import InstlClientReport
-            retVal = InstlClientReport(initial_vars)
-        case "synccopy":
-            from .instlClientSync import InstlClientSync
-            from .instlClientCopy import InstlClientCopy
+        class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
+            def __init__(self, sc_initial_vars=None) -> None:
+                super().__init__(sc_initial_vars)
+                self.calc_user_cache_dir_var()
 
-            class InstlClientSyncCopy(InstlClientSync, InstlClientCopy):
-                def __init__(self, sc_initial_vars=None) -> None:
-                    super().__init__(sc_initial_vars)
-                    self.calc_user_cache_dir_var()
-
-                def do_synccopy(self):
-                    self.do_sync()
-                    self.do_copy()
-                    self.batch_accum += Progress("Done synccopy")
-            retVal = InstlClientSyncCopy(initial_vars)
+            def do_synccopy(self):
+                self.do_sync()
+                self.do_copy()
+                self.batch_accum += Progress("Done synccopy")
+        retVal = InstlClientSyncCopy(initial_vars)
     return retVal

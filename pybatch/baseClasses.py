@@ -250,18 +250,16 @@ class PythonBatchCommandBase(abc.ABC):
 
     def add(self, instructions):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
-
-        match instructions:
-            case PythonBatchCommandBase():
-                if instructions.is_anonymous:  # no need for the parent, just the children
-                    self.child_batch_commands.extend(instructions.child_batch_commands)
-                else:
-                    self.child_batch_commands.append(instructions)
-            case str():
-                self.child_batch_commands.append(pybatch.EvalShellCommand(instructions, ""))
-            case _:
-                for instruction in instructions:
-                    self.add(instruction)
+        if isinstance(instructions, PythonBatchCommandBase):
+            if instructions.is_anonymous:  # no need for the parent, just the children
+                self.child_batch_commands.extend(instructions.child_batch_commands)
+            else:
+                self.child_batch_commands.append(instructions)
+        elif isinstance(instructions, str):
+            self.child_batch_commands.append(pybatch.EvalShellCommand(instructions, ""))
+        else:
+            for instruction in instructions:
+                self.add(instruction)
 
     @contextmanager
     def sub_accum(self, context):

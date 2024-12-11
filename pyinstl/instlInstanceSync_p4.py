@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 from .instlInstanceSyncBase import InstlInstanceSync
@@ -39,8 +39,7 @@ class InstlInstanceSync_p4(InstlInstanceSync):
     def p4_sync_for_source(self, source):
         """ source is a tuple (source_folder, tag), where tag is either !file or !dir """
         source_path, source_type = source[0], source[1]
-        match source_type:
-            case '!file':
-                self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '"$(REPO_REV)'))
-            case '!dir' | '!dir_cont':  # !dir and !dir_cont are only different when copying
-                self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '/..."$(REPO_REV)'))
+        if source_type == '!file':
+            self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '"$(REPO_REV)'))
+        elif source_type == '!dir' or source_type == '!dir_cont':  # !dir and !dir_cont are only different when copying
+            self.instlObj.batch_accum += " ".join(("p4", "sync", '"$(SYNC_BASE_URL)/' + source_path + '/..."$(REPO_REV)'))

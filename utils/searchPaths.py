@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 """
     Manage list of include search paths, and help find files

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 import os
@@ -601,7 +601,7 @@ class IndexItemsTable(object):
         original_details = self.read_item_details_from_node(the_iid, the_node, **kwargs)
         return item, original_details
 
-    template_re = re.compile(r"""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
+    template_re = re.compile("""(?P<template_name>.*)<(?P<template_args>[^>]*)>""")
 
     def read_index_node_helper(self, a_node: yaml.MappingNode, index_items: List, items_details: List, **kwargs) -> None:
         """ read index node to index_items+items_details lists, but do not commit to DB
@@ -808,10 +808,10 @@ class IndexItemsTable(object):
             all_iids = self.get_all_iids()
             for IID in a_node:
                 with kwargs['node-stack'](a_node[IID]):
-                    actual_iid = previous_to_current_iids.get(IID, IID)
-                    require_details = self.read_item_details_from_require_node(actual_iid, a_node[IID], all_iids, previous_to_current_iids)
+                    actuall_iid = previous_to_current_iids.get(IID, IID)
+                    require_details = self.read_item_details_from_require_node(actuall_iid, a_node[IID], all_iids, previous_to_current_iids)
                     if require_details:
-                        require_items[actual_iid] = require_details
+                        require_items[actuall_iid] = require_details
 
             self.clean_require_items(require_items)
 
@@ -841,24 +841,23 @@ class IndexItemsTable(object):
         details = list()
         if the_node.isMapping():
             for detail_name in the_node:
-                match detail_name:
-                    case "guid":
-                        for guid_sub in the_node["guid"]:
-                            new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": "require_guid", "detail_value": guid_sub.value}
-                            details.append(new_detail)
-                    case "version":
-                         for version_sub in the_node["version"]:
-                            new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": "require_version", "detail_value": version_sub.value}
-                            details.append(new_detail)
-                    case "require_by":
-                        for require_by in the_node["require_by"]:
-                            required_by = previous_to_current_iids.get(require_by.value, require_by.value)  # get new iid if any
-                            if required_by in all_iids:
-                                detail_name = "require_by"
-                            else:
-                                detail_name = "deprecated_require_by"
-                            new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": required_by}
-                            details.append(new_detail)
+                if detail_name == "guid":
+                    for guid_sub in the_node["guid"]:
+                        new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": "require_guid", "detail_value": guid_sub.value}
+                        details.append(new_detail)
+                elif detail_name == "version":
+                     for version_sub in the_node["version"]:
+                        new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": "require_version", "detail_value": version_sub.value}
+                        details.append(new_detail)
+                elif detail_name == "require_by":
+                    for require_by in the_node["require_by"]:
+                        required_by = previous_to_current_iids.get(require_by.value, require_by.value)  # get new iid if any
+                        if required_by in all_iids:
+                            detail_name = "require_by"
+                        else:
+                            detail_name = "deprecated_require_by"
+                        new_detail = {"original_iid": the_iid, "owner_iid": the_iid, "os_id": the_os_id, "detail_name": detail_name, "detail_value": required_by}
+                        details.append(new_detail)
         elif the_node.isSequence():
             for require_by in the_node:
                 required_by = previous_to_current_iids.get(require_by.value, require_by.value)  # get new iid if any

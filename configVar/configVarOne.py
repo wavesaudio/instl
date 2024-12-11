@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 """
     Copyright (c) 2012, Shai Shasag
@@ -15,19 +15,18 @@ import utils
 
 def something_to_bool(something, default=False):
     retVal = default
-    match something:
-        case bool():
-            retVal = something
-        case 0 | 0.0:
+    if isinstance(something, bool):
+        retVal = something
+    elif isinstance(something, int):
+        if something == 0:
             retVal = False
-        case int() | float():
+        else:
             retVal = True
-        case str():
-            match something.lower():
-                case "yes" | "true" | "y" | 't' | '1':
-                    retVal = True
-                case "no" | "false" | "n" | "f" | '0':
-                    retVal = False
+    elif isinstance(something, str):
+        if something.lower() in ("yes", "true", "y", 't', '1'):
+            retVal = True
+        elif something.lower() in ("no", "false", "n", "f", '0'):
+            retVal = False
     return retVal
 
 
@@ -240,17 +239,16 @@ class ConfigVar:
             but if string is passed it will not be treated like a list
             of characters and will be added as a single value.
         """
-        match values:
-            case str() | int() | float() | None:
-                # so str will not be treated as a list of characters
-                self.append(values)
-            case collections.abc.Sequence():
-                for val in values:
-                    self.extend(val)  # flatten nested lists
-            case os.PathLike():
-                self.append(os.fspath(values))
-            case _:
-                raise TypeError(f"configVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
+        if isinstance(values, (str, int, float, type(None))):
+            # so str will not be treated as a list of characters
+            self.append(values)
+        elif isinstance(values, collections.abc.Sequence):
+            for val in values:
+                self.extend(val)  # flatten nested lists
+        elif isinstance(values, os.PathLike):
+            self.append(os.fspath(values))
+        else:
+            raise TypeError(f"configVar('{self.name}') type of values '{values}' should be str int or sequence not {type(values)}")
 
     def clear(self):
         """ erase all values """

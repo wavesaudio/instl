@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3.9
 
 
 import sys
@@ -270,8 +270,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(folder_)
-        self.pbt.batch_accum += Subprocess("python3.12", "--version")
-        self.pbt.batch_accum += Subprocess("python3.12", "-c", "for i in range(4): print(i)")
+        self.pbt.batch_accum += Subprocess("python3.9", "--version")
+        self.pbt.batch_accum += Subprocess("python3.9", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
 
     def test_Subprocess_detached(self):
@@ -301,7 +301,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         t = Timer(2, delete_abort_file)
         t.start()
 
-        cmd = ['python3.12', test_file]
+        cmd = ['python3.9', test_file]
         with self.assertRaises(ProcessTerminatedExternally):
             with assert_timeout(3):
                 run_process(cmd, shell=(sys.platform == 'win32'), abort_file=abort_file)
