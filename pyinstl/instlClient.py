@@ -543,7 +543,6 @@ class InstlClient(InstlInstanceBase):
 
         self.info_map_table.update_downloads(items_to_update)
 
-    #TODO: oren - understand this functionality
     def create_remove_previous_sources_instructions_for_target_folder(self, target_folder_path):
         retVal = AnonymousAccum()
         target_folder_path_resolved = utils.ExpandAndResolvePath(config_vars.resolve_str(target_folder_path))
