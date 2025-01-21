@@ -69,7 +69,7 @@ class InstlClientCopy(InstlClient):
         self.progress("create copy instructions ...")
         # If we got here while in synccopy command, there is no need to read the info map again.
         # If we got here while in copy command, read HAVE_INFO_MAP_COPY_PATH which defaults to NEW_HAVE_INFO_MAP_PATH.
-        # Copy might be called after the sync batch file was created but before it was executed
+        # Copy might be called after the sync batch file was created, but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
@@ -154,7 +154,7 @@ class InstlClientCopy(InstlClient):
 
             self.bytes_to_copy += self.calc_size_of_file_item(source_file)
         else:  # one or more wtar files
-            # do not increment retVal - unwtar_instructions will add it's own instructions
+            # do not increment retVal - unwtar_instructions will add its own instructions
             first_wtar_item = None
             for source_wtar in source_files:
                 self.bytes_to_copy += self.calc_size_of_file_item(source_wtar)
@@ -174,11 +174,10 @@ class InstlClientCopy(InstlClient):
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
         if no_wtar_items:
-            retVal += CopyDirContentsToDir(
-                                                        source_path_abs,
-                                                        os.curdir,
-                                                        hard_links=use_hard_links,
-                                                        preserve_dest_files=True)  # preserve files already in destination
+            retVal += CopyDirContentsToDir(source_path_abs,
+                                            os.curdir,
+                                            hard_links=use_hard_links,
+                                            preserve_dest_files=True)  # preserve files already in destination
 
             self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
@@ -223,9 +222,10 @@ class InstlClientCopy(InstlClient):
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message, use_hard_links)
         return retVal
 
-    def create_copy_instructions_for_dir(self, source_path: str,
-                                                name_for_progress_message: str,
-                                                use_hard_links=True) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_dir(self,
+                                         source_path: str,
+                                         name_for_progress_message: str,
+                                         use_hard_links=True) -> PythonBatchCommandBase:
         dir_item: svnTree.SVNRow = self.info_map_table.get_dir_item(source_path)
         if dir_item is not None:
             retVal = AnonymousAccum()
@@ -261,9 +261,10 @@ class InstlClientCopy(InstlClient):
             retVal = self.create_copy_instructions_for_file(source_path, name_for_progress_message)
         return retVal
 
-    def create_copy_instructions_for_source(self, source,
-                                                name_for_progress_message,
-                                                use_hard_links=True) -> PythonBatchCommandBase:
+    def create_copy_instructions_for_source(self,
+                                            source,
+                                            name_for_progress_message,
+                                            use_hard_links=True) -> PythonBatchCommandBase:
         """ source is a tuple (source_path, tag), where tag is either !file or !dir or !dir_cont'
         """
         retVal = None
