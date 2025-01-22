@@ -96,7 +96,9 @@ def quoteme_raw_string(simple_string):
 
         for quote_mark in possible_quote_marks:
             # 1st priority is to create a raw string. Strings that end with the quotation mark or with \ cannot be raw.
-            if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1] and simple_string[-1] != '\\':
+            if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1]:
+                if simple_string[-1] == '\\':
+                    simple_string += '\\'
                 retVal = "".join(('r', quote_mark, simple_string, quote_mark))
                 break
         else:
