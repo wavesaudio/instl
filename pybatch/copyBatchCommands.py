@@ -630,19 +630,30 @@ class BreakHardLink(PythonBatchCommandBase):
 
 
 class ShouldCopySource(RsyncClone):
-    def __init__(self, src, dst, dont_downgrade=False, skip_progress_count=0, **kwargs) -> None:
+    def __init__(self, src, dst, dont_downgrade=False, skip_progress_count=0, touch_if_present=False, **kwargs) -> None:
         super().__init__(src, dst, **kwargs)
         self.dont_downgrade = dont_downgrade
         self.skip_progress_count = skip_progress_count  # num progress steps to skip if not copying source
+        self.touch_if_present = touch_if_present
         self.reason_not_to_copy = ""
 
     def repr_own_args(self, all_args: List[str]) -> None:
         super().repr_own_args(all_args)
         all_args.append(self.optional_named__init__param("dont_downgrade", self.dont_downgrade, False))
         all_args.append(self.optional_named__init__param("skip_progress_count", self.skip_progress_count, 0))
+        all_args.append(self.optional_named__init__param("touch_if_present", self.touch_if_present, False))
 
     def progress_msg_self(self) -> str:
         return f"{self.__class__.__name__}"
+
+    def touch_source(self) -> None:
+        if not os.path.exists(self.src):
+            if os.path.isdir(self.src):
+                os.makedirs(self.src, exist_ok=True)
+            else:
+                with open(self.src, 'a'):
+                    pass
+        os.utime(self.src, None)
 
     def __call__(self, *args, **kwargs) -> None:
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -686,6 +697,9 @@ class ShouldCopySource(RsyncClone):
             pass
 
         if not should_copy:
+            if self.touch_if_present:
+                self.reason_not_to_copy += ", touching source"
+                self.touch_source()
             raise PythonBatchCommandBase.SkipActionException()
         else:
             self.skip_progress_count = 0

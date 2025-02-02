@@ -316,7 +316,8 @@ class InstlClientCopy(InstlClient):
                     for source in resolved_sources_for_iid:
                         self.progress(f"create copy instructions of {source[0]} to {config_vars.resolve_str(target_folder_path)}")
                         source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source[0])
-                        with iid_accum.sub_accum(ShouldCopySource(source_path_abs, target_folder_path, dont_downgrade=dont_downgrade)) as scs:
+                        touch_if_present = source[0].endswith(".vst3")
+                        with iid_accum.sub_accum(ShouldCopySource(source_path_abs, target_folder_path, dont_downgrade=dont_downgrade, touch_if_present=touch_if_present)) as scs:
                             with scs.sub_accum(Stage("copy source", source[0])) as source_accum:
                                 num_items_copied_to_folder += 1
                                 source_accum += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_copy_item")
