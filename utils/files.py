@@ -229,6 +229,7 @@ def read_file_or_url_utf8(in_file_or_url, config_vars, path_searcher=None, save_
     else:
         assert connection_obj, "no connection_obj given"
         session = connection_obj.get_session(in_file_or_url)
+        log.log(f"session.get for file/url: {in_file_or_url}")
         response = session.get(in_file_or_url, timeout=(33.05, 180.05))
         response.raise_for_status()
         buffer = response.text
