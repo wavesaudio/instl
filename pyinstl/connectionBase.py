@@ -7,6 +7,7 @@ import urllib.error
 import urllib.parse
 
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 import logging
 
@@ -72,6 +73,7 @@ class ConnectionHTTP(ConnectionBase):
     def __init__(self, config_vars) -> None:
         super().__init__(config_vars)
         self.sessions: Dict[str, requests.Session] = dict()
+        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
     def open_connection(self, credentials):
         pass
