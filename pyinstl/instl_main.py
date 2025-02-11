@@ -168,6 +168,8 @@ def instl_own_main(argv):
             run_commands_from_file(initial_vars, options)
             return
 
+        utils.install_certificates_if_necessary()
+
         is_compiled = getattr(sys, 'frozen', False)
         match options.mode, is_compiled:
             case "client", _:
