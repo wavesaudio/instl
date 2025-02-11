@@ -17,7 +17,8 @@ def install_certificates():
         ssl.get_default_verify_paths().openssl_cafile)
 
     print(" -- pip install --upgrade certifi")
-    subprocess.check_call([sys.executable,
+    python_executable = getattr(sys, 'base_executable', sys.executable)
+    subprocess.check_call([python_executable,
                            "-E", "-s", "-m", "pip", "install", "--upgrade", "certifi"])
 
     import certifi
