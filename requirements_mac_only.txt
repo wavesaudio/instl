@@ -1,4 +1,4 @@
 # Mac only
 psutil --no-binary=psutil
 charset-normalizer --no-binary=charset-normalizer
-certifi
+certifi>=2025.1.31
