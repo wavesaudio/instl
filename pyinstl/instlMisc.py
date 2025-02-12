@@ -51,10 +51,6 @@ class InstlMisc(InstlInstanceBase):
     def do_version(self):
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         print(self.get_version_str())
-        import ssl
-        print("ssl.get_default_verify_paths:", ssl.get_default_verify_paths())
-        print("SSL_CERT_FILE:", os.environ.get("SSL_CERT_FILE"))
-        print("SSL_CERT_DIR:", os.environ.get("SSL_CERT_DIR"))
 
     def do_help(self):
         import help.helpHelper
