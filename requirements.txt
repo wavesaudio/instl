@@ -7,3 +7,4 @@ PyInstaller
 PyYAML --no-binary=PyYAML
 requests --no-binary=requests
 xmltodict
+certifi
