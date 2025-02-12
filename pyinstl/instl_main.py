@@ -80,7 +80,6 @@ def fix_ssl_paths():
     if getattr(sys, 'frozen', False):
         import ssl
         import certifi
-        print("certifi.where:", certifi.where())
         cert_dir_path = get_path_to_instl_app().parent.joinpath("_internal", "certifi")
         # Set the SSL certificate path inside the frozen app
         # Ensure environment variables point to the correct CA bundle
