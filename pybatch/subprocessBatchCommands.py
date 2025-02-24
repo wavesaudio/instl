@@ -321,12 +321,11 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
 
 
 class ExecPython(PythonBatchCommandBase):
-    def __init__(self, python_file, config_files=None, reuse_db=True, continue_on_error=False, args=None, **kwargs):
+    def __init__(self, python_file, config_files=None, reuse_db=True, args=None, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
         self.config_files = config_files
         self.reuse_db = reuse_db
-        self.continue_on_error = continue_on_error
         self.args = args
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -334,7 +333,6 @@ class ExecPython(PythonBatchCommandBase):
         if self.config_files:
             all_args.append(self.unnamed__init__param(self.config_files))
         all_args.append(self.optional_named__init__param("reuse_db", self.reuse_db, True))
-        all_args.append(self.optional_named__init__param("continue_on_error", self.continue_on_error, False))
         all_args.append(self.optional_named__init__param("args", self.args, []))
 
     def progress_msg_self(self):
@@ -354,7 +352,8 @@ class ExecPython(PythonBatchCommandBase):
                 sys.argv = [os.fspath(self.python_file), *self.args]
             sys.path.append(os.fspath(self.python_file.parent))  # add python_file's parent so python_file can import files located in the same folder as python_file
 
-            if self.continue_on_error:
+            ignore_errors = str(config_vars.get("IGNORE_ERRORS", ""))
+            if ignore_errors and self.python_file.search(ignore_errors):
                 stderr_capture = io.StringIO()
                 with redirect_stderr(stderr_capture):
                     py_compiled = self.compile_python_file(py_text)
