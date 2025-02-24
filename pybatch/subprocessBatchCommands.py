@@ -1,5 +1,6 @@
 import abc
 import collections
+import io
 import logging
 import os
 import re
@@ -17,6 +18,8 @@ import psutil
 import utils
 from configVar import config_vars
 from .baseClasses import PythonBatchCommandBase
+
+from contextlib import redirect_stderr
 
 log = logging.getLogger(__name__)
 
@@ -318,11 +321,12 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
 
 
 class ExecPython(PythonBatchCommandBase):
-    def __init__(self, python_file, config_files=None, reuse_db=True, args=None, **kwargs):
+    def __init__(self, python_file, config_files=None, reuse_db=True, continue_on_error=False, args=None, **kwargs):
         super().__init__(**kwargs)
         self.python_file = python_file
         self.config_files = config_files
         self.reuse_db = reuse_db
+        self.continue_on_error = continue_on_error
         self.args = args
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -330,10 +334,14 @@ class ExecPython(PythonBatchCommandBase):
         if self.config_files:
             all_args.append(self.unnamed__init__param(self.config_files))
         all_args.append(self.optional_named__init__param("reuse_db", self.reuse_db, True))
+        all_args.append(self.optional_named__init__param("continue_on_error", self.continue_on_error, False))
         all_args.append(self.optional_named__init__param("args", self.args, []))
 
     def progress_msg_self(self):
         return f"""Executing '{self.python_file}'"""
+
+    def compile_python_file(self, py_text):
+        return compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -341,12 +349,28 @@ class ExecPython(PythonBatchCommandBase):
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             original_argv = sys.argv
             py_text = rfd.read()
-            py_compiled = compile(py_text, os.fspath(self.python_file), mode='exec', flags=0, dont_inherit=False, optimize=2)
 
             if self.args:
                 sys.argv = [os.fspath(self.python_file), *self.args]
             sys.path.append(os.fspath(self.python_file.parent))  # add python_file's parent so python_file can import files located in the same folder as python_file
-            exec(py_compiled, globals())
+
+            if self.continue_on_error:
+                stderr_capture = io.StringIO()
+                with redirect_stderr(stderr_capture):
+                    py_compiled = self.compile_python_file(py_text)
+                    try:
+                        exec(py_compiled, globals())
+                    except Exception as e:
+                        pass
+
+                captured_warnings = stderr_capture.getvalue()
+
+                if captured_warnings:
+                    print(f'Python file "{0}" executed with warnings: '.format(self.python_file))
+                    print(captured_warnings)
+            else:
+                py_compiled = self.compile_python_file(py_text)
+                exec(py_compiled, globals())
             sys.argv = original_argv
 
 
