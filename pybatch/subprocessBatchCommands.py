@@ -365,7 +365,7 @@ class ExecPython(PythonBatchCommandBase):
                 captured_warnings = stderr_capture.getvalue()
 
                 if captured_warnings:
-                    log.warning(f'Python file "{0}" executed with warnings: '.format(self.python_file))
+                    log.warning(f'Python file "{self.python_file}" executed with warnings: ')
                     log.warning(captured_warnings)
             else:
                 py_compiled = self.compile_python_file(py_text)
