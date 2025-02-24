@@ -353,7 +353,7 @@ class ExecPython(PythonBatchCommandBase):
             sys.path.append(os.fspath(self.python_file.parent))  # add python_file's parent so python_file can import files located in the same folder as python_file
 
             ignore_errors = str(config_vars.get("IGNORE_ERRORS", ""))
-            if ignore_errors and self.python_file.search(ignore_errors):
+            if ignore_errors and re.search(ignore_errors, str(self.python_file)):
                 stderr_capture = io.StringIO()
                 with redirect_stderr(stderr_capture):
                     py_compiled = self.compile_python_file(py_text)
