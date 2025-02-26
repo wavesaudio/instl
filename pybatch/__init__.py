@@ -1,4 +1,5 @@
 import sys
+import io
 
 from .baseClasses import PythonBatchCommandBase
 from .batchCommandAccum import PythonBatchCommandAccum
@@ -22,6 +23,7 @@ from .subprocessBatchCommands import ParallelRun, ShellCommands, ShellCommand, C
 from .svnBatchCommands import SVNClient, SVNLastRepoRev, SVNCheckout, SVNInfo, SVNPropList, SVNAdd, SVNRemove, \
     SVNInfoReader, SVNSetProp, SVNDelProp, SVNCleanup
 from .wtarBatchCommands import Wtar, Unwtar, Wzip, Unwzip, ZipFlat, UnZip
+from contextlib import redirect_stderr
 
 # from .fileSystemBatchCommands import AdvisoryFileLock
 
@@ -85,9 +87,16 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
     """
     retVal = Echo(message)
     try:
-        retVal = eval(action_str, globals(), locals())
-        if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
-            raise TypeError(f"{retVal} is not PythonBatchCommandBase")
+        stderr_capture = io.StringIO()
+        with redirect_stderr(stderr_capture):
+            retVal = eval(action_str, globals(), locals())
+            if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
+                raise TypeError(f"{retVal} is not PythonBatchCommandBase")
+        captured_warnings = stderr_capture.getvalue()
+
+        if captured_warnings:
+            log.warning(f'Shell command "{action_str}" executed with warnings: ')
+            log.warning(captured_warnings)
     except (SyntaxError, TypeError, NameError) as ex:
         retVal = ShellCommand(action_str, message)
         # check that it's not a pybatch command
