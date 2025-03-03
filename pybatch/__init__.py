@@ -84,6 +84,9 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
     """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
     """
     retVal = Echo(message)
+    # 2025-03-03 EladS workaround for illegal escape sequence (\;) found in V10 manifest,
+    #                  emitting a SyntaxWarning on Python 3.12
+    action_str = action_str.replace('("', '(r"')
     try:
         retVal = eval(action_str, globals(), locals())
         if not isinstance(retVal, PythonBatchCommandBase):  # if action_str is a quoted string an str object is created
