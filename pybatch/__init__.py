@@ -37,8 +37,7 @@ if sys.platform == "win32":
     from .WinOnlyBatchCommands import ResHackerCompileResource
     from .WinOnlyBatchCommands import FullACLForEveryone
 
-if sys.platform == "darwin":
-    from .MacOnlyBatchCommands import MacDock
+if sys.platform in ("darwin", "linux"):
     from .POSIXBatchCommands import CreateSymlink
     from .POSIXBatchCommands import RmSymlink
     from .POSIXBatchCommands import CreateSymlinkFilesInFolder
@@ -46,8 +45,8 @@ if sys.platform == "darwin":
     from .POSIXBatchCommands import SymlinkFileToSymlink
     from .POSIXBatchCommands import SymlinkToSymlinkFile
 
-
     #Added for test purposes, without those classes verify_actions gives false positives/negatives
+    # also to avoid syntax error messages when running on linux
     class PythonBatchCommandDummy(PythonBatchCommandBase):
         def __init__(self, *args, **kwargs) -> None:
             pass
@@ -77,14 +76,8 @@ if sys.platform == "darwin":
     class ResHackerCompileResource(PythonBatchCommandDummy):#??
         pass
 
-
-if sys.platform == "linux":
-    from .POSIXBatchCommands import CreateSymlink
-    from .POSIXBatchCommands import RmSymlink
-    from .POSIXBatchCommands import CreateSymlinkFilesInFolder
-    from .POSIXBatchCommands import ResolveSymlinkFilesInFolder
-    from .POSIXBatchCommands import SymlinkFileToSymlink
-    from .POSIXBatchCommands import SymlinkToSymlinkFile
+if sys.platform == "darwin":
+    from .MacOnlyBatchCommands import MacDock
 
 from .new_batchCommands import *
 

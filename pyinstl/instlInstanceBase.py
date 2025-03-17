@@ -466,15 +466,17 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
             depend_cycles = installItemGraph.find_cycles(depend_graph)
             if not depend_cycles:
-                log.info("No depend cycles found")
+                self.progress("No depend cycles found")
             else:
+                self.progress(f"{len(depend_cycles)} depend cycles found")
                 for cy in depend_cycles:
                     log.info(f"""depend cycle: {" -> ".join(cy)}""")
             inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
             inherit_cycles = installItemGraph.find_cycles(inherit_graph)
             if not inherit_cycles:
-                log.info("No inherit cycles found")
+                self.progress("No inherit cycles found")
             else:
+                self.progress(f"{len(inherit_cycles)} inherit cycles found")
                 for cy in inherit_cycles:
                     log.info(f"""inherit cycle: {" -> ".join(cy)}""")
         except ImportError:  # no installItemGraph, no worry
@@ -528,11 +530,12 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             pass
 
     def verify_actions(self, problem_messages_by_iid=None):
-
+        self.progress("verify actions")
         self.items_table.activate_all_oses()
         actions_list = self.items_table.get_all_actions_from_index()
         all_pybatch_commands = self.python_batch_names
         # Each row has: original_iid, detail_name, detail_value, os_id, _id
+        num_bad_actions = 0
         for row in actions_list:
             try:
                 if row['detail_value']:  # it's OK for action to have None value, but no need to check them
@@ -542,13 +545,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                             try:
                                 EvalShellCommand(action, None, all_pybatch_commands, raise_on_error=True)
                             except ValueError as ve:
+                                num_bad_actions += 1
                                 logging.warning(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
                                 if problem_messages_by_iid is not None:
-                                    problem_messages_by_iid[row['original_iid']] = f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}"
+                                    problem_messages_by_iid[row['original_iid']].append(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
             except Exception as ex:
                 log.warning(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}")
                 if problem_messages_by_iid is not None:
-                    problem_messages_by_iid[row['original_iid']] = f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}; {ex}"
+                    problem_messages_by_iid[row['original_iid']].append(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}; {ex}")
+        self.progress(f"{num_bad_actions} bad actions found")
 
     def write_config_vars_to_file(self, path_to_config_vars_file):
         if path_to_config_vars_file:

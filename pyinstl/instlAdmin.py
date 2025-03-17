@@ -633,6 +633,7 @@ class InstlAdmin(InstlInstanceBase):
         # check inherit
         self.progress("checking inheritance")
         missing_inheritees = self.items_table.get_missing_iids_from_details("inherit")
+        self.progress(f"{len(missing_inheritees)} missing inheritees found")
         for missing_inheritee in missing_inheritees:
             err_message = f"inherits from non existing '{missing_inheritee[1]}'"
             problem_messages_by_iid[missing_inheritee[0]].append(err_message)
@@ -641,13 +642,14 @@ class InstlAdmin(InstlInstanceBase):
         # check depends
         self.progress("checking dependencies")
         missing_dependees = self.items_table.get_missing_iids_from_details("depends")
+        self.progress(f"{len(missing_dependees)} missing dependees found")
         for missing_dependee in missing_dependees:
             err_message = f"depends on non existing '{missing_dependee[1]}'"
             problem_messages_by_iid[missing_dependee[0]].append(err_message)
 
-    def print_problem_messages(self, problem_messages_by_iid):
+    def print_problem_messages(self, problem_messages_by_iid: dict):
         if problem_messages_by_iid:
-            for iid in sorted(problem_messages_by_iid):
+            for iid in sorted(problem_messages_by_iid.keys()):
                 self.progress(iid + ":")
                 for problem_message in sorted(problem_messages_by_iid[iid]):
                     self.progress("   ", problem_message)
