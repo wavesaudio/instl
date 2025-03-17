@@ -464,7 +464,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             from . import installItemGraph
 
             depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
-            depend_cycles = installItemGraph.find_cycles(depend_graph)
+            depend_cycles = list(installItemGraph.find_cycles(depend_graph))
             if not depend_cycles:
                 self.progress("No depend cycles found")
             else:
@@ -472,7 +472,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                 for cy in depend_cycles:
                     log.info(f"""depend cycle: {" -> ".join(cy)}""")
             inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
-            inherit_cycles = installItemGraph.find_cycles(inherit_graph)
+            inherit_cycles = list(installItemGraph.find_cycles(inherit_graph))
             if not inherit_cycles:
                 self.progress("No inherit cycles found")
             else:
