@@ -46,6 +46,15 @@ if sys.platform == "darwin":
     from .MacOnlyBatchCommands import SymlinkFileToSymlink
     from .MacOnlyBatchCommands import SymlinkToSymlinkFile
 
+if sys.platform == "linux":
+    from .MacOnlyBatchCommands import CreateSymlink
+    from .MacOnlyBatchCommands import RmSymlink
+    from .MacOnlyBatchCommands import CreateSymlinkFilesInFolder
+    from .MacOnlyBatchCommands import ResolveSymlinkFilesInFolder
+    from .MacOnlyBatchCommands import SymlinkFileToSymlink
+    from .MacOnlyBatchCommands import SymlinkToSymlinkFile
+
+
     #Added for test purposes, without those classes verify_actions gives false positives/negatives
     class PythonBatchCommandDummy(PythonBatchCommandBase):
         def __init__(self, *args, **kwargs) -> None:
