@@ -624,7 +624,8 @@ def ExpandAndResolvePath(path_to_resolve, resolve_path=True) -> Path:
         expanded_path = os.path.expandvars(expanded_path)
 
     path_path = Path(expanded_path)
-    if resolve_path:
+    the_root = path_path.root  # resolve only is root is / or \, otherwise current dir will be prepended by Path.resolve()
+    if resolve_path and the_root:
         path_path = path_path.resolve()
     return path_path
 

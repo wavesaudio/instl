@@ -111,9 +111,9 @@ remove_obstacles:
 
     def __call__(self, *args, **kwargs):
         """
-            When creating a folder go over each non existing parent directory
+            When creating a folder go over each non-existing parent directory
             and try to create it. This gives a chance to handle errors individually for each dir
-            and in case of failure we can reprot the dir place that failed to be created.
+            and in case of failure we can report the dir place that failed to be created.
         """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
