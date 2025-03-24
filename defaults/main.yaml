@@ -6,7 +6,7 @@ __INSTL_VERSION__:
   - 1         # new minor feature e.g. new option to command, new python batch class
   - 3         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: Fixed resolving of paths beginning with $ or .
+INSTL_VERSION_CHANGE_REASON: line breaks in error json
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
