@@ -77,16 +77,21 @@ def get_data_folder():
     return data_folder
 
 def fix_ssl_paths():
-    if getattr(sys, 'frozen', False):
+    if os_family_name == "Mac":
+        if getattr(sys, 'frozen', False):
+            import ssl
+            import certifi
+            cert_dir_path = get_path_to_instl_app().parent.joinpath("_internal", "certifi")
+            # Set the SSL certificate path inside the frozen app
+            # Ensure environment variables point to the correct CA bundle
+            os.environ["SSL_CERT_DIR"] = os.fspath(cert_dir_path)
+            os.environ["SSL_CERT_FILE"] = os.fspath(cert_dir_path.joinpath("cacert.pem"))
+            ssl_context = ssl.create_default_context()
+            ssl_context.load_verify_locations(certifi.where())
+    else:  # Windows - rely on OS default certificates
         import ssl
-        import certifi
-        cert_dir_path = get_path_to_instl_app().parent.joinpath("_internal", "certifi")
-        # Set the SSL certificate path inside the frozen app
-        # Ensure environment variables point to the correct CA bundle
-        os.environ["SSL_CERT_DIR"] = os.fspath(cert_dir_path)
-        os.environ["SSL_CERT_FILE"] = os.fspath(cert_dir_path.joinpath("cacert.pem"))
         ssl_context = ssl.create_default_context()
-        ssl_context.load_verify_locations(certifi.where())
+        ssl_context.load_default_certs()
 
 
 class InvocationReporter(PythonBatchRuntime):
@@ -125,8 +130,7 @@ def instl_own_main(argv):
     """
     with InvocationReporter(argv, report_own_progress=False):
 
-        if os_family_name == "Mac":
-            fix_ssl_paths()
+        fix_ssl_paths()
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()
