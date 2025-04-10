@@ -216,7 +216,11 @@ class ShellCommand(RunProcessBase):
             PythonBatchCommandBase.__call__(self, *args, **kwargs)
             utils.write_shell_command(f'''{self.shell_command} \n''', self.output_script)
         else:
-            RunProcessBase.__call__(self, *args, **kwargs)
+            if 'SoundGridDriverUninstaller.py"' in self.shell_command:
+                with Exec(self.shell_command[1:-1]) as execCmd:
+                    execCmd()
+            else:
+                RunProcessBase.__call__(self, *args, **kwargs)
 
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
@@ -338,6 +342,7 @@ class ExecPython(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         self.python_file = utils.ExpandAndResolvePath(self.python_file)
+        # NOTE: Stop here and edit Uninstaller
         with utils.utf8_open_for_read(self.python_file, 'r') as rfd:
             original_argv = sys.argv
             py_text = rfd.read()
