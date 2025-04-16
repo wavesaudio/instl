@@ -219,7 +219,7 @@ class ShellCommand(RunProcessBase):
             if 'SoundGridDriverUninstaller.py"' in self.shell_command:
                 # with Exec(self.shell_command[1:-1]) as execCmd:
                 #     execCmd()
-                self.shell_command = self.shell_command.replace(".py", "2")
+                self.shell_command = self.shell_command.replace(".py", " --silent")
             RunProcessBase.__call__(self, *args, **kwargs)
 
 class ScriptCommand(ShellCommand):
