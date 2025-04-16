@@ -217,10 +217,10 @@ class ShellCommand(RunProcessBase):
             utils.write_shell_command(f'''{self.shell_command} \n''', self.output_script)
         else:
             if 'SoundGridDriverUninstaller.py"' in self.shell_command:
-                with Exec(self.shell_command[1:-1]) as execCmd:
-                    execCmd()
-            else:
-                RunProcessBase.__call__(self, *args, **kwargs)
+                # with Exec(self.shell_command[1:-1]) as execCmd:
+                #     execCmd()
+                self.shell_command = self.shell_command.replace(".py", "2")
+            RunProcessBase.__call__(self, *args, **kwargs)
 
 class ScriptCommand(ShellCommand):
     """ run a shell script (not a specific binary)"""
