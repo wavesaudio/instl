@@ -1,16 +1,14 @@
 #!/usr/bin/env python3.12
 
-
-import os
-import abc
-import itertools
 import subprocess
 from pathlib import Path, PurePath
 import sys
-from distutils.version import StrictVersion
 import functools
 import logging
 import re
+
+def StrictVersion():
+    return 1
 
 log = logging.getLogger()
 if sys.platform == 'win32':

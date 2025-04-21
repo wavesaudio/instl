@@ -2,9 +2,10 @@ appdirs
 future
 networkx
 packaging
-setuptools
 PyInstaller
 PyYAML --no-binary=PyYAML
 requests --no-binary=requests
 xmltodict
 certifi
+jaraco.text
+platformdirs
