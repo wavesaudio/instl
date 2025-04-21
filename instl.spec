@@ -17,7 +17,7 @@ a = Analysis(['instl'],
              pathex=['instl'],
              binaries=[],
              datas=[],
-             hiddenimports=['jaraco.text'
+             hiddenimports=['jaraco.text',
                             'packaging',
                             'packaging.version',
                             'packaging.specifiers',
