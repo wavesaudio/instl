@@ -6,9 +6,7 @@ import sys
 import functools
 import logging
 import re
-
-def StrictVersion():
-    return 1
+from packaging.version import Version
 
 log = logging.getLogger()
 if sys.platform == 'win32':
@@ -110,8 +108,8 @@ parallel-max = {max_parallel_downloads}
                 match = re.search(r"curl\s+([0-9.]+)\s", proc.stdout.read())
 
                 if match is not None and len(match.groups()) > 0:
-                    curl_version = StrictVersion(match.group(1))
-                    min_version = StrictVersion(CUrlHelper.min_supported_parallel_curl_version)
+                    curl_version = Version(match.group(1))
+                    min_version = Version(CUrlHelper.min_supported_parallel_curl_version)
                     if min_version > curl_version:
                         log.info(f"Detected a legacy curl version {match.group(1)}")
                     else:
