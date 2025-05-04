@@ -85,6 +85,7 @@ def fix_ssl_paths():
         # Ensure environment variables point to the correct CA bundle
         os.environ["SSL_CERT_DIR"] = os.fspath(cert_dir_path)
         os.environ["SSL_CERT_FILE"] = os.fspath(cert_dir_path.joinpath("cacert.pem"))
+        log.info(f"SSL_CERT_DIR: {os.environ['SSL_CERT_DIR']}, SSL_CERT_FILE: {os.environ['SSL_CERT_FILE']}, cert_dir_path: {cert_dir_path}")
         ssl_context = ssl.create_default_context()
         ssl_context.load_verify_locations(certifi.where())
 
