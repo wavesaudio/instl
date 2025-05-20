@@ -1,7 +1,6 @@
 #!/bin/bash
 
 echo ---* python is: $(which python3.12) *---
-python3.12 -m pip install --upgrade pip
 
 echo ---* creating virtual env in: $(pwd)/venv *---
 
@@ -12,8 +11,6 @@ echo    $VIRTUAL_ENV  *---
 
 echo ---* activated virtual env in: $(pwd)/venv *---
 echo ---* now python is: $(which python3.12) *---
-
-python3.12 -m pip install pip  --no-user
 
 echo ---* pip installing *---
 
