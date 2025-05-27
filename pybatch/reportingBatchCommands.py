@@ -344,8 +344,16 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, resolve_indicator='$', unresolve_indicator=None, compare_dates=False, **kwargs):
+    def __init__(self, unresolved_file,
+                        resolved_file=None,
+                        config_file=None,
+                        config_files=None,
+                        raise_if_unresolved=False,
+                        temp_config_vars=None,
+                        resolve_indicator='$',
+                        unresolve_indicator=None,
+                        compare_dates=False,
+                        **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
