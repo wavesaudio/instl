@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Dict, List
 import winreg
@@ -30,33 +31,61 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
+        logging.info("self.shortcut_path", self.shortcut_path)
+        logging.info("self.target_path", self.target_path)
+        logging.info("self.command_line_options", self.command_line_options)
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path))
         target_path = os.path.expandvars(os.fspath(self.target_path))
         working_directory, target_name = os.path.split(target_path)
+        logging.info("working_directory", self.working_directory)
+        logging.info("target_name", self.target_name)
+        logging.info("shortcut_path", self.shortcut_path)
+        logging.info("target_path", self.target_path)
 
         shortcut_obj = pythoncom.CoCreateInstance(
             shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
+        logging.info("shell.CLSID_ShellLink", shell.CLSID_ShellLink)
+        logging.info("pythoncom.CLSCTX_INPROC_SERVER", pythoncom.CLSCTX_INPROC_SERVER)
+        logging.info("shell.IID_IShellLink", shell.IID_IShellLink)
+        logging.info("self.shortcut_obj", self.shortcut_obj)
+        logging.info("shortcut_obj", shortcut_obj)
         persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
+        logging.info("pythoncom.IID_IPersistFile", pythoncom.IID_IPersistFile)
+        logging.info("self.persist_file", self.persist_file)
+        logging.info("persist_file", persist_file)
         shortcut_obj.SetPath(target_path)
         shortcut_obj.SetWorkingDirectory(working_directory)
         if self.command_line_options:
+            logging.info("setting command_line_options")
             shortcut_obj.SetArguments(self.command_line_options)
 
+        logging.info("before Save")
         persist_file.Save(shortcut_path, 0)
+        logging.info("before Save")
 
         if self.run_as_admin:
+            logging.info("run_as_admin")
             link_data = pythoncom.CoCreateInstance(
                 shell.CLSID_ShellLink,
                 None,
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
+            logging.info("link_data", link_data)
+            logging.info("shell.CLSID_ShellLink", shell.CLSID_ShellLink)
+            logging.info("pythoncom.CLSCTX_INPROC_SERVER", pythoncom.CLSCTX_INPROC_SERVER)
+            logging.info("shell.IID_IShellLinkDataList", shell.IID_IShellLinkDataList)
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
+            logging.info("file", file)
+            logging.info("shell.IID_IShellLinkDataList", pythoncom.IID_IPersistFile)
             file.Load(shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
+                logging.info("flags", flags)
+                logging.info("shellcon.SLDF_RUNAS_USER", shellcon.SLDF_RUNAS_USER)
                 file.Save(shortcut_path, 0)
+                logging.info("after file.Save")
 
 
 class BaseRegistryKey(PythonBatchCommandBase):
