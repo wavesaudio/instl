@@ -11,6 +11,7 @@ from pathlib import Path
 from .baseClasses import PythonBatchCommandBase
 from .subprocessBatchCommands import RunProcessBase
 import utils
+import logging
 
 
 class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False, 'command_line_options': False}):
@@ -38,8 +39,8 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path))
         target_path = os.path.expandvars(os.fspath(self.target_path))
         working_directory, target_name = os.path.split(target_path)
-        logging.info("working_directory", self.working_directory)
-        logging.info("target_name", self.target_name)
+        logging.info("working_directory", working_directory)
+        logging.info("target_name", target_name)
         logging.info("shortcut_path", self.shortcut_path)
         logging.info("target_path", self.target_path)
 
@@ -48,11 +49,9 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         logging.info("shell.CLSID_ShellLink", repr(shell.CLSID_ShellLink))
         logging.info("pythoncom.CLSCTX_INPROC_SERVER", repr(pythoncom.CLSCTX_INPROC_SERVER))
         logging.info("shell.IID_IShellLink", repr(shell.IID_IShellLink))
-        logging.info("self.shortcut_obj", repr(self.shortcut_obj))
         logging.info("shortcut_obj", repr(shortcut_obj))
         persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
         logging.info("pythoncom.IID_IPersistFile", repr(pythoncom.IID_IPersistFile))
-        logging.info("self.persist_file", repr(self.persist_file))
         logging.info("persist_file", repr(persist_file))
         shortcut_obj.SetPath(target_path)
         shortcut_obj.SetWorkingDirectory(working_directory)
