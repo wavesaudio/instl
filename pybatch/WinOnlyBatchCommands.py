@@ -32,17 +32,17 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        logging.info("self.shortcut_path", repr(self.shortcut_path))
-        logging.info("self.target_path", repr(self.target_path))
+        logging.info("self.shortcut_path", repr(self.shortcut_path.replace("%", "%%")))
+        logging.info("self.target_path", repr(self.target_path.replace("%", "%%")))
         logging.info("self.command_line_options", repr(self.command_line_options))
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path))
-        target_path = os.path.expandvars(os.fspath(self.target_path))
-        working_directory, target_name = os.path.split(target_path)
-        logging.info("working_directory", working_directory)
-        logging.info("target_name", target_name)
-        logging.info("shortcut_path", self.shortcut_path)
-        logging.info("target_path", self.target_path)
+        shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path.replace("%", "%%")))
+        target_path = os.path.expandvars(os.fspath(self.target_path.replace("%", "%%")))
+        working_directory, target_name = os.path.split(target_path.replace("%", "%%"))
+        logging.info("working_directory", working_directory.replace("%", "%%"))
+        logging.info("target_name", target_name.replace("%", "%%"))
+        logging.info("shortcut_path", self.shortcut_path.replace("%", "%%"))
+        logging.info("target_path", self.target_path.replace("%", "%%"))
 
         shortcut_obj = pythoncom.CoCreateInstance(
             shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
