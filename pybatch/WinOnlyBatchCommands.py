@@ -34,7 +34,6 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
     def __call__(self, *args, **kwargs) -> None:
         logging.info("self.shortcut_path", repr(self.shortcut_path.replace("%", "%%")))
         logging.info("self.target_path", repr(self.target_path.replace("%", "%%")))
-        logging.info("self.command_line_options", repr(self.command_line_options))
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path.replace("%", "%%")))
         target_path = os.path.expandvars(os.fspath(self.target_path.replace("%", "%%")))
