@@ -32,25 +32,19 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
         return f"""Create shortcut '{self.shortcut_path}' to '{self.target_path}'"""
 
     def __call__(self, *args, **kwargs) -> None:
-        logging.info("self.shortcut_path", repr(self.shortcut_path.replace("%", "%%")))
-        logging.info("self.target_path", repr(self.target_path.replace("%", "%%")))
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         shortcut_path = os.path.expandvars(os.fspath(self.shortcut_path.replace("%", "%%")))
         target_path = os.path.expandvars(os.fspath(self.target_path.replace("%", "%%")))
         working_directory, target_name = os.path.split(target_path.replace("%", "%%"))
         logging.info("working_directory", working_directory.replace("%", "%%"))
         logging.info("target_name", target_name.replace("%", "%%"))
-        logging.info("shortcut_path", self.shortcut_path.replace("%", "%%"))
-        logging.info("target_path", self.target_path.replace("%", "%%"))
+        logging.info("shortcut_path", shortcut_path.replace("%", "%%"))
+        logging.info("target_path", target_path.replace("%", "%%"))
 
         shortcut_obj = pythoncom.CoCreateInstance(
             shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
-        logging.info("shell.CLSID_ShellLink", repr(shell.CLSID_ShellLink))
-        logging.info("pythoncom.CLSCTX_INPROC_SERVER", repr(pythoncom.CLSCTX_INPROC_SERVER))
-        logging.info("shell.IID_IShellLink", repr(shell.IID_IShellLink))
         logging.info("shortcut_obj", repr(shortcut_obj))
         persist_file = shortcut_obj.QueryInterface(pythoncom.IID_IPersistFile)
-        logging.info("pythoncom.IID_IPersistFile", repr(pythoncom.IID_IPersistFile))
         logging.info("persist_file", repr(persist_file))
         shortcut_obj.SetPath(target_path)
         shortcut_obj.SetWorkingDirectory(working_directory)
@@ -70,18 +64,13 @@ class WinShortcut(PythonBatchCommandBase, kwargs_defaults={"run_as_admin": False
                 pythoncom.CLSCTX_INPROC_SERVER,
                 shell.IID_IShellLinkDataList)
             logging.info("link_data", repr(link_data))
-            logging.info("shell.CLSID_ShellLink", repr(shell.CLSID_ShellLink))
-            logging.info("pythoncom.CLSCTX_INPROC_SERVER", repr(pythoncom.CLSCTX_INPROC_SERVER))
-            logging.info("shell.IID_IShellLinkDataList", repr(shell.IID_IShellLinkDataList))
             file = link_data.QueryInterface(pythoncom.IID_IPersistFile)
             logging.info("file", repr(file))
-            logging.info("shell.IID_IShellLinkDataList", repr(pythoncom.IID_IPersistFile))
             file.Load(shortcut_path)
             flags = link_data.GetFlags()
             if not flags & shellcon.SLDF_RUNAS_USER:
                 link_data.SetFlags(flags | shellcon.SLDF_RUNAS_USER)
                 logging.info("flags", repr(flags))
-                logging.info("shellcon.SLDF_RUNAS_USER", repr(shellcon.SLDF_RUNAS_USER))
                 file.Save(shortcut_path, 0)
                 logging.info("after file.Save")
 
