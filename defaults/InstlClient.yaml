@@ -8,6 +8,9 @@ CURL_RETRIES: 12          # If a transient error is returned when curl tries to 
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
 
+CURRENT_DOIT_DESCRIPTION: Miscellaneous doit
+
+
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
 LOCAL_REPO_SYNC_DIR: $(LOCAL_SYNC_DIR)/$(REPO_NAME)
 LOCAL_REPO_BOOKKEEPING_DIR: $(LOCAL_REPO_SYNC_DIR)/bookkeeping

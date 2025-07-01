@@ -5,6 +5,9 @@ import sys
 import time
 from collections import defaultdict, namedtuple, OrderedDict
 import logging
+
+from .instlDoItBase import InstlDoItBase
+
 log = logging.getLogger()
 
 import utils
@@ -15,10 +18,11 @@ from pybatch import *
 from .connectionBase import connection_factory
 
 
-class InstlClient(InstlInstanceBase):
+class InstlClient(InstlInstanceBase, InstlDoItBase):
     """ Base class for all client operations: sync, copy, synccopy, uninstall, remove """
     def __init__(self, initial_vars) -> None:
-        super().__init__(initial_vars)
+        InstlInstanceBase.__init__(self, initial_vars)
+        InstlDoItBase.__init__(self)
         self.total_self_progress: int = 15000
         self.internal_progress = int(self.total_self_progress / 100) * 2
         self.read_defaults_file(super().__thisclass__.__name__)
@@ -27,6 +31,7 @@ class InstlClient(InstlInstanceBase):
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
         self.auxiliary_iids = utils.unique_list()
         self.main_install_targets = list()
+        self.doit_items_section_name = "MISC_DOIT_ITEMS"
 
     @property
     def all_iids_by_target_folder(self):
@@ -101,9 +106,14 @@ class InstlClient(InstlInstanceBase):
         self.read_defines_for_active_iids()
         #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
         #self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
+        doit_is_given = self.doit_items_section_name in config_vars
+        if doit_is_given:
+            self.calculate_full_doit_order(self.doit_items_section_name)
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
+        if doit_is_given:
+            self.do_doit()
         self.command_output()
         self.items_table.config_var_list_to_db(config_vars)
 
