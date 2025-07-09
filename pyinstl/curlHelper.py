@@ -168,7 +168,7 @@ parallel-max = {max_parallel_downloads}
             fixed_path = short_file_path.replace("\\", "\\\\")
         return fixed_path
 
-    def create_config_files(self, curl_config_folder, num_config_files):
+    def create_config_files(self, curl_config_folder, num_config_files, create_last=False):
         config_file_list = list()
 
         if self.get_num_urls_to_download() <= 0:
@@ -184,6 +184,9 @@ parallel-max = {max_parallel_downloads}
             "curl_output_format_str": self.curl_output_format_str
         }
 
+        if create_last and not self.urls_to_download_last:
+            return []
+
         if self.use_internal_parallel():
             confi_file_text = self.internal_parallel_header_text
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
@@ -191,11 +194,11 @@ parallel-max = {max_parallel_downloads}
             confi_file_text = self.external_parallel_header_text
             actual_num_config_files = int(max(0, min(len(self.urls_to_download), num_config_files)))
 
-        if self.urls_to_download_last:
+        if create_last:
             actual_num_config_files += 1
 
         # a list of curl config file and number of urls in each
-        for file_i in range(actual_num_config_files):
+        for file_i in range(actual_num_config_files - 1 if create_last else 0, actual_num_config_files):
             config_file_path = curl_config_folder.joinpath(f"{config_vars['CURL_CONFIG_FILE_NAME']}-{file_i:02}")
             config_file_list.append(CurlConfigFile(config_file_path))
 
@@ -209,7 +212,7 @@ parallel-max = {max_parallel_downloads}
             a_file.wfd.write(curl_config_header)
 
         last_file = None
-        if self.urls_to_download_last:
+        if create_last:
             last_file = config_file_list.pop()
 
         def url_sorter(l, r):
@@ -218,21 +221,22 @@ parallel-max = {max_parallel_downloads}
 
         cfig_file_cycler = itertools.cycle(config_file_list)
         total_url_num = 0
-        # No sorting for curl's parallel as the progress looks better when there are mixed sizes
-        sorted_by_size = self.urls_to_download if self.use_internal_parallel() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
+        if not create_last:
+            # No sorting for curl's parallel as the progress looks better when there are mixed sizes
+            sorted_by_size = self.urls_to_download if self.use_internal_parallel() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
 
-        for url, path, size in sorted_by_size:
-            fixed_path = self.fix_path(path)
-            file_details = next(cfig_file_cycler)
-            file_details.wfd.write(f'''url = "{url}"\noutput = "{fixed_path}"\n\n''')
-            file_details.num_urls += 1
-            total_url_num += 1
+            for url, path, size in sorted_by_size:
+                fixed_path = self.fix_path(path)
+                file_details = next(cfig_file_cycler)
+                file_details.wfd.write(f'''url = "{url}"\noutput = "{fixed_path}"\n\n''')
+                file_details.num_urls += 1
+                total_url_num += 1
 
-        for a_file in config_file_list:
-            a_file.wfd.close()
-            a_file.wfd = None
+            for a_file in config_file_list:
+                a_file.wfd.close()
+                a_file.wfd = None
 
-        if last_file:
+        if create_last:
             # write urls for files that should be downloaded last
             for url, path, size in self.urls_to_download_last:
                 fixed_path = self.fix_path(path)
@@ -250,7 +254,7 @@ parallel-max = {max_parallel_downloads}
 
         return config_file_list
 
-    def create_download_instructions(self, dl_commands):
+    def create_download_instructions(self, dl_commands, create_last=False):
         """ Download is done be creating files with instructions for curl - curl config files.
             Another file is created containing invocations of curl with each of the config files
             - the parallel run file.
@@ -266,7 +270,7 @@ parallel-max = {max_parallel_downloads}
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
         # TODO: Move class someplace else
-        config_file_list = self.create_config_files(curl_config_folder, num_config_files)
+        config_file_list = self.create_config_files(curl_config_folder, num_config_files, create_last=create_last)
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:

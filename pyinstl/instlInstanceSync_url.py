@@ -74,8 +74,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
             than num_config_files, or might be 0 if downloading is not required.
         """
         dl_commands = AnonymousAccum()
+        dl_commands_last = AnonymousAccum()
         self.instlObj.dl_tool.create_download_instructions(dl_commands)
-        return dl_commands
+        self.instlObj.dl_tool.create_download_instructions(dl_commands_last, create_last=True)
+        return dl_commands, dl_commands_last
 
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
@@ -146,10 +148,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         dl_commands += self.create_sync_folders()
         self.create_sync_urls(file_list)
-        dl_commands += self.create_curl_download_instructions()
+        dl_instructions, dl_instructions_last = self.create_curl_download_instructions()
+        dl_commands += dl_instructions
 
         dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
         dl_commands += self.create_check_checksum_instructions(to_sync_num_files)
+
+        dl_commands += dl_instructions_last
         return dl_commands
 
     def create_sync_instructions(self) -> int:
