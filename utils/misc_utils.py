@@ -32,19 +32,28 @@ import utils
 log = logging.getLogger()
 doing_stack = []
 
-
 @lru_cache(maxsize=None)
-def Is64Windows():
-    """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
-    return 'PROGRAMFILES(X86)' in os.environ
-
+def GetMacArch():
+    arch = platform.machine()
+    if arch == "arm64":
+        return "Arm"
+    elif arch == "x86_64":
+        return "Intel"
+    else:
+        raise EnvironmentError(f"Unsupported architecture {arch}")
 
 @lru_cache(maxsize=None)
 def Is64Mac():
     """Check if the installed version of osx is greater than 14 (Mojave).
     such versions cannot run anymore 32 bit apps """
-    return int(platform.mac_ver()[0].split('.')[1]) > 14
+    plat_arch = platform.architecture()  # return ('64bit', '')
+    is64Mac = plat_arch[0].startswith("64")
+    return is64Mac
 
+@lru_cache(maxsize=None)
+def Is64Windows():
+    """Check if the installed version of Windows is 64 bit that is supported for both 32 and 64 apps"""
+    return 'PROGRAMFILES(X86)' in os.environ
 
 @lru_cache(maxsize=None)
 def Is32Windows():
@@ -72,10 +81,11 @@ def get_current_os_names() -> Tuple[str, ...]:
     retVal: Tuple[str, ...] = ()
     current_os = platform.system()
     if current_os == 'Darwin':
+        arch = GetMacArch()  # Arm / Intel
         if Is64Mac():
-            retVal = ('Mac', 'Mac64')
+            retVal = ('Mac', 'Mac64', f"Mac{arch}")
         else:
-            retVal = ('Mac', 'Mac32')
+            retVal = ('Mac', 'Mac32', f"Mac{arch}")
     elif current_os == 'Windows':
         if Is64Windows():
             retVal = ('Win', 'Win64')
