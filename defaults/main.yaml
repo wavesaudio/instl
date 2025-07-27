@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 2         # major version e.g. python-batch
   - 5         # new major feature e.g. new command
   - 2         # new minor feature e.g. new option to command, new python batch class
-  - 0         # bug fix, new param to pybatch class
+  - 1         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: new MacOs subnames 'MacArm', 'MacIntel' fixed Is64Mac()
+INSTL_VERSION_CHANGE_REASON: in read_item_details_from_node 'common' was not identified correctly as current os
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 

@@ -571,10 +571,11 @@ class IndexItemsTable(object):
                                             for os_group in (('common', 'Mac', 'Mac32', 'Mac64', 'MacArm', 'MacIntel'),
                                                              ('common', 'Win', 'Win32', 'Win64')):
                                                 if the_os in os_group:
-                                                    item_detail_os = the_os
-                                                    if the_os not in ('Mac32', 'Mac64', 'MacArm', 'MacIntel', 'Win32', 'Win64'):
+                                                    if the_os in ('Mac32', 'Mac64', 'MacArm', 'MacIntel', 'Win32', 'Win64'):
+                                                        item_detail_os = the_os
+                                                    else:
                                                         item_detail_os = os_group[1]
-                                                    path_prefix_os = the_os[0:3]
+                                                    path_prefix_os = os_group[1]
                                                     assert path_prefix_os == "Mac" or path_prefix_os == "Win", f"path_prefix_os: {path_prefix_os}"
                                                     new_detail = (the_iid, the_iid, self.os_names_to_num[item_detail_os],
                                                                     detail_name, "/".join((path_prefix_os, value)), tag)
