@@ -5,11 +5,17 @@ log = logging.getLogger()
 
 from pybatch import *
 
+main_items_section_name = "MAIN_DOIT_ITEMS"
+misc_items_section_name = "MISC_DOIT_ITEMS"
 
 class InstlDoItBase:
     def __init__(self) -> None:
         self.need_items_table = True
         self.full_doit_order = utils.unique_list()
+
+    def do_doit_if_ordered(self):
+        if len(self.full_doit_order) > 0:
+            self.do_doit()
 
     def do_doit(self):
         for doit_stage in ("pre_doit", "doit", "post_doit"):
@@ -37,15 +43,15 @@ class InstlDoItBase:
             if len(action_list) > 0:
                 iid_accum += Remark(f"--- End {IID} {name}")
 
-    def calculate_full_doit_order(self, doit_section_name="MAIN_DOIT_ITEMS"):
-        """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
+    def calculate_section_doit_order(self, doit_section_name=main_items_section_name):
+        """ calculate the set of iids to install from a particular variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
         if doit_section_name not in config_vars:
             raise ValueError(f"'{doit_section_name}' was not defined")
 
         for iid in list(config_vars[doit_section_name]):
-            self.resolve_dependencies_for_iid(iid)
+            self.resolve_dependencies_for_doit_iid(iid)
 
         all_iis_set = set(self.items_table.get_all_iids())
         orphan_iids = list(set(self.full_doit_order)-all_iis_set)
@@ -55,11 +61,16 @@ class InstlDoItBase:
             for o_iid in orphan_iids:
                 self.full_doit_order.remove(o_iid)
 
+    def calculate_full_doit_order(self, misc_only=False):
+        if main_items_section_name in config_vars and not misc_only:
+            self.calculate_section_doit_order(main_items_section_name)
+        if misc_items_section_name in config_vars:
+            self.calculate_section_doit_order(misc_items_section_name)
         # print("doit order:", self.full_doit_order)
         config_vars["__FULL_LIST_OF_DOIT_TARGETS__"] = self.full_doit_order
 
-    def resolve_dependencies_for_iid(self, iid):
+    def resolve_dependencies_for_doit_iid(self, iid):
         depends_for_iid = self.items_table.get_resolved_details_value_for_active_iid(iid, "depends")
         for d_iid in depends_for_iid:
-            self.resolve_dependencies_for_iid(d_iid)
+            self.resolve_dependencies_for_doit_iid(d_iid)
         self.full_doit_order.append(iid)

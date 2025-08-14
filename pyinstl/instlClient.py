@@ -31,7 +31,6 @@ class InstlClient(InstlInstanceBase, InstlDoItBase):
         self.__no_copy_iids_by_sync_folder = defaultdict(utils.unique_list)
         self.auxiliary_iids = utils.unique_list()
         self.main_install_targets = list()
-        self.doit_items_section_name = "MISC_DOIT_ITEMS"
 
     @property
     def all_iids_by_target_folder(self):
@@ -106,14 +105,11 @@ class InstlClient(InstlInstanceBase, InstlDoItBase):
         self.read_defines_for_active_iids()
         #self.platform_helper.num_items_for_progress_report = int(config_vars["LAST_PROGRESS"])
         #self.platform_helper.no_progress_messages = "NO_PROGRESS_MESSAGES" in config_vars
-        doit_is_given = self.doit_items_section_name in config_vars
-        if doit_is_given:
-            self.calculate_full_doit_order(self.doit_items_section_name)
+        self.calculate_full_doit_order(True)
 
         do_command_func = getattr(self, "do_" + self.fixed_command)
         do_command_func()
-        if doit_is_given:
-            self.do_doit()
+        self.do_doit_if_ordered()
         self.command_output()
         self.items_table.config_var_list_to_db(config_vars)
 
