@@ -76,6 +76,15 @@ def get_data_folder():
         data_folder = Path(application_path).parent
     return data_folder
 
+@lru_cache(maxsize=None)
+def get_exec_folder():
+    """ get the path to where we can find executable binaries
+      """
+    exec_folder = Path()
+    if getattr(sys, 'frozen', False):
+        exec_folder = Path(sys.executable).parent.resolve()
+    return exec_folder
+
 def fix_ssl_paths():
     if getattr(sys, 'frozen', False):
         import ssl
@@ -174,7 +183,7 @@ def instl_own_main(argv):
             initial_vars.update(
                         {"__USER_ID__": -1,
                          "__GROUP_ID__": -1,
-                         "__WHO_LOCKS_FILE_DLL_PATH__": "$(__INSTL_DATA_FOLDER__)/who_locks_file.dll"})
+                         "__WHO_LOCKS_FILE_DLL_PATH__": f"{get_exec_folder()}/who_locks_file.dll"})
 
         instance = None
         if options.__MAIN_COMMAND__ == "command-list":

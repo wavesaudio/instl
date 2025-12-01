@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 2         # major version e.g. python-batch
   - 5         # new major feature e.g. new command
   - 2         # new minor feature e.g. new option to command, new python batch class
-  - 1         # bug fix, new param to pybatch class
+  - 2         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: in read_item_details_from_node 'common' was not identified correctly as current os
+INSTL_VERSION_CHANGE_REASON: corrected the path to who_locks_file.dll
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
