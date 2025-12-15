@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 from collections import deque, defaultdict
 from configVar import config_vars
@@ -79,7 +79,7 @@ class InstlClientUninstall(InstlClientRemove):
                         if how_many_require_by[req_trans['iid']] == 0 and req_trans['iid'] != candi:
                             candi_que.append(req_trans['iid'])
 
-        # items who's count is 0 should be uninstalled
+        # items whose count is 0 should be uninstalled
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
             all_uninstall_items = list(set(all_uninstall_items + iid_candidates_for_uninstall))
@@ -175,7 +175,7 @@ class InstlClientUninstall(InstlClientRemove):
                         if how_many_require_by[req_trans['iid']] == 0 and req_trans['iid'] != candi:
                             candi_que.append(req_trans['iid'])
 
-        # items who's count is 0 should be uninstalled
+        # items whose count is 0 should be uninstalled
         all_uninstall_items = [iid for iid, count in how_many_require_by.items() if count == 0]
         if force_uninstall_of_main_items:
             all_uninstall_items = list(set(all_uninstall_items + iid_candidates_for_uninstall))

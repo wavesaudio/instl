@@ -333,116 +333,120 @@ def prepare_args_parser(in_command):
                                        help="output yaml file")
 
     # the following option groups each belong only to a single command
-    if 'read-yaml' == in_command:#__SILENT__
-        read_yaml_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        read_yaml_options.add_argument('--silent',
-                            required=False,
-                            default=False,
-                            action='store_true',
-                            dest='__SILENT__',
-                            help="minimal output")
-
-    elif 'activate-repo-rev' == in_command:
-        up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        up_repo_rev_options.add_argument('--just-with-number', '-j', '--just_with_number',
-                            required=False,
-                            nargs=1,
-                            metavar='just-with-number',
-                            dest='__JUST_WITH_NUMBER__',
-                            help="up load just the repo-rev file that ends with a specific number, not the general one")
-
-    elif 'unwtar' == in_command:
-        unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        unwtar_options.add_argument('--no-artifacts','--no_artifacts',
+    match in_command:
+        case 'read-yaml':
+            read_yaml_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            read_yaml_options.add_argument('--silent',
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='__NO_WTAR_ARTIFACTS__',
-                                help="remove all .wtar files and .done files")
-    elif in_command in ('up2s3',):
-        which_revision_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        which_revision_options.add_argument('--revision',
+                                dest='__SILENT__',
+                                help="minimal output")
+
+        case 'activate-repo-rev':
+            up_repo_rev_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            up_repo_rev_options.add_argument('--just-with-number', '-j', '--just_with_number',
                                 required=False,
                                 nargs=1,
-                                default=False,
-                                dest='which_revision',
-                                help="all==work on all revisions even if above repo-rev, num=work on specific revision")
+                                metavar='just-with-number',
+                                dest='__JUST_WITH_NUMBER__',
+                                help="up load just the repo-rev file that ends with a specific number, not the general one")
 
-    elif 'ls' == in_command:
-        ls_options = command_parser.add_argument_group(description='output_format arguments:')
-        ls_options.add_argument('--output-format','--output_format',
+        case 'unwtar':
+            unwtar_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            unwtar_options.add_argument('--no-artifacts','--no_artifacts',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='__NO_WTAR_ARTIFACTS__',
+                                    help="remove all .wtar files and .done files")
+
+
+        case 'p2s3':
+            which_revision_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            which_revision_options.add_argument('--revision',
                                     required=False,
                                     nargs=1,
-                                    dest='LS_FORMAT',
-                                    help="specify output format")
-    elif 'fail' == in_command:
-        fail_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        fail_options.add_argument('--exit-code', '--exit_code',
+                                    default=False,
+                                    dest='which_revision',
+                                    help="all==work on all revisions even if above repo-rev, num=work on specific revision")
+
+        case 'ls':
+            ls_options = command_parser.add_argument_group(description='output_format arguments:')
+            ls_options.add_argument('--output-format','--output_format',
+                                        required=False,
+                                        nargs=1,
+                                        dest='LS_FORMAT',
+                                        help="specify output format")
+        case 'fail':
+            fail_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            fail_options.add_argument('--exit-code', '--exit_code',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='exit-code-to-return',
+                                    dest='__FAIL_EXIT_CODE__',
+                                    help="exit code to return")
+            fail_options.add_argument('--sleep',
+                                    required=False,
+                                    nargs=1,
+                                    metavar='time-to-sleep',
+                                    dest='__FAIL_SLEEP_TIME__',
+                                    help="time to sleep")
+        case 'report-versions':
+            report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
+            report_versions_options.add_argument('--only-installed','--only_installed',
+                                    required=False,
+                                    default=False,
+                                    action='store_true',
+                                    dest='__REPORT_ONLY_INSTALLED__',
+                                    help="report only installed products")
+
+        case 'help':
+            help_options = command_parser.add_argument_group(description='help subject:')
+            help_options.add_argument('subject', nargs='?')
+
+        case 'run-process':
+            run_process_options  = command_parser.add_argument_group(description='run-process:')
+            run_process_options.add_argument('--abort-file','--abort_file',
                                 required=False,
+                                default=None,
                                 nargs=1,
-                                metavar='exit-code-to-return',
-                                dest='__FAIL_EXIT_CODE__',
-                                help="exit code to return")
-        fail_options.add_argument('--sleep',
-                                required=False,
-                                nargs=1,
-                                metavar='time-to-sleep',
-                                dest='__FAIL_SLEEP_TIME__',
-                                help="time to sleep")
-    elif 'report-versions' == in_command:
-        report_versions_options = command_parser.add_argument_group(description=in_command+' arguments:')
-        report_versions_options.add_argument('--only-installed','--only_installed',
+                                metavar='abort_file',
+                                dest='ABORT_FILE',
+                                help="run a process with optional abort file")
+            run_process_options.add_argument('--shell',
                                 required=False,
                                 default=False,
                                 action='store_true',
-                                dest='__REPORT_ONLY_INSTALLED__',
-                                help="report only installed products")
+                                dest='SHELL',
+                                help="run a process in shell")
+            run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
+                                nargs='...',
+                                )
+        case 'exec':
+            exec_options = command_parser.add_argument_group(description='exec:')
+            exec_options.add_argument('args', nargs=argparse.REMAINDER)
 
-    elif 'help' == in_command:
-        help_options = command_parser.add_argument_group(description='help subject:')
-        help_options.add_argument('subject', nargs='?')
-
-    elif 'run-process' == in_command:
-        run_process_options  = command_parser.add_argument_group(description='run-process:')
-        run_process_options.add_argument('--abort-file','--abort_file',
-                            required=False,
-                            default=None,
-                            nargs=1,
-                            metavar='abort_file',
-                            dest='ABORT_FILE',
-                            help="run a process with optional abort file")
-        run_process_options.add_argument('--shell',
-                            required=False,
-                            default=False,
-                            action='store_true',
-                            dest='SHELL',
-                            help="run a process in shell")
-        run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
-                            nargs='...',
-                            )
-    elif 'exec' == in_command:
-        exec_options = command_parser.add_argument_group(description='exec:')
-        exec_options.add_argument('args', nargs=argparse.REMAINDER)
-    elif 'resolve' == in_command:
-        resolve_options = command_parser.add_argument_group(description='resolve:')
-        resolve_options.add_argument('--compare-dates','--compare_dates',
-                             required=False,
-                             default=False,
-                             action='store_true',
-                             dest='COMPARE_DATES_ON_RESOLVE',
-                             help="avoid resolve if resolved file exists and is younger than unresolved file")
-        resolve_options.add_argument('--resolve-as-yaml','--resolve_as_yaml',
-                                         required=False,
-                                         default=False,
-                                         action='store_true',
-                                         dest='RESOLVE_AS_YAML',
-                                         help="resolve configVar lists in yaml sequences")
-        resolve_options.add_argument('--unresolve-indicator','--unresolve_indicator',
-                                         required=False,
-                                         default=False,
-                                         nargs=1,
-                                         dest='UNRESOLVE_INDICATOR',
-                                         help="character indicating not to resolve configVar in the file")
+        case 'resolve':
+            resolve_options = command_parser.add_argument_group(description='resolve:')
+            resolve_options.add_argument('--compare-dates','--compare_dates',
+                                 required=False,
+                                 default=False,
+                                 action='store_true',
+                                 dest='COMPARE_DATES_ON_RESOLVE',
+                                 help="avoid resolve if resolved file exists and is younger than unresolved file")
+            resolve_options.add_argument('--resolve-as-yaml','--resolve_as_yaml',
+                                             required=False,
+                                             default=False,
+                                             action='store_true',
+                                             dest='RESOLVE_AS_YAML',
+                                             help="resolve configVar lists in yaml sequences")
+            resolve_options.add_argument('--unresolve-indicator','--unresolve_indicator',
+                                             required=False,
+                                             default=False,
+                                             nargs=1,
+                                             dest='UNRESOLVE_INDICATOR',
+                                             help="character indicating not to resolve configVar in the file")
 
     general_options = command_parser.add_argument_group(description='general:')
     general_options.add_argument('--define',

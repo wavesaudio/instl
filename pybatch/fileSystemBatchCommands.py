@@ -111,9 +111,9 @@ remove_obstacles:
 
     def __call__(self, *args, **kwargs):
         """
-            When creating a folder go over each non existing parent directory
+            When creating a folder go over each non-existing parent directory
             and try to create it. This gives a chance to handle errors individually for each dir
-            and in case of failure we can reprot the dir place that failed to be created.
+            and in case of failure we can report the dir place that failed to be created.
         """
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
@@ -561,12 +561,13 @@ class Chmod(RunProcessBase):
         actual_names = list() # suited for users names
         actual_codes = list()
         for w in symbolic_who:
-            if w == "u":
-                actual_names.append(getpass.getuser()) #there are different handling between users an universal code
-            elif w == "g":
-                actual_codes.append("S-1-5-32-549") #universal code for Users
-            elif w == "o":
-                actual_codes.append("S-1-1-0") #universal code for Everyone
+            match w:
+                case "u":
+                    actual_names.append(getpass.getuser()) #there are different handling between users an universal code
+                case "g":
+                    actual_codes.append("S-1-5-32-549") #universal code for Users
+                case "o":
+                    actual_codes.append("S-1-1-0") #universal code for Everyone
         actual_who = {"names": actual_names, "codes": actual_codes}
 
         actual_perms = match.group('perm')
@@ -942,13 +943,14 @@ class FixAllPermissions(PythonBatchCommandBase):
         with ChFlags(self.path, 'nohidden', 'unlocked', 'nosystem', report_own_progress=False,
                      recursive=self.recursive) as chflager:
             chflager()
-        if sys.platform in ('darwin', 'linux'):
-            the_mode = config_vars.get("FIX_ALL_PERMISSIONS_SYMBOLIC_MODE", "u+rwx,go+rx").str()
-            with Chmod(path=self.path, mode=the_mode, report_own_progress=False, recursive=self.recursive) as chmoder:
-                chmoder()
-        elif sys.platform == 'win32':
-            with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
-                acler()
+        match sys.platform:
+            case 'darwin' | 'linux':
+                the_mode = config_vars.get("FIX_ALL_PERMISSIONS_SYMBOLIC_MODE", "u+rwx,go+rx").str()
+                with Chmod(path=self.path, mode=the_mode, report_own_progress=False, recursive=self.recursive) as chmoder:
+                    chmoder()
+            case 'win32':
+                with FullACLForEveryone(path=self.path, report_own_progress=False, recursive=self.recursive) as acler:
+                    acler()
 
 
 class Glober(PythonBatchCommandBase):

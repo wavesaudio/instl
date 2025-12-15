@@ -1,8 +1,12 @@
+setuptools==68.2.2
 appdirs
 future
 networkx
 packaging
-PyInstaller==5.3
+PyInstaller==6.15.0
 PyYAML --no-binary=PyYAML
-requests
+requests --no-binary=requests
 xmltodict
+certifi
+jaraco.text
+platformdirs

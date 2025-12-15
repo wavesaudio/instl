@@ -1,16 +1,12 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
-
-import os
-import abc
-import itertools
 import subprocess
 from pathlib import Path, PurePath
 import sys
-from distutils.version import StrictVersion
 import functools
 import logging
 import re
+from packaging.version import Version
 
 log = logging.getLogger()
 if sys.platform == 'win32':
@@ -72,6 +68,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 cookie = {cookie_text}
+parallel-max = {max_parallel_downloads}
 
 
 """
@@ -111,8 +108,8 @@ cookie = {cookie_text}
                 match = re.search(r"curl\s+([0-9.]+)\s", proc.stdout.read())
 
                 if match is not None and len(match.groups()) > 0:
-                    curl_version = StrictVersion(match.group(1))
-                    min_version = StrictVersion(CUrlHelper.min_supported_parallel_curl_version)
+                    curl_version = Version(match.group(1))
+                    min_version = Version(CUrlHelper.min_supported_parallel_curl_version)
                     if min_version > curl_version:
                         log.info(f"Detected a legacy curl version {match.group(1)}")
                     else:
@@ -183,6 +180,7 @@ cookie = {cookie_text}
             "retries": str(config_vars.setdefault("CURL_RETRIES", "2")),
             "retry_delay": str(config_vars.setdefault("CURL_RETRY_DELAY", "8")),
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
+            "max_parallel_downloads": str(config_vars.get("PARALLEL_SYNC", "50")),
             "curl_output_format_str": self.curl_output_format_str
         }
 

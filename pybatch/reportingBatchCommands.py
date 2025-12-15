@@ -17,7 +17,7 @@ import aYaml
 
 log = logging.getLogger(__name__)
 
-need_path_resolving_re = re.compile(".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
+need_path_resolving_re = re.compile(r".+(DIR|PATH|FOLDER|FOLDERS)(__)?$")
 
 
 class AnonymousAccum(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=False,
@@ -330,7 +330,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
             error_dict = exc_val.raising_obj.error_dict(exc_type, exc_val, exc_tb)
         else:
             error_dict = self.error_dict(exc_type, exc_val, exc_tb)
-        error_json = json.dumps(error_dict, separators=(',', ':'), sort_keys=True, default=utils.extra_json_serializer)
+        error_json = json.dumps(error_dict, separators=(',', ':'), indent=4, sort_keys=True, default=utils.extra_json_serializer)
         log.error(f"---\n{error_json}\n...\n")
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -344,8 +344,16 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
 
 
 class ResolveConfigVarsInFile(pybatch.PythonBatchCommandBase):
-    def __init__(self, unresolved_file, resolved_file=None, config_file=None, config_files=None, raise_if_unresolved=False,
-                 temp_config_vars=None, resolve_indicator='$', unresolve_indicator=None, compare_dates=False, **kwargs):
+    def __init__(self, unresolved_file,
+                        resolved_file=None,
+                        config_file=None,
+                        config_files=None,
+                        raise_if_unresolved=False,
+                        temp_config_vars=None,
+                        resolve_indicator='$',
+                        unresolve_indicator=None,
+                        compare_dates=False,
+                        **kwargs):
         """
         read a file and resolve all references to config_vars.
         :param unresolved_file: file to resolve
@@ -631,7 +639,7 @@ class PatchPyBatchWithTimings(pybatch.PythonBatchCommandBase):
         return super(PatchPyBatchWithTimings, self).progress_msg_self()
 
     def __call__(self, *args, **kwargs):
-        progress_comment_re = re.compile(""".+prog_num=(?P<progress>\d+).+\s+$""")
+        progress_comment_re = re.compile(r""".+prog_num=(?P<progress>\d+).+\s+$""")
         py_batch_with_timings = self.path_to_py_batch.with_suffix(".timings.py")
         last_progress_reported = 0
         with utils.utf8_open_for_read(self.path_to_py_batch) as rfd, utils.utf8_open_for_write(py_batch_with_timings, "w") as wfd:

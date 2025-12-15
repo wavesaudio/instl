@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 import sys
 import os
@@ -199,7 +199,7 @@ def patch_verify_ssl(verify_ssl):
         ssl._create_default_https_context = original_create_default_https_context
 
 
-protocol_header_re = re.compile("""
+protocol_header_re = re.compile(r"""
                         \w+
                         ://
                         """, re.VERBOSE)
@@ -613,7 +613,7 @@ def translate_cookies_from_GetInstlUrlComboCollection(in_cookies):
 def ExpandAndResolvePath(path_to_resolve, resolve_path=True) -> Path:
     """ return a Path object after calling
         os.path.expandvars to expand environment variables
-        and Path.resolve to resolve relative paths and
+        and Path. resolve to resolve relative paths and
     """
     # repeat calling os.path.expandvars until no change
     # because os.path.expandvars does not expand recursively
@@ -624,7 +624,8 @@ def ExpandAndResolvePath(path_to_resolve, resolve_path=True) -> Path:
         expanded_path = os.path.expandvars(expanded_path)
 
     path_path = Path(expanded_path)
-    if resolve_path:
+    the_root = path_path.root  # resolve only is root is / or \, otherwise current dir will be prepended by Path.resolve()
+    if resolve_path and the_root:
         path_path = path_path.resolve()
     return path_path
 

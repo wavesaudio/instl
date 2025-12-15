@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 """ YamlReader is a base class for writing specific classes that read yaml.
     when reading a yaml file, one or more documents can be found, each optionally
@@ -71,7 +71,6 @@ class YamlReader(object):
 
     def get_read_function_for_doc(self, a_node):
         is_post_tag = False  # post tags should be read only after all documents where read
-        effective_tag = None
         if not a_node.tag:
             effective_tag = "__no_tag__"
             retVal = self.specific_doc_readers.get("__no_tag__", None)
@@ -197,7 +196,7 @@ class YamlReader(object):
     def handle_yaml_parse_error(self, **kwargs):
         """
             override if something needs to be done when parsing a yaml file fails
-            this function will be called for yaml.reader.ReaderError and like
-            minded errors, NOT for FileNotFoundError or URLError
+            this function will be called for yaml.reader.ReaderError and like-minded errors,
+            NOT for FileNotFoundError or URLError
         """
         pass

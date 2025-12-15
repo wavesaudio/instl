@@ -6,4 +6,6 @@ VALUES (0, 'common'),
         (4, 'Win'),
         (5, 'Win32'),
         (6, 'Win64'),
-        (7, 'Linux');
+        (7, 'Linux'),
+        (8, 'MacArm'),
+        (9, 'MacIntel');

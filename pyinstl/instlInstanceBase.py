@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.12
 
 import os
 import sys
@@ -344,16 +344,17 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
     def calc_user_cache_dir_var(self):
         if "USER_CACHE_DIR" not in config_vars:
             os_family_name = config_vars["__CURRENT_OS__"].str()
-            if os_family_name == "Mac":
-                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
-            elif os_family_name == "Win":
-                user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(VENDOR_NAME)")
-            elif os_family_name == "Linux":
-                user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
-                user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
-            else:
-                raise RuntimeError(f"Unknown operating system {os_family_name}")
+            match os_family_name:
+                case "Mac":
+                    user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                    user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+                case "Win":
+                    user_cache_dir = appdirs.user_cache_dir("$(INSTL_EXEC_DISPLAY_NAME)", "$(VENDOR_NAME)")
+                case "Linux":
+                    user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
+                    user_cache_dir = appdirs.user_cache_dir(user_cache_dir_param)
+                case _:
+                    raise RuntimeError(f"Unknown operating system {os_family_name}")
             config_vars["USER_CACHE_DIR"] = user_cache_dir
 
     def get_aux_cache_dir(self, make_dir=True):
@@ -383,21 +384,23 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
     def relative_sync_folder_for_source(self, source):
         source_path, source_type = source[0], source[1]
-        if source_type in ('!dir', '!file'):
-            retVal = "/".join(source_path.split("/")[0:-1])
-        elif source_type in ('!dir_cont', ):
-            retVal = source_path
-        else:
-            raise ValueError(f"unknown tag for source {source_path}: {source_type}")
+        match source_type:
+            case '!dir' | '!file':
+                retVal = "/".join(source_path.split("/")[0:-1])
+            case '!dir_cont':
+                retVal = source_path
+            case _:
+                raise ValueError(f"unknown tag for source {source_path}: {source_type}")
         return retVal
 
     def relative_sync_folder_for_source_table(self, adjusted_source, source_type):
-        if source_type in ('!dir', '!file'):
-            retVal = "/".join(adjusted_source.split("/")[0:-1])
-        elif source_type in ('!dir_cont', ):
-            retVal = adjusted_source
-        else:
-            raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
+        match source_type:
+            case '!dir' | '!file':
+                retVal = "/".join(adjusted_source.split("/")[0:-1])
+            case '!dir_cont':
+                retVal = adjusted_source
+            case _:
+                raise ValueError(f"unknown tag for source {adjusted_source}: {source_type}")
         return retVal
 
     def write_batch_file(self, in_batch_accum, file_name_post_fix=""):
@@ -461,17 +464,19 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             from . import installItemGraph
 
             depend_graph = installItemGraph.create_dependencies_graph(self.items_table)
-            depend_cycles = installItemGraph.find_cycles(depend_graph)
+            depend_cycles = list(installItemGraph.find_cycles(depend_graph))
             if not depend_cycles:
-                log.info("No depend cycles found")
+                self.progress("No depend cycles found")
             else:
+                self.progress(f"{len(depend_cycles)} depend cycles found")
                 for cy in depend_cycles:
                     log.info(f"""depend cycle: {" -> ".join(cy)}""")
             inherit_graph = installItemGraph.create_inheritItem_graph(self.items_table)
-            inherit_cycles = installItemGraph.find_cycles(inherit_graph)
+            inherit_cycles = list(installItemGraph.find_cycles(inherit_graph))
             if not inherit_cycles:
-                log.info("No inherit cycles found")
+                self.progress("No inherit cycles found")
             else:
+                self.progress(f"{len(inherit_cycles)} inherit cycles found")
                 for cy in inherit_cycles:
                     log.info(f"""inherit cycle: {" -> ".join(cy)}""")
         except ImportError:  # no installItemGraph, no worry
@@ -525,11 +530,12 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             pass
 
     def verify_actions(self, problem_messages_by_iid=None):
-
+        self.progress("verify actions")
         self.items_table.activate_all_oses()
         actions_list = self.items_table.get_all_actions_from_index()
         all_pybatch_commands = self.python_batch_names
         # Each row has: original_iid, detail_name, detail_value, os_id, _id
+        num_bad_actions = 0
         for row in actions_list:
             try:
                 if row['detail_value']:  # it's OK for action to have None value, but no need to check them
@@ -539,13 +545,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                             try:
                                 EvalShellCommand(action, None, all_pybatch_commands, raise_on_error=True)
                             except ValueError as ve:
+                                num_bad_actions += 1
                                 logging.warning(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
                                 if problem_messages_by_iid is not None:
-                                    problem_messages_by_iid[row['original_iid']] = f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}"
+                                    problem_messages_by_iid[row['original_iid']].append(f"syntax error for an action in IID '{row['original_iid']}': {row['detail_name']}: {row['detail_value']}")
             except Exception as ex:
                 log.warning(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}")
                 if problem_messages_by_iid is not None:
-                    problem_messages_by_iid[row['original_iid']] = f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}; {ex}"
+                    problem_messages_by_iid[row['original_iid']].append(f"Exception in verify_actions for IID '{row['original_iid']}': {row['detail_name']}; {ex}")
+        self.progress(f"{num_bad_actions} bad actions found")
 
     def write_config_vars_to_file(self, path_to_config_vars_file):
         if path_to_config_vars_file:
