@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import redis
 
 
-class RedisClient(redis.StrictRedis):
+class RedisClient(redis.Redis):
     """ RedisClient: a wrapper around redis.StrictRedis that adds:
         - connects to port 63179 instead of 6379
         - sets decode_responses to be True so all replies from redis are translated from bytes to utf-8
@@ -14,7 +14,6 @@ class RedisClient(redis.StrictRedis):
         - delete keys by pattern
     """
     decode_responses=True
-    charset='utf-8'
     random_str_choices = string.ascii_uppercase + string.ascii_lowercase + string.digits
     unlock_lua_code = """if redis.call('get', KEYS[1]) == KEYS[2]
                             then
@@ -34,7 +33,7 @@ class RedisClient(redis.StrictRedis):
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        super().__init__(port=self.port, host=self.host, decode_responses=self.decode_responses, charset=self.charset)
+        super().__init__(port=self.port, host=self.host, decode_responses=self.decode_responses)
         if self.__class__.unlock_lua_script is None:
             self.__class__.unlock_lua_script = self.register_script(self.unlock_lua_code)
         if self.__class__.del_keys_by_pattern_lua_script is None:
