@@ -33,7 +33,7 @@ def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbea
     """
     def heartbeat_redis(redis_host, redis_port, heartbeat_key, heartbeat_interval):
         try:
-            r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+            r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
             while True:
                 now_time = time.time()
                 r.set(heartbeat_key, str(datetime.datetime.fromtimestamp(now_time)))
@@ -932,7 +932,7 @@ class InstlAdmin(InstlInstanceBase):
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
         try:
 
             config_vars['UP_SHORT_INDEX_STATUS'] = "FAILED"
@@ -991,7 +991,7 @@ class InstlAdmin(InstlInstanceBase):
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
 
-        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
         try:
 
             config_vars['UP2S3_STATUS'] = "FAILED"
@@ -1123,7 +1123,7 @@ class InstlAdmin(InstlInstanceBase):
         if heartbeat_redis_key:
             start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_redis_key, 2.0)
 
-        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
         self.report_instl_info_to_redis(r)
         trigger_keys_to_wait_on = (waiting_list_redis_key,)
         while True:
@@ -1206,7 +1206,7 @@ class InstlAdmin(InstlInstanceBase):
 
         redis_host = config_vars['REDIS_HOST'].str()  # redis-server ip
         redis_port = config_vars['REDIS_PORT'].int()  # redis-server port
-        r = redis.StrictRedis(host=redis_host, port=redis_port, charset="utf-8", decode_responses=True)
+        r = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
 
         try:
 
