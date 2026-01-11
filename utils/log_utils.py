@@ -108,7 +108,9 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_v
 
 
 class ParentLogFilter(logging.Filter):
-    '''Adds additional info to the log message - stack level, parent info: module, function name, line number.'''
+    """ Adds additional info to the log message - stack level, parent info: module,
+    function name, line number.
+    """
     def filter(self, record):
         record.name = re.sub(r'.*\.', '', record.name)
         try:
@@ -271,3 +273,147 @@ class SameLevelFilter(logging.Filter):
 
     def filter(self, logRecord):
         return logRecord.levelno <= self.__level
+
+import collections
+import logging
+from typing import Iterable, Optional, List
+
+
+class BufferUntilErrorHandler(logging.Handler):
+    """
+    Proxy handler:
+      - Buffers all records with level < flush_level
+      - On first record with level >= flush_level:
+          flush buffered records, forward the triggering record,
+          then latch open (subsequent records pass through immediately).
+    """
+    def __init__(
+        self,
+        targets: Iterable[logging.Handler],
+        flush_level: int = logging.ERROR,
+        max_records: int = 10000,
+        latch_open_after_first_error: bool = True,
+    ):
+        super().__init__(level=logging.NOTSET)
+        self._targets: List[logging.Handler] = list(targets)
+        self._flush_level = flush_level
+        self._buffer = collections.deque(maxlen=max_records)
+        self._dropped_count = 0
+        self._max_records = max_records
+        self._latch_open_after_first_error = latch_open_after_first_error
+        self._latched_open = False
+
+    def emit(self, record: logging.LogRecord) -> None:
+        targets = [h for h in self._targets if h is not self]
+
+        # If already latched open: pass-through
+        if self._latched_open:
+            for h in targets:
+                h.handle(record)
+            return
+
+        # Still buffering phase
+        if record.levelno < self._flush_level:
+            if self._buffer.maxlen is not None and len(self._buffer) == self._buffer.maxlen:
+                self._dropped_count += 1
+            self._buffer.append(record)
+            return
+
+        # ERROR+ arrived: flush buffer, then forward this record
+        if self._dropped_count:
+            synth = logging.LogRecord(
+                name=record.name,
+                level=logging.WARNING,
+                pathname=record.pathname,
+                lineno=record.lineno,
+                msg=f"[log buffer] Dropped {self._dropped_count} buffered records (max_records={self._max_records}).",
+                args=(),
+                exc_info=None,
+            )
+            for h in targets:
+                h.handle(synth)
+            self._dropped_count = 0
+
+        while self._buffer:
+            r = self._buffer.popleft()
+            for h in targets:
+                h.handle(r)
+
+        for h in targets:
+            h.handle(record)
+
+        if self._latch_open_after_first_error:
+            self._latched_open = True
+
+    def flush(self) -> None:
+        pass
+
+_buffer_until_error_proxy: Optional[BufferUntilErrorHandler] = None
+_buffer_until_error_original_handlers: Optional[List[logging.Handler]] = None
+
+
+def set_buffer_non_errors_until_error(
+    enabled: bool = True,
+    *,
+    max_records: int = 10000,
+    latch_open_after_first_error: bool = True,
+) -> None:
+    """
+    Enable/disable buffering of non-error records. When enabled:
+      - Buffer all records below ERROR
+      - On first ERROR+ record: flush buffered records + the triggering record
+      - If latch_open_after_first_error=True: then pass through everything afterward
+    """
+    global _buffer_until_error_proxy, _buffer_until_error_original_handlers
+
+    root = logging.getLogger()
+
+    if enabled:
+
+        if _buffer_until_error_proxy is not None:
+            return
+
+        originals = list(root.handlers)
+        if not originals:
+            return
+
+        proxy = BufferUntilErrorHandler(
+            targets=originals,
+            flush_level=logging.ERROR,
+            max_records=max_records,
+            latch_open_after_first_error=latch_open_after_first_error,
+        )
+        proxy.name = "buffer-until-error proxy"
+
+        for h in originals:
+            root.removeHandler(h)
+
+        root.addHandler(proxy)
+
+        _buffer_until_error_original_handlers = originals
+        _buffer_until_error_proxy = proxy
+        return
+
+    if _buffer_until_error_proxy is None:
+        return
+
+    try:
+        root.removeHandler(_buffer_until_error_proxy)
+    except ValueError:
+        pass
+
+    originals = _buffer_until_error_original_handlers or []
+    for h in originals:
+        if h not in root.handlers:
+            root.addHandler(h)
+
+    _buffer_until_error_proxy = None
+    _buffer_until_error_original_handlers = None
+
+def set_log_quiet_until_error(enabled: bool = True, *, max_records: int = 10000):
+    log = logging.getLogger(__name__)
+
+    if enabled:
+        log.info(">>> Quiet until error enabled: log messages will be printed only if an error occurs.<<<")
+
+    set_buffer_non_errors_until_error(enabled, max_records=max_records)

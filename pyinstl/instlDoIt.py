@@ -16,6 +16,8 @@ class InstlDoIt(InstlInstanceBase):
         self.full_doit_order = utils.unique_list()
 
     def do_command(self):
+        # __QUIET_UNTIL_ERROR__ is set to true when command line argument "--quiet-until-error" is found
+        utils.set_log_quiet_until_error(config_vars.get("__QUIET_UNTIL_ERROR__", False))
         # print("client_commands", fixed_command_name)
         main_input_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         self.read_yaml_file(main_input_file_path)

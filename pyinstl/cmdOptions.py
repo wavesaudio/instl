@@ -83,6 +83,7 @@ class CommandLineOptions(object):
     COMPARE_DATES_ON_RESOLVE = OptionToConfigVar()
     RESOLVE_AS_YAML = OptionToConfigVar()
     __WRITE_CONFIG_VARS_TO_FILE__ = OptionToConfigVar()
+    __QUIET_UNTIL_ERROR__ = OptionToConfigVar()
     UNRESOLVE_INDICATOR = OptionToConfigVar()
 
     def __init__(self) -> None:
@@ -163,7 +164,7 @@ def prepare_args_parser(in_command):
     if in_command not in all_command_details:
         # misc commands, gui, doit
         all_command_details.update({
-            'doit':                 {'mode': 'doit', 'options': ('in', 'out', 'run', 'write-config-vars'), 'help':  'Do something'},
+            'doit':                 {'mode': 'doit', 'options': ('in', 'out', 'run', 'write-config-vars', 'quiet-until-error'), 'help':  'Do something'},
             'gui':                  {'mode': 'gui', 'options': (), 'help':  'graphical user interface'}
             })
 
@@ -331,6 +332,14 @@ def prepare_args_parser(in_command):
                                        metavar='path-to-output-yaml-file',
                                        dest='__WRITE_CONFIG_VARS_TO_FILE__',
                                        help="output yaml file")
+
+    if 'quiet-until-error' in command_details['options']:
+        write_yaml_option = command_parser.add_argument_group(description='run arguments:')
+        write_yaml_option.add_argument('--quiet-until-error', '--quiet-until-error',
+                                   required=False,
+                                   action='store_true',
+                                   dest='__QUIET_UNTIL_ERROR__',
+                                   help="log will be quiet until error")
 
     # the following option groups each belong only to a single command
     match in_command:

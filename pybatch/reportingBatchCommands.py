@@ -72,7 +72,7 @@ class FailIfFileNotFound(RaiseException):
 
     def __call__(self, *args, **kwargs) -> None:
         if not Path(self.file_to_find).is_file():
-            print(f"error: File not found: {self.file_to_find}")
+            log.error(f"error: File not found: {self.file_to_find}")
             super().__call__(*args, **kwargs)
 
 class Stage(pybatch.PythonBatchCommandBase, essential=False, call__call__=False, is_context_manager=True):
@@ -309,6 +309,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         self.name = name
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        utils.set_log_quiet_until_error(False)
         suppress_exception = False
         if exc_val:
             self.log_error(exc_type, exc_val, exc_tb)
