@@ -328,7 +328,7 @@ class ResHackerAddResource(RunProcessBase):
 class FullACLForEveryone(RunProcessBase):
     """ Give group 'Everyone' all possible permissions """
     def __init__(self, path: os.PathLike, **kwargs) -> None:
-        super().__init__(**kwargs)
+        super().__init__(capture_stdout=True, **kwargs)
         self.path = Path(path)
 
     def repr_own_args(self, all_args: List[str]) -> None:

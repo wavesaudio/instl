@@ -414,6 +414,6 @@ def set_log_quiet_until_error(enabled: bool = True, *, max_records: int = 10000)
     log = logging.getLogger(__name__)
 
     if enabled:
-        log.info(">>> Quiet until error enabled: log messages will be printed only if an error occurs.<<<")
+        log.info("instl log messages will only be printed if an error occurs")
 
     set_buffer_non_errors_until_error(enabled, max_records=max_records)

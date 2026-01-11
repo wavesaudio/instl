@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 2         # major version e.g. python-batch
   - 5         # new major feature e.g. new command
   - 3         # new minor feature e.g. new option to command, new python batch class
-  - 0         # bug fix, new param to pybatch class
+  - 2         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: new command line argument for doit, --quiet-until-error, log messages will be printed only if an error occurs
+INSTL_VERSION_CHANGE_REASON: FullACLForEveryone with capture_stdout to reduce verbosity
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
