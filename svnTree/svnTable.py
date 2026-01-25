@@ -776,41 +776,98 @@ class SVNTable(object):
             insert_q = """INSERT INTO cache_folder_file_paths_t (path) VALUES (?);"""
             curs.executemany(insert_q, list_of_inserts)
 
+            # TODO: revise comments, for Shai
             # create a list of files that should stay in the cache folder.
             # the list is a combination of:
             # - all files in known info_map files
             # - all files appearing in IIDs that have custom info_map files.
             # Since we do not know the exact path of such files, we append % to the folder names and later use LIKE
 
-            create_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_t (path TEXT);"""
-            curs.execute(create_table_text)
+            create_exact_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_exact_t (path TEXT PRIMARY KEY);"""
+            create_prefix_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_prefix_t (path TEXT PRIMARY KEY);"""
+            curs.execute(create_exact_table_text)
+            curs.execute(create_prefix_table_text)
 
-            path_that_should_stay_q = """
-                    INSERT INTO do_not_remove_file_paths_t (path)  
-                    SELECT install_sources_t.detail_value||"%" as __path
+            path_that_should_stay_prefix_q = """
+                    INSERT INTO do_not_remove_file_paths_prefix_t (path)  
+                    SELECT DISTINCT install_sources_t.detail_value as __path
                     FROM index_item_detail_t AS install_sources_t, index_item_detail_t as info_map_t
                     WHERE install_sources_t.detail_name == "install_sources"
                             AND info_map_t.detail_name == "info_map"
                             AND info_map_t.owner_iid == install_sources_t.owner_iid
                             AND install_sources_t.detail_value NOT IN (SELECT path FROM svn_item_t)
-                   UNION 
-                    SELECT svn_item_t.path as __path from svn_item_t
-                    ORDER BY __path
                     """
-            curs.execute(path_that_should_stay_q)
+            path_that_should_stay_exact_q = """
+                    INSERT INTO do_not_remove_file_paths_exact_t (path)
+                    SELECT svn_item_t.path as __path from svn_item_t
+                    ORDER BY __path;
+                    """
+            curs.execute(path_that_should_stay_prefix_q)
+            curs.execute(path_that_should_stay_exact_q)
 
-            # this query will mark not to remove all files found in the sync folder that are not in the info_map
+            exact_create_index_q = """CREATE INDEX IF NOT EXISTS idx_dnr_exact  ON do_not_remove_file_paths_exact_t(path);"""
+            prefix_create_index_q = """CREATE INDEX IF NOT EXISTS idx_dnr_prefix  ON do_not_remove_file_paths_prefix_t(path);"""
+
+            curs.execute(exact_create_index_q)
+            curs.execute(prefix_create_index_q)
+
+            # For debugging
+            # do_not_remove_file_paths_exact = curs.execute("""SELECT * FROM do_not_remove_file_paths_exact_t""").fetchall()
+            # do_not_remove_file_paths_prefix = curs.execute("""SELECT * FROM do_not_remove_file_paths_prefix_t""").fetchall()
+
+            # these queries will mark not to remove all files found in the sync folder that are not in the info_map
             # database, BUT will exclude those files in folders that have their own info_map for
             # items that are not currently being installed.
 
-            update_paths_q = f"""
-                UPDATE cache_folder_file_paths_t
-                SET remove = 0
-                WHERE cache_folder_file_paths_t.path  in
-                (SELECT cache_folder_file_paths_t.path FROM cache_folder_file_paths_t, do_not_remove_file_paths_t
-                WHERE cache_folder_file_paths_t.path LIKE do_not_remove_file_paths_t.path)
-                """
-            curs.execute(update_paths_q)
+            update_paths_exact_q = f"""
+                    UPDATE cache_folder_file_paths_t AS c
+                    SET remove = 0
+                    WHERE EXISTS (SELECT 1 FROM do_not_remove_file_paths_exact_t d WHERE d.path = c.path);
+                    """
+            update_paths_prefix_q = f"""
+                    UPDATE cache_folder_file_paths_t AS c
+                    SET remove = 0
+                    WHERE EXISTS (
+                      SELECT 1
+                      FROM do_not_remove_file_paths_prefix_t p
+                      WHERE c.path >= p.path
+                        AND c.path <  p.path || char(127)
+                    );
+                    """
+            curs.execute(update_paths_exact_q)
+            curs.execute(update_paths_prefix_q)
+
+            # For debugging
+            # cache_folder_file_paths_t = curs.execute("""SELECT * FROM cache_folder_file_paths_t""").fetchall()
+
+            # find_missing = f"""
+            #     WITH
+            #     old_match AS (
+            #       SELECT DISTINCT *
+            #       FROM cache_folder_file_paths_t
+            #       WHERE cache_folder_file_paths_t.path  in
+            #       (SELECT cache_folder_file_paths_t.path FROM cache_folder_file_paths_t, do_not_remove_file_paths_t
+            #        WHERE cache_folder_file_paths_t.path LIKE do_not_remove_file_paths_t.path)
+            #     ),
+            #     new_match AS (
+            #       SELECT DISTINCT c.path
+            #       FROM cache_folder_file_paths_t c
+            #       LEFT JOIN do_not_remove_file_paths_exact_t e
+            #         ON e.path = c.path
+            #       LEFT JOIN do_not_remove_file_paths_prefix_t p
+            #         ON c.path >= p.path
+            #        AND c.path <  p.path || char(127)
+            #       WHERE e.path IS NOT NULL OR p.path IS NOT NULL
+            #     )
+            #     SELECT o.path
+            #     FROM old_match o
+            #     LEFT JOIN new_match n USING(path)
+            #     WHERE n.path IS NULL;
+            # """
+            # try:
+            #     missing = curs.execute(find_missing).fetchall()
+            # except Exception as e:
+            #     print(type(e), e)
 
             get_to_remove_q = """
                 SELECT path from cache_folder_file_paths_t
