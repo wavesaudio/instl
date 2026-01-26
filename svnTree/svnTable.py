@@ -831,7 +831,7 @@ class SVNTable(object):
                       SELECT 1
                       FROM do_not_remove_file_paths_prefix_t p
                       WHERE c.path >= p.path
-                        AND c.path <  p.path || char(127)
+                        AND c.path <  p.path || char(0x10FFFF)
                     );
                     """
             curs.execute(update_paths_exact_q)
@@ -856,7 +856,7 @@ class SVNTable(object):
             #         ON e.path = c.path
             #       LEFT JOIN do_not_remove_file_paths_prefix_t p
             #         ON c.path >= p.path
-            #        AND c.path <  p.path || char(127)
+            #        AND c.path <  p.path || char(0x10FFFF)
             #       WHERE e.path IS NOT NULL OR p.path IS NOT NULL
             #     )
             #     SELECT o.path
