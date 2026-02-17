@@ -1299,7 +1299,7 @@ class IndexItemsTable(object):
         binaries_version_to_insert = list()
         for binary_details in binaries_version_list:
             folder, name = os.path.split(binary_details[0])
-            binaries_version_to_insert.append((name, *binary_details))
+            binaries_version_to_insert.append(name, str(binary_details[0]), binary_details[1], binary_details[2])
         self.add_binary_versions(binaries_version_to_insert)
 
     def add_binary_versions(self, binaries_version_list):

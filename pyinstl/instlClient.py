@@ -444,7 +444,7 @@ class InstlClient(InstlInstanceBase):
             self.items_table.insert_binary_versions(binaries_version_list)
 
         except Exception as ex:
-            log.warning(f"""exception while in check_binaries_versions {ex}""")
+            log.warning(f"""exception while in get_version_of_installed_binaries {ex}""")
         return binaries_version_list
 
     def get_direct_sync_status_from_indicator(self, direct_sync_indicator):
