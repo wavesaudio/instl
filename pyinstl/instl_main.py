@@ -134,7 +134,7 @@ def instl_own_main(argv):
     """
     with InvocationReporter(argv, report_own_progress=False):
 
-        fix_ssl_paths()
+        # fix_ssl_paths()
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()
