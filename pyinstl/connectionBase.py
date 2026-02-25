@@ -7,6 +7,7 @@ import urllib.error
 import urllib.parse
 
 import requests
+import certifi
 
 import logging
 
@@ -91,7 +92,7 @@ class ConnectionHTTP(ConnectionBase):
         session = self.sessions.get(netloc, None)
         if session is None:
             session = requests.Session()
-            session.verify=False
+            session.verify=certifi.where()
             self.sessions[netloc] = session
             headers = self.get_custom_headers(netloc)
             session.headers.update(headers)
