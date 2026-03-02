@@ -87,15 +87,18 @@ def get_exec_folder():
 
 def fix_ssl_paths():
     if getattr(sys, 'frozen', False):
-        import ssl
         import certifi
-        cert_dir_path = get_path_to_instl_app().parent.joinpath("_internal", "certifi")
-        # Set the SSL certificate path inside the frozen app
-        # Ensure environment variables point to the correct CA bundle
-        os.environ["SSL_CERT_DIR"] = os.fspath(cert_dir_path)
-        os.environ["SSL_CERT_FILE"] = os.fspath(cert_dir_path.joinpath("cacert.pem"))
-        ssl_context = ssl.create_default_context()
-        ssl_context.load_verify_locations(certifi.where())
+        # Point requests (and urllib) at certifi's well-formed CA bundle instead of
+        # the Windows system certificate store, which may contain non-conformant certs
+        # that cause OpenSSL 3.x to raise [ASN1] nested asn1 error.
+        # REQUESTS_CA_BUNDLE / SSL_CERT_FILE are the env-vars actually respected;
+        # SSL_CERT_DIR is a no-op on Windows.
+        ca_bundle = certifi.where()
+        os.environ["REQUESTS_CA_BUNDLE"] = ca_bundle
+        os.environ["SSL_CERT_FILE"] = ca_bundle
+        # Do NOT call ssl.create_default_context() here: that loads the Windows cert
+        # store via load_default_certs(), and any malformed CA in that store would
+        # raise the same [ASN1] error even though the resulting context is never used.
 
 
 class InvocationReporter(PythonBatchRuntime):
@@ -135,6 +138,8 @@ def instl_own_main(argv):
     with InvocationReporter(argv, report_own_progress=False):
 
         fix_ssl_paths()
+        from pyinstl.connectionBase import inject_truststore
+        inject_truststore()
 
         argv = argv.copy()  # argument argv is usually sys.argv, which might change with recursive process calls
         options = CommandLineOptions()
