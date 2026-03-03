@@ -11,6 +11,11 @@ from .baseClasses import PythonBatchCommandBase
 from .fileSystemBatchCommands import MakeDir
 import utils
 
+try:
+    from pyinstl.connectionBase import SSLContextAdapter
+except ImportError:
+    SSLContextAdapter = None
+
 
 # this class can be used internally, it will create the session ar the init phase and will only need
 # the cookie, the rest of the params will be passed to the call method, this way it will allow this class
@@ -64,6 +69,11 @@ class DownloadManager(PythonBatchCommandBase):
 
     def download_session(self):
         session = requests.Session()
+        session.verify = False
+        if SSLContextAdapter is not None:
+            adapter = SSLContextAdapter()
+            session.mount("https://", adapter)
+            session.mount("http://", adapter)
         cookies = self.get_cookie_dict_from_str(self.cookie)
         session.cookies = cookiejar_from_dict(cookies)
         return session
