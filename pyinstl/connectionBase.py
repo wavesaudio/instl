@@ -20,6 +20,11 @@ from typing import Dict
 class SSLContextAdapter(HTTPAdapter):
     """Custom HTTPAdapter with a maximally permissive SSL context.
 
+    See https://wavesaudio.atlassian.net/browse/CEN2-3633 - customers
+    from Serbia had installed their own governments' certificates
+    instead of Windows default ones.
+    The issue may take place with any such corporate CAs.
+
     Python 3.12 / OpenSSL 3.x enforces strict DER/ASN.1 parsing during the
     TLS handshake.  The '[ASN1] nested asn1 error' (_ssl.c) is NOT a
     certificate-verification error — it is a certificate-parsing error that
