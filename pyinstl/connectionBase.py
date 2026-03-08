@@ -54,15 +54,10 @@ class SSLContextAdapter(HTTPAdapter):
 
     @staticmethod
     def _make_ssl_context() -> ssl.SSLContext:
-        try:
-            import certifi
-            # create_default_context(cafile=...) loads certifi's CAs only —
-            # it does NOT call load_default_certs(), so the Windows cert store
-            # (which may contain malformed certs) is never touched.
-            ctx = ssl.create_default_context(cafile=certifi.where())
-        except Exception:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-
+        # Use SSLContext(PROTOCOL_TLS_CLIENT) so that when truststore is injected
+        # we get OS-native TLS (Schannel on Windows) and the OS parses certs
+        # instead of OpenSSL — avoids [ASN1] when server or proxy cert is malformed.
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
 

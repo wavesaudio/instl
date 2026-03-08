@@ -188,16 +188,10 @@ class write_to_file_or_stdout(object):
 
 @contextmanager
 def patch_verify_ssl(verify_ssl):
-    """Temporarily replace ssl._create_default_https_context with a maximally
-    permissive factory for urllib.request-based URL reads.
-
-    This mirrors the approach used by SSLContextAdapter for the requests path:
-      - Load CAs from certifi (avoids Windows system cert store; that store may
-        contain non-conformant certs that make OpenSSL 3.x raise
-        '[ASN1] nested asn1 error' even when verification is disabled).
-      - Disable verification (CERT_NONE / check_hostname=False).
-      - Set @SECLEVEL=0 so OpenSSL accepts any algorithm / encoding.
-      - Set OP_LEGACY_SERVER_CONNECT for pre-3.x renegotiation compatibility.
+    """If verify_ssl is False, patch ssl._create_default_https_context so urllib
+    uses a permissive context. Uses ssl.SSLContext(PROTOCOL_TLS_CLIENT) so that
+    when truststore is injected we get OS-native TLS (Schannel on Windows) and
+    avoid [ASN1] nested asn1 error with corporate/gov CAs or proxies.
 
     The context manager is a no-op when verify_ssl is True.
     """
@@ -205,15 +199,10 @@ def patch_verify_ssl(verify_ssl):
         original_create_default_https_context = ssl._create_default_https_context
 
         def _permissive_https_context(*args, **kwargs):
-            try:
-                import certifi
-                # create_default_context(cafile=...) loads certifi's CAs only and
-                # does NOT call load_default_certs(), keeping the Windows cert
-                # store out of the picture.
-                ctx = ssl.create_default_context(cafile=certifi.where())
-            except Exception:
-                ctx = ssl._create_unverified_context(*args, **kwargs)
-
+            # Use SSLContext(PROTOCOL_TLS_CLIENT) so that when truststore is injected
+            # we get OS-native TLS (Schannel on Windows) and avoid [ASN1] with
+            # corporate/gov CAs or proxies.
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
 

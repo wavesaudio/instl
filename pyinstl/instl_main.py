@@ -1,5 +1,14 @@
 import sys
 import os
+
+# Use OS-native TLS (Schannel on Windows) so OpenSSL does not parse certs;
+# avoids "[ASN1] nested asn1 error" with corporate/gov CAs in system store or from proxies.
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 import string
 import appdirs
 import tempfile
