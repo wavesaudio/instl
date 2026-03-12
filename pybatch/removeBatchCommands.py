@@ -3,6 +3,7 @@ import stat
 import shutil
 import re
 import sys
+import time
 from pathlib import Path
 from typing import List
 import logging
@@ -200,20 +201,30 @@ class RemoveEmptyFolders(PythonBatchCommandBase, kwargs_defaults={"files_to_igno
                         num_ignored_files += 1
                     else:
                         break
-                if len(file_names) == num_ignored_files:
-                    # only remove the ignored files if the folder is to be removed
-                    for filename in file_names:
-                        file_to_remove_full_path = os.path.join(root_path, filename)
-                        try:
-                            self.doing = f"""removing ignored file '{file_to_remove_full_path}'"""
-                            os.remove(file_to_remove_full_path)
-                        except Exception as ex:
-                            log.warning(f"""failed to remove {file_to_remove_full_path}, {ex}""")
+                if len(file_names) != num_ignored_files:
+                    wait_sec = .25
+                    max_attempts = 10
+                    log.info(f"Remove of {resolved_folder_to_check} - waiting {wait_sec} secs before trying again")
+
+                    time.sleep(wait_sec)
+                    
+                    attempt = kwargs.pop("attempt", 1)
+                    if attempt < max_attempts:
+                        self(*args, attempt=attempt+1, **kwargs)
+                    return
+                # only remove the ignored files if the folder is to be removed
+                for filename in file_names:
+                    file_to_remove_full_path = os.path.join(root_path, filename)
                     try:
-                        self.doing = f"""removing empty folder '{root_path}'"""
-                        os.rmdir(root_path)
+                        self.doing = f"""removing ignored file '{file_to_remove_full_path}'"""
+                        os.remove(file_to_remove_full_path)
                     except Exception as ex:
-                        log.warning(f"""failed to remove {root_path}, {ex}""")
+                        log.warning(f"""failed to remove {file_to_remove_full_path}, {ex}""")
+                try:
+                    self.doing = f"""removing empty folder '{root_path}'"""
+                    os.rmdir(root_path)
+                except Exception as ex:
+                    log.warning(f"""failed to remove {root_path}, {ex}""")
 
 
 class RmGlob(PythonBatchCommandBase):
