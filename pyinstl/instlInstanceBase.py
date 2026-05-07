@@ -4,6 +4,9 @@ import os
 import sys
 import re
 import abc
+import stat
+import json
+import subprocess
 from pathlib import Path
 import appdirs
 import urllib.error
@@ -88,6 +91,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                                              'doit', 'read-yaml', 'translate-guids',
                                              'verify-repo', 'depend', 'fix-props', 'up2s3', 'activate-repo-rev',
                                              'short-index', 'up-short-index', 'report-versions']
+    forced_batch_bootstrap_vars = ("__INSTL_DATA_FOLDER__", "__INSTL_DEFAULTS_FOLDER__")
 
     def __init__(self, initial_vars=None) -> None:
         self.total_self_progress = 0   # if > 0 output progress during run (as apposed to batch file progress)
@@ -112,6 +116,10 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self.dl_tool = CUrlHelper()
 
         self.out_file_realpath = None
+        self._batch_script_checksum = None
+        self._batch_script_size = None
+        self._snapshot_checksum = None
+        self._snapshot_size = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
@@ -323,8 +331,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
         regex = "|".join(do_not_write_vars)
         do_not_write_vars_regex = re.compile(regex, re.IGNORECASE)
+        assigned_identifiers = set()
         for identifier in config_vars.keys():
             if not do_not_write_vars_regex.fullmatch(identifier):
+                value_list = list(config_vars[identifier])
+                in_batch_accum += ConfigVarAssign(identifier, *value_list)
+                assigned_identifiers.add(identifier)
+
+        for identifier in self.forced_batch_bootstrap_vars:
+            if identifier in config_vars and identifier not in assigned_identifiers:
                 value_list = list(config_vars[identifier])
                 in_batch_accum += ConfigVarAssign(identifier, *value_list)
 
@@ -407,18 +422,30 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         assert "__MAIN_OUT_FILE__" in config_vars
 
         config_vars["TOTAL_ITEMS_FOR_PROGRESS_REPORT"] = in_batch_accum.total_progress_count()
-
         in_batch_accum.initial_progress = self.internal_progress
+
+        # Pre-compute the output path before generating the batch so the snapshot path can be
+        # written into the batch script's assign section via config_vars["__BATCH_SNAPSHOT_FILE__"].
+        # The snapshot is a JSON file that captures the parent process's complete config_vars state
+        # and passes it to the child subprocess, ensuring the child has exactly the same runtime
+        # configuration (DB paths, info-map paths, etc.) that the parent used when creating the batch.
+        out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
+        if out_file:
+            out_file = out_file.parent.joinpath(out_file.name + file_name_post_fix)
+            config_vars["__BATCH_SNAPSHOT_FILE__"] = os.fspath(out_file.with_suffix('.snapshot.json'))
+
         self.create_variables_assignment(in_batch_accum)
         self.init_python_batch(in_batch_accum)
 
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
 
         final_repr = repr(in_batch_accum)
+        final_text = f"{final_repr}\n"
+        final_bytes = final_text.encode("utf-8")
+        self._batch_script_checksum = utils.get_buffer_checksum(final_bytes)
+        self._batch_script_size = len(final_bytes)
 
-        out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         if out_file:
-            out_file = out_file.parent.joinpath(out_file.name+file_name_post_fix)
             with MakeDir(out_file.parent, report_own_progress=False) as md:
                 md()
             self.out_file_realpath = os.fspath(out_file)
@@ -426,30 +453,181 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             self.out_file_realpath = "stdout"
 
         with utils.write_to_file_or_stdout(out_file) as fd:
-            fd.write(final_repr)
-            fd.write('\n')
+            fd.write(final_text)
+
+        # Write the config snapshot that will be loaded by the generated batch to pass
+        # config_vars from parent to child subprocess.
+        if out_file:
+            self._write_config_snapshot(out_file.with_suffix('.snapshot.json'))
 
         msg = " ".join(
             (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)
 
-    def run_batch_file(self):
-        if self.out_file_realpath.endswith(".py"):
-            with utils.utf8_open_for_read(self.out_file_realpath, 'r') as rfd:
-                py_text = rfd.read()
-                py_compiled = compile(py_text, os.fspath(self.out_file_realpath), mode='exec', flags=0, dont_inherit=False, optimize=2)
-                exec(py_compiled, globals())
+    @staticmethod
+    def _validate_execution_file(
+            file_path: Path,
+            missing_msg: str,
+            symlink_msg: str,
+            non_regular_msg: str) -> None:
+        if not file_path.exists():
+            raise FileNotFoundError(missing_msg.format(path=file_path))
+        if file_path.is_symlink():
+            raise RuntimeError(symlink_msg.format(path=file_path))
+        file_stat = file_path.stat()
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise RuntimeError(non_regular_msg.format(path=file_path))
+        if file_stat.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            os.chmod(file_path, file_stat.st_mode & ~(stat.S_IWGRP | stat.S_IWOTH))
 
+    @staticmethod
+    def _verify_execution_file_integrity(
+            file_path: Path,
+            file_bytes: bytes,
+            expected_checksum,
+            expected_size,
+            missing_integrity_metadata_msg: str,
+            modified_msg_prefix: str) -> None:
+        if expected_checksum is None or expected_size is None:
+            raise RuntimeError(missing_integrity_metadata_msg.format(path=file_path))
+        actual_checksum = utils.get_buffer_checksum(file_bytes)
+        actual_size = len(file_bytes)
+        if actual_checksum != expected_checksum or actual_size != expected_size:
+            raise RuntimeError(
+                f"{modified_msg_prefix}: {file_path}; "
+                f"expected checksum/size {expected_checksum}/{expected_size}, "
+                f"got {actual_checksum}/{actual_size}"
+            )
+
+    def _validate_batch_script_for_execution(self, script_path: Path) -> None:
+        self._validate_execution_file(
+            script_path,
+            missing_msg="Batch script does not exist: {path}",
+            symlink_msg="Refusing to execute symlink batch script: {path}",
+            non_regular_msg="Batch script is not a regular file: {path}",
+        )
+
+    def _verify_batch_script_integrity(self, script_path: Path, script_bytes: bytes) -> None:
+        self._verify_execution_file_integrity(
+            script_path,
+            script_bytes,
+            expected_checksum=self._batch_script_checksum,
+            expected_size=self._batch_script_size,
+            missing_integrity_metadata_msg="Batch integrity metadata missing for {path}; refusing execution",
+            modified_msg_prefix="Batch script was unexpectedly modified before execution",
+        )
+
+    def _write_config_snapshot(self, snapshot_path: Path) -> None:
+        """Write a JSON snapshot to pass config_vars from parent to child batch subprocess.
+
+        Purpose: The generated batch file runs in an isolated subprocess with restricted
+        environment variables. This snapshot ensures the child inherits the parent's complete
+        config_vars state (DB paths, info-map paths, repo settings, etc.) so that runtime
+        behavior is deterministic and consistent.
+
+        Why necessary: create_variables_assignment() (which generates the batch script's assign
+        section) excludes vars whose names match environment-variable keys when
+        WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE=no. Without the snapshot, DB-backed
+        commands (CreateSyncFolders, CheckDownloadFolderChecksum, ...) get incomplete state,
+        process zero items, and fail progress-count assertions.
+
+        The snapshot is loaded by the generated batch early in execution (after the assign
+        section, before any pybatch commands run), restoring the full config_vars set.
+        """
+        do_not_write_vars = config_vars["DONT_WRITE_CONFIG_VARS"].list()
+        if do_not_write_vars:
+            do_not_write_regex = re.compile("|".join(do_not_write_vars), re.IGNORECASE)
         else:
-            from subprocess import Popen
+            do_not_write_regex = re.compile("(?!)")  # never matches
 
-            p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
-            stdout, stderr = p.communicate()
-            if stdout:
-                print(stdout)
-            if stderr:
-                print(stderr, file=sys.stderr)
-            return_code = p.returncode
+        snapshot: dict = {}
+        for key in config_vars.keys():
+            if do_not_write_regex.fullmatch(key):
+                continue
+            try:
+                snapshot[key] = list(config_vars[key])
+            except Exception:
+                pass  # skip vars that fail to resolve (e.g. dynamic vars with broken callbacks)
+
+        snapshot_text = json.dumps(snapshot, sort_keys=True, ensure_ascii=False)
+        snapshot_bytes = snapshot_text.encode("utf-8")
+        self._snapshot_checksum = utils.get_buffer_checksum(snapshot_bytes)
+        self._snapshot_size = len(snapshot_bytes)
+        snapshot_path.write_bytes(snapshot_bytes)
+
+    def _validate_snapshot_for_execution(self, snapshot_path: Path) -> None:
+        self._validate_execution_file(
+            snapshot_path,
+            missing_msg="Config snapshot does not exist: {path}",
+            symlink_msg="Refusing to load symlink config snapshot: {path}",
+            non_regular_msg="Config snapshot is not a regular file: {path}",
+        )
+
+    def _verify_snapshot_integrity(self, snapshot_path: Path, snapshot_bytes: bytes) -> None:
+        self._verify_execution_file_integrity(
+            snapshot_path,
+            snapshot_bytes,
+            expected_checksum=self._snapshot_checksum,
+            expected_size=self._snapshot_size,
+            missing_integrity_metadata_msg="Snapshot integrity metadata missing for {path}; refusing execution",
+            modified_msg_prefix="Config snapshot was unexpectedly modified before execution",
+        )
+
+    @staticmethod
+    def _restricted_python_env() -> dict[str, str]:
+        allowed_env_vars = (
+            "PATH",
+            "SystemRoot",
+            "ComSpec",
+            "WINDIR",
+            "TMP",
+            "TEMP",
+            "TMPDIR",
+            "HOME",
+            "USERPROFILE",
+            "LOGNAME",
+            "USER",
+            "APPLICATION_NAME",
+            "VENDOR_NAME",
+            "LANG",
+            "LC_ALL",
+        )
+        env = {key: value for key, value in os.environ.items() if key in allowed_env_vars}
+        env["PYTHONNOUSERSITE"] = "1"
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env["PYTHONSAFEPATH"] = "1"
+        return env
+
+    def run_batch_file(self):
+        if not self.out_file_realpath or self.out_file_realpath == "stdout":
+            raise RuntimeError("Batch output path is not set to an executable file")
+        script_path = Path(self.out_file_realpath)
+        self._validate_batch_script_for_execution(script_path)
+        script_bytes = script_path.read_bytes()
+        self._verify_batch_script_integrity(script_path, script_bytes)
+
+        if script_path.suffix.lower() == ".py":
+            python_exe = Path(sys.executable).resolve()
+            if not python_exe.is_file():
+                raise RuntimeError(f"Python executable not found: {python_exe}")
+
+            # Validate and verify the config snapshot that passes config_vars to the child.
+            # The snapshot path is always script_path.with_suffix('.snapshot.json').
+            # The child batch script loads it at startup via config_vars["__BATCH_SNAPSHOT_FILE__"]
+            # to restore the parent's complete runtime configuration before executing any commands.
+            snapshot_path = script_path.with_suffix('.snapshot.json')
+            self._validate_snapshot_for_execution(snapshot_path)
+            snapshot_bytes = snapshot_path.read_bytes()
+            self._verify_snapshot_integrity(snapshot_path, snapshot_bytes)
+
+            run_args = [os.fspath(python_exe), "-I", "-B", "-s", os.fspath(script_path)]
+            completed = subprocess.run(run_args, shell=False, env=self._restricted_python_env(), check=False)
+            return_code = completed.returncode
+            if return_code != 0:
+                raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
+        else:
+            completed = subprocess.run([self.out_file_realpath], executable=self.out_file_realpath, shell=False, check=False)
+            return_code = completed.returncode
             if return_code != 0:
                 raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
 

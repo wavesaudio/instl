@@ -112,6 +112,40 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         cc = f"""\nlog.info("Shakespeare says: All's Well That Ends Well")\n# eof\n\n"""
         return cc
 
+    def _python_snapshot_load_code(self) -> str:
+        """Generate Python code that loads config_vars from the parent process's snapshot.
+
+        Purpose: Pass complete config_vars state from the parent (which generated this batch)
+        to the child subprocess (which executes the batch). The child runs in an isolated
+        interpreter with restricted environment, so without the snapshot it would be missing
+        critical config like DB paths, info-map locations, and repo settings.
+
+        The snapshot-load code is inserted between the assign section (prolog) and the main
+        commands, so it overrides any config vars that the assign section omitted (due to
+        the environment-key exclusion in create_variables_assignment). This ensures DB-backed
+        commands have correct runtime state and advance progress counters
+        to their expected values.
+
+        The snapshot path comes from config_vars['__BATCH_SNAPSHOT_FILE__'], which
+        InstlInstanceBase.write_batch_file() sets before generating the assign section.
+        """
+        if "__BATCH_SNAPSHOT_FILE__" not in config_vars:
+            return ""
+        lines = [
+            "",
+            "# Load config_vars snapshot from parent process to restore complete runtime state.",
+            "# This passes DB paths, info-map locations, and other critical config that the assign",
+            "# section may have excluded (due to environment-key filtering). Without this, DB-backed",
+            "# commands would get incomplete state and fail progress-count assertions.",
+            "if __name__ == '__main__' and '__BATCH_SNAPSHOT_FILE__' in config_vars:",
+            "    import json as _json",
+            "    with open(config_vars['__BATCH_SNAPSHOT_FILE__'].str(), 'r', encoding='utf-8') as _sf:",
+            "        for _k, _v in _json.load(_sf).items():",
+            "            config_vars[_k] = _v",
+            "",
+        ]
+        return "\n".join(lines)
+
     def __repr__(self):
         single_indent = "    "
         running_progress_count = self.initial_progress
@@ -201,7 +235,8 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         main_str_resolved = config_vars.resolve_str(main_str.getvalue())
         main_str_resolved = config_vars.replace_unresolved_with_native_var_pattern(main_str_resolved, list(config_vars["__CURRENT_OS_NAMES__"])[0])
 
-        the_whole_repr = prolog_str.getvalue()+main_str_resolved+epilog_str.getvalue()
+        snapshot_load_code = self._python_snapshot_load_code()
+        the_whole_repr = prolog_str.getvalue() + snapshot_load_code + main_str_resolved + epilog_str.getvalue()
 
         PythonBatchCommandBase.config_vars_for_repr = None
 
