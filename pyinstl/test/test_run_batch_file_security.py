@@ -288,5 +288,54 @@ class TestRunBatchFileSecurity(unittest.TestCase):
                 config_vars.resize_stack(original_stack_size)
 
 
+    def test_venv_python_is_preferred_when_valid(self):
+        """run_batch_file() must use INSTL_VIRTUAL_ENVIRONMENT_PYTHON when it points to a real file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            script_bytes = b"print('safe')\n"
+            script_path.write_bytes(script_bytes)
+            inst = self._make_instance(script_path, script_bytes)
+
+            # Create a fake venv python file so the path check passes.
+            fake_venv_python = Path(temp_dir, "fake_python")
+            fake_venv_python.write_bytes(b"")
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] = os.fspath(fake_venv_python)
+
+                with mock.patch("subprocess.run", return_value=SimpleNamespace(returncode=0)) as mocked_run:
+                    inst.run_batch_file()
+
+                mocked_run.assert_called_once()
+                run_args, _run_kwargs = mocked_run.call_args
+                self.assertEqual(run_args[0][0], os.fspath(fake_venv_python.resolve()))
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+    def test_falls_back_to_sys_executable_when_venv_python_missing(self):
+        """run_batch_file() must fall back to sys.executable when INSTL_VIRTUAL_ENVIRONMENT_PYTHON is not a file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            script_bytes = b"print('safe')\n"
+            script_path.write_bytes(script_bytes)
+            inst = self._make_instance(script_path, script_bytes)
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] = os.path.join(temp_dir, "nonexistent_python")
+
+                with mock.patch("subprocess.run", return_value=SimpleNamespace(returncode=0)) as mocked_run:
+                    inst.run_batch_file()
+
+                mocked_run.assert_called_once()
+                run_args, _run_kwargs = mocked_run.call_args
+                self.assertEqual(run_args[0][0], os.fspath(Path(sys.executable).resolve()))
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+
 if __name__ == "__main__":
     unittest.main()

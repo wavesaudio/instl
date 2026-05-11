@@ -592,6 +592,24 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         )
 
     @staticmethod
+    def _batch_python_executable() -> Path:
+        """Return the Python interpreter to use for generated batch scripts.
+
+        Prefers the project virtualenv interpreter recorded in
+        config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] so the child process
+        inherits the same pip-installed dependencies (e.g. appdirs) that the
+        build uses.  Falls back to sys.executable when the config var is
+        absent, blank, or points to a path that is not a regular file (e.g.
+        the var is not set in non-build flows).
+        """
+        venv_python_str = str(config_vars.get("INSTL_VIRTUAL_ENVIRONMENT_PYTHON", ""))
+        if venv_python_str:
+            venv_python = Path(venv_python_str).resolve()
+            if venv_python.is_file():
+                return venv_python
+        return Path(sys.executable).resolve()
+
+    @staticmethod
     def _restricted_python_env() -> dict[str, str]:
         allowed_env_vars = (
             "PATH",
@@ -625,7 +643,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self._verify_batch_script_integrity(script_path, script_bytes)
 
         if script_path.suffix.lower() == ".py":
-            python_exe = Path(sys.executable).resolve()
+            python_exe = self._batch_python_executable()
             if not python_exe.is_file():
                 raise RuntimeError(f"Python executable not found: {python_exe}")
 
