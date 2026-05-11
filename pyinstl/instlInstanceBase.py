@@ -497,6 +497,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             expected_size,
             missing_integrity_metadata_msg: str,
             modified_msg_prefix: str) -> None:
+        #############
+        if file_path:
+            log.info(f"after, file path: {str(file_path)}")
+        log.info(f"after, batch script expected size: {expected_size}")
+        log.info(f"after, batch script actual size: {len(file_bytes)}")
+        log.info("after, begin file bytes")
+        log.info(file_bytes.decode("utf-8"))
+        log.info("after, end file bytes")
+        ############
         if expected_checksum is None or expected_size is None:
             raise RuntimeError(missing_integrity_metadata_msg.format(path=file_path))
         actual_checksum = utils.get_buffer_checksum(file_bytes)
@@ -507,16 +516,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                 f"expected checksum/size {expected_checksum}/{expected_size}, "
                 f"got {actual_checksum}/{actual_size}"
             )
-
-        #############
-        if file_path:
-            log.info(f"after, file path: {str(file_path)}")
-        log.info(f"after, batch script expected size: {expected_size}")
-        log.info(f"after, batch script actual size: {actual_size}")
-        log.info("after, begin file bytes")
-        log.info(file_bytes.decode("utf-8"))
-        log.info("after, end file bytes")
-        ############
 
     def _validate_batch_script_for_execution(self, script_path: Path) -> None:
         self._validate_execution_file(
