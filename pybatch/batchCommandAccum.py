@@ -91,6 +91,15 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         opening_code_lines.append(f"""import os""")
         opening_code_lines.append(f"""import sys""")
         opening_code_lines.append(f"""sys.path.append({utils.quoteme_raw_by_type(instl_folder)})""")
+        venv_dir_str = str(config_vars.get("INSTL_VIRTUAL_ENVIRONMENT_DIR", ""))
+        if venv_dir_str:
+            venv_dir = Path(venv_dir_str)
+            if sys.platform == "win32":
+                venv_site_pkgs = venv_dir / "Lib" / "site-packages"
+            else:
+                py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+                venv_site_pkgs = venv_dir / "lib" / py_ver / "site-packages"
+            opening_code_lines.append(f"""sys.path.insert(0, {utils.quoteme_raw_by_type(venv_site_pkgs)})""")
         opening_code_lines.append(f"""import logging""")
         opening_code_lines.append(f"""log = logging.getLogger(__name__)""")
         opening_code_lines.append(f"""import utils""")

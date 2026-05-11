@@ -14,10 +14,18 @@ sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir, os
 
 import utils
 from configVar import config_vars
+from pybatch import PythonBatchCommandAccum
 from pyinstl.instlInstanceBase import InstlInstanceBase
 
 
 class TestRunBatchFileSecurity(unittest.TestCase):
+
+    @staticmethod
+    def _expected_site_packages(venv_dir: Path) -> Path:
+        if sys.platform == "win32":
+            return venv_dir / "Lib" / "site-packages"
+        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        return venv_dir / "lib" / py_ver / "site-packages"
 
     def _make_instance(self, script_path: Path, expected_bytes: bytes) -> InstlInstanceBase:
         """Create a minimal InstlInstanceBase with valid script AND snapshot integrity metadata.
@@ -335,6 +343,41 @@ class TestRunBatchFileSecurity(unittest.TestCase):
                 self.assertEqual(run_args[0][0], os.fspath(Path(sys.executable).resolve()))
             finally:
                 config_vars.resize_stack(original_stack_size)
+
+    def test_opening_code_includes_venv_site_packages_when_configured(self):
+        """Generated batches must expose venv site-packages before importing project modules."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            venv_dir = Path(temp_dir, "venv")
+            expected_site_packages = self._expected_site_packages(venv_dir)
+            expected_line = f"sys.path.insert(0, {utils.quoteme_raw_by_type(expected_site_packages)})"
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["INSTL_VIRTUAL_ENVIRONMENT_DIR"] = os.fspath(venv_dir)
+
+                opening_lines = PythonBatchCommandAccum()._python_opening_code().splitlines()
+
+                self.assertIn(expected_line, opening_lines)
+                self.assertLess(
+                    opening_lines.index(expected_line),
+                    opening_lines.index("import utils"),
+                )
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+    def test_opening_code_omits_venv_site_packages_when_not_configured(self):
+        """Non-build generated batches should not get an empty site-packages path."""
+        original_stack_size = config_vars.stack_size()
+        try:
+            config_vars.push_scope()
+            config_vars["INSTL_VIRTUAL_ENVIRONMENT_DIR"] = ""
+
+            opening_code = PythonBatchCommandAccum()._python_opening_code()
+
+            self.assertNotIn("sys.path.insert(0,", opening_code)
+        finally:
+            config_vars.resize_stack(original_stack_size)
 
 
 if __name__ == "__main__":
