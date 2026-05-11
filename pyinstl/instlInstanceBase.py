@@ -445,6 +445,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self._batch_script_checksum = utils.get_buffer_checksum(final_bytes)
         self._batch_script_size = len(final_bytes)
 
+        #############
+        if out_file:
+            log.info(f"before, out file path: {str(out_file)}")
+        log.info(f"before, batch script size: {self._batch_script_size}")
+        log.info("before, begin final bytes")
+        log.info(final_bytes.decode("utf-8"))
+        log.info("before, end final bytes")
+        ############
+
         if out_file:
             with MakeDir(out_file.parent, report_own_progress=False) as md:
                 md()
@@ -498,6 +507,16 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                 f"expected checksum/size {expected_checksum}/{expected_size}, "
                 f"got {actual_checksum}/{actual_size}"
             )
+
+        #############
+        if file_path:
+            log.info(f"after, file path: {str(file_path)}")
+        log.info(f"after, batch script expected size: {expected_size}")
+        log.info(f"after, batch script actual size: {actual_size}")
+        log.info("after, begin file bytes")
+        log.info(file_bytes.decode("utf-8"))
+        log.info("after, end file bytes")
+        ############
 
     def _validate_batch_script_for_execution(self, script_path: Path) -> None:
         self._validate_execution_file(
