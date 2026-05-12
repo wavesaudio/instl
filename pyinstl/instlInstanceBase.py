@@ -629,6 +629,8 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             "SystemRoot",
             "ComSpec",
             "WINDIR",
+            "APPDATA",
+            "LOCALAPPDATA",
             "TMP",
             "TEMP",
             "TMPDIR",
