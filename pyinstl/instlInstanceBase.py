@@ -624,37 +624,18 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
     @staticmethod
     def _restricted_python_env() -> dict[str, str]:
-        allowed_env_vars = (
-            "PATH",
-            "SystemRoot",
-            "ComSpec",
-            "WINDIR",
-            "APPDATA",
-            "LOCALAPPDATA",
-            "TMP",
-            "TEMP",
-            "TMPDIR",
-            "HOME",
-            "USERPROFILE",
-            "USERNAME",
-            "LOGNAME",
-            "USER",
-            "APPLICATION_NAME",
-            "VENDOR_NAME",
-            "LANG",
-            "LC_ALL",
-        )
-        if sys.platform == "win32":
-            # Windows environment-variable names are case-insensitive, but dict lookups are not.
-            # Normalize os.environ keys to uppercase; emit canonical uppercase keys from allowed_env_vars.
-            env_upper = {key.upper(): value for key, value in os.environ.items()}
-            env = {
-                name.upper(): env_upper[name.upper()]
-                for name in allowed_env_vars
-                if name.upper() in env_upper
-            }
-        else:
-            env = {key: value for key, value in os.environ.items() if key in allowed_env_vars}
+        """Return environment for subprocess with Python injection vars removed and safety flags forced."""
+        env = dict(os.environ)
+        
+        # Remove environment variables that can influence Python startup/import behavior
+        keys_to_remove = [
+            key for key in env
+            if key.upper().startswith("PYTHON") or key == "__PYVENV_LAUNCHER__"
+        ]
+        for key in keys_to_remove:
+            del env[key]
+        
+        # Force Python safety flags
         env["PYTHONNOUSERSITE"] = "1"
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONSAFEPATH"] = "1"

@@ -87,27 +87,70 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             self.assertEqual(run_kwargs["env"]["PYTHONDONTWRITEBYTECODE"], "1")
             self.assertEqual(run_kwargs["env"]["PYTHONSAFEPATH"], "1")
 
-    def test_restricted_python_env_windows_lookup_is_case_insensitive(self):
+    def test_restricted_python_env_preserves_os_variables(self):
+        """Denylist approach preserves normal OS variables including Windows-specific ones."""
         fake_env = {
             "Path": r"C:\Windows\System32",
             "SYSTEMROOT": r"C:\Windows",
             "ComSpec": r"C:\Windows\System32\cmd.exe",
             "AppData": r"C:\Users\tester\AppData\Roaming",
+            "PROGRAMDATA": r"C:\ProgramData",
             "USERNAME": "tester",
             "TEMP": r"C:\Temp",
             "TMP": r"C:\Temp",
             "USERPROFILE": r"C:\Users\tester",
+            "HOME": "/home/tester",
+            "LANG": "en_US.UTF-8",
         }
-        with mock.patch("pyinstl.instlInstanceBase.sys.platform", "win32"):
-            with mock.patch.dict(os.environ, fake_env, clear=True):
-                restricted = InstlInstanceBase._restricted_python_env()
+        with mock.patch.dict(os.environ, fake_env, clear=True):
+            restricted = InstlInstanceBase._restricted_python_env()
 
-        self.assertEqual(restricted["PATH"], fake_env["Path"])
+        # All regular OS variables should survive
+        self.assertEqual(restricted["Path"], fake_env["Path"])
         self.assertEqual(restricted["SYSTEMROOT"], fake_env["SYSTEMROOT"])
-        self.assertEqual(restricted["COMSPEC"], fake_env["ComSpec"])
-        self.assertEqual(restricted["APPDATA"], fake_env["AppData"])
+        self.assertEqual(restricted["ComSpec"], fake_env["ComSpec"])
+        self.assertEqual(restricted["AppData"], fake_env["AppData"])
+        self.assertEqual(restricted["PROGRAMDATA"], fake_env["PROGRAMDATA"])
         self.assertEqual(restricted["USERNAME"], fake_env["USERNAME"])
-        self.assertNotIn("Path", restricted)
+        self.assertEqual(restricted["HOME"], fake_env["HOME"])
+        self.assertEqual(restricted["LANG"], fake_env["LANG"])
+        
+        # Safety flags forced
+        self.assertEqual(restricted["PYTHONNOUSERSITE"], "1")
+        self.assertEqual(restricted["PYTHONDONTWRITEBYTECODE"], "1")
+        self.assertEqual(restricted["PYTHONSAFEPATH"], "1")
+
+    def test_restricted_python_env_removes_python_injection_vars(self):
+        """Denylist removes environment variables that can influence Python startup."""
+        fake_env = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/tester",
+            "PYTHONPATH": "/evil/path",
+            "PYTHONHOME": "/evil/python",
+            "PYTHONSTARTUP": "/evil/startup.py",
+            "PYTHONEXECUTABLE": "/evil/python",
+            "PYTHONWARNINGS": "ignore",
+            "__PYVENV_LAUNCHER__": "/evil/venv/python",
+            "PYTHONNOUSERSITE": "0",
+            "PYTHONDONTWRITEBYTECODE": "0",
+            "PYTHONSAFEPATH": "0",
+        }
+        with mock.patch.dict(os.environ, fake_env, clear=True):
+            restricted = InstlInstanceBase._restricted_python_env()
+
+        # Safe OS variables survive
+        self.assertEqual(restricted["PATH"], "/usr/bin")
+        self.assertEqual(restricted["HOME"], "/home/tester")
+        
+        # Python injection variables removed
+        self.assertNotIn("PYTHONPATH", restricted)
+        self.assertNotIn("PYTHONHOME", restricted)
+        self.assertNotIn("PYTHONSTARTUP", restricted)
+        self.assertNotIn("PYTHONEXECUTABLE", restricted)
+        self.assertNotIn("PYTHONWARNINGS", restricted)
+        self.assertNotIn("__PYVENV_LAUNCHER__", restricted)
+        
+        # Safety flags forced to "1" even if parent tried to set them to "0"
         self.assertEqual(restricted["PYTHONNOUSERSITE"], "1")
         self.assertEqual(restricted["PYTHONDONTWRITEBYTECODE"], "1")
         self.assertEqual(restricted["PYTHONSAFEPATH"], "1")
