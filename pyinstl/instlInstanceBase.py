@@ -440,7 +440,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
 
         final_repr = repr(in_batch_accum)
-        final_text = f"{final_repr}\n"
+        final_text = self._normalize_batch_script_text(final_repr)
         final_bytes = final_text.encode("utf-8")
         self._batch_script_checksum = utils.get_buffer_checksum(final_bytes)
         self._batch_script_size = len(final_bytes)
@@ -461,8 +461,13 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         else:
             self.out_file_realpath = "stdout"
 
-        with utils.write_to_file_or_stdout(out_file) as fd:
-            fd.write(final_text)
+        if out_file:
+            with open(out_file, "wb") as fd:
+                fd.write(final_bytes)
+                utils.chown_chmod_on_fd(fd)
+        else:
+            with utils.write_to_file_or_stdout(out_file) as fd:
+                fd.write(final_text)
 
         # Write the config snapshot that will be loaded by the generated batch to pass
         # config_vars from parent to child subprocess.
@@ -472,6 +477,14 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         msg = " ".join(
             (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
         log.info(msg)
+
+    @staticmethod
+    def _normalize_batch_script_text(batch_script_text: str) -> str:
+        """Normalize newlines only on Windows before byte-level batch write."""
+        if sys.platform == "win32":
+            normalized_text = batch_script_text.replace("\r\n", "\n").replace("\r", "\n")
+            return normalized_text.rstrip("\n") + "\n"
+        return f"{batch_script_text}\n"
 
     @staticmethod
     def _validate_execution_file(

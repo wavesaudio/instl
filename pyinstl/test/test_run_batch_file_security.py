@@ -148,6 +148,43 @@ class TestRunBatchFileSecurity(unittest.TestCase):
         finally:
             config_vars.resize_stack(original_stack_size)
 
+    def test_write_batch_file_writes_expected_newlines_for_platform(self):
+        class DummyBatchAccum:
+            initial_progress = 0
+
+            def total_progress_count(self):
+                return 0
+
+            def __repr__(self):
+                return "first\r\nsecond\rthird\r\n"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            if sys.platform == "win32":
+                expected_bytes = b"first\nsecond\nthird\n"
+            else:
+                expected_bytes = b"first\r\nsecond\rthird\r\n\n"
+
+            inst = object.__new__(InstlInstanceBase)
+            inst.internal_progress = 0
+            inst.the_command = "sync"
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["__MAIN_OUT_FILE__"] = os.fspath(script_path)
+
+                with mock.patch.object(inst, "create_variables_assignment"), \
+                        mock.patch.object(inst, "init_python_batch"), \
+                        mock.patch.object(inst, "_write_config_snapshot"):
+                    inst.write_batch_file(DummyBatchAccum())
+
+                self.assertEqual(script_path.read_bytes(), expected_bytes)
+                self.assertEqual(inst._batch_script_size, len(expected_bytes))
+                self.assertEqual(inst._batch_script_checksum, utils.get_buffer_checksum(expected_bytes))
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
     # ------------------------------------------------------------------
     # Snapshot-specific tests
     # ------------------------------------------------------------------
