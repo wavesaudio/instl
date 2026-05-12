@@ -641,7 +641,17 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             "LANG",
             "LC_ALL",
         )
-        env = {key: value for key, value in os.environ.items() if key in allowed_env_vars}
+        if sys.platform == "win32":
+            # Windows environment-variable names are case-insensitive, but dict lookups are not.
+            # Normalize os.environ keys to uppercase; emit canonical uppercase keys from allowed_env_vars.
+            env_upper = {key.upper(): value for key, value in os.environ.items()}
+            env = {
+                name.upper(): env_upper[name.upper()]
+                for name in allowed_env_vars
+                if name.upper() in env_upper
+            }
+        else:
+            env = {key: value for key, value in os.environ.items() if key in allowed_env_vars}
         env["PYTHONNOUSERSITE"] = "1"
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONSAFEPATH"] = "1"

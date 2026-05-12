@@ -87,6 +87,27 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             self.assertEqual(run_kwargs["env"]["PYTHONDONTWRITEBYTECODE"], "1")
             self.assertEqual(run_kwargs["env"]["PYTHONSAFEPATH"], "1")
 
+    def test_restricted_python_env_windows_lookup_is_case_insensitive(self):
+        fake_env = {
+            "Path": r"C:\Windows\System32",
+            "SYSTEMROOT": r"C:\Windows",
+            "ComSpec": r"C:\Windows\System32\cmd.exe",
+            "TEMP": r"C:\Temp",
+            "TMP": r"C:\Temp",
+            "USERPROFILE": r"C:\Users\tester",
+        }
+        with mock.patch("pyinstl.instlInstanceBase.sys.platform", "win32"):
+            with mock.patch.dict(os.environ, fake_env, clear=True):
+                restricted = InstlInstanceBase._restricted_python_env()
+
+        self.assertEqual(restricted["PATH"], fake_env["Path"])
+        self.assertEqual(restricted["SYSTEMROOT"], fake_env["SYSTEMROOT"])
+        self.assertEqual(restricted["COMSPEC"], fake_env["ComSpec"])
+        self.assertNotIn("Path", restricted)
+        self.assertEqual(restricted["PYTHONNOUSERSITE"], "1")
+        self.assertEqual(restricted["PYTHONDONTWRITEBYTECODE"], "1")
+        self.assertEqual(restricted["PYTHONSAFEPATH"], "1")
+
     def test_non_zero_exit_is_raised(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             script_path = Path(temp_dir, "generated.py")
