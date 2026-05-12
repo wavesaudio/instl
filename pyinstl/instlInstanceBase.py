@@ -636,6 +636,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             "TMPDIR",
             "HOME",
             "USERPROFILE",
+            "USERNAME",
             "LOGNAME",
             "USER",
             "APPLICATION_NAME",

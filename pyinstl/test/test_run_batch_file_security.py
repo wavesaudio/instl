@@ -93,6 +93,7 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             "SYSTEMROOT": r"C:\Windows",
             "ComSpec": r"C:\Windows\System32\cmd.exe",
             "AppData": r"C:\Users\tester\AppData\Roaming",
+            "USERNAME": "tester",
             "TEMP": r"C:\Temp",
             "TMP": r"C:\Temp",
             "USERPROFILE": r"C:\Users\tester",
@@ -105,6 +106,7 @@ class TestRunBatchFileSecurity(unittest.TestCase):
         self.assertEqual(restricted["SYSTEMROOT"], fake_env["SYSTEMROOT"])
         self.assertEqual(restricted["COMSPEC"], fake_env["ComSpec"])
         self.assertEqual(restricted["APPDATA"], fake_env["AppData"])
+        self.assertEqual(restricted["USERNAME"], fake_env["USERNAME"])
         self.assertNotIn("Path", restricted)
         self.assertEqual(restricted["PYTHONNOUSERSITE"], "1")
         self.assertEqual(restricted["PYTHONDONTWRITEBYTECODE"], "1")

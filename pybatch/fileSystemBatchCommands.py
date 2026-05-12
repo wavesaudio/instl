@@ -563,7 +563,13 @@ class Chmod(RunProcessBase):
         for w in symbolic_who:
             match w:
                 case "u":
-                    actual_names.append(getpass.getuser()) #there are different handling between users an universal code
+                    user_name = os.environ.get("USERNAME") or os.environ.get("USER") or os.environ.get("LOGNAME")
+                    if not user_name:
+                        try:
+                            user_name = getpass.getuser()
+                        except Exception as ex:
+                            raise RuntimeError("Could not resolve current Windows username; set USERNAME in environment") from ex
+                    actual_names.append(user_name)  # there are different handling between users and universal code
                 case "g":
                     actual_codes.append("S-1-5-32-549") #universal code for Users
                 case "o":
