@@ -3,7 +3,15 @@
 
 """ main executable for instl """
 
+import os
 import sys
+from pathlib import Path
+
+# With PYTHONSAFEPATH=1 (e.g. from run_batch_file's restricted env), Python does not
+# prepend this script's directory to sys.path; add it so pyinstl and siblings resolve.
+_instl_root = Path(__file__).resolve().parent
+sys.path.insert(0, os.fspath(_instl_root))
+
 # force stdout to be utf-8. Sometimes it opens in ascii encoding
 try:
     sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1, errors='backslashreplace')
