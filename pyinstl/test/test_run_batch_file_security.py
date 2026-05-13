@@ -427,6 +427,41 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             finally:
                 config_vars.resize_stack(original_stack_size)
 
+    def test_frozen_instl_uses_sibling_python_when_venv_python_missing(self):
+        """Frozen instl must not run generated Python batches via instl -I."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            script_bytes = b"print('safe')\n"
+            script_path.write_bytes(script_bytes)
+            inst = self._make_instance(script_path, script_bytes)
+
+            fake_instl = Path(temp_dir, "instl")
+            fake_instl.write_bytes(b"")
+            fake_python = Path(temp_dir, f"python{sys.version_info.major}.{sys.version_info.minor}")
+            fake_python.write_bytes(b"")
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] = os.path.join(temp_dir, "missing_python")
+                config_vars["PYTHON_EXE_BINARY_NAME"] = fake_python.name
+
+                with mock.patch.object(sys, "frozen", True, create=True), \
+                        mock.patch.object(sys, "executable", os.fspath(fake_instl)), \
+                        mock.patch("subprocess.run", return_value=SimpleNamespace(returncode=0)) as mocked_run:
+                    inst.run_batch_file()
+
+                mocked_run.assert_called_once()
+                run_args, _run_kwargs = mocked_run.call_args
+                self.assertEqual(run_args[0][0], os.fspath(fake_python.resolve()))
+                self.assertNotEqual(run_args[0][0], os.fspath(fake_instl.resolve()))
+                self.assertIn("-I", run_args[0])
+                self.assertIn("-B", run_args[0])
+                self.assertIn("-s", run_args[0])
+                self.assertEqual(run_args[0][-1], os.fspath(script_path))
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
     def test_falls_back_to_sys_executable_when_venv_python_missing(self):
         """run_batch_file() must fall back to sys.executable when INSTL_VIRTUAL_ENVIRONMENT_PYTHON is not a file."""
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -611,16 +611,49 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         Prefers the project virtualenv interpreter recorded in
         config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] so the child process
         inherits the same pip-installed dependencies (e.g. appdirs) that the
-        build uses.  Falls back to sys.executable when the config var is
-        absent, blank, or points to a path that is not a regular file (e.g.
-        the var is not set in non-build flows).
+        build uses.  In frozen/PyInstaller builds, sys.executable is the instl
+        executable itself, so a suitable Python executable must be found next to
+        instl in the bundle to run generated Python batches with -I -B -s flags.
         """
         venv_python_str = str(config_vars.get("INSTL_VIRTUAL_ENVIRONMENT_PYTHON", ""))
         if venv_python_str:
             venv_python = Path(venv_python_str).resolve()
             if venv_python.is_file():
                 return venv_python
+
+        if getattr(sys, "frozen", False):
+            checked_candidates = []
+            for candidate in InstlInstanceBase._frozen_batch_python_candidates():
+                checked_candidates.append(candidate)
+                if candidate.is_file():
+                    return candidate.resolve()
+
+            checked_candidates_str = ", ".join(os.fspath(path) for path in checked_candidates)
+            raise RuntimeError(
+                "Could not find a real Python executable for generated batch script. "
+                f"INSTL_VIRTUAL_ENVIRONMENT_PYTHON={venv_python_str!r}; "
+                f"checked frozen-bundle candidates: {checked_candidates_str}"
+            )
+
         return Path(sys.executable).resolve()
+
+    @staticmethod
+    def _frozen_batch_python_candidates() -> list[Path]:
+        """Return possible Python executables located beside frozen instl."""
+        exec_dir = Path(sys.executable).resolve().parent
+        python_names = []
+        configured_name = str(config_vars.get("PYTHON_EXE_BINARY_NAME", "")) or os.environ.get("PYTHON_EXE_BINARY_NAME", "")
+        if configured_name:
+            python_names.append(Path(configured_name).name)
+
+        current_python_name = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        if sys.platform == "win32":
+            python_names.extend((f"{current_python_name}.exe", "python.exe"))
+        else:
+            python_names.extend((current_python_name, "python3", "python"))
+
+        unique_python_names = list(dict.fromkeys(name for name in python_names if name))
+        return [exec_dir / name for name in unique_python_names]
 
     @staticmethod
     def _restricted_python_env() -> dict[str, str]:
