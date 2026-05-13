@@ -611,9 +611,8 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         Prefers the project virtualenv interpreter recorded in
         config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] so the child process
         inherits the same pip-installed dependencies (e.g. appdirs) that the
-        build uses.  In frozen/PyInstaller builds, sys.executable is the instl
-        executable itself, so a suitable Python executable must be found next to
-        instl in the bundle to run generated Python batches with -I -B -s flags.
+        build uses. Non-frozen flows fall back to sys.executable.
+        Frozen builds use a separate code path.
         """
         venv_python_str = str(config_vars.get("INSTL_VIRTUAL_ENVIRONMENT_PYTHON", ""))
         if venv_python_str:
@@ -621,39 +620,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             if venv_python.is_file():
                 return venv_python
 
-        if getattr(sys, "frozen", False):
-            checked_candidates = []
-            for candidate in InstlInstanceBase._frozen_batch_python_candidates():
-                checked_candidates.append(candidate)
-                if candidate.is_file():
-                    return candidate.resolve()
-
-            checked_candidates_str = ", ".join(os.fspath(path) for path in checked_candidates)
-            raise RuntimeError(
-                "Could not find a real Python executable for generated batch script. "
-                f"INSTL_VIRTUAL_ENVIRONMENT_PYTHON={venv_python_str!r}; "
-                f"checked frozen-bundle candidates: {checked_candidates_str}"
-            )
-
         return Path(sys.executable).resolve()
-
-    @staticmethod
-    def _frozen_batch_python_candidates() -> list[Path]:
-        """Return possible Python executables located beside frozen instl."""
-        exec_dir = Path(sys.executable).resolve().parent
-        python_names = []
-        configured_name = str(config_vars.get("PYTHON_EXE_BINARY_NAME", "")) or os.environ.get("PYTHON_EXE_BINARY_NAME", "")
-        if configured_name:
-            python_names.append(Path(configured_name).name)
-
-        current_python_name = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        if sys.platform == "win32":
-            python_names.extend((f"{current_python_name}.exe", "python.exe"))
-        else:
-            python_names.extend((current_python_name, "python3", "python"))
-
-        unique_python_names = list(dict.fromkeys(name for name in python_names if name))
-        return [exec_dir / name for name in unique_python_names]
 
     @staticmethod
     def _restricted_python_env() -> dict[str, str]:
@@ -688,10 +655,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self._verify_batch_script_integrity(script_path, script_bytes)
 
         if script_path.suffix.lower() == ".py":
-            python_exe = self._batch_python_executable()
-            if not python_exe.is_file():
-                raise RuntimeError(f"Python executable not found: {python_exe}")
-
             # Validate and verify the config snapshot that passes config_vars to the child.
             # The snapshot path is always script_path.with_suffix('.snapshot.json').
             # The child batch script loads it at startup via config_vars["__BATCH_SNAPSHOT_FILE__"]
@@ -701,7 +664,18 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             snapshot_bytes = snapshot_path.read_bytes()
             self._verify_snapshot_integrity(snapshot_path, snapshot_bytes)
 
-            run_args = [os.fspath(python_exe), "-I", "-B", "-s", os.fspath(script_path)]
+            if getattr(sys, "frozen", False):
+                run_args = [
+                    os.fspath(Path(sys.executable).resolve()),
+                    "run-generated-batch",
+                    "--in",
+                    os.fspath(script_path),
+                ]
+            else:
+                python_exe = self._batch_python_executable()
+                if not python_exe.is_file():
+                    raise RuntimeError(f"Python executable not found: {python_exe}")
+                run_args = [os.fspath(python_exe), "-I", "-B", "-s", os.fspath(script_path)]
             restricted_env = self._restricted_python_env()
             
             # Temporary diagnostic: log subprocess launch context if debugging enabled
@@ -722,7 +696,6 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                 log.info(f"[INSTL_DEBUG] Launching generated batch subprocess:")
                 log.info(f"[INSTL_DEBUG]   script_path: {script_path}")
                 log.info(f"[INSTL_DEBUG]   snapshot_path: {snapshot_path}")
-                log.info(f"[INSTL_DEBUG]   python_exe: {python_exe}")
                 log.info(f"[INSTL_DEBUG]   argv: {run_args}")
                 log.info(f"[INSTL_DEBUG]   cwd: {os.getcwd()}")
                 if sys.platform != "win32":

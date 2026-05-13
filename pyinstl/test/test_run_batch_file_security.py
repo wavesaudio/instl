@@ -16,6 +16,7 @@ import utils
 from configVar import config_vars
 from pybatch import PythonBatchCommandAccum
 from pyinstl.instlInstanceBase import InstlInstanceBase
+from pyinstl.instlMisc import InstlMisc
 
 
 class TestRunBatchFileSecurity(unittest.TestCase):
@@ -427,8 +428,8 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             finally:
                 config_vars.resize_stack(original_stack_size)
 
-    def test_frozen_instl_uses_sibling_python_when_venv_python_missing(self):
-        """Frozen instl must not run generated Python batches via instl -I."""
+    def test_frozen_instl_uses_internal_generated_batch_runner(self):
+        """Frozen instl runs generated Python batches through internal command."""
         with tempfile.TemporaryDirectory() as temp_dir:
             script_path = Path(temp_dir, "generated.py")
             script_bytes = b"print('safe')\n"
@@ -437,14 +438,11 @@ class TestRunBatchFileSecurity(unittest.TestCase):
 
             fake_instl = Path(temp_dir, "instl")
             fake_instl.write_bytes(b"")
-            fake_python = Path(temp_dir, f"python{sys.version_info.major}.{sys.version_info.minor}")
-            fake_python.write_bytes(b"")
 
             original_stack_size = config_vars.stack_size()
             try:
                 config_vars.push_scope()
                 config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] = os.path.join(temp_dir, "missing_python")
-                config_vars["PYTHON_EXE_BINARY_NAME"] = fake_python.name
 
                 with mock.patch.object(sys, "frozen", True, create=True), \
                         mock.patch.object(sys, "executable", os.fspath(fake_instl)), \
@@ -453,12 +451,37 @@ class TestRunBatchFileSecurity(unittest.TestCase):
 
                 mocked_run.assert_called_once()
                 run_args, _run_kwargs = mocked_run.call_args
-                self.assertEqual(run_args[0][0], os.fspath(fake_python.resolve()))
-                self.assertNotEqual(run_args[0][0], os.fspath(fake_instl.resolve()))
-                self.assertIn("-I", run_args[0])
-                self.assertIn("-B", run_args[0])
-                self.assertIn("-s", run_args[0])
-                self.assertEqual(run_args[0][-1], os.fspath(script_path))
+                self.assertEqual(run_args[0], [
+                    os.fspath(fake_instl.resolve()),
+                    "run-generated-batch",
+                    "--in",
+                    os.fspath(script_path),
+                ])
+                self.assertNotIn("-I", run_args[0])
+                self.assertNotIn("-B", run_args[0])
+                self.assertNotIn("-s", run_args[0])
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+    def test_run_generated_batch_executes_script(self):
+        """run-generated-batch executes an existing generated script in the current instl process."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            marker_path = Path(temp_dir, "marker.txt")
+            script_path.write_text(
+                f"from pathlib import Path\nPath({os.fspath(marker_path)!r}).write_text('ran', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["__MAIN_INPUT_FILE__"] = os.fspath(script_path)
+
+                inst = object.__new__(InstlMisc)
+                inst.do_run_generated_batch()
+
+                self.assertEqual(marker_path.read_text(encoding="utf-8"), "ran")
             finally:
                 config_vars.resize_stack(original_stack_size)
 

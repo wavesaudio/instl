@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.12
 
+import runpy
 import shlex
 import threading
 from collections import namedtuple
@@ -51,6 +52,14 @@ class InstlMisc(InstlInstanceBase):
     def do_version(self):
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         print(self.get_version_str())
+
+    def do_run_generated_batch(self):
+        py_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        if not py_file_path.is_file():
+            raise FileNotFoundError(f"Generated batch script not found: {py_file_path}")
+        if py_file_path.is_symlink():
+            raise RuntimeError(f"Refusing to execute symlink generated batch script: {py_file_path}")
+        runpy.run_path(os.fspath(py_file_path), run_name="__main__")
 
     def do_help(self):
         import help.helpHelper

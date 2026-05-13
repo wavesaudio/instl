@@ -125,6 +125,7 @@ def prepare_args_parser(in_command):
             'ls':                   {'mode': 'do_something', 'options': ('in', 'out', 'limit'), 'help':  'create a directory listing'},
             'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
             'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
+            'run-generated-batch':  {'mode': 'do_something', 'options': ('in',), 'help':  'Run a generated Python batch script from frozen instl'},
             'run-process':          {'mode': 'do_something', 'options': ('in_opt',), 'help':  'Run a processes with optional abort file'},
             'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
             'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
