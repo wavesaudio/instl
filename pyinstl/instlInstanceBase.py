@@ -632,6 +632,11 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             key for key in env
             if key.upper().startswith("PYTHON") or key == "__PYVENV_LAUNCHER__"
         ]
+        
+        # Temporary diagnostic: log stripped Python env vars if debugging enabled
+        if os.environ.get("INSTL_DEBUG_RESTRICTED_ENV") == "1" and keys_to_remove:
+            log.info(f"[INSTL_DEBUG] Stripped Python injection env vars: {', '.join(sorted(keys_to_remove))}")
+        
         for key in keys_to_remove:
             del env[key]
         
@@ -664,8 +669,40 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             self._verify_snapshot_integrity(snapshot_path, snapshot_bytes)
 
             run_args = [os.fspath(python_exe), "-I", "-B", "-s", os.fspath(script_path)]
-            completed = subprocess.run(run_args, shell=False, env=self._restricted_python_env(), check=False)
+            restricted_env = self._restricted_python_env()
+            
+            # Temporary diagnostic: log subprocess launch context if debugging enabled
+            if os.environ.get("INSTL_DEBUG_RESTRICTED_ENV") == "1":
+                def _redact_if_secret(key: str, value: str) -> str:
+                    """Redact value if key suggests it contains a secret."""
+                    secret_keywords = ("TOKEN", "SECRET", "PASSWORD", "KEY", "AUTH", "CREDENTIAL", "COOKIE")
+                    if any(keyword in key.upper() for keyword in secret_keywords):
+                        return "<REDACTED>"
+                    return value
+                
+                # Log selected env vars relevant to this issue
+                relevant_keys = ("HOME", "USER", "LOGNAME", "SUDO_USER", "TMPDIR", "PATH", 
+                                 "APPDATA", "PROGRAMDATA", "USERNAME", "LOCALAPPDATA")
+                env_snapshot = {k: _redact_if_secret(k, restricted_env.get(k, "<NOT SET>")) 
+                                for k in relevant_keys}
+                
+                log.info(f"[INSTL_DEBUG] Launching generated batch subprocess:")
+                log.info(f"[INSTL_DEBUG]   script_path: {script_path}")
+                log.info(f"[INSTL_DEBUG]   snapshot_path: {snapshot_path}")
+                log.info(f"[INSTL_DEBUG]   python_exe: {python_exe}")
+                log.info(f"[INSTL_DEBUG]   argv: {run_args}")
+                log.info(f"[INSTL_DEBUG]   cwd: {os.getcwd()}")
+                if sys.platform != "win32":
+                    log.info(f"[INSTL_DEBUG]   uid/euid: {os.getuid()}/{os.geteuid()}")
+                log.info(f"[INSTL_DEBUG]   selected_env_vars: {env_snapshot}")
+            
+            completed = subprocess.run(run_args, shell=False, env=restricted_env, check=False)
             return_code = completed.returncode
+            
+            # Temporary diagnostic: log exit code if debugging enabled
+            if os.environ.get("INSTL_DEBUG_RESTRICTED_ENV") == "1":
+                log.info(f"[INSTL_DEBUG] Generated batch subprocess exited with code: {return_code}")
+            
             if return_code != 0:
                 raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
         else:

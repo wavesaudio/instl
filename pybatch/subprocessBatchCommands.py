@@ -115,6 +115,31 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             if self.ignore_all_errors:
                 completed_process.returncode = 0
 
+            # Temporary diagnostic: log ShellCommand failure context if debugging enabled
+            if completed_process.returncode != 0 and os.environ.get("INSTL_DEBUG_RESTRICTED_ENV") == "1":
+                def _redact_if_secret(key: str, value: str) -> str:
+                    """Redact value if key suggests it contains a secret."""
+                    secret_keywords = ("TOKEN", "SECRET", "PASSWORD", "KEY", "AUTH", "CREDENTIAL", "COOKIE")
+                    if any(keyword in key.upper() for keyword in secret_keywords):
+                        return "<REDACTED>"
+                    return value
+                
+                # Log selected env vars relevant to this issue
+                relevant_keys = ("HOME", "USER", "LOGNAME", "SUDO_USER", "TMPDIR", "PATH",
+                                 "APPDATA", "PROGRAMDATA", "USERNAME", "LOCALAPPDATA")
+                env_snapshot = {k: _redact_if_secret(k, os.environ.get(k, "<NOT SET>"))
+                                for k in relevant_keys}
+                
+                log.error(f"[INSTL_DEBUG] ShellCommand failed:")
+                log.error(f"[INSTL_DEBUG]   return_code: {completed_process.returncode}")
+                log.error(f"[INSTL_DEBUG]   argv: {run_args}")
+                log.error(f"[INSTL_DEBUG]   shell: {self.shell}")
+                log.error(f"[INSTL_DEBUG]   cwd: {os.getcwd()}")
+                if sys.platform != "win32":
+                    log.error(f"[INSTL_DEBUG]   uid/euid: {os.getuid()}/{os.geteuid()}")
+                log.error(f"[INSTL_DEBUG]   stderr: {self.stderr[:500] if self.stderr else '<empty>'}")
+                log.error(f"[INSTL_DEBUG]   selected_env_vars: {env_snapshot}")
+
             completed_process.check_returncode()
 
             self.handle_completed_process(completed_process)
