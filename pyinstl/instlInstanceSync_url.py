@@ -8,7 +8,40 @@ if sys.platform == 'win32':
     import win32api
 
 from .instlInstanceSyncBase import InstlInstanceSync
+from .downloadState import resume_decision_for_download_item, temp_path_for_download_item
+from .downloadConcurrency import AdaptiveAction, resolve_concurrency_from_config
+from .downloadObservability import load_session_summary
 from pybatch import *
+
+import logging
+
+_log = logging.getLogger(__name__)
+
+
+def _config_var_bool(name: str, default=False) -> bool:
+    if name not in config_vars:
+        return default
+    return config_vars[name].bool()
+
+
+def _config_var_int(name: str, default=0) -> int:
+    if name not in config_vars:
+        return default
+    try:
+        return int(config_vars[name].str())
+    except Exception:
+        return default
+
+
+def _config_var_list(name: str) -> list[str]:
+    if name not in config_vars:
+        return []
+    values = config_vars[name].list()
+    if len(values) == 1:
+        value = str(values[0])
+        if "," in value:
+            values = [part.strip() for part in value.split(",")]
+    return [str(value).strip() for value in values if str(value).strip()]
 
 
 class InstlInstanceSync_url(InstlInstanceSync):
@@ -59,9 +92,34 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
+        bookkeeping_dir = config_vars.get("LOCAL_REPO_BOOKKEEPING_DIR", "").str()
+        resume_enabled = _config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
+        validated_hosts = _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS")
+        validated_path_prefixes = _config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
+        require_conditional = _config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
+        signed_url_min_ttl_seconds = _config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)
         for file_item in in_file_list:
             source_url = self.instlObj.info_map_table.get_sync_url_for_file_item(file_item)
-            self.instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=file_item.size, download_last=source_url.endswith('Info.xml'))
+            resume_decision = resume_decision_for_download_item(
+                file_item,
+                source_url,
+                bookkeeping_dir,
+                resume_enabled=resume_enabled,
+                validated_hosts=validated_hosts,
+                validated_path_prefixes=validated_path_prefixes,
+                require_conditional=require_conditional,
+                signed_url_min_ttl_seconds=signed_url_min_ttl_seconds,
+            )
+            self.instlObj.dl_tool.add_download_url(
+                source_url,
+                file_item.download_path,
+                verbatim=source_url==['url'],
+                size=file_item.size,
+                download_last=source_url.endswith('Info.xml'),
+                output_path=temp_path_for_download_item(file_item),
+                resume_from_byte=resume_decision.resume_from_byte,
+                conditional_headers=resume_decision.conditional_headers,
+            )
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def create_curl_download_instructions(self):
@@ -73,9 +131,43 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
+        # Phase 4 P4-003: adapt PARALLEL_SYNC for this run before curl
+        # config generation. The controller is between-session: it reads
+        # the previous instl invocation's session-summary.json. When the
+        # feature flag is off (default) or no prior summary exists, it
+        # falls back to the configured baseline so behavior is unchanged.
+        self._apply_adaptive_concurrency()
         dl_commands = AnonymousAccum()
         self.instlObj.dl_tool.create_download_instructions(dl_commands)
         return dl_commands
+
+    def _apply_adaptive_concurrency(self):
+        try:
+            decision = resolve_concurrency_from_config(
+                config_vars,
+                summary_loader=load_session_summary,
+            )
+        except Exception as ex:  # pragma: no cover - controller must never break sync
+            _log.debug(f"adaptive concurrency controller failed; keeping configured PARALLEL_SYNC: {ex}")
+            return
+        if decision.action == AdaptiveAction.OVERRIDE:
+            # User override: respect it verbatim (already clamped to bounds).
+            config_vars["PARALLEL_SYNC"] = str(decision.recommended)
+        elif decision.action == AdaptiveAction.DISABLED:
+            # Feature flag off: leave the configured value as-is unless
+            # nothing is set. The controller still clamps to bounds when
+            # it had to pick a value.
+            if "PARALLEL_SYNC" not in config_vars:
+                config_vars["PARALLEL_SYNC"] = str(decision.recommended)
+        else:
+            config_vars["PARALLEL_SYNC"] = str(decision.recommended)
+        _log.info(
+            "DOWNLOAD_ADAPTIVE_CONCURRENCY action=%s recommended=%d previous=%s reason=%s",
+            decision.action.value,
+            decision.recommended,
+            decision.previous,
+            decision.reason,
+        )
 
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()
@@ -145,6 +237,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 log.info(f"""{mount_points_to_size[m_p]} bytes to download to drive {"".join(("'", m_p, "'"))} {free_bytes-mount_points_to_size[m_p]} bytes will remain""")
 
         dl_commands += self.create_sync_folders()
+        dl_commands += PrepareDownloadTempFiles(own_progress_count=to_sync_num_files, report_own_progress=False)
         self.create_sync_urls(file_list)
         dl_commands += self.create_curl_download_instructions()
 

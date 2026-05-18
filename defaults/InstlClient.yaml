@@ -7,6 +7,61 @@ CURL_MAX_TIME: 600       # Maximum time in seconds that you allow each transfer 
 CURL_RETRIES: 12          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
+DOWNLOAD_RESUME_ENABLED: no
+DOWNLOAD_RESUME_REQUIRE_CONDITIONAL: yes
+DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS: 300
+DOWNLOAD_RESUME_VALIDATED_HOSTS:
+    - d2iorr2fqniidn.cloudfront.net
+DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES:
+    - /V16/
+
+# Phase 4 adaptive concurrency controller (P4-002..P4-004).
+# DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED is the kill switch (D-005).
+# When enabled, the controller reads the previous session summary
+# from $(LOCAL_REPO_BOOKKEEPING_DIR)/download-state/session-summary.json
+# and picks PARALLEL_SYNC for this run, bounded by min/max and capped
+# by the per-decision step. PARALLEL_SYNC_USER_OVERRIDE (if non-zero)
+# bypasses the controller entirely so the documented "use fewer download
+# processes" advanced setting keeps working.
+DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED: no
+DOWNLOAD_CONCURRENCY_MIN: 2
+DOWNLOAD_CONCURRENCY_MAX: 50
+DOWNLOAD_CONCURRENCY_START: 8
+DOWNLOAD_CONCURRENCY_INCREASE_STEP: 2
+DOWNLOAD_CONCURRENCY_DECREASE_STEP: 4
+DOWNLOAD_CONCURRENCY_ERROR_BACKOFF: 0.15
+DOWNLOAD_CONCURRENCY_ERROR_GROW: 0.02
+
+# Phase 6 rollout flags (P6-001..P6-003, D-005, NFR-004). Each major
+# behavior must be independently flag-gated and remotely controllable so
+# rollout can advance or retreat one workstream at a time. The flag set
+# matches the contract in download-system-enhancement/rollout-plan.md.
+#
+# DOWNLOAD_TELEMETRY_ENABLED gates the DOWNLOAD_EVENT structured channel
+# (see pyinstl/downloadEvents.py). When `no`, builders/emitters become
+# no-ops so older Central builds (or operators rolling back) keep parsing
+# the legacy text log only. The DOWNLOAD_RETRY_DECISION text line stays
+# emitted unchanged for backward compatibility (D-016).
+#
+# DOWNLOAD_RETRY_POLICY_ENABLED gates the matrix-driven retry decision
+# (see pyinstl/downloadRetry.py). When `no`, info_mapBatchCommands skips
+# the structured retry-decision log/event and sidecar retry bookkeeping;
+# the existing redownload loop still drives the actual retransfer.
+#
+# DOWNLOAD_CENTRAL_UX_ENABLED is echoed onto the capability event so
+# Central can hide new recovery actions/dialogs even when the backend
+# capability set is otherwise satisfied. This is the rollback hatch for
+# the UX layer.
+#
+# DOWNLOAD_COHORT is the deterministic cohort label the controller emits
+# on the capability event. It must be one of the cohorts documented in
+# rollout-plan.md (control, atomicity, resume, retry, adaptive, ux). The
+# default is `control` so untagged installs always show up in the
+# baseline cohort.
+DOWNLOAD_TELEMETRY_ENABLED: yes
+DOWNLOAD_RETRY_POLICY_ENABLED: yes
+DOWNLOAD_CENTRAL_UX_ENABLED: no
+DOWNLOAD_COHORT: control
 
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
 LOCAL_REPO_SYNC_DIR: $(LOCAL_SYNC_DIR)/$(REPO_NAME)

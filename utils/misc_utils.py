@@ -857,21 +857,13 @@ def get_curl_err_msg(key: int) -> str:
         we needed a more accurate description of what went wrong during the download
         note: I have written the most common curl errors below, more can be added if needed
     """
-    curl_lookup_error = {
-        3: 'URL malformed',
-        5: 'Couldnt resolve proxy',
-        6: "Couldn't resolve host",
-        7: "Failed to connect to host",
-        18: "Partial file. Only a part of the file was transferred",
-        21: "Quote error. A quote command returned an error from the server",
-        22: "HTTP page not retrieved. The requested url was not found or returned another error",
-        23: "Write error. Curl could not write data to a local filesystem",
-        28: "Operation timeout. The specified time-out period was reached according to the conditions",
-        52: "Nothing was returned from the server",
-        55: "Failure while sending network data",
-        56: "Failure while receiving network data"
-    }
-    if curl_lookup_error and curl_lookup_error[key]:
-        return "curl error code: " + str(key) + ": " + curl_lookup_error[key]
+    try:
+        from pyinstl.downloadFailures import curl_error_description
+    except Exception:
+        from downloadFailures import curl_error_description
+
+    description = curl_error_description(key)
+    if description:
+        return "curl error code: " + str(key) + ": " + description
     else:
-        return "please check curl error key: " + key + " online "
+        return "please check curl error key: " + str(key) + " online "

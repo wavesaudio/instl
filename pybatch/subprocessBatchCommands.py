@@ -273,7 +273,12 @@ class ShellCommands(PythonBatchCommandBase):
                 shelli()
 
 
-class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 'shell': False}):
+class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
+    'action_name': None,
+    'shell': False,
+    'fallback_config_file': None,
+    'fallback_exit_codes': (),
+}):
     """ run some shell commands in parallel """
     def __init__(self, config_file, **kwargs):
         super().__init__(**kwargs)
@@ -281,6 +286,8 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.config_file))
+        all_args.append(self.optional_named__init__param("fallback_config_file", self.fallback_config_file))
+        all_args.append(self.optional_named__init__param("fallback_exit_codes", self.fallback_exit_codes, ()))
 
     def get_action_name(self):
         return self.action_name if self.action_name else self.__class__.__name__
@@ -293,28 +300,60 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        commands = list()
         resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
         self.doing = f"""{self.get_action_name()} reading config file '{resolved_config_file}'"""
-        with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
-            for line in rfd:
-                line = line.strip()
-                if line and line[0] != "#":
-                    args = shlex.split(line)
-                    commands.append(args)
+        commands = self._read_parallel_run_config_file(resolved_config_file)
         try:
 
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             utils.run_processes_in_parallel(commands, self.shell)
         except SystemExit as sys_exit:
             if sys_exit.code != 0:
-                if "curl" in commands[0]:
+                if self._can_run_fallback(sys_exit.code):
+                    self._run_fallback_after_curl_range_failure(sys_exit.code)
+                elif self._is_curl_command(commands):
                     err_msg = utils.get_curl_err_msg(sys_exit.code)
                     raise Exception(err_msg)
                 else:
                     raise
         finally:
             self.increment_progress()
+
+    def _read_parallel_run_config_file(self, resolved_config_file):
+        commands = list()
+        with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
+            for line in rfd:
+                line = line.strip()
+                if line and line[0] != "#":
+                    args = shlex.split(line)
+                    commands.append(args)
+        return commands
+
+    def _can_run_fallback(self, exit_code):
+        return (
+            self.fallback_config_file
+            and int(exit_code) in {int(code) for code in self.fallback_exit_codes}
+        )
+
+    def _is_curl_command(self, commands):
+        return bool(commands) and Path(commands[0][0]).name.lower().startswith("curl")
+
+    def _run_fallback_after_curl_range_failure(self, exit_code):
+        resolved_fallback_config_file = utils.ExpandAndResolvePath(self.fallback_config_file)
+        fallback_commands = self._read_parallel_run_config_file(resolved_fallback_config_file)
+        self.doing = (
+            f"{self.get_action_name()} curl resume failed with exit code {exit_code}; "
+            f"retrying from zero with fallback config '{resolved_fallback_config_file}'"
+        )
+        log.info(self.doing)
+        try:
+            utils.run_processes_in_parallel(fallback_commands, self.shell)
+        except SystemExit as fallback_exit:
+            if fallback_exit.code != 0:
+                if self._is_curl_command(fallback_commands):
+                    err_msg = utils.get_curl_err_msg(fallback_exit.code)
+                    raise Exception(err_msg)
+                raise
 
 
 class ExecPython(PythonBatchCommandBase):
@@ -544,7 +583,10 @@ class KillProcess(PythonBatchCommandBase):
                         raise TimeoutError(f"failed to kill process {self.process_name}")
 
 
-class CurlWithInternalParallel(PythonBatchCommandBase):
+class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
+    'fallback_config_file_path': None,
+    'fallback_exit_codes': (),
+}):
     def __init__(self, curl_path: Path,
                  config_file_path: Path,
                  total_files_to_download: int,
@@ -584,6 +626,8 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.named__init__param("curl_path", self.curl_path))
         all_args.append(self.named__init__param("config_file_path", self.config_file_path))
+        all_args.append(self.optional_named__init__param("fallback_config_file_path", self.fallback_config_file_path))
+        all_args.append(self.optional_named__init__param("fallback_exit_codes", self.fallback_exit_codes, ()))
         all_args.append(self.named__init__param("total_files_to_download", self.total_files_to_download))
         all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
         all_args.append(self.named__init__param("total_bytes_to_download", self.total_bytes_to_download))
@@ -647,4 +691,34 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
         process.stdout.close()
         process.wait()
         print(f"Curl ended {process.returncode}")
+        if self._can_run_fallback(process.returncode):
+            self._run_fallback_after_curl_range_failure(process.returncode)
         self.increment_progress()
+
+    def _can_run_fallback(self, exit_code):
+        return (
+            self.fallback_config_file_path
+            and int(exit_code) in {int(code) for code in self.fallback_exit_codes}
+        )
+
+    def _run_fallback_after_curl_range_failure(self, exit_code):
+        config_file_path_fixed = os.fspath(self.fallback_config_file_path)
+        if 'Win' in utils.get_current_os_names():
+            import win32api
+            config_file_path_fixed = win32api.GetShortPathName(config_file_path_fixed)
+        log.info(
+            f"CurlInternalParallel curl resume failed with exit code {exit_code}; "
+            f"retrying from zero with fallback config '{self.fallback_config_file_path}'"
+        )
+        fallback_process = subprocess.run(
+            [os.fspath(self.curl_path), "--config", config_file_path_fixed],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        if fallback_process.stdout:
+            log.info(fallback_process.stdout)
+        if fallback_process.stderr:
+            log.info(fallback_process.stderr)
+        fallback_process.check_returncode()

@@ -10,3 +10,4 @@ xmltodict
 certifi
 jaraco.text
 platformdirs
+truststore

@@ -3,8 +3,10 @@
 import subprocess
 from pathlib import Path, PurePath
 import sys
+import itertools
 import functools
 import logging
+import os
 import re
 from packaging.version import Version
 
@@ -23,6 +25,34 @@ class CurlConfigFile:
     path: Path
     wfd: int = None
     num_urls = 0
+
+
+@dataclass
+class CurlDownloadEntry:
+    url: str
+    final_path: str
+    output_path: str
+    size: int = 0
+    resume_from_byte: int = 0
+    conditional_headers: tuple[str, ...] = ()
+
+    def has_per_transfer_options(self):
+        return self.resume_from_byte > 0 or len(self.conditional_headers) > 0
+
+    def is_resume_entry(self):
+        return self.resume_from_byte > 0
+
+    def fresh_restart_entry(self):
+        return CurlDownloadEntry(
+            url=self.url,
+            final_path=self.final_path,
+            output_path=self.output_path,
+            size=self.size,
+        )
+
+
+def _curl_config_quoted_value(value):
+    return str(value).replace("\\", "\\\\").replace('"', r'\"')
 
 
 class CUrlHelper(object, metaclass=abc.ABCMeta):
@@ -121,15 +151,29 @@ parallel-max = {max_parallel_downloads}
     def use_internal_parallel(self):
         return config_vars["PARALLEL_DOWNLOAD_METHOD"].str() == "internal" and self.is_internal_parallel_supported()
 
-    def add_download_url(self, url, path, verbatim=False, size=0, download_last=False):
+    def add_download_url(self, url, path, verbatim=False, size=0, download_last=False, output_path=None, resume_from_byte=0, conditional_headers=()):
         if verbatim:
             translated_url = url
         else:
             translated_url = connectionBase.connection_factory(config_vars).translate_url(url)
+        resume_from_byte = int(resume_from_byte or 0)
+        if resume_from_byte < 0:
+            raise ValueError(f"resume_from_byte must be non-negative, got {resume_from_byte}")
+        conditional_headers = tuple(str(header) for header in (conditional_headers or ()))
+        if any("\r" in header or "\n" in header for header in conditional_headers):
+            raise ValueError("conditional_headers must not contain newlines")
+        download_entry = CurlDownloadEntry(
+            url=translated_url,
+            final_path=os.fspath(path),
+            output_path=os.fspath(output_path if output_path is not None else path),
+            size=size,
+            resume_from_byte=resume_from_byte,
+            conditional_headers=conditional_headers,
+        )
         if download_last:
-            self.urls_to_download_last.append((translated_url, path, size))
+            self.urls_to_download_last.append(download_entry)
         else:
-            self.urls_to_download.append((translated_url, path, size))
+            self.urls_to_download.append(download_entry)
 
     def get_num_urls_to_download(self):
         return len(self.urls_to_download)+len(self.urls_to_download_last)
@@ -169,9 +213,25 @@ parallel-max = {max_parallel_downloads}
         return fixed_path
 
     def create_config_files(self, curl_config_folder, num_config_files):
-        config_file_list = list()
+        return self._create_config_files_for_entries(
+            curl_config_folder,
+            num_config_files,
+            self.urls_to_download,
+            self.urls_to_download_last,
+        )
 
-        if self.get_num_urls_to_download() <= 0:
+    def _create_config_files_for_entries(
+            self,
+            curl_config_folder,
+            num_config_files,
+            urls_to_download,
+            urls_to_download_last=(),
+            file_name_suffix=""):
+        config_file_list = list()
+        urls_to_download = list(urls_to_download)
+        urls_to_download_last = list(urls_to_download_last)
+
+        if len(urls_to_download) + len(urls_to_download_last) <= 0:
             return config_file_list
 
         config_options = {
@@ -186,46 +246,65 @@ parallel-max = {max_parallel_downloads}
 
         if self.use_internal_parallel():
             confi_file_text = self.internal_parallel_header_text
-            actual_num_config_files = int(max(0, min(len(self.urls_to_download), 1)))
+            actual_num_config_files = int(max(0, min(len(urls_to_download), 1)))
         else:
             confi_file_text = self.external_parallel_header_text
-            actual_num_config_files = int(max(0, min(len(self.urls_to_download), num_config_files)))
+            actual_num_config_files = int(max(0, min(len(urls_to_download), num_config_files)))
 
-        if self.urls_to_download_last:
+        if urls_to_download_last:
             actual_num_config_files += 1
 
         # a list of curl config file and number of urls in each
+        file_name_prefix = f"{config_vars['CURL_CONFIG_FILE_NAME']}{file_name_suffix}"
         for file_i in range(actual_num_config_files):
-            config_file_path = curl_config_folder.joinpath(f"{config_vars['CURL_CONFIG_FILE_NAME']}-{file_i:02}")
+            config_file_path = curl_config_folder.joinpath(f"{file_name_prefix}-{file_i:02}")
             config_file_list.append(CurlConfigFile(config_file_path))
+
+        def write_config_header(a_file):
+            config_options["basename"] = a_file.path.name
+            curl_config_header = confi_file_text.format(**config_options)
+            a_file.wfd.write(curl_config_header)
 
         # open the files make sure they have r/w permissions and are utf-8
         # write curl config header to each file
         for a_file in config_file_list:
             a_file.wfd = utils.utf8_open_for_write(a_file.path, "w")
-            config_options["basename"] = a_file.path.name
-            curl_config_header = confi_file_text.format(**config_options)
-            # write the header in each file
-            a_file.wfd.write(curl_config_header)
+            write_config_header(a_file)
+
+        use_isolated_transfer_sections = any(
+            download_entry.has_per_transfer_options()
+            for download_entry in itertools.chain(self.urls_to_download, self.urls_to_download_last)
+        )
+
+        def write_download_entry(file_details, download_entry):
+            if use_isolated_transfer_sections and file_details.num_urls > 0:
+                file_details.wfd.write("next\n")
+                write_config_header(file_details)
+            fixed_path = self.fix_path(download_entry.output_path)
+            if download_entry.resume_from_byte > 0:
+                file_details.wfd.write("no-fail\n")
+                file_details.wfd.write(f"continue-at = {download_entry.resume_from_byte}\n")
+            for header in download_entry.conditional_headers:
+                file_details.wfd.write(f'header = "{_curl_config_quoted_value(header)}"\n')
+            file_details.wfd.write(f'''url = "{download_entry.url}"\noutput = "{fixed_path}"\n\n''')
+            file_details.num_urls += 1
 
         last_file = None
-        if self.urls_to_download_last:
+        if urls_to_download_last:
             last_file = config_file_list.pop()
 
         def url_sorter(l, r):
             """ smaller files should be downloaded first so the progress bar gets moving early. """
-            return l[2] - r[2]  # non Info.xml files are sorted by size
+            return l.size - r.size  # non Info.xml files are sorted by size
 
         cfig_file_cycler = itertools.cycle(config_file_list)
         total_url_num = 0
         # No sorting for curl's parallel as the progress looks better when there are mixed sizes
-        sorted_by_size = self.urls_to_download if self.use_internal_parallel() else sorted(self.urls_to_download, key=functools.cmp_to_key(url_sorter))
+        sorted_by_size = urls_to_download if self.use_internal_parallel() else sorted(urls_to_download, key=functools.cmp_to_key(url_sorter))
 
-        for url, path, size in sorted_by_size:
-            fixed_path = self.fix_path(path)
+        for download_entry in sorted_by_size:
             file_details = next(cfig_file_cycler)
-            file_details.wfd.write(f'''url = "{url}"\noutput = "{fixed_path}"\n\n''')
-            file_details.num_urls += 1
+            write_download_entry(file_details, download_entry)
             total_url_num += 1
 
         for a_file in config_file_list:
@@ -234,10 +313,8 @@ parallel-max = {max_parallel_downloads}
 
         if last_file:
             # write urls for files that should be downloaded last
-            for url, path, size in self.urls_to_download_last:
-                fixed_path = self.fix_path(path)
-                last_file.wfd.write(f'''url = "{url}"\noutput = "{fixed_path}"\n\n''')
-                last_file.num_urls += 1
+            for download_entry in urls_to_download_last:
+                write_download_entry(last_file, download_entry)
                 total_url_num += 1
             last_file.wfd.close()
             last_file.wfd = None
@@ -249,6 +326,98 @@ parallel-max = {max_parallel_downloads}
             config_file_list.append(last_file)
 
         return config_file_list
+
+    def _config_files_url_count(self, config_file_list):
+        return sum(config_file.num_urls for config_file in config_file_list if config_file is not None)
+
+    def _partition_resume_entries(self, entries):
+        fresh_entries = list()
+        resume_entries = list()
+        for entry in entries:
+            if entry.is_resume_entry():
+                resume_entries.append(entry)
+            else:
+                fresh_entries.append(entry)
+        return fresh_entries, resume_entries
+
+    def _create_download_config_phase(
+            self,
+            curl_config_folder,
+            num_config_files,
+            entries,
+            file_name_suffix,
+            create_fallback=False):
+        config_files = self._create_config_files_for_entries(
+            curl_config_folder,
+            num_config_files,
+            entries,
+            file_name_suffix=file_name_suffix,
+        )
+        fallback_config_files = list()
+        if create_fallback and config_files:
+            fallback_entries = [entry.fresh_restart_entry() for entry in entries]
+            fallback_config_files = self._create_config_files_for_entries(
+                curl_config_folder,
+                num_config_files,
+                fallback_entries,
+                file_name_suffix=f"{file_name_suffix}-fallback",
+            )
+        return config_files, fallback_config_files
+
+    def _add_external_parallel_download_commands(
+            self,
+            dl_commands,
+            curl_config_folder,
+            config_file_list,
+            fallback_config_file_list=()):
+        if not config_file_list:
+            return
+
+        file_name = config_file_list[0].path.name
+        parallel_run_config_file_path = curl_config_folder.joinpath(f"{file_name}.parallel-run")
+        self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
+
+        fallback_parallel_run_config_file_path = None
+        if fallback_config_file_list:
+            fallback_parallel_run_config_file_path = curl_config_folder.joinpath(f"{file_name}.fallback.parallel-run")
+            self.create_parallel_run_config_file(fallback_parallel_run_config_file_path, fallback_config_file_list)
+
+        dl_commands += ParallelRun(
+            parallel_run_config_file_path,
+            shell=False,
+            action_name="Downloading",
+            fallback_config_file=fallback_parallel_run_config_file_path,
+            fallback_exit_codes=(33,),
+            own_progress_count=self._config_files_url_count(config_file_list),
+            report_own_progress=False,
+        )
+
+    def _add_internal_parallel_download_commands(
+            self,
+            dl_commands,
+            config_file_list,
+            fallback_config_file_list,
+            total_files_to_download,
+            total_bytes_to_download,
+            previously_downloaded_files):
+        fallback_by_path = {}
+        for config_file, fallback_config_file in zip(config_file_list, fallback_config_file_list):
+            fallback_by_path[config_file.path] = fallback_config_file.path
+
+        for config_file in config_file_list:
+            dl_commands += CurlWithInternalParallel(
+                curl_path=f"$(DOWNLOAD_TOOL_PATH)",
+                config_file_path=config_file.path,
+                fallback_config_file_path=fallback_by_path.get(config_file.path),
+                fallback_exit_codes=(33,),
+                total_files_to_download=total_files_to_download,
+                previously_downloaded_files=previously_downloaded_files,
+                total_bytes_to_download=total_bytes_to_download,
+                action_name="Downloading",
+                own_progress_count=config_file.num_urls,
+                report_own_progress=False)
+            previously_downloaded_files += config_file.num_urls
+        return previously_downloaded_files
 
     def create_download_instructions(self, dl_commands):
         """ Download is done be creating files with instructions for curl - curl config files.
@@ -265,8 +434,34 @@ parallel-max = {max_parallel_downloads}
         MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
-        # TODO: Move class someplace else
-        config_file_list = self.create_config_files(curl_config_folder, num_config_files)
+        fresh_downloads, resume_downloads = self._partition_resume_entries(self.urls_to_download)
+        fresh_downloads_last, resume_downloads_last = self._partition_resume_entries(self.urls_to_download_last)
+        if resume_downloads or resume_downloads_last:
+            config_file_groups = list()
+            for suffix, entries, create_fallback in (
+                    ("-fresh", fresh_downloads, False),
+                    ("-resume", resume_downloads, True),
+                    ("-fresh-last", fresh_downloads_last, False),
+                    ("-resume-last", resume_downloads_last, True),
+            ):
+                config_files, fallback_config_files = self._create_download_config_phase(
+                    curl_config_folder,
+                    num_config_files,
+                    entries,
+                    suffix,
+                    create_fallback=create_fallback,
+                )
+                if config_files:
+                    config_file_groups.append((config_files, fallback_config_files))
+            config_file_list = [
+                config_file
+                for config_files, _fallback_config_files in config_file_groups
+                for config_file in config_files
+            ]
+        else:
+            # TODO: Move class someplace else
+            config_file_list = self.create_config_files(curl_config_folder, num_config_files)
+            config_file_groups = [(config_file_list, list())] if config_file_list else list()
 
         actual_num_config_files = len(config_file_list)
         if actual_num_config_files > 0:
@@ -282,30 +477,28 @@ parallel-max = {max_parallel_downloads}
             if self.use_internal_parallel():
                 dl_commands += Progress(f"Downloading with curl parallel")
                 previously_downloaded_files = 0
-                for config_file in config_file_list:
-                    dl_commands += CurlWithInternalParallel(
-                                        curl_path=f"$(DOWNLOAD_TOOL_PATH)",
-                                        config_file_path=config_file.path,
-                                        total_files_to_download = total_files_to_download,
-                                        previously_downloaded_files = previously_downloaded_files,
-                                        total_bytes_to_download= total_bytes_to_download,
-                                        action_name="Downloading",
-                                        own_progress_count=config_file.num_urls,
-                                        report_own_progress=False)
-                    previously_downloaded_files += config_file.num_urls
+                for group_config_files, group_fallback_config_files in config_file_groups:
+                    previously_downloaded_files = self._add_internal_parallel_download_commands(
+                        dl_commands,
+                        group_config_files,
+                        group_fallback_config_files,
+                        total_files_to_download,
+                        total_bytes_to_download,
+                        previously_downloaded_files,
+                    )
             else:
                 if num_config_files > 1:
                     dl_start_message = f"Downloading with {num_config_files} processes in parallel"
                 else:
                     dl_start_message = "Downloading with 1 process"
                 dl_commands += Progress(dl_start_message)
-                parallel_run_config_file_path = curl_config_folder.joinpath(
-                    config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
-                self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-                dl_commands += ParallelRun(parallel_run_config_file_path, shell=False,
-                                           action_name="Downloading",
-                                           own_progress_count=total_files_to_download,
-                                           report_own_progress=False)
+                for group_config_files, group_fallback_config_files in config_file_groups:
+                    self._add_external_parallel_download_commands(
+                        dl_commands,
+                        curl_config_folder,
+                        group_config_files,
+                        group_fallback_config_files,
+                    )
 
             if total_files_to_download > 1:
                 dl_end_message = f"Downloading {total_files_to_download} files done"

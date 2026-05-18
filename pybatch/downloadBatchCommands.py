@@ -1,4 +1,5 @@
 from typing import List
+import os
 from pathlib import Path
 
 import requests
@@ -34,18 +35,23 @@ class DownloadManager(PythonBatchCommandBase):
             if path.is_dir():
                 filename = Path(url.split("/").pop())
                 path = path.joinpath(filename)
+            temp_path = Path(kwargs["temp_path"]) if kwargs.get("temp_path") else path
             with MakeDir(path.parent, report_own_progress=False) as dir_maker:
                 dir_maker()
-            with open(path, "wb") as fo:
-                self.doing = f"downloading file {path}"
+            with MakeDir(temp_path.parent, report_own_progress=False) as dir_maker:
+                dir_maker()
+            with open(temp_path, "wb") as fo:
+                self.doing = f"downloading file {temp_path}"
                 timeout_seconds = int(config_vars.get("CURL_MAX_TIME", 480))
                 read_data = dl_session.get(url, timeout=timeout_seconds)
                 read_data.raise_for_status()  # must raise in case of an error. Server might return json/xml with error details, we do not want that
                 fo.write(read_data.content)
 
-            checksum_ok = utils.check_file_checksum(path, checksum)
+            checksum_ok = utils.check_file_checksum(temp_path, checksum)
             if not checksum_ok:
-                raise ValueError(f"bad checksum for {str(path)} after reqs download")
+                raise ValueError(f"bad checksum for {str(temp_path)} after reqs download")
+            if temp_path != path:
+                os.replace(temp_path, path)
 
     def progress_msg_self(self) -> str:
         return f'downloading file {self.url}'

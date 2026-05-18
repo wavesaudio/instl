@@ -188,12 +188,46 @@ class write_to_file_or_stdout(object):
 
 @contextmanager
 def patch_verify_ssl(verify_ssl):
-    """ if verify_ssl is False, patch ssl._create_default_https_context to be
-        ssl._create_unverified_context and un-patch after it was used
+    """Temporarily replace ssl._create_default_https_context with a maximally
+    permissive factory for urllib.request-based URL reads.
+
+    This mirrors the approach used by SSLContextAdapter for the requests path:
+      - Load CAs from certifi (avoids Windows system cert store; that store may
+        contain non-conformant certs that make OpenSSL 3.x raise
+        '[ASN1] nested asn1 error' even when verification is disabled).
+      - Disable verification (CERT_NONE / check_hostname=False).
+      - Set @SECLEVEL=0 so OpenSSL accepts any algorithm / encoding.
+      - Set OP_LEGACY_SERVER_CONNECT for pre-3.x renegotiation compatibility.
+
+    The context manager is a no-op when verify_ssl is True.
     """
     if not verify_ssl:
         original_create_default_https_context = ssl._create_default_https_context
-        ssl._create_default_https_context = ssl._create_unverified_context
+
+        def _permissive_https_context(*args, **kwargs):
+            try:
+                import certifi
+                # create_default_context(cafile=...) loads certifi's CAs only and
+                # does NOT call load_default_certs(), keeping the Windows cert
+                # store out of the picture.
+                ctx = ssl.create_default_context(cafile=certifi.where())
+            except Exception:
+                ctx = ssl._create_unverified_context(*args, **kwargs)
+
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            try:
+                ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
+            except ssl.SSLError:
+                pass
+
+            if hasattr(ssl, "OP_LEGACY_SERVER_CONNECT"):
+                ctx.options |= ssl.OP_LEGACY_SERVER_CONNECT
+
+            return ctx
+
+        ssl._create_default_https_context = _permissive_https_context
     yield
     if not verify_ssl:
         ssl._create_default_https_context = original_create_default_https_context
