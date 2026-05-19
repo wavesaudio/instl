@@ -25,6 +25,7 @@ requests==2.32.3
 rich==14.3.2
 setuptools==68.2.2
 shellingham==1.5.4
+truststore==0.10.4
 typer==0.24.0
 typer-slim==0.24.0
 urllib3==2.2.2

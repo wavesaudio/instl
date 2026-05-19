@@ -29,10 +29,7 @@ from svnTree.svnTable import SVNTable
 
 from db import DBManager
 
-download_state_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, "pyinstl"))
-if download_state_dir not in sys.path:
-    sys.path.append(download_state_dir)
-from downloadState import (
+from pyinstl.downloadState import (
     DownloadFileState,
     checksum_matches,
     file_id_for_download_item,
@@ -45,23 +42,23 @@ from downloadState import (
     save_resume_sidecar_for_download_item,
     temp_path_for_download_item,
 )
-from downloadFailures import (
+from pyinstl.downloadFailures import (
     DownloadFailureClass,
     DownloadFailureInfo,
     classify_exception,
     is_retryable_failure_class,
 )
-from downloadRetry import (
+from pyinstl.downloadRetry import (
     RetryAction,
     decide_retry,
     format_retry_decision_log_line,
 )
-from downloadObservability import (
+from pyinstl.downloadObservability import (
     DownloadOutcome,
     record_outcome as _observability_record_outcome,
     record_retry_decision as _observability_record_retry_decision,
 )
-from downloadEvents import (
+from pyinstl.downloadEvents import (
     emit_retry_decision as _events_emit_retry_decision,
     emit_file_state as _events_emit_file_state,
 )

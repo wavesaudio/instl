@@ -34,11 +34,18 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Mapping
 
-from downloadFailures import (
-    DownloadFailureClass,
-    DownloadFailureInfo,
-    is_retryable_failure_class,
-)
+try:
+    from .downloadFailures import (
+        DownloadFailureClass,
+        DownloadFailureInfo,
+        is_retryable_failure_class,
+    )
+except ImportError:  # tests import via sys.path without the pyinstl package context
+    from downloadFailures import (  # type: ignore[no-redef]
+        DownloadFailureClass,
+        DownloadFailureInfo,
+        is_retryable_failure_class,
+    )
 
 DOWNLOAD_RETRY_DECISION_LOG_PREFIX = "DOWNLOAD_RETRY_DECISION"
 

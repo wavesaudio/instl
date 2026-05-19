@@ -36,7 +36,10 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
-from downloadFailures import DownloadFailureClass
+try:
+    from .downloadFailures import DownloadFailureClass
+except ImportError:  # tests import via sys.path without the pyinstl package context
+    from downloadFailures import DownloadFailureClass  # type: ignore[no-redef]
 
 
 DOWNLOAD_OBSERVABILITY_SCHEMA_VERSION = 1
