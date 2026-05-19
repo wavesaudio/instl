@@ -286,8 +286,6 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.config_file))
-        all_args.append(self.optional_named__init__param("fallback_config_file", self.fallback_config_file))
-        all_args.append(self.optional_named__init__param("fallback_exit_codes", self.fallback_exit_codes, ()))
 
     def get_action_name(self):
         return self.action_name if self.action_name else self.__class__.__name__
@@ -626,8 +624,6 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.named__init__param("curl_path", self.curl_path))
         all_args.append(self.named__init__param("config_file_path", self.config_file_path))
-        all_args.append(self.optional_named__init__param("fallback_config_file_path", self.fallback_config_file_path))
-        all_args.append(self.optional_named__init__param("fallback_exit_codes", self.fallback_exit_codes, ()))
         all_args.append(self.named__init__param("total_files_to_download", self.total_files_to_download))
         all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
         all_args.append(self.named__init__param("total_bytes_to_download", self.total_bytes_to_download))

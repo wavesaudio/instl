@@ -8,7 +8,7 @@ if sys.platform == 'win32':
     import win32api
 
 from .instlInstanceSyncBase import InstlInstanceSync
-from .downloadState import resume_decision_for_download_item, temp_path_for_download_item
+from .downloadState import resolve_validated_hosts, resume_decision_for_download_item, temp_path_for_download_item
 from .downloadConcurrency import AdaptiveAction, resolve_concurrency_from_config
 from .downloadObservability import load_session_summary
 from pybatch import *
@@ -94,7 +94,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.get_cookie_for_sync_urls(self.sync_base_url)
         bookkeeping_dir = config_vars.get("LOCAL_REPO_BOOKKEEPING_DIR", "").str()
         resume_enabled = _config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
-        validated_hosts = _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS")
+        base_links_url = config_vars.get("BASE_LINKS_URL", "").str() if "BASE_LINKS_URL" in config_vars else ""
+        validated_hosts = resolve_validated_hosts(
+            _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
+            base_links_url,
+        )
         validated_path_prefixes = _config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
         require_conditional = _config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
         signed_url_min_ttl_seconds = _config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)

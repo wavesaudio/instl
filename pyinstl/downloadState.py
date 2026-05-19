@@ -674,6 +674,34 @@ def has_sufficient_signed_url_ttl(
     return expiration > now.astimezone(timezone.utc) + timedelta(seconds=min_ttl_seconds)
 
 
+def validated_hosts_from_base_url(base_url: str | None) -> list[str]:
+    """Return a single-host validated list derived from a base URL.
+
+    Used when ``DOWNLOAD_RESUME_VALIDATED_HOSTS`` is left empty so the
+    resume-capability check follows whatever CDN host Central passes in
+    via ``BASE_LINKS_URL`` for this install. Returns ``[]`` when the URL
+    is empty or unparseable.
+    """
+    if not base_url:
+        return []
+    try:
+        host = urlsplit(str(base_url).strip()).hostname or ""
+    except Exception:
+        return []
+    host = host.strip().lower()
+    return [host] if host else []
+
+
+def resolve_validated_hosts(
+        configured: tuple[str, ...] | list[str],
+        base_url_fallback: str | None) -> list[str]:
+    """Return ``configured`` if non-empty, else derive from ``base_url_fallback``."""
+    explicit = [str(host).strip() for host in (configured or ()) if str(host).strip()]
+    if explicit:
+        return explicit
+    return validated_hosts_from_base_url(base_url_fallback)
+
+
 def url_matches_resume_capability(
         source_url: str | None,
         validated_hosts: tuple[str, ...] | list[str] = (),

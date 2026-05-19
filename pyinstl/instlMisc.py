@@ -118,8 +118,13 @@ class InstlMisc(InstlInstanceBase):
         except Exception:
             adaptive_enabled = False
         try:
+            from .downloadState import resolve_validated_hosts
             validated_hosts_var = config_vars.get("DOWNLOAD_RESUME_VALIDATED_HOSTS", []).list()
-            validated_hosts = [str(host) for host in validated_hosts_var]
+            base_links_url = config_vars.get("BASE_LINKS_URL", "").str() if "BASE_LINKS_URL" in config_vars else ""
+            validated_hosts = resolve_validated_hosts(
+                [str(host) for host in validated_hosts_var],
+                base_links_url,
+            )
         except Exception:
             validated_hosts = []
         # Phase 6 P6-002: read the rollout flag map once and apply the

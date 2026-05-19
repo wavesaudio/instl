@@ -10,10 +10,12 @@ CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry
 DOWNLOAD_RESUME_ENABLED: no
 DOWNLOAD_RESUME_REQUIRE_CONDITIONAL: yes
 DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS: 300
-DOWNLOAD_RESUME_VALIDATED_HOSTS:
-    - d2iorr2fqniidn.cloudfront.net
+# Left empty by default; the resume-capability check derives the host from
+# BASE_LINKS_URL (passed in by Central per install) when this list is empty,
+# so the validated host always matches the CDN the install is actually using.
+DOWNLOAD_RESUME_VALIDATED_HOSTS: []
 DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES:
-    - /V16/
+    - /$(REPO_NAME)/
 
 # Phase 4 adaptive concurrency controller (P4-002..P4-004).
 # DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED is the kill switch (D-005).
