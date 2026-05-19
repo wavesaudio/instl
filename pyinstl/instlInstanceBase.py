@@ -446,12 +446,12 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self._batch_script_size = len(final_bytes)
 
         #############
-        if out_file:
-            log.info(f"before, out file path: {str(out_file)}")
-        log.info(f"before, batch script size: {self._batch_script_size}")
-        log.info("before, begin final bytes")
-        log.info(final_bytes.decode("utf-8"))
-        log.info("before, end final bytes")
+        # if out_file:
+        #     log.info(f"before, out file path: {str(out_file)}")
+        # log.info(f"before, batch script size: {self._batch_script_size}")
+        # log.info("before, begin final bytes")
+        # log.info(final_bytes.decode("utf-8"))
+        # log.info("before, end final bytes")
         ############
 
         if out_file:
@@ -511,13 +511,13 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             missing_integrity_metadata_msg: str,
             modified_msg_prefix: str) -> None:
         #############
-        if file_path:
-            log.info(f"after, file path: {str(file_path)}")
-        log.info(f"after, batch script expected size: {expected_size}")
-        log.info(f"after, batch script actual size: {len(file_bytes)}")
-        log.info("after, begin file bytes")
-        log.info(file_bytes.decode("utf-8"))
-        log.info("after, end file bytes")
+        # if file_path:
+        #     log.info(f"after, file path: {str(file_path)}")
+        # log.info(f"after, batch script expected size: {expected_size}")
+        # log.info(f"after, batch script actual size: {len(file_bytes)}")
+        # log.info("after, begin file bytes")
+        # log.info(file_bytes.decode("utf-8"))
+        # log.info("after, end file bytes")
         ############
         if expected_checksum is None or expected_size is None:
             raise RuntimeError(missing_integrity_metadata_msg.format(path=file_path))
