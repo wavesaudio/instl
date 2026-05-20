@@ -85,12 +85,20 @@ class PerLevelFormatter(logging.Formatter):
 
 
 def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_vars=None):
-    """ Setting up a file logging handler """
+    """Write log messages to a file (used by Instl and by Central's progress dialog)."""
     log_file_path = Path(log_file_path).resolve()
-    log_file_folder = log_file_path.parent
+    # The batch child may set up the same log file again. Do not open it twice.
+    if find_file_log_handler(log_file_path) is not None:
+        if config_vars is not None:
+            config_vars.setdefault("OPEN_LOG_FILES", [])
+            if log_file_path not in config_vars["OPEN_LOG_FILES"]:
+                config_vars["OPEN_LOG_FILES"].append(log_file_path)
+        return
     os.makedirs(log_file_path.parent, exist_ok=True)
     top_logger = logging.getLogger()
 
+    # 2026-05-20: rotate=True uses RotatingFileHandler (Instl system log). Central --log uses
+    # rotate=False and a single FileHandler so the progress file keeps growing in one place.
     if rotate:
         fileLogHandler = logging.handlers.RotatingFileHandler(log_file_path, encoding='utf-8', maxBytes=5000000, backupCount=10)
     else:
@@ -173,13 +181,19 @@ debug_logging_started = False
 
 
 def find_file_log_handler(log_file_path):
+    """Return the existing file logger for this path, if we already opened it."""
     retVal = None
+    # Compare full paths so we recognize the same file even if the path string looks different.
+    # 2026-05-20: Check both handler types (rotating system log vs plain Central progress log).
+    resolved_path = os.fspath(Path(log_file_path).resolve())
     top_logger = logging.getLogger()
     for handler in top_logger.handlers:
-        if hasattr(handler, 'stream'):
-            if handler.stream.name == os.fspath(log_file_path):
-                retVal = handler
-                break
+        handler_path = getattr(handler, "baseFilename", None)
+        if handler_path is None and hasattr(handler, "stream"):
+            handler_path = getattr(handler.stream, "name", None)
+        if handler_path == resolved_path:
+            retVal = handler
+            break
     return retVal
 
 

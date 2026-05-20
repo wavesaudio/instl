@@ -623,6 +623,14 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         return Path(sys.executable).resolve()
 
     @staticmethod
+    def _batch_log_argv() -> list[str]:
+        """Tell the batch child which log file to use (same one Central watches for progress)."""
+        log_files = config_vars.get("OPEN_LOG_FILES", []).list()
+        if not log_files:
+            return []
+        return ["--log", *[os.fspath(log_file) for log_file in log_files]]
+
+    @staticmethod
     def _restricted_python_env() -> dict[str, str]:
         """Return environment for subprocess with Python injection vars removed and safety flags forced."""
         env = dict(os.environ)
@@ -670,12 +678,20 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
                     "run-generated-batch",
                     "--in",
                     os.fspath(script_path),
+                    *self._batch_log_argv(),  # so download progress still reaches Central
                 ]
             else:
                 python_exe = self._batch_python_executable()
                 if not python_exe.is_file():
                     raise RuntimeError(f"Python executable not found: {python_exe}")
-                run_args = [os.fspath(python_exe), "-I", "-B", "-s", os.fspath(script_path)]
+                run_args = [
+                    os.fspath(python_exe),
+                    "-I",
+                    "-B",
+                    "-s",
+                    os.fspath(script_path),
+                    *self._batch_log_argv(),  # so download progress still reaches Central
+                ]
             restricted_env = self._restricted_python_env()
             
             # Temporary diagnostic: log subprocess launch context if debugging enabled

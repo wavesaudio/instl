@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.12
 
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -87,6 +88,99 @@ class TestRunBatchFileSecurity(unittest.TestCase):
             self.assertEqual(run_kwargs["env"]["PYTHONNOUSERSITE"], "1")
             self.assertEqual(run_kwargs["env"]["PYTHONDONTWRITEBYTECODE"], "1")
             self.assertEqual(run_kwargs["env"]["PYTHONSAFEPATH"], "1")
+
+    def test_passes_parent_log_files_to_isolated_python_subprocess(self):
+        """The batch child should get the same --log path as the parent Instl process."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            log_path = Path(temp_dir, "progress.log")
+            script_bytes = b"print('safe')\n"
+            script_path.write_bytes(script_bytes)
+            inst = self._make_instance(script_path, script_bytes)
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["OPEN_LOG_FILES"] = [os.fspath(log_path)]
+
+                with mock.patch("subprocess.run", return_value=SimpleNamespace(returncode=0)) as mocked_run:
+                    inst.run_batch_file()
+
+                run_args, _run_kwargs = mocked_run.call_args
+                self.assertEqual(
+                    run_args[0],
+                    [
+                        os.fspath(Path(sys.executable).resolve()),
+                        "-I",
+                        "-B",
+                        "-s",
+                        os.fspath(script_path),
+                        "--log",
+                        os.fspath(log_path),
+                    ],
+                )
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+    def test_passes_parent_log_files_to_frozen_generated_batch_runner(self):
+        """Packaged Instl should also pass --log when it runs a generated batch."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = Path(temp_dir, "generated.py")
+            log_path = Path(temp_dir, "progress.log")
+            script_bytes = b"print('safe')\n"
+            script_path.write_bytes(script_bytes)
+            inst = self._make_instance(script_path, script_bytes)
+
+            fake_instl = Path(temp_dir, "instl")
+            fake_instl.write_bytes(b"")
+
+            original_stack_size = config_vars.stack_size()
+            try:
+                config_vars.push_scope()
+                config_vars["OPEN_LOG_FILES"] = [os.fspath(log_path)]
+                config_vars["INSTL_VIRTUAL_ENVIRONMENT_PYTHON"] = os.path.join(temp_dir, "missing_python")
+
+                with mock.patch.object(sys, "frozen", True, create=True), \
+                        mock.patch.object(sys, "executable", os.fspath(fake_instl)), \
+                        mock.patch("subprocess.run", return_value=SimpleNamespace(returncode=0)) as mocked_run:
+                    inst.run_batch_file()
+
+                run_args, _run_kwargs = mocked_run.call_args
+                self.assertEqual(
+                    run_args[0],
+                    [
+                        os.fspath(fake_instl.resolve()),
+                        "run-generated-batch",
+                        "--in",
+                        os.fspath(script_path),
+                        "--log",
+                        os.fspath(log_path),
+                    ],
+                )
+            finally:
+                config_vars.resize_stack(original_stack_size)
+
+    def test_setup_file_logging_is_idempotent(self):
+        """Opening the same log file twice should not create two writers."""
+        from utils import log_utils
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir, "progress.log")
+            top_logger = logging.getLogger()
+            initial_handler_count = len(top_logger.handlers)
+
+            try:
+                log_utils.setup_file_logging(log_path, rotate=False)
+                after_first = len(top_logger.handlers)
+                log_utils.setup_file_logging(log_path, rotate=False)
+                after_second = len(top_logger.handlers)
+
+                self.assertEqual(after_first, initial_handler_count + 1)
+                self.assertEqual(after_second, after_first)
+            finally:
+                for handler in top_logger.handlers[initial_handler_count:]:
+                    top_logger.removeHandler(handler)
+                    handler.close()
 
     def test_restricted_python_env_preserves_os_variables(self):
         """Denylist approach preserves normal OS variables including Windows-specific ones."""
@@ -457,9 +551,6 @@ class TestRunBatchFileSecurity(unittest.TestCase):
                     "--in",
                     os.fspath(script_path),
                 ])
-                self.assertNotIn("-I", run_args[0])
-                self.assertNotIn("-B", run_args[0])
-                self.assertNotIn("-s", run_args[0])
             finally:
                 config_vars.resize_stack(original_stack_size)
 
