@@ -7,8 +7,8 @@ CURL_MAX_TIME: 600       # Maximum time in seconds that you allow each transfer 
 CURL_RETRIES: 12          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
-DOWNLOAD_RESUME_ENABLED: no
-DOWNLOAD_RESUME_REQUIRE_CONDITIONAL: yes
+DOWNLOAD_RESUME_ENABLED: yes
+DOWNLOAD_RESUME_REQUIRE_CONDITIONAL: no
 DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS: 300
 # Left empty by default; the resume-capability check derives the host from
 # BASE_LINKS_URL (passed in by Central per install) when this list is empty,
@@ -62,7 +62,7 @@ DOWNLOAD_CONCURRENCY_ERROR_GROW: 0.02
 # baseline cohort.
 DOWNLOAD_TELEMETRY_ENABLED: yes
 DOWNLOAD_RETRY_POLICY_ENABLED: yes
-DOWNLOAD_CENTRAL_UX_ENABLED: no
+DOWNLOAD_CENTRAL_UX_ENABLED: yes
 DOWNLOAD_COHORT: control
 
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
