@@ -112,6 +112,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self.dl_tool = CUrlHelper()
 
         self.out_file_realpath = None
+        self.batch_file_text = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
@@ -415,6 +416,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
 
         final_repr = repr(in_batch_accum)
+        self.batch_file_text = final_repr + '\n'
 
         out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         if out_file:
@@ -435,10 +437,17 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
     def run_batch_file(self):
         if self.out_file_realpath.endswith(".py"):
-            with utils.utf8_open_for_read(self.out_file_realpath, 'r') as rfd:
-                py_text = rfd.read()
-                py_compiled = compile(py_text, os.fspath(self.out_file_realpath), mode='exec', flags=0, dont_inherit=False, optimize=2)
-                exec(py_compiled, globals())
+            if self.batch_file_text is None:
+                raise RuntimeError(
+                    "run_batch_file() called before write_batch_file() populated in-memory batch text")
+            py_compiled = compile(
+                self.batch_file_text,
+                os.fspath(self.out_file_realpath),
+                mode='exec',
+                flags=0,
+                dont_inherit=False,
+                optimize=2)
+            exec(py_compiled, globals())
 
         else:
             from subprocess import Popen
