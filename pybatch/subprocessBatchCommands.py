@@ -58,8 +58,9 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             self.get_run_args(run_args)
         run_args = list(map(str, run_args))
         self.doing = f"""calling subprocess '{" ".join(run_args)}'"""
+        sanitized_env = utils.build_sanitized_env(config_vars=config_vars)
         if self.detach:
-            pid = subprocess.Popen(run_args).pid
+            pid = subprocess.Popen(run_args, env=sanitized_env).pid
         else:
             if self.script:
                 self.shell = True
@@ -91,7 +92,7 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
             in_stream = None
 
             completed_process = subprocess.run(run_args, check=False, stdin=in_stream, stdout=out_stream,
-                                                   stderr=subprocess.PIPE, shell=self.shell, bufsize=0)
+                                                   stderr=subprocess.PIPE, shell=self.shell, bufsize=0, env=sanitized_env)
 
             if need_to_close_out_file:
                 out_stream.close()
@@ -602,7 +603,8 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
-                                   bufsize=1)
+                                   bufsize=1,
+                                   env=utils.build_sanitized_env(config_vars=config_vars))
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+

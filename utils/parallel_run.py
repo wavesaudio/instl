@@ -111,7 +111,7 @@ def launch_process(command, shell, do_enqueue_output):
     if do_enqueue_output:
         kwargs.update({'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE, 'bufsize': 128})
     try:
-        a_process = subprocess.Popen(full_command, shell=shell, env=os.environ, **kwargs)
+        a_process = subprocess.Popen(full_command, shell=shell, env=utils.build_sanitized_env(os.environ), **kwargs)
     except Exception as e:
         exit_val = 31
         raise RuntimeError(f"failed to start {command}") from e

@@ -436,31 +436,20 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         log.info(msg)
 
     def run_batch_file(self):
-        if self.out_file_realpath.endswith(".py"):
-            if self.batch_file_text is None:
-                raise RuntimeError(
-                    "run_batch_file() called before write_batch_file() populated in-memory batch text")
-            py_compiled = compile(
-                self.batch_file_text,
-                os.fspath(self.out_file_realpath),
-                mode='exec',
-                flags=0,
-                dont_inherit=False,
-                optimize=2)
+        if not self.out_file_realpath.endswith(".py"):
+            raise RuntimeError(f"Unsupported batch file extension for {self.out_file_realpath}")
+        if self.batch_file_text is None:
+            raise RuntimeError(
+                "run_batch_file() called before write_batch_file() populated in-memory batch text")
+        py_compiled = compile(
+            self.batch_file_text,
+            os.fspath(self.out_file_realpath),
+            mode='exec',
+            flags=0,
+            dont_inherit=False,
+            optimize=2)
+        with utils.temporary_sanitized_env(config_vars=config_vars):
             exec(py_compiled, globals())
-
-        else:
-            from subprocess import Popen
-
-            p = Popen([self.out_file_realpath], executable=self.out_file_realpath, shell=False)
-            stdout, stderr = p.communicate()
-            if stdout:
-                print(stdout)
-            if stderr:
-                print(stderr, file=sys.stderr)
-            return_code = p.returncode
-            if return_code != 0:
-                raise SystemExit(self.out_file_realpath + " returned exit code " + str(return_code))
 
     def read_index(self, a_node, *args, **kwargs):
         self.progress("reading index.yaml")

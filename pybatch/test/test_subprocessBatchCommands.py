@@ -13,10 +13,12 @@ import contextlib
 import filecmp
 import subprocess
 import string
+from unittest import mock
 from threading import Timer
 from collections import namedtuple
 
 import utils
+import utils.parallel_run as parallel_run_module
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
 from pybatch.copyBatchCommands import RsyncClone
@@ -51,6 +53,39 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     def test_RunProcessBase(self):
         pass
+
+    def _assert_denylisted_env_var_removed(self, trigger_callable, env_var_name="PYTHONPATH"):
+        original_value = os.environ.get(env_var_name)
+        os.environ[env_var_name] = "attacker-controlled"
+        try:
+            called_env = trigger_callable()
+            self.assertIsNotNone(called_env, "sanitized env should be passed explicitly")
+            self.assertNotIn(env_var_name, called_env,
+                             f"denylisted environment variable {env_var_name} leaked into subprocess env")
+        finally:
+            if original_value is None:
+                os.environ.pop(env_var_name, None)
+            else:
+                os.environ[env_var_name] = original_value
+
+    def test_Subprocess_denylisted_env_not_passed_to_subprocess(self):
+        def _trigger_subprocess():
+            completed_process = subprocess.CompletedProcess(args=["echo", "hello"], returncode=0, stdout=b"", stderr=b"")
+            with mock.patch("pybatch.subprocessBatchCommands.subprocess.run", return_value=completed_process) as run_mock:
+                sp = Subprocess("echo", "hello", report_own_progress=False)
+                sp()
+            return run_mock.call_args.kwargs.get("env")
+
+        self._assert_denylisted_env_var_removed(_trigger_subprocess)
+
+    def test_ParallelRun_denylisted_env_not_passed_to_subprocess(self):
+        def _trigger_parallel_run():
+            with mock.patch("utils.parallel_run.subprocess.Popen") as popen_mock:
+                popen_mock.return_value = mock.Mock()
+                parallel_run_module.launch_process(["echo", "hello"], shell=False, do_enqueue_output=False)
+            return popen_mock.call_args.kwargs.get("env")
+
+        self._assert_denylisted_env_var_removed(_trigger_parallel_run)
 
     def test_Curl_repr(self):
         """ validate Curl object recreation with Curl.__repr__() """

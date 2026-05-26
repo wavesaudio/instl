@@ -97,6 +97,10 @@ WRITE_CONFIG_VARS_READ_FROM_ENVIRON_TO_BATCH_FILE: no
 # in exec command, if the given python raises - re-raise the exception to cause non zero exit code
 EXIT_ON_EXEC_EXCEPTION: False
 
+# optional extension of env var denylist used during batch exec and subprocess launch.
+# values can be exact names (e.g. MY_VAR) or prefixes with * (e.g. SECRET_*).
+ENV_VARS_DENYLIST: []
+
 # defaults if no acting user/group specifically given
 ACTING_UID: "$(__USER_ID__)"
 ACTING_GID: "$(__GROUP_ID__)"

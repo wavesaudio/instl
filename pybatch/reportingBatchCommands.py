@@ -610,6 +610,8 @@ class EnvironVarAssign(PythonDoSomething, call__call__=False, is_context_manager
     """
     def __init__(self, var_name, var_value, **kwargs) -> None:
         assert var_name.isidentifier(), f"{var_name} is not a valid identifier"
+        if utils.is_env_var_denied(var_name, config_vars=config_vars):
+            raise ValueError(f"{var_name} is denied by environment sanitization policy")
         self.var_name = var_name
         self.var_value = var_value
         the_repr = f'''os.environ["{self.var_name}"]="{self.var_value}"'''

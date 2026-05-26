@@ -212,6 +212,10 @@ STEVE: Jobs
         self.assertTrue(var_name in os.environ, f"EnvironVarAssign.repr did not set environment variable '{var_name}' at all")
         self.assertEqual(os.environ[var_name], var_value, f"EnvironVarAssign.repr did not set environment variable '{var_name}' correctly")
 
+    def test_EnvironVarAssign_denied_var(self):
+        with self.assertRaises(ValueError):
+            EnvironVarAssign("PYTHONPATH", "attacker-controlled")
+
     def test_ReadConfigVarValueFromTextFile(self):
         var_name = 'BUILD_NUMBER'
         var_value = "1234"

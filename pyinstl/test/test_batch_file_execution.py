@@ -89,6 +89,38 @@ class TestBatchFileExecution(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "before write_batch_file"):
             self.instance.run_batch_file()
 
+    def test_run_batch_file_sanitizes_denylisted_env_vars(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            batch_path = Path(tmpdir) / "test-batch.py"
+            marker_path = Path(tmpdir) / "marker.txt"
+            config_vars["__MAIN_OUT_FILE__"] = os.fspath(batch_path)
+            config_vars["__MAIN_COMMAND__"] = "test"
+
+            original_pythonpath = os.environ.get("PYTHONPATH")
+            os.environ["PYTHONPATH"] = "attacker-controlled"
+            try:
+                self.instance.batch_accum.clear(section_name="begin")
+                self.instance.batch_accum += PythonDoSomething(
+                    f'open({os.fspath(marker_path)!r}, "w").write(str(os.environ.get("PYTHONPATH")))'  # noqa: E501
+                )
+
+                self.instance.write_batch_file(self.instance.batch_accum)
+                self.instance.run_batch_file()
+
+                self.assertEqual(marker_path.read_text(encoding="utf-8"), "None")
+                self.assertEqual(os.environ.get("PYTHONPATH"), "attacker-controlled")
+            finally:
+                if original_pythonpath is None:
+                    os.environ.pop("PYTHONPATH", None)
+                else:
+                    os.environ["PYTHONPATH"] = original_pythonpath
+
+    def test_run_batch_file_rejects_non_py_extension(self):
+        self.instance.out_file_realpath = "/tmp/test-batch.command"
+        self.instance.batch_file_text = "print('noop')"
+        with self.assertRaisesRegex(RuntimeError, "Unsupported batch file extension"):
+            self.instance.run_batch_file()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
