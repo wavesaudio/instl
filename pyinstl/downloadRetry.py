@@ -28,11 +28,15 @@ Design goals (kept aligned with the workspace docs in
 from __future__ import annotations
 
 import json
+import logging
 import random
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Mapping
+
+_log = logging.getLogger(__name__)
 
 try:
     from .downloadFailures import (
@@ -361,6 +365,49 @@ def format_retry_decision_log_line(
     return f"{DOWNLOAD_RETRY_DECISION_LOG_PREFIX} {json.dumps(payload, sort_keys=True)}"
 
 
+def sleep_backoff(delay_seconds: float, *, channel=None) -> bool:
+    """Sleep for ``delay_seconds`` or return early on ``try_now``.
+
+    Phase 7 control channel hook. Replaces a naked ``time.sleep`` in
+    retry loops so Central can send ``{"cmd":"try_now"}`` and skip
+    the remaining backoff. When ``channel`` is ``None``, the function
+    falls back to the process-wide singleton from
+    :mod:`downloadControlChannel`; tests inject a stub channel
+    directly.
+
+    Returns ``True`` when the sleep was interrupted by a ``try_now``
+    command, ``False`` when the full ``delay_seconds`` elapsed (or
+    when ``delay_seconds`` was non-positive).
+    """
+    if delay_seconds is None or delay_seconds <= 0:
+        return False
+    if channel is None:
+        try:
+            from .downloadControlChannel import get_global_channel  # local import: cycle-safe
+        except ImportError:  # tests import without pyinstl package context
+            try:
+                from downloadControlChannel import get_global_channel  # type: ignore[no-redef]
+            except ImportError:
+                # Control channel not available; fall back to a plain sleep.
+                time.sleep(float(delay_seconds))
+                return False
+        try:
+            channel = get_global_channel()
+        except Exception as ex:  # pragma: no cover - defensive
+            _log.debug(f"control channel unavailable, falling back to time.sleep: {ex}")
+            time.sleep(float(delay_seconds))
+            return False
+    woke = channel.sleep_or_wake(float(delay_seconds))
+    if woke:
+        # Drain the consume-once flag so future spurious wakes don't
+        # masquerade as another try_now.
+        try:
+            channel.try_now_requested()
+        except Exception:  # pragma: no cover - defensive
+            pass
+    return woke
+
+
 __all__ = [
     "DEFAULT_RETRY_MATRIX",
     "DOWNLOAD_RETRY_DECISION_LOG_PREFIX",
@@ -371,4 +418,5 @@ __all__ = [
     "decide_retry",
     "format_retry_decision_log_line",
     "policy_for",
+    "sleep_backoff",
 ]

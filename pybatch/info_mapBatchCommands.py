@@ -53,7 +53,9 @@ from pyinstl.downloadRetry import (
     RetryAction,
     decide_retry,
     format_retry_decision_log_line,
+    sleep_backoff,
 )
+from pyinstl.downloadControlChannel import get_global_channel
 from pyinstl.downloadObservability import (
     DownloadOutcome,
     record_outcome as _observability_record_outcome,
@@ -464,12 +466,19 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
     def re_download_bad_files(self):
         current_file_item = None
+        # Phase 7 control channel: the in-process redownload loop is a
+        # natural pause boundary — we hand each file to the synchronous
+        # DownloadManager and never split a single file across iterations,
+        # so blocking between iterations preserves the atomicity invariants
+        # (D-001/D-009/D-010): no temp ``.part`` is promoted while paused.
+        control_channel = get_global_channel()
         try:
             download_path = None
 
             with DownloadManager(cookie=config_vars["COOKIE_JAR"].str(),
                                  report_own_progress=False) as dler:  # should get the cookie from the config vars
                 for file_item in self.lists_of_files["to redownload"]:
+                    control_channel.wait_if_paused()
                     current_file_item = file_item
                     download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
                     download_path = file_item.download_path

@@ -325,6 +325,12 @@ class DownloadSessionRecord:
     planned_files: int = 0
     files_to_download: int = 0
     bytes_to_download: int = 0
+    # Phase 7 control channel: short literal explaining the latest state
+    # transition (``"user"``, ``"offline"``, ``"system"``, ...). Additive;
+    # the persisted JSON simply gains a ``reason`` key and old readers
+    # ignore it. The download state ``schemaVersion`` is unchanged because
+    # the field is forward-compatible (see ``downloadEvents`` docstring).
+    reason: str | None = None
 
     @classmethod
     def new(cls, session_id: str | None = None, **kwargs):
@@ -355,6 +361,7 @@ class DownloadSessionRecord:
             planned_files=_non_negative_int(data.get("plannedFiles", 0), "session.plannedFiles"),
             files_to_download=_non_negative_int(data.get("filesToDownload", 0), "session.filesToDownload"),
             bytes_to_download=_non_negative_int(data.get("bytesToDownload", 0), "session.bytesToDownload"),
+            reason=data.get("reason"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -373,6 +380,7 @@ class DownloadSessionRecord:
             "plannedFiles": self.planned_files,
             "filesToDownload": self.files_to_download,
             "bytesToDownload": self.bytes_to_download,
+            "reason": self.reason,
         }
 
 
@@ -477,6 +485,47 @@ class DownloadStateStore:
 
     def save_file(self, record: DownloadFileRecord) -> None:
         write_json_atomic(self.file_path(record.file_id), record.to_dict())
+
+
+def update_session_state(
+        bookkeeping_dir: str | Path,
+        new_state: "DownloadSessionState | str",
+        reason: str | None = None,
+        *,
+        session_id: str | None = None) -> "DownloadSessionRecord | None":
+    """Phase 7: persist a session-state transition with an optional reason.
+
+    Loads ``session.json`` from ``download-state`` under ``bookkeeping_dir``,
+    updates ``state``/``reason``/``updatedAt``, and writes atomically.
+    Returns the new record, or ``None`` when no session file exists
+    yet and no ``session_id`` was provided (in which case the caller's
+    pause is a no-op for persistence; the in-memory channel flag still
+    gates dispatch).
+
+    Persistence is best-effort: pause/resume must not break a sync
+    run, so all errors are swallowed and the function returns ``None``.
+    """
+    if not bookkeeping_dir:
+        return None
+    if not isinstance(new_state, DownloadSessionState):
+        try:
+            new_state = DownloadSessionState(new_state)
+        except ValueError:
+            return None
+    try:
+        store = DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir)
+        existing = store.load_session()
+        if existing is None:
+            if session_id is None:
+                return None
+            existing = DownloadSessionRecord.new(session_id=session_id, state=new_state)
+        existing.state = new_state
+        existing.reason = reason
+        existing.updated_at = utc_now_iso()
+        store.save_session(existing)
+        return existing
+    except Exception:
+        return None
 
 
 @dataclass(frozen=True)

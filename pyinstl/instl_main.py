@@ -132,6 +132,27 @@ class InvocationReporter(PythonBatchRuntime):
             log.warning(f'InvocationReporter.__exit__ internal exception - {e}')
 
 
+# Commands that exercise the URL sync engine — these are the only ones
+# that need the pause/resume/try_now control channel. ``check-checksum``
+# is included because it owns the in-process redownload loop and the
+# retry backoff sleeper (see ``downloadControlChannel`` docstring).
+_CONTROL_CHANNEL_COMMANDS = frozenset({
+    "sync", "synccopy", "check-checksum",
+})
+
+
+def _start_control_channel_if_needed(main_command):
+    if main_command not in _CONTROL_CHANNEL_COMMANDS:
+        return
+    try:
+        from pyinstl.downloadControlChannel import get_global_channel
+        get_global_channel().start()
+    except Exception as ex:
+        # Control channel is best-effort instrumentation; never break
+        # a sync run because the daemon thread couldn't spawn.
+        log.debug(f"control channel start failed: {ex}")
+
+
 def instl_own_main(argv):
     """ Main instl entry point. Reads command line options and decides if to go into interactive or client mode.
     """
@@ -195,6 +216,15 @@ def instl_own_main(argv):
             from pyinstl.instlCommandList import run_commands_from_file
             run_commands_from_file(initial_vars, options)
             return
+
+        # Phase 7 control channel: start the stdin reader for commands
+        # that exercise the URL sync engine. We boot the singleton early
+        # so any code path that reaches into ``downloadControlChannel.
+        # get_global_channel()`` sees a started daemon thread. The reader
+        # is harmless when stdin is closed/redirected (EOF ends the thread
+        # quietly); we deliberately do NOT start it for non-sync commands
+        # so they don't pull stdin away from interactive callers.
+        _start_control_channel_if_needed(options.__MAIN_COMMAND__)
 
         is_compiled = getattr(sys, 'frozen', False)
         match options.mode, is_compiled:

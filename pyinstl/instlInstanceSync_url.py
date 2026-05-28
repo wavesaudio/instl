@@ -8,9 +8,17 @@ if sys.platform == 'win32':
     import win32api
 
 from .instlInstanceSyncBase import InstlInstanceSync
-from .downloadState import resolve_validated_hosts, resume_decision_for_download_item, temp_path_for_download_item
+from .downloadState import (
+    DownloadSessionState,
+    resolve_validated_hosts,
+    resume_decision_for_download_item,
+    temp_path_for_download_item,
+    update_session_state,
+)
 from .downloadConcurrency import AdaptiveAction, resolve_concurrency_from_config
 from .downloadObservability import load_session_summary
+from .downloadControlChannel import get_global_channel
+from . import downloadEvents
 from pybatch import *
 
 import logging
@@ -102,7 +110,22 @@ class InstlInstanceSync_url(InstlInstanceSync):
         validated_path_prefixes = _config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
         require_conditional = _config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
         signed_url_min_ttl_seconds = _config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)
+        # Phase 7 control channel: wire the URL-sync session into the
+        # process-wide control channel. Callbacks persist the session
+        # state and emit a ``download.session_state`` event so Central
+        # can reflect the change in the UI. ``wait_if_paused`` below
+        # gates the dispatch of new download URLs without interrupting
+        # already-scheduled work; in-flight ``curl`` invocations run via
+        # external ParallelRun processes and are not interrupted by
+        # pause (their ``.part`` artifacts survive untouched per D-001).
+        control_channel = self._bind_control_channel(bookkeeping_dir)
         for file_item in in_file_list:
+            # Cooperative pause check: between every file we may block
+            # here if Central asked to pause. We do not interrupt the
+            # current iteration; the previously scheduled curl configs
+            # are not touched and partial ``.part`` files (if any)
+            # remain valid for the next resume.
+            control_channel.wait_if_paused()
             source_url = self.instlObj.info_map_table.get_sync_url_for_file_item(file_item)
             resume_decision = resume_decision_for_download_item(
                 file_item,
@@ -125,6 +148,65 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 conditional_headers=resume_decision.conditional_headers,
             )
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
+
+    def _bind_control_channel(self, bookkeeping_dir):
+        """Attach pause/resume callbacks to the singleton control channel.
+
+        The callbacks persist ``state="paused"``/``state="downloading"``
+        on disk (best-effort) and emit a ``download.session_state``
+        event with ``reason`` so Central's UI can reflect the change
+        without polling. The event schemaVersion is unchanged because
+        ``reason`` is an additive field; consumers tolerate unknown
+        fields by contract (see ``downloadEvents`` docstring).
+        """
+        channel = get_global_channel()
+        try:
+            session_id = str(config_vars.get("__INVOCATION_RANDOM_ID__", "unknown"))
+        except Exception:
+            session_id = "unknown"
+        channel.session_id = session_id
+
+        def _on_pause(reason: str) -> None:
+            try:
+                update_session_state(
+                    bookkeeping_dir,
+                    DownloadSessionState.PAUSED,
+                    reason=reason,
+                    session_id=session_id,
+                )
+            except Exception as ex:  # pragma: no cover - defensive
+                _log.debug(f"pause persist failed: {ex}")
+            try:
+                downloadEvents.emit_session_state(
+                    session_id=session_id,
+                    state=DownloadSessionState.PAUSED,
+                    reason=reason,
+                )
+            except Exception as ex:  # pragma: no cover - defensive
+                _log.debug(f"pause event emit failed: {ex}")
+
+        def _on_resume(reason: str) -> None:
+            try:
+                update_session_state(
+                    bookkeeping_dir,
+                    DownloadSessionState.DOWNLOADING,
+                    reason=reason,
+                    session_id=session_id,
+                )
+            except Exception as ex:  # pragma: no cover - defensive
+                _log.debug(f"resume persist failed: {ex}")
+            try:
+                downloadEvents.emit_session_state(
+                    session_id=session_id,
+                    state=DownloadSessionState.DOWNLOADING,
+                    reason=reason,
+                )
+            except Exception as ex:  # pragma: no cover - defensive
+                _log.debug(f"resume event emit failed: {ex}")
+
+        channel.on_pause_event = _on_pause
+        channel.on_resume_event = _on_resume
+        return channel
 
     def create_curl_download_instructions(self):
         """ Download is done be creating files with instructions for curl - curl config files.
