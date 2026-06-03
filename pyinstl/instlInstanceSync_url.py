@@ -323,7 +323,13 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 log.info(f"""{mount_points_to_size[m_p]} bytes to download to drive {"".join(("'", m_p, "'"))} {free_bytes-mount_points_to_size[m_p]} bytes will remain""")
 
         dl_commands += self.create_sync_folders()
-        dl_commands += PrepareDownloadTempFiles(own_progress_count=to_sync_num_files, report_own_progress=False)
+        # own_progress_count=0: this is a fast, non-reporting prep pass. It must
+        # NOT contribute to the progress total — total_progress_count() sums
+        # own_progress_count regardless of report_own_progress, so a non-zero
+        # value here adds phantom units to the denominator that are never
+        # incremented (report_own_progress=False), which inflates the "of N"
+        # total Central reads and skews the progress-bar phase weights.
+        dl_commands += PrepareDownloadTempFiles(own_progress_count=0, report_own_progress=False)
         self.create_sync_urls(file_list)
         dl_commands += self.create_curl_download_instructions()
 

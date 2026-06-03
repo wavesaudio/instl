@@ -180,24 +180,31 @@ def _build_failure_info(failure_class, *, http_status=None, curl_exit_code=None,
     )
 
 
-def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=None, resume_eligible=False, concurrency=None):
+def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=None, resume_eligible=False, concurrency=None, previous_retry_count_override=None):
     """Compute a retry decision for ``file_item``, persist it on the sidecar, and log it.
 
-    Behavior is additive: the existing redownload loop in ``re_download_bad_files``
-    still drives the actual retransfer. This helper records the matrix-derived
-    decision (count, delay, action) so Phase 5 telemetry/UX and operators can
-    explain why a file was queued for redownload or marked terminal.
+    The matrix-derived decision (count, delay, action) is recorded for Phase 5
+    telemetry/UX and operators, and is also **returned** so callers (the
+    redownload loop) can drive the actual retry: whether to retry, and how long
+    to back off before doing so.
+
+    ``previous_retry_count_override`` lets the caller supply an in-memory attempt
+    count. The redownload loop must use this because the persisted retry count
+    lives on the resume sidecar, which is not written when resume bookkeeping is
+    disabled (the default); reading it would always return ``0`` and the matrix
+    would never reach its terminal attempt.
 
     Phase 6 P6-002: ``DOWNLOAD_RETRY_POLICY_ENABLED=no`` is the kill switch
     that returns ``None`` without computing/logging a decision or touching
-    the resume sidecar's retry bookkeeping. Existing redownload behavior
-    is unaffected because the matrix never drove the transfer itself.
+    the resume sidecar's retry bookkeeping.
     """
     if not _config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True):
         return None
     bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     previous_retry_count = 0
-    if bookkeeping_dir:
+    if previous_retry_count_override is not None:
+        previous_retry_count = previous_retry_count_override
+    elif bookkeeping_dir:
         try:
             existing = load_resume_sidecar_for_download_item(file_item, bookkeeping_dir)
         except Exception:
@@ -280,8 +287,25 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     return decision
 
 
+def _resume_bookkeeping_enabled():
+    """Whether per-file resume sidecars should be written this run.
+
+    Sidecars are per-file JSON files written with fsync + atomic replace
+    (``downloadState.write_json_atomic``). Writing one for every file in a
+    large sync (tens of thousands of files) adds minutes of disk-flush
+    latency to the pre-download preparation stage. They are only ever read
+    back to drive a byte-range resume, so when ``DOWNLOAD_RESUME_ENABLED``
+    is off (the default) there is no consumer and we skip the writes
+    entirely. Telemetry/UX events are emitted on a separate channel
+    (``downloadEvents``) and are unaffected by this gate.
+    """
+    return _config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
+
+
 def _save_resume_sidecar_with_retry_count(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, retry_count=None, source_metadata=None):
     """Variant of :func:`_save_resume_sidecar` that lets the caller pin ``retry_count``."""
+    if not _resume_bookkeeping_enabled():
+        return None
     bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     if not bookkeeping_dir:
         return None
@@ -307,6 +331,8 @@ def _save_resume_sidecar_with_retry_count(info_map_table, file_item, transfer_st
 
 
 def _save_resume_sidecar(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, source_metadata=None):
+    if not _resume_bookkeeping_enabled():
+        return None
     bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     if not bookkeeping_dir:
         return None
@@ -465,57 +491,88 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 raise ValueError(exception_message)
 
     def re_download_bad_files(self):
-        current_file_item = None
-        # Phase 7 control channel: the in-process redownload loop is a
-        # natural pause boundary — we hand each file to the synchronous
-        # DownloadManager and never split a single file across iterations,
-        # so blocking between iterations preserves the atomicity invariants
-        # (D-001/D-009/D-010): no temp ``.part`` is promoted while paused.
+        # Phase 7 control channel + Phase 3 retry policy: each bad file gets its
+        # own bounded retry-with-backoff loop. A file is never split across
+        # iterations, so blocking between attempts preserves the atomicity
+        # invariants (D-001/D-009/D-010): no temp ``.part`` is promoted while
+        # paused. A terminal failure on one file no longer aborts the whole
+        # redownload pass — the remaining bad files still get their chance.
         control_channel = get_global_channel()
-        try:
-            download_path = None
+        retry_enabled = _config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
+        with DownloadManager(cookie=config_vars["COOKIE_JAR"].str(),
+                             report_own_progress=False) as dler:  # should get the cookie from the config vars
+            for file_item in list(self.lists_of_files["to redownload"]):
+                try:
+                    self._redownload_one_file(dler, file_item, control_channel, retry_enabled)
+                except Exception as ex:
+                    # Terminal for this file (retries exhausted or non-retryable).
+                    # Leave it counted as bad so the caller raises after the pass.
+                    download_path = getattr(file_item, "download_path", "unknown")
+                    log.error(f"""giving up redownloading {download_path}, {ex}""")
+                    super().increment_and_output_progress(
+                        increment_by=0,
+                        prog_msg=f"""failed to redownload {download_path}, {ex}""")
 
-            with DownloadManager(cookie=config_vars["COOKIE_JAR"].str(),
-                                 report_own_progress=False) as dler:  # should get the cookie from the config vars
-                for file_item in self.lists_of_files["to redownload"]:
-                    control_channel.wait_if_paused()
-                    current_file_item = file_item
-                    download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
-                    download_path = file_item.download_path
-                    temp_path = temp_path_for_download_item(file_item)
-                    remove_stale_temp_for_download_item(file_item)
-                    dler(path=download_path, url=download_url, checksum=file_item.checksum, temp_path=temp_path)
-                    redownloaded_bytes = Path(download_path).stat().st_size
-                    _save_resume_sidecar(
-                        self.info_map_table,
-                        file_item,
-                        DownloadFileState.VERIFIED,
-                        received_bytes=redownloaded_bytes,
-                    )
-                    try:
-                        _observability_record_outcome(
-                            outcome=DownloadOutcome.SUCCESS,
-                            url=download_url,
-                            bytes_received=redownloaded_bytes,
-                        )
-                    except Exception as obs_ex:  # pragma: no cover
-                        log.debug(f"observability record_outcome failed: {obs_ex}")
-                    super().increment_and_output_progress(increment_by=0,
-                                                          prog_msg=f"redownloaded {file_item.download_path}")
-                    self.num_bad_files -= 1
-                    current_file_item = None
-        except Exception as ex:
-            log.error(f"""Exception while redownloading {download_path}, {ex}""")
-            super().increment_and_output_progress(increment_by=0,
-                                                  prog_msg=f"""Exception while redownloading {download_path}, {ex}""")
-            if current_file_item is not None:
-                _emit_retry_decision(
+    def _redownload_one_file(self, dler, file_item, control_channel, retry_enabled):
+        """Download a single bad file, retrying with control-channel-aware backoff.
+
+        D-021 (offline auto-pause): ``wait_if_paused`` holds at the top of each
+        attempt without consuming a retry, so a network outage (Central pauses
+        the engine on ``offline``) waits rather than burning the retry budget.
+        D-019 (try_now): the inter-attempt backoff uses ``sleep_backoff`` so a
+        ``{"cmd":"try_now"}`` from Central short-circuits the wait. Raises when
+        the file is terminally unrecoverable (retries exhausted / non-retryable
+        class / retry policy disabled).
+        """
+        attempt = 0
+        while True:
+            control_channel.wait_if_paused()
+
+            download_url = self.info_map_table.get_sync_url_for_file_item(file_item)
+            download_path = file_item.download_path
+            temp_path = temp_path_for_download_item(file_item)
+            remove_stale_temp_for_download_item(file_item)
+            try:
+                dler(path=download_path, url=download_url, checksum=file_item.checksum, temp_path=temp_path)
+            except Exception as ex:
+                decision = _emit_retry_decision(
                     self.info_map_table,
-                    current_file_item,
+                    file_item,
                     classify_exception(ex),
                     received_bytes=0,
                     resume_eligible=False,
+                    previous_retry_count_override=attempt,
+                ) if retry_enabled else None
+
+                if decision is None or not decision.will_retry:
+                    raise
+
+                attempt += 1
+                log.info(f"""retry {attempt} for {download_path} after {decision.failure_class.value}, waiting {decision.delay_seconds:.1f}s""")
+                # try_now wakes this early; offline pause is re-checked at the
+                # top of the next iteration.
+                sleep_backoff(decision.delay_seconds, channel=control_channel)
+                continue
+
+            redownloaded_bytes = Path(download_path).stat().st_size
+            _save_resume_sidecar(
+                self.info_map_table,
+                file_item,
+                DownloadFileState.VERIFIED,
+                received_bytes=redownloaded_bytes,
+            )
+            try:
+                _observability_record_outcome(
+                    outcome=DownloadOutcome.SUCCESS,
+                    url=download_url,
+                    bytes_received=redownloaded_bytes,
                 )
+            except Exception as obs_ex:  # pragma: no cover
+                log.debug(f"observability record_outcome failed: {obs_ex}")
+            super().increment_and_output_progress(increment_by=0,
+                                                  prog_msg=f"redownloaded {file_item.download_path}")
+            self.num_bad_files -= 1
+            return
 
     def is_checksum_ok(self) -> bool:
         retVal = self.num_bad_files == 0

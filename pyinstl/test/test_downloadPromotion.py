@@ -9,6 +9,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,6 +53,29 @@ class FakeInfoMapTable:
 
     def get_sync_url_for_file_item(self, file_item):
         return f"https://cdn.example.com/{file_item.path}"
+
+
+class _RecordingControlChannel:
+    """Minimal control channel stub for retry-loop tests.
+
+    Never pauses (``wait_if_paused`` is a no-op) and its backoff sleep
+    returns instantly so tests don't incur real wall-clock waits. Records
+    the requested sleep durations so tests can assert backoff happened.
+    """
+    def __init__(self, woke=False):
+        self.wait_if_paused_calls = 0
+        self.sleep_calls = []
+        self._woke = woke
+
+    def wait_if_paused(self, poll_seconds=0.5):
+        self.wait_if_paused_calls += 1
+
+    def sleep_or_wake(self, seconds):
+        self.sleep_calls.append(seconds)
+        return self._woke
+
+    def try_now_requested(self):
+        return False
 
 
 if FULL_STACK_IMPORT_ERROR is None:
@@ -307,6 +331,8 @@ class TestDownloadPromotion(unittest.TestCase):
         self.run_resume_fallback_case("conditional_failure")
 
     def test_checksum_command_promotes_only_verified_temp_file(self):
+        # Resume sidecars are only written when resume bookkeeping is enabled.
+        config_vars["DOWNLOAD_RESUME_ENABLED"] = "yes"
         payload = b"verified payload"
         item = self.make_item("Products/Foo.pkg", payload)
         final_path = Path(item.download_path)
@@ -327,6 +353,8 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(sidecar.expected.checksum, item.checksum)
 
     def test_checksum_command_rejects_bad_temp_without_replacing_final(self):
+        # Resume sidecars are only written when resume bookkeeping is enabled.
+        config_vars["DOWNLOAD_RESUME_ENABLED"] = "yes"
         payload = b"verified payload"
         item = self.make_item("Products/Foo.pkg", payload)
         final_path = Path(item.download_path)
@@ -362,6 +390,8 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertFalse(temp_path.exists())
 
     def test_prepare_download_temp_files_writes_resume_sidecar_before_cleanup(self):
+        # Sidecar bookkeeping is a resume feature; only written when enabled.
+        config_vars["DOWNLOAD_RESUME_ENABLED"] = "yes"
         payload = b"verified payload"
         item = self.make_item("Products/Foo.pkg", payload)
         temp_path = temp_path_for_download_item(item)
@@ -381,6 +411,26 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(sidecar.transfer.state, DownloadFileState.INTERRUPTED)
         self.assertEqual(sidecar.transfer.received_bytes, len(b"stale partial"))
         self.assertFalse(temp_path.exists())
+
+    def test_prepare_download_temp_files_skips_sidecar_when_resume_disabled(self):
+        # Regression guard: with resume disabled (the default) the prep stage
+        # must NOT write a per-file fsync'd sidecar — that O(N) disk-flush
+        # work was the cause of the multi-minute pre-download slowdown. It
+        # must still purge stale partial artifacts.
+        config_vars["DOWNLOAD_RESUME_ENABLED"] = "no"
+        payload = b"verified payload"
+        item = self.make_item("Products/Foo.pkg", payload)
+        temp_path = temp_path_for_download_item(item)
+        temp_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path.write_bytes(b"stale partial")
+
+        command = FakePrepareDownloadTempFiles(report_own_progress=False)
+        command.info_map_table = FakeInfoMapTable([item])
+        command()
+
+        self.assertFalse(temp_path.exists())
+        sidecar = DownloadStateStore.from_bookkeeping_dir(config_vars["LOCAL_REPO_BOOKKEEPING_DIR"].Path()).load_file(file_id_for_download_item(item))
+        self.assertIsNone(sidecar)
 
     def test_prepare_download_temp_files_preserves_resume_eligible_partial(self):
         config_vars["DOWNLOAD_RESUME_ENABLED"] = "yes"
@@ -411,6 +461,79 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(sidecar.transfer.state, DownloadFileState.QUEUED)
         self.assertEqual(sidecar.transfer.received_bytes, len(partial_payload))
         self.assertEqual(sidecar.source.etag, '"etag-1"')
+
+    def test_re_download_retries_transient_failure_then_succeeds(self):
+        # A transient network failure is retried with backoff and recovers.
+        config_vars["DOWNLOAD_RETRY_POLICY_ENABLED"] = "yes"
+        payload = b"recovered payload"
+        item = self.make_item("Products/Foo.pkg", payload)
+        Path(item.download_path).parent.mkdir(parents=True, exist_ok=True)
+
+        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
+        command.info_map_table = FakeInfoMapTable([item])
+        command.num_bad_files = 1
+
+        attempts = {"n": 0}
+
+        def fake_dler(path, url, checksum, temp_path):
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise urllib.error.URLError("connection refused")
+            Path(path).write_bytes(payload)
+
+        channel = _RecordingControlChannel()
+        command._redownload_one_file(fake_dler, item, channel, retry_enabled=True)
+
+        self.assertEqual(attempts["n"], 3)              # 2 failed attempts + 1 success
+        self.assertEqual(command.num_bad_files, 0)      # decremented only on success
+        self.assertEqual(Path(item.download_path).read_bytes(), payload)
+        self.assertEqual(len(channel.sleep_calls), 2)   # backoff before each retry
+        # Pause is checked at the top of every attempt (offline auto-pause hook).
+        self.assertEqual(channel.wait_if_paused_calls, 3)
+
+    def test_re_download_gives_up_after_retries_exhausted(self):
+        # A persistent failure exhausts the matrix and is left terminal.
+        config_vars["DOWNLOAD_RETRY_POLICY_ENABLED"] = "yes"
+        payload = b"never arrives"
+        item = self.make_item("Products/Foo.pkg", payload)
+
+        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
+        command.info_map_table = FakeInfoMapTable([item])
+        command.num_bad_files = 1
+
+        def always_fail(path, url, checksum, temp_path):
+            raise urllib.error.URLError("connection refused")
+
+        channel = _RecordingControlChannel()
+        with self.assertRaises(Exception):
+            command._redownload_one_file(always_fail, item, channel, retry_enabled=True)
+
+        self.assertEqual(command.num_bad_files, 1)          # never recovered
+        self.assertGreaterEqual(len(channel.sleep_calls), 1)  # backed off before giving up
+
+    def test_re_download_no_retry_when_policy_disabled(self):
+        # With the retry policy kill switch off, the first failure is terminal.
+        config_vars["DOWNLOAD_RETRY_POLICY_ENABLED"] = "no"
+        payload = b"x"
+        item = self.make_item("Products/Foo.pkg", payload)
+
+        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
+        command.info_map_table = FakeInfoMapTable([item])
+        command.num_bad_files = 1
+
+        calls = {"n": 0}
+
+        def fail_once(path, url, checksum, temp_path):
+            calls["n"] += 1
+            raise urllib.error.URLError("connection refused")
+
+        channel = _RecordingControlChannel()
+        with self.assertRaises(Exception):
+            command._redownload_one_file(fail_once, item, channel, retry_enabled=False)
+
+        self.assertEqual(calls["n"], 1)                 # no retry attempted
+        self.assertEqual(len(channel.sleep_calls), 0)   # no backoff
+        self.assertEqual(command.num_bad_files, 1)
 
     def test_killed_curl_leaves_only_recoverable_temp_artifact(self):
         curl_path = shutil.which("curl")
