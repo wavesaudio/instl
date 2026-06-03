@@ -9,7 +9,7 @@ from .copyBatchCommands import CopyDirContentsToDir, CopyDirToDir, CopyFileToDir
 from .downloadBatchCommands import DownloadFileAndCheckChecksum, DownloadManager
 from .fileSystemBatchCommands import AppendFileToFile, Cd, ChFlags, Chmod, Chown, MakeDir, MakeRandomDirs, \
     MakeRandomDataFile, touch, Touch, Unlock, Ls, FileSizes, SplitFile, FixAllPermissions, Glober
-from .info_mapBatchCommands import CheckDownloadFolderChecksum, PrepareDownloadTempFiles, SetExecPermissionsInSyncFolder, CreateSyncFolders, \
+from .info_mapBatchCommands import CheckDownloadFolderChecksum, PrepareDownloadTempFiles, ReportDownloadStarted, SetExecPermissionsInSyncFolder, CreateSyncFolders, \
     InfoMapFullWriter, InfoMapSplitWriter, SetBaseRevision, IndexYamlReader, CopySpecificRepoRev, CreateRepoRevFile, \
     ShortIndexYamlCreator
 from .removeBatchCommands import RmDir, RmFile, RmFileOrDir, RemoveEmptyFolders, RmGlob, RmGlobs, RmDirContents

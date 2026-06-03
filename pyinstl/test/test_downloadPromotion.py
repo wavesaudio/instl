@@ -535,6 +535,58 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(len(channel.sleep_calls), 0)   # no backoff
         self.assertEqual(command.num_bad_files, 1)
 
+    def _make_curl_helper_with(self, **add_url_kwargs):
+        config_vars["PARALLEL_DOWNLOAD_METHOD"] = "external"
+        config_vars["CURL_CONFIG_FILE_NAME"] = "dl"
+        config_vars["PARALLEL_SYNC"] = "1"
+        config_vars["COOKIE_FOR_SYNC_URLS"] = "test=1"
+        final_path = Path(self.temp_dir.name, "Products", "Foo.pkg")
+        helper = CUrlHelper()
+        helper.add_download_url("https://cdn.example.com/Products/Foo.pkg", final_path,
+                                verbatim=True, **add_url_kwargs)
+        return helper
+
+    def test_curl_fresh_config_adds_offline_grace_retry_options(self):
+        # Fresh (non-resume) transfers get the offline grace window so a brief
+        # network drop retries instead of failing within one connect-timeout.
+        temp_path = Path(self.temp_dir.name, "Products", "Foo.pkg.part")
+        helper = self._make_curl_helper_with(size=10, output_path=temp_path)
+        config_files = helper.create_config_files(Path(self.temp_dir.name), 1)
+        config_text = config_files[0].path.read_text(encoding="utf-8")
+        self.assertIn("retry-connrefused", config_text)
+        self.assertIn("retry-max-time", config_text)
+        self.assertIn("retry-all-errors", config_text)
+
+    def test_curl_resume_config_omits_retry_all_errors(self):
+        # retry-all-errors would retry the curl-exit-33 range failure that the
+        # resume fallback relies on, defeating restart-from-zero. So the resume
+        # config (the one carrying continue-at) must NOT include it.
+        temp_path = temp_path_for_download_item(self.make_item("Products/Foo.pkg", b"x" * 100))
+        temp_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path.write_bytes(b"partial")
+        helper = self._make_curl_helper_with(size=100, output_path=temp_path,
+                                             resume_from_byte=7,
+                                             conditional_headers=('If-Match: "etag-1"',))
+        config_files = helper.create_config_files(Path(self.temp_dir.name), 1)
+        resume_texts = [
+            f.path.read_text(encoding="utf-8")
+            for f in config_files
+            if "continue-at" in f.path.read_text(encoding="utf-8")
+        ]
+        self.assertTrue(resume_texts, "expected a resume config carrying continue-at")
+        for text in resume_texts:
+            self.assertNotIn("retry-all-errors", text)
+            self.assertIn("retry-connrefused", text)
+
+    def test_report_download_started_runs_without_error(self):
+        # Smoke test: the download-start emitter (capability + downloading
+        # session_state) must execute its config reads + event emits without
+        # raising, since instrumentation must never break a sync run.
+        from pybatch import ReportDownloadStarted
+        command = ReportDownloadStarted(files_planned=42, bytes_planned=12345,
+                                        own_progress_count=0, report_own_progress=False)
+        command()  # must not raise
+
     def test_killed_curl_leaves_only_recoverable_temp_artifact(self):
         curl_path = shutil.which("curl")
         if not curl_path:

@@ -330,6 +330,12 @@ class InstlInstanceSync_url(InstlInstanceSync):
         # incremented (report_own_progress=False), which inflates the "of N"
         # total Central reads and skews the progress-bar phase weights.
         dl_commands += PrepareDownloadTempFiles(own_progress_count=0, report_own_progress=False)
+        # Announce the download session to Central's structured UX before the
+        # curl transfer starts (capability + session_state="downloading" with
+        # planned counts). Without this the dialog has no backend events during
+        # the download and shows no state pill / pause controls / ETA.
+        dl_commands += ReportDownloadStarted(files_planned=to_sync_num_files, bytes_planned=bytes_to_sync,
+                                             own_progress_count=0, report_own_progress=False)
         self.create_sync_urls(file_list)
         dl_commands += self.create_curl_download_instructions()
 

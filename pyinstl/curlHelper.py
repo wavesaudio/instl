@@ -78,6 +78,7 @@ connect-timeout = {connect_time_out}
 max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
+{extra_retry_options}
 cookie = {cookie_text}
 write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
 
@@ -97,6 +98,7 @@ connect-timeout = {connect_time_out}
 max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
+{extra_retry_options}
 cookie = {cookie_text}
 parallel-max = {max_parallel_downloads}
 
@@ -234,11 +236,37 @@ parallel-max = {max_parallel_downloads}
         if len(urls_to_download) + len(urls_to_download_last) <= 0:
             return config_file_list
 
+        # Offline grace window: on a network drop mid-sync, curl's default
+        # retry set does not cover "network unreachable" (exit 7), so the
+        # session fails within ~one connect-timeout. retry-connrefused +
+        # retry-all-errors make curl keep retrying through a brief outage,
+        # bounded by retry-max-time so genuine failures still terminate.
+        # retry-all-errors needs curl >= 7.71; it is gated behind a config var
+        # so it can be turned off (e.g. for an old bundled curl) without code.
+        #
+        # IMPORTANT: retry-all-errors is mutually exclusive with the resume
+        # fallback. The fallback restarts a transfer from zero when curl exits
+        # 33 (range not satisfiable / bad Content-Range); retry-all-errors would
+        # instead retry that same request, defeating the fallback. So we only
+        # add it when this config batch has NO resume entries (the production
+        # default, since resume ships off). Resume batches keep the exit-33
+        # fallback and skip retry-all-errors.
+        has_resume_entries = any(
+            entry.resume_from_byte > 0
+            for entry in itertools.chain(urls_to_download, urls_to_download_last)
+        )
+        retry_max_time = str(config_vars.setdefault("CURL_RETRY_MAX_TIME", "90"))
+        extra_retry_lines = ["retry-connrefused", f"retry-max-time = {retry_max_time}"]
+        if (not has_resume_entries
+                and str(config_vars.setdefault("CURL_RETRY_ALL_ERRORS", "yes")).strip().lower() in ("yes", "true", "1")):
+            extra_retry_lines.append("retry-all-errors")
+
         config_options = {
             "connect_time_out": str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16")),
             "max_time": str(config_vars.setdefault("CURL_MAX_TIME", "180")),
-            "retries": str(config_vars.setdefault("CURL_RETRIES", "2")),
+            "retries": str(config_vars.setdefault("CURL_RETRIES", "5")),
             "retry_delay": str(config_vars.setdefault("CURL_RETRY_DELAY", "8")),
+            "extra_retry_options": "\n".join(extra_retry_lines),
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
             "max_parallel_downloads": str(config_vars.get("PARALLEL_SYNC", "50")),
             "curl_output_format_str": self.curl_output_format_str

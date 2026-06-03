@@ -64,6 +64,13 @@ from pyinstl.downloadObservability import (
 from pyinstl.downloadEvents import (
     emit_retry_decision as _events_emit_retry_decision,
     emit_file_state as _events_emit_file_state,
+    emit_capability as _events_emit_capability,
+    emit_session_state as _events_emit_session_state,
+    set_telemetry_enabled as _events_set_telemetry_enabled,
+)
+from pyinstl.downloadCohort import (
+    active_flags_from_config as _cohort_active_flags_from_config,
+    resolve_cohort_from_config as _cohort_resolve_cohort_from_config,
 )
 
 """
@@ -613,6 +620,80 @@ class PrepareDownloadTempFiles(DBManager, PythonBatchCommandBase):
             self.doing = f"""remove stale temp download '{temp_path}'"""
             if remove_stale_temp_for_download_item(file_item):
                 super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
+
+
+def _emit_download_started(files_planned, bytes_planned):
+    """Emit the capability + ``downloading`` session_state at the start of the
+    curl download phase (P5/P7).
+
+    Central's structured download UX (state pill, pause/resume controls, meta
+    line / ETA) is driven by these events. They were previously emitted only
+    during the post-download checksum phase (``instlMisc.do_check_checksum``),
+    so the dialog had no backend data *during* the download. Emitting here —
+    from a batch command that runs inside ``run-process``, which Central
+    watches — gives the UX backend-driven state for the download phase too.
+
+    Best-effort: instrumentation must never break a sync run.
+    """
+    try:
+        session_id = _config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
+        try:
+            concurrency_planned = _config_var_int("PARALLEL_SYNC", 0) or None
+        except Exception:
+            concurrency_planned = None
+        rollout_flags = _cohort_active_flags_from_config(config_vars)
+        telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
+        _events_set_telemetry_enabled(telemetry_enabled)
+        try:
+            validated_hosts = resolve_validated_hosts(
+                _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
+                _config_var_str("BASE_LINKS_URL"),
+            )
+        except Exception:
+            validated_hosts = []
+        _events_emit_capability(
+            session_id=session_id,
+            resume_enabled=_config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
+            adaptive_concurrency_enabled=_config_var_bool("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
+            validated_hosts=validated_hosts,
+            cohort=_cohort_resolve_cohort_from_config(config_vars),
+            feature_flags=rollout_flags,
+            central_ux_enabled=bool(rollout_flags.get("DOWNLOAD_CENTRAL_UX_ENABLED", False)),
+            telemetry_enabled=telemetry_enabled,
+            retry_policy_enabled=bool(rollout_flags.get("DOWNLOAD_RETRY_POLICY_ENABLED", True)),
+        )
+        _events_emit_session_state(
+            session_id=session_id,
+            state="downloading",
+            files_planned=files_planned,
+            bytes_planned=bytes_planned,
+            concurrency_planned=concurrency_planned,
+            reason="download_started",
+        )
+    except Exception as ex:  # pragma: no cover - instrumentation must never break sync
+        log.debug(f"could not emit download started events: {ex}")
+
+
+class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
+    """Emit capability + ``downloading`` session_state at the start of the curl
+    download phase, so Central's structured UX has backend data during the
+    download (not only during the checksum phase). Carries the planned file /
+    byte counts so the meta line can show totals immediately."""
+
+    def __init__(self, files_planned=0, bytes_planned=0, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.files_planned = files_planned
+        self.bytes_planned = bytes_planned
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.optional_named__init__param("files_planned", self.files_planned, 0))
+        all_args.append(self.optional_named__init__param("bytes_planned", self.bytes_planned, 0))
+
+    def progress_msg_self(self) -> str:
+        return f'''Report download started'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        _emit_download_started(self.files_planned, self.bytes_planned)
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):
