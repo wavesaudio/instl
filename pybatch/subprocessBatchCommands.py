@@ -167,7 +167,6 @@ class CUrl(RunProcessBase):
         resolved_curl_path = os.fspath(utils.ExpandAndResolvePath(self.curl_path))
         resolved_trg_path = os.fspath(utils.ExpandAndResolvePath(self.trg))
         run_args.extend([resolved_curl_path,
-                         "--insecure",
                          "--fail",
                          "--raw",
                          "--silent",
