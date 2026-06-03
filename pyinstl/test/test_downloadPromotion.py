@@ -11,6 +11,7 @@ import threading
 import time
 import urllib.error
 import unittest
+from unittest import mock
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -676,6 +677,70 @@ class TestDownloadPromotion(unittest.TestCase):
                 proc.communicate(timeout=5)
             server.shutdown()
             server.server_close()
+
+
+class _HoldChannel:
+    """Fake control channel for ParallelRun pause/offline-hold tests."""
+    def __init__(self):
+        self.paused = False
+        self.wait_calls = 0
+        self.sleep_calls = []
+
+    def is_paused(self):
+        return self.paused
+
+    def wait_if_paused(self, poll_seconds=0.5):
+        self.wait_calls += 1
+
+    def sleep_or_wake(self, seconds):
+        self.sleep_calls.append(seconds)
+        return False
+
+
+@unittest.skipIf(FULL_STACK_IMPORT_ERROR is not None, f"full instl dependencies unavailable: {FULL_STACK_IMPORT_ERROR}")
+class TestParallelRunPauseHold(unittest.TestCase):
+    """Control-flow tests for the curl pause / offline-hold loop in
+    ParallelRun (no real curl/network — the runner is mocked to raise the
+    SystemExit codes the real run_processes_in_parallel would)."""
+
+    def _make(self):
+        return ParallelRun("dummy-config", own_progress_count=0, report_own_progress=False)
+
+    def _drive(self, pr, codes, channel):
+        seq = list(codes)
+
+        def fake_run(commands, shell, pause_check=None):
+            raise SystemExit(seq.pop(0))
+
+        pr._control_channel = lambda: channel
+        with mock.patch("utils.run_processes_in_parallel", side_effect=fake_run):
+            pr._run_with_pause_and_offline_hold([["curl", "--config", "x"]])
+        return seq
+
+    def test_network_error_then_success_retries(self):
+        ch = _HoldChannel()
+        leftover = self._drive(self._make(), [7, 0], ch)  # curl 7 = couldn't connect
+        self.assertEqual(leftover, [])           # failed once, then succeeded
+        self.assertEqual(len(ch.sleep_calls), 1)  # one backoff before the retry
+
+    def test_pause_then_resume_holds_and_retries(self):
+        from utils import PAUSED_EXIT_CODE
+        ch = _HoldChannel()
+        self._drive(self._make(), [PAUSED_EXIT_CODE, 0], ch)
+        self.assertEqual(ch.wait_calls, 1)        # held for resume once
+        self.assertEqual(len(ch.sleep_calls), 0)  # pause is not a network backoff
+
+    def test_non_network_curl_error_raises(self):
+        ch = _HoldChannel()
+        with self.assertRaises(Exception):
+            self._drive(self._make(), [22], ch)   # 22 = HTTP error, not transient
+        self.assertEqual(len(ch.sleep_calls), 0)
+
+    def test_network_budget_exhausts_then_raises(self):
+        ch = _HoldChannel()
+        with self.assertRaises(Exception):
+            self._drive(self._make(), [7] * 100, ch)
+        self.assertEqual(len(ch.sleep_calls), 12)  # bounded retries before giving up
 
 
 if __name__ == "__main__":

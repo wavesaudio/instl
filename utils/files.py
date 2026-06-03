@@ -784,13 +784,22 @@ def who_locks_file(in_file_path, in_dll_path):
     return retVal
 
 
-def wait_for_break_file_to_be_removed(path_to_break_file, progress_callback=None):
-    """ while path_to_break_file exist, sleep 1 second and call progress_callback"""
+def wait_for_break_file_to_be_removed(path_to_break_file, progress_callback=None, timeout_seconds=600):
+    """ while path_to_break_file exist, sleep 1 second and call progress_callback
+
+    Bounded by ``timeout_seconds`` (default 10 min) so a stale break file left
+    behind by a crashed/interrupted run cannot wedge the sync forever (e.g. hang
+    the checksum / preparing-to-copy stage). Pass ``timeout_seconds=0`` to wait
+    indefinitely (legacy behavior). On timeout it proceeds and logs a warning.
+    """
     if progress_callback is None:
         progress_callback = print
     path_to_break_file = Path(path_to_break_file)
     num_sleeps = 0
     while path_to_break_file.is_file():
+        if timeout_seconds and num_sleeps >= timeout_seconds:
+            progress_callback(f"break file still present after {timeout_seconds}s, proceeding anyway: {path_to_break_file}")
+            return
         num_sleeps += 1
         progress_callback(f"{num_sleeps} found break file: {path_to_break_file}")
         time.sleep(1)

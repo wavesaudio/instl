@@ -302,20 +302,85 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
         self.doing = f"""{self.get_action_name()} reading config file '{resolved_config_file}'"""
         commands = self._read_parallel_run_config_file(resolved_config_file)
         try:
-
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
-            utils.run_processes_in_parallel(commands, self.shell)
-        except SystemExit as sys_exit:
-            if sys_exit.code != 0:
-                if self._can_run_fallback(sys_exit.code):
-                    self._run_fallback_after_curl_range_failure(sys_exit.code)
-                elif self._is_curl_command(commands):
-                    err_msg = utils.get_curl_err_msg(sys_exit.code)
-                    raise Exception(err_msg)
-                else:
-                    raise
+            self._run_with_pause_and_offline_hold(commands)
         finally:
             self.increment_progress()
+
+    def _control_channel(self):
+        """The stdin control channel singleton, or None if unavailable.
+
+        Only used for curl downloads, so a pause/offline-hold can't affect
+        unrelated parallel runs (e.g. copy). Imported lazily to avoid a
+        utils->pyinstl import at module load.
+        """
+        try:
+            from pyinstl.downloadControlChannel import get_global_channel
+            return get_global_channel()
+        except Exception:
+            return None
+
+    def _run_with_pause_and_offline_hold(self, commands):
+        """Run the parallel batch, honoring pause and surviving a brief offline.
+
+        - Pause (Central, or auto-pause while offline): the runner terminates
+          curl and returns PAUSED_EXIT_CODE; we wait_if_paused() and re-run,
+          which resumes from the .part files (continue-at). Nothing flows while
+          paused, so this is a real pause (#1) and an offline hold (#2/#6).
+        - Network-class curl exit without a pause: hold if Central has paused us,
+          otherwise back off briefly and retry a bounded number of times so a
+          short blip recovers instead of failing the session.
+        - The curl range-failure fallback (exit 33) and genuine failures keep
+          their existing behavior.
+        """
+        is_curl = self._is_curl_command(commands)
+        channel = self._control_channel() if is_curl else None
+        pause_check = channel.is_paused if channel is not None else None
+        network_retry_budget = 12
+        network_attempt = 0
+        while True:
+            try:
+                utils.run_processes_in_parallel(commands, self.shell, pause_check=pause_check)
+                return  # run_processes_in_parallel always sys.exits; here for safety
+            except SystemExit as sys_exit:
+                code = sys_exit.code
+                if code == 0:
+                    return
+                if code == utils.PAUSED_EXIT_CODE:
+                    log.info(f"{self.get_action_name()} paused; holding until resume")
+                    if channel is not None:
+                        channel.wait_if_paused()
+                    network_attempt = 0
+                    continue
+                if self._can_run_fallback(code):
+                    self._run_fallback_after_curl_range_failure(code)
+                    return
+                if is_curl and self._is_network_error(code):
+                    # Offline grace: if Central paused us (offline), hold here
+                    # until resume; otherwise back off and retry a few times so
+                    # a quick disconnect/reconnect recovers without erroring.
+                    if channel is not None:
+                        channel.wait_if_paused()
+                    if network_retry_budget > 0:
+                        network_retry_budget -= 1
+                        network_attempt += 1
+                        backoff = min(2 * network_attempt, 10)
+                        log.info(f"{self.get_action_name()} network error (curl {code}); retry in {backoff}s ({network_retry_budget} left)")
+                        if channel is not None:
+                            channel.sleep_or_wake(backoff)  # try_now/resume cuts this short
+                        else:
+                            time.sleep(backoff)
+                        continue
+                    raise Exception(utils.get_curl_err_msg(code))
+                if is_curl:
+                    raise Exception(utils.get_curl_err_msg(code))
+                raise
+
+    def _is_network_error(self, exit_code):
+        try:
+            return int(exit_code) in utils.NETWORK_ERROR_CURL_EXIT_CODES
+        except (TypeError, ValueError):
+            return False
 
     def _read_parallel_run_config_file(self, resolved_config_file):
         commands = list()

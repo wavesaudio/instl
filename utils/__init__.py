@@ -2,7 +2,7 @@ from .files import *
 from .misc_utils import *
 from .str_utils import *
 from .searchPaths import SearchPaths
-from .parallel_run import run_processes_in_parallel, run_process
+from .parallel_run import run_processes_in_parallel, run_process, PAUSED_EXIT_CODE, NETWORK_ERROR_CURL_EXIT_CODES
 from .multi_file import MultiFileReader
 from .extract_info import extract_binary_info, check_binaries_versions_in_folder, check_binaries_versions_filter_with_ignore_regexes, get_info_from_plugin
 from .ls import disk_item_listing, single_disk_item_listing

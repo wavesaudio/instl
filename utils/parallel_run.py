@@ -18,7 +18,18 @@ log = logging.getLogger()
 
 exit_val = 0
 aborted = False
+paused = False
 process_list = list()
+
+# Sentinel exit code meaning the parallel batch stopped because Central paused
+# the engine (or it was auto-paused while offline) — NOT a failure. The caller
+# (ParallelRun) holds until resume and then re-runs, resuming via continue-at.
+PAUSED_EXIT_CODE = 9990
+
+# curl exit codes that indicate a transient network problem (resolve/connect/
+# timeout/recv-send/SSL-connect). On these the caller can hold-and-retry rather
+# than failing the session, so a brief disconnect doesn't kill the install.
+NETWORK_ERROR_CURL_EXIT_CODES = frozenset({6, 7, 18, 28, 35, 52, 55, 56})
 
 
 class ProcessTerminatedExternally(RuntimeError):
@@ -38,8 +49,14 @@ class ContinuousTimer(Timer):
         self.finished.set()
 
 
-def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abort_file=None):
-    global exit_val
+def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abort_file=None, pause_check=None):
+    global exit_val, aborted, paused, process_list
+    # Reset per-run state so a retry (e.g. resume after an offline hold) starts
+    # clean and doesn't inherit a stale process list / aborted / paused flag.
+    exit_val = 0
+    aborted = False
+    paused = False
+    process_list = list()
     try:
         install_signal_handlers()
 
@@ -47,16 +64,18 @@ def run_processes_in_parallel(commands, shell=False, do_enqueue_output=True, abo
 
         for command_list in lists_of_command_lists:
             with futures.ThreadPoolExecutor(len(command_list)) as executor:
-                list(executor.map(run_process, command_list, repeat(shell), repeat(do_enqueue_output), repeat(abort_file)))
+                list(executor.map(run_process, command_list, repeat(shell), repeat(do_enqueue_output), repeat(abort_file), repeat(pause_check)))
         log.debug('Finished all processes')
-        exit_val = 0
+        # A clean pause is not a failure: signal it so the caller can hold and
+        # then resume, rather than treating the stopped transfer as an error.
+        exit_val = PAUSED_EXIT_CODE if paused else 0
         killall_and_exit()
     except Exception as e:
         log.error(e)
         killall_and_exit()
 
 
-def run_process(command, shell, do_enqueue_output=True, abort_file=None):
+def run_process(command, shell, do_enqueue_output=True, abort_file=None, pause_check=None):
     """
     Running a sub-process externally
     Args:
@@ -67,9 +86,14 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
                            The option blocks the main process and can't be used when using abort_file.
         abort_file: Using an abort file to monitor and killing the process in case the file was deleted.
                     This option overrides do_enqueue_output to be able to monitor the abort file.
+        pause_check: Optional callable returning True while the engine is paused
+                     (Central pause, or auto-pause while offline). When it goes
+                     True the running process is terminated and treated as paused
+                     (not failed); the caller holds and re-runs on resume.
     """
     global exit_val
     global process_list
+    global paused
     if abort_file is not None:  # Disabling enqueue_output if abort file is used.
         do_enqueue_output = False
     a_process = launch_process(command, shell, do_enqueue_output)
@@ -81,8 +105,15 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
 
     try:
         while True:
+            if pause_check is not None and pause_check():
+                # Stop this transfer cleanly so no bytes flow while paused. The
+                # .part temp file is preserved for resume on the next run.
+                paused = True
+                terminate_process(a_process)
+                log.info(f'Process paused - terminated {command}')
+                break
             if do_enqueue_output:  # Calling enqueue_output only if abort file is not used.
-                enqueue_output(a_process)
+                enqueue_output(a_process, pause_check)
             status = a_process.poll()
             if status is not None:  # None means it's still alive
                 log.debug(f'Process finished - {command}')
@@ -93,9 +124,31 @@ def run_process(command, shell, do_enqueue_output=True, abort_file=None):
                     exit_val = status
                     raise RuntimeError(f'Command failed {command}')
                 break
+            # status is None and not paused: enqueue_output returned early
+            # (e.g. it observed a pause); loop back to re-check pause_check.
     finally:
         if t is not None:
             t.cancel()
+
+
+def terminate_process(a_process):
+    """Terminate a still-running process (and its group/tree), best-effort.
+
+    Uses SIGTERM (not SIGKILL) so curl can flush its partial .part file for a
+    later resume. Reuses the same group/tree kill as killall_and_exit.
+    """
+    try:
+        if a_process.poll() is None:
+            if getattr(os, "killpg", None):
+                os.killpg(a_process.pid, signal.SIGTERM)  # Unix
+            else:
+                kill_proc_tree(a_process.pid)  # Windows
+    except Exception as ex:
+        log.debug(f"could not terminate process {getattr(a_process, 'pid', '?')}: {ex}")
+    try:
+        a_process.wait(timeout=5)
+    except Exception:
+        pass
 
 
 def launch_process(command, shell, do_enqueue_output):
@@ -118,13 +171,17 @@ def launch_process(command, shell, do_enqueue_output):
     return a_process
 
 
-def enqueue_output(a_process):
+def enqueue_output(a_process, pause_check=None):
     out = a_process.stdout
     try:
         buffer = ''
         while True:
             time.sleep(0)  # Releasing thread to yield other threads to do work
             if a_process.poll() is not None:
+                break
+            if pause_check is not None and pause_check():
+                # Return so run_process can terminate the process while paused;
+                # detection latency is bounded by curl's progress cadence.
                 break
             b = out.read(128).decode('utf-8', errors='backslashreplace')  # Reading stream to buffer
             if b:
