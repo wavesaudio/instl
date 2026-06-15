@@ -452,7 +452,7 @@ def prepare_args_parser(in_command):
                                              help="resolve configVar lists in yaml sequences")
             resolve_options.add_argument('--unresolve-indicator','--unresolve_indicator',
                                              required=False,
-                                             default=False,
+                                             default="^",
                                              nargs=1,
                                              dest='UNRESOLVE_INDICATOR',
                                              help="character indicating not to resolve configVar in the file")
