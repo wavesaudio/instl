@@ -725,13 +725,43 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         channel = self._control_channel()
         pause_check = channel.is_paused if channel is not None else None
 
+        # Re-run loop honoring pause/resume and surviving brief network drops
+        # (mirrors ParallelRun._run_with_pause_and_offline_hold -- the bulk
+        # download actually runs here, not there). On pause we hold then re-run;
+        # on a network-class curl exit we hold if Central paused us (offline),
+        # otherwise back off and retry a bounded number of times so a quick
+        # disconnect/reconnect recovers instead of failing the session. Terminal
+        # behavior is intentionally unchanged: once retries are exhausted (or for
+        # a non-network error) we fall through to the existing fallback /
+        # increment_progress and let the downstream checksum pass redownload
+        # whatever is still missing -- this class never raised on curl failure.
+        network_retry_budget = 12
+        network_attempt = 0
         return_code = 0
         while True:
             return_code, paused = self._run_curl_once(config_file_path_fixed, pause_check)
-            if paused and channel is not None:
+            if paused:
                 log.info(f"{self.progress_msg_self()} paused; holding until resume")
-                channel.wait_if_paused()
+                if channel is not None:
+                    channel.wait_if_paused()
+                network_attempt = 0
                 continue  # resume: re-run curl --config (continue-at resumes partial files)
+            if return_code != 0 and self._is_network_error(return_code):
+                # Offline grace: hold if Central paused us (offline), otherwise
+                # back off briefly and retry so a short blip recovers.
+                if channel is not None:
+                    channel.wait_if_paused()
+                if network_retry_budget > 0:
+                    network_retry_budget -= 1
+                    network_attempt += 1
+                    backoff = min(2 * network_attempt, 10)
+                    log.info(f"{self.progress_msg_self()} network error (curl {return_code}); retry in {backoff}s ({network_retry_budget} left)")
+                    if channel is not None:
+                        channel.sleep_or_wake(backoff)  # resume/try_now cuts this short
+                    else:
+                        time.sleep(backoff)
+                    continue
+                log.info(f"{self.progress_msg_self()} network error (curl {return_code}); retries exhausted, continuing")
             break
 
         print(f"Curl ended {return_code}")
@@ -808,6 +838,12 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
             pass
         process.wait()
         return process.returncode, paused
+
+    def _is_network_error(self, exit_code):
+        try:
+            return int(exit_code) in utils.NETWORK_ERROR_CURL_EXIT_CODES
+        except (TypeError, ValueError):
+            return False
 
     def _can_run_fallback(self, exit_code):
         return (
