@@ -250,8 +250,6 @@ class ConfigVarStack:
         return resolved_parts, num_literals, num_variables
 
     def resolve_str(self, val_to_resolve: str) -> str:
-        #start_time = time.perf_counter()
-
         if self.resolve_indicator not in val_to_resolve:
             # strings without $ do not need resolving
             result = val_to_resolve
@@ -260,9 +258,7 @@ class ConfigVarStack:
             res_list, num_literals, num_variables = self.resolve_str_to_list_with_statistics(val_to_resolve)
             result = "".join(res_list)
 
-        #end_time = time.perf_counter()
         self.resolve_counter += 1
-        #self.resolve_time += end_time - start_time
         return result
 
     def is_str_resolved(self, str_to_check):
@@ -278,8 +274,6 @@ class ConfigVarStack:
             :param val_to_resolve:
             :return: list
         """
-        #start_time = time.perf_counter()
-
         retVal = list()
         if self.resolve_indicator not in val_to_resolve:
             # strings without $ do not need resolving
@@ -292,9 +286,7 @@ class ConfigVarStack:
             else:
                 retVal.append("".join(res_list))
 
-        #end_time = time.perf_counter()
         self.resolve_counter += 1
-        #self.resolve_time += end_time - start_time
         return retVal
 
     def repr_var_for_yaml(self, var_name, resolve=True):

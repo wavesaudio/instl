@@ -27,7 +27,6 @@
 """
 
 import sys
-import os
 import yaml
 from collections import OrderedDict
 from typing import Any, List
@@ -470,7 +469,7 @@ if __name__ == "__main__":
                     a_node_as_tdw = nodeToYamlDumpWrap(a_node)
                     docWrap = YamlDumpDocWrap(a_node_as_tdw)
                     writeAsYaml(docWrap)
-    except Exception as ex:
+    except Exception:
         import traceback
         tb = traceback.format_exc()
         print(tb)
