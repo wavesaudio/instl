@@ -1,10 +1,6 @@
 # Note: this file was renamed email_utils because when it was named email.py python module importer sometimes gets confused with e builtin email module
 
-import os
-import re
 import smtplib
-from email import encoders
-from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 

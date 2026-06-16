@@ -32,7 +32,7 @@ def set_active_user_or_group_config_var_callback(config_var_name, config_var_val
         elif config_var_name == "ACTING_GID":
             global global_acting_gid
             global_acting_gid = int(config_var_value)
-    except ValueError as ex:
+    except ValueError:
         # if value is not int it will not be assigned to global_acting_uid/global_acting_gid
         pass
 
@@ -52,7 +52,7 @@ def utf8_open_for_read(*args, **kwargs) -> TextIO:
         try:
             retVal = open(*args, encoding='utf-8', errors='backslashreplace', **kwargs)
             break
-        except PermissionError as per_err:
+        except PermissionError:
             if _try == 0:
                 the_path = args[0]
                 from pybatch import FixAllPermissions
@@ -60,8 +60,6 @@ def utf8_open_for_read(*args, **kwargs) -> TextIO:
                     fixer()
             else:
                 raise
-        except Exception:
-            raise
     return retVal
 
 
@@ -466,7 +464,7 @@ def safe_remove_file(path_to_file, ignore_errors=True):
         os.remove(path_to_file)
     except FileNotFoundError:  # os.remove raises is the file does not exists
         pass
-    except Exception as ex:
+    except Exception:
         if not ignore_errors:
             raise
 
@@ -476,7 +474,7 @@ def safe_remove_folder(path_to_folder, ignore_errors=True):
         shutil.rmtree(path_to_folder, ignore_errors=ignore_errors)
     except FileNotFoundError:
         pass
-    except Exception as ex:
+    except Exception:
         if not ignore_errors:
             raise
 
@@ -493,7 +491,7 @@ def safe_remove_file_system_object(path_to_file_system_object, followlinks=False
             safe_remove_folder(path_to_file_system_object, ignore_errors)
         elif os.path.isfile(path_to_file_system_object):
             safe_remove_file(path_to_file_system_object, ignore_errors)
-    except Exception as ex:
+    except Exception:
         if not ignore_errors:
             raise
 
@@ -523,6 +521,7 @@ def excluded_walk(root_to_walk, file_exclude_regex=None, dir_exclude_regex=None,
 def get_disk_free_space(in_path):
     retVal = 0
     if 'Win' in utils.get_current_os_names():
+        import win32file
         secsPerCluster, bytesPerSec, nFreeCluster, totCluster = win32file.GetDiskFreeSpace(in_path)
         retVal = secsPerCluster * bytesPerSec * nFreeCluster
     elif 'Mac' in utils.get_current_os_names():
@@ -559,8 +558,8 @@ def smart_copy_file(source_path, destination_path):
     except Exception:
         try:
             shutil.copy2(s, d)
-        except Exception:
-            pass
+        except Exception as ex:
+            log.debug(f"smart_copy_file failed to copy {s} to {d}: {ex}")
 
 
 def find_split_files(first_file: Path):
@@ -684,7 +683,7 @@ def get_main_drive_name():
             import win32api
             retVal = win32api.GetVolumeInformation("C:\\")[0]
     except:
-        pass
+        log.debug("get_main_drive_name failed", exc_info=True)
     return retVal
 
 
@@ -741,7 +740,7 @@ def safe_getcwd(return_on_error="os.getcwd() failed", ignore_exceptions=True):
     retVal = None
     try:
         retVal = os.getcwd()
-    except FileNotFoundError as fnf:
+    except FileNotFoundError:
         if ignore_exceptions:
             if return_on_error:
                 retVal = return_on_error

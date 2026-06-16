@@ -457,7 +457,6 @@ def moveItem(pl, move_label=None, position=None, before_item=None, after_item=No
         # loop over the items looking for the item label
         for item_offset in range(len(pl[section])):
             if pl[section][item_offset]['tile-data']['file-label'] == move_label:
-                item_found = True
                 verboseOutput('found', move_label)
                 # make a copy of the found dock entry
                 item_to_move = pl[section][item_offset]
