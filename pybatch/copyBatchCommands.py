@@ -386,16 +386,16 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
         try:
             last_src_path = self.last_src
             last_src_mode = utils.unix_permissions_to_str(last_src_path.lstat().st_mode)
-        except:
-            pass
+        except Exception as ex:
+            log.debug(f"could not get mode for last_src {last_src_path}: {ex}")
 
         last_dst_path = "unknown"
         last_dst_mode = "unknown"
         try:
             last_dst_path = self.last_dst
             last_dst_mode = utils.unix_permissions_to_str(last_dst_path.lstat().st_mode)
-        except:
-            pass
+        except Exception as ex:
+            log.debug(f"could not get mode for last_dst {last_dst_path}: {ex}")
 
         self._error_dict.update(
             {'last_src': {"path": os.fspath(last_src_path), "mode": last_src_mode},
@@ -682,8 +682,8 @@ class ShouldCopySource(RsyncClone):
                 if top_src.stat().st_ino == top_trg.stat().st_ino:
                     self.reason_not_to_copy = f"source and target have same inode"  # type: ignore
                     should_copy = False
-        except:  # if checking failed for any reason, just return True
-            pass
+        except Exception as ex:  # if checking failed for any reason, just return True
+            log.debug(f"ShouldCopySource check failed, will copy: {ex}")
 
         if not should_copy:
             raise PythonBatchCommandBase.SkipActionException()

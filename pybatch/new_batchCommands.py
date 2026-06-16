@@ -1,33 +1,8 @@
-from typing import List, Any, Union
-import tempfile
-import stat
-import tarfile
-from collections import OrderedDict
+from typing import List, Union
 from configVar import config_vars
-import collections
-import zlib
 
 from .fileSystemBatchCommands import *
 from .copyBatchCommands import *
-
-"""
-class Dummy(PythonBatchCommandBase):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-    def __repr__(self) -> str:
-        the_repr = f'''{self.__class__.__name__}()'''
-        return the_repr
-
-    def progress_msg_self(self) -> str:
-        return f''''''
-
-    def __call__(self, *args, **kwargs) -> None:
-        pass
-    
-    def error_dict_self(self, exc_val):
-        pass
-"""
 
 
 class CopyDirToDirEx(PythonBatchCommandBase):

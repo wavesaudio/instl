@@ -1,5 +1,4 @@
 import os
-import stat
 import shutil
 import re
 import sys
@@ -34,8 +33,8 @@ class RmFile(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
         try:
             file_listing = utils.single_disk_item_listing(self.path, output_format="json")
             self._error_dict["ls"] = file_listing
-        except:  # populating the error dict should continue, even if error_dict_self failed
-            pass
+        except Exception as ex:  # populating the error dict should continue, even if error_dict_self failed
+            log.debug(f"error_dict_self failed: {ex}")
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -88,8 +87,8 @@ class RmDir(PythonBatchCommandBase, kwargs_defaults={'resolve_path': True}):
         try:
             file_listing = utils.single_disk_item_listing(self.path, output_format="json")
             self._error_dict["ls"] = file_listing
-        except:  # populating the error dict should continue, even if error_dict_self failed
-            pass
+        except Exception as ex:  # populating the error dict should continue, even if error_dict_self failed
+            log.debug(f"error_dict_self failed: {ex}")
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
@@ -238,7 +237,7 @@ class RmGlob(PythonBatchCommandBase):
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         if self.pattern is None:
-            log.wanging(f"skip RmGlob of '{self.path_to_folder}' because pattern is None")
+            log.warning(f"skip RmGlob of '{self.path_to_folder}' because pattern is None")
         else:
             folder = utils.ExpandAndResolvePath(self.path_to_folder)
             list_to_remove = folder.glob(self.pattern)
@@ -276,10 +275,6 @@ class RmGlobs(PythonBatchCommandBase):
                 with RmFileOrDir(item, own_progress_count=0) as rfod:
                     rfod()
 
-
-#def unnamed__init__param(self, value):
-#def named__init__param(self, name, value):
-#def optional_named__init__param(self, name, value, default=None):
 
 class RmDirContents(PythonBatchCommandBase):
     """ remove all items in a folder (unless item is excluded)

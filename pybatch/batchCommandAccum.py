@@ -66,20 +66,6 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
             counter += a_section.total_progress_count()
         return counter
 
-    def finalize_list_of_lines(self):
-        lines = list()
-        for section in PythonBatchCommandAccum.section_order:
-            # config_vars["CURRENT_PHASE"] = section
-            section_lines = self.instruction_lines[section]
-            if section_lines:
-                if section == "assign":
-                    section_lines.sort()
-                for section_line in section_lines:
-                    resolved_line = config_vars.resolve_str_to_list(section_line)
-                    lines.extend(resolved_line)
-                lines.append("")  # empty string will cause to emit new line
-        return lines
-
     def add(self, child_commands):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.add: should not be called while sub_accum is in context"
         self.sections[self.current_section].add(child_commands)

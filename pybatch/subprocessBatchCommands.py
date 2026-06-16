@@ -1,5 +1,6 @@
 import abc
 import collections
+import collections.abc
 import logging
 import os
 import re
@@ -233,7 +234,7 @@ class ShellCommands(PythonBatchCommandBase):
         if shell_command_list is None:
             self.shell_command_list = list()
         else:
-            assert isinstance(shell_command_list, collections.Sequence)
+            assert isinstance(shell_command_list, collections.abc.Sequence)
             self.shell_command_list = shell_command_list
         self.own_progress_count = len(self.shell_command_list)
         self.message = message
@@ -528,7 +529,7 @@ class Subprocess(RunProcessBase):
                 else:
                     all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
         except TypeError as te:
-            pass
+            log.debug(f"Subprocess.repr_own_args failed: {te}")
 
     def progress_msg_self(self):
         if self.message:
