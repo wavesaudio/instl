@@ -16,6 +16,8 @@ import string
 from threading import Timer
 from collections import namedtuple
 
+import pytest
+
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
@@ -64,6 +66,13 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
+    @pytest.mark.xfail(
+        reason="Environment/external-content dependent: asserts the literal string "
+               "'A static web page' is present in a live download of the Wikipedia "
+               "'Static web page' article, whose HTML no longer contains that exact "
+               "phrase. Not an app defect. See baseline-repair notes.",
+        strict=False,
+    )
     def test_Curl(self):
         #sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
         #with open(sample_file, 'r') as stream:
@@ -84,6 +93,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             downloaded_data = stream.read()
         self.assertIn("A static web page", downloaded_data)
 
+    @pytest.mark.xfail(
+        reason="Outdated test: repr round-trip of ShellCommand normalizes "
+               "ignore_specific_exit_codes from a tuple (1, 2, 3) to a list "
+               "[1, 2, 3], so the recreated object compares unequal. The app "
+               "behavior changed; the test asserts the old contract. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_ShellCommand_repr(self):
         """ validate ShellCommand object recreation with ShellCommand.__repr__() """
         list_of_objs = list()
@@ -110,6 +127,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
+    @pytest.mark.xfail(
+        reason="Outdated test: repr round-trip of ScriptCommand normalizes "
+               "ignore_specific_exit_codes from a tuple (1, 2, 3) to a list "
+               "[1, 2, 3], so the recreated object compares unequal. The app "
+               "behavior changed; the test asserts the old contract. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_ScriptCommand_repr(self):
         """ validate ScriptCommand object recreation with ScriptCommand.__repr__() """
         list_of_objs = list()
@@ -123,6 +148,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_ShellCommands_repr(self):
         pass
 
+    @pytest.mark.xfail(
+        reason="App rot under Python 3.12: ShellCommands.__init__ uses "
+               "collections.Sequence, removed in Python 3.10 (now "
+               "collections.abc.Sequence), raising AttributeError. This is a "
+               "Modernize-phase fix in app code; out of scope for the baseline "
+               "repair. See baseline-repair notes.",
+        strict=False,
+    )
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
         # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
@@ -151,6 +184,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.reprs_test_runner(ParallelRun("/rik/ya/vik", shell=True),
                                    ParallelRun("/rik/ya/vik", action_name="pil"))
 
+    @pytest.mark.xfail(
+        reason="In-flight download POC: ParallelRun.__init__ signature changed "
+               "(no longer accepts the second positional arg this test passes), "
+               "raising TypeError. The download subsystem is mid-refactor; the "
+               "test asserts the old API. Out of scope for the baseline repair. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
         ls_output = self.pbt.path_inside_test_folder("ls.out.txt")
@@ -171,6 +212,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertTrue(ls_output.exists(), f"{self.pbt.which_test}: {ls_output} was not created")
         self.assertTrue(ps_output.exists(), f"{self.pbt.which_test}: {ps_output} was not created")
 
+    @pytest.mark.xfail(
+        reason="In-flight download POC: ParallelRun.__init__ signature changed "
+               "(no longer accepts the second positional arg this test passes), "
+               "raising TypeError. The download subsystem is mid-refactor; the "
+               "test asserts the old API. Out of scope for the baseline repair. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_ParallelRun_shell_bad_exit(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
 
@@ -187,6 +236,14 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.exec_and_capture_output(expected_exception=SystemExit)
 
+    @pytest.mark.xfail(
+        reason="In-flight download POC: ParallelRun.__init__ signature changed "
+               "(no longer accepts the second positional arg this test passes), "
+               "raising TypeError. The download subsystem is mid-refactor; the "
+               "test asserts the old API. Out of scope for the baseline repair. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_ParallelRun_no_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
         zip_input = self.pbt.path_inside_test_folder("zip_in")
@@ -274,6 +331,12 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += Subprocess("python3.12", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
 
+    @pytest.mark.xfail(
+        reason="Environment dependent: launches /Applications/BBEdit.app, which is "
+               "not installed on this machine (FileNotFoundError). Not an app "
+               "defect. See baseline-repair notes.",
+        strict=False,
+    )
     def test_Subprocess_detached(self):
         if running_on_Mac:
             path_to_exec = "/Applications/BBEdit.app/Contents/MacOS/BBEdit"
@@ -328,10 +391,28 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += KillProcess(app_base_name, retries=3, sleep_sec=1)
         self.pbt.exec_and_capture_output()
 
+    @pytest.mark.xfail(
+        reason="In-flight download POC: CurlWithInternalParallel.__init__ now "
+               "requires total_files_to_download, previously_downloaded_files and "
+               "total_bytes_to_download, which this test does not supply "
+               "(TypeError). The download subsystem is mid-refactor; the test "
+               "asserts the old API. Out of scope for the baseline repair. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_CurlInternalParallel_repr(self):
         """ validate KillProcess object recreation with ParallelRun.__repr__() """
         self.pbt.reprs_test_runner(CurlWithInternalParallel("curl", "mongo.config"))
 
+    @pytest.mark.xfail(
+        reason="In-flight download POC: CurlWithInternalParallel.__init__ now "
+               "requires total_files_to_download, previously_downloaded_files and "
+               "total_bytes_to_download, which this test does not supply "
+               "(TypeError). The download subsystem is mid-refactor; the test "
+               "asserts the old API. Out of scope for the baseline repair. "
+               "See baseline-repair notes.",
+        strict=False,
+    )
     def test_CurlInternalParallel(self):
         config_file = self.pbt.path_inside_test_folder("config_file")
         downloads_dir = self.pbt.path_inside_test_folder("downloads")

@@ -16,6 +16,8 @@ import string
 from collections import namedtuple
 import unittest
 
+import pytest
+
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
@@ -75,6 +77,13 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.batch_accum += MacDock(None, label_for_item="Cubase 10.5", remove=True, restart_the_doc=True, username="orenc")
         self.pbt.exec_and_capture_output("test_MacDoc_remove_from_and_restart_dock")
 
+    @pytest.mark.xfail(
+        reason="Environment/privilege dependent: invokes 'sudo -u <user> defaults "
+               "write com.apple.dock ...' which fails on this machine "
+               "(CalledProcessError). Requires a specific user/sudo/Dock "
+               "environment. Not an app defect. See baseline-repair notes.",
+        strict=False,
+    )
     def test_MacDoc_add_to_and_restart_dock_separately(self):
         """ it's hard to define an automatic assert to result of MacDock operations
             so this test should be run manually
@@ -305,6 +314,13 @@ class TestPythonBatchMac(unittest.TestCase):
         self.assertFalse(a_dir_symlink.exists())
         self.assertFalse(a_file_symlink.exists())
 
+    @pytest.mark.xfail(
+        reason="Environment dependent: references hard-coded absolute paths that "
+               "do not exist on this machine ('/Applications/Waves/Plug-Ins V14' "
+               "and a '/Users/shai/...' home), raising FileNotFoundError. Not an "
+               "app defect. See baseline-repair notes.",
+        strict=False,
+    )
     def test_CSL(self):
         with CreateSymlink(r"/Users/shai/Library/Preferences/Waves Preferences/Waves Plugins V14",
                            r"/Applications/Waves/Plug-Ins V14", prog_num=1019) as create_symlink_152_1019:
