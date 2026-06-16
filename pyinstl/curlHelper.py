@@ -35,6 +35,10 @@ class CurlDownloadEntry:
     size: int = 0
     resume_from_byte: int = 0
     conditional_headers: tuple[str, ...] = ()
+    # When True, force curl to (re)start this transfer from byte 0 and never
+    # emit a continue-at directive. Used by the exit-33 range-failure fallback,
+    # which must overwrite any leftover partial .part instead of resuming it.
+    force_restart_from_zero: bool = False
 
     def has_per_transfer_options(self):
         return self.resume_from_byte > 0 or len(self.conditional_headers) > 0
@@ -48,6 +52,7 @@ class CurlDownloadEntry:
             final_path=self.final_path,
             output_path=self.output_path,
             size=self.size,
+            force_restart_from_zero=True,
         )
 
 
@@ -312,6 +317,12 @@ parallel-max = {max_parallel_downloads}
             if download_entry.resume_from_byte > 0:
                 file_details.wfd.write("no-fail\n")
                 file_details.wfd.write(f"continue-at = {download_entry.resume_from_byte}\n")
+            elif not download_entry.force_restart_from_zero:
+                # Fresh transfer: let curl auto-detect any leftover .part and
+                # resume from its size (continue-at = -). On a paused/interrupted
+                # re-run this resumes instead of truncating and restarting from 0.
+                file_details.wfd.write("no-fail\n")
+                file_details.wfd.write("continue-at = -\n")
             for header in download_entry.conditional_headers:
                 file_details.wfd.write(f'header = "{_curl_config_quoted_value(header)}"\n')
             file_details.wfd.write(f'''url = "{download_entry.url}"\noutput = "{fixed_path}"\n\n''')

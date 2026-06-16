@@ -682,6 +682,31 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
         return f"{formatted_number}{suffixes[magnitude]}"
 
+    # inverse of bytes_to_string: converts curl's "Dled"/"Speed"-style size
+    # string back to a number of bytes. Tolerant: returns 0 on any parse
+    # failure and never raises (progress accounting must never break curl).
+    #   "0"     => 0
+    #   "1305k" => 1305 * 1024
+    #   "70.2M" => 70.2 * 1024**2
+    #   "5.98G" => 5.98 * 1024**3
+    def string_to_bytes(self, size_str):
+        try:
+            s = str(size_str).strip()
+            if not s:
+                return 0
+            suffixes = {'B': 0, 'K': 1, 'M': 2, 'G': 3, 'T': 4, 'P': 5, 'E': 6, 'Z': 7, 'Y': 8}
+            last = s[-1].upper()
+            if last in suffixes:
+                magnitude = suffixes[last]
+                number_part = s[:-1]
+            else:
+                magnitude = 0
+                number_part = s
+            number = float(number_part)
+            return int(number * (1024 ** magnitude))
+        except Exception:
+            return 0  # never raise: keep progress accounting fail-safe
+
     def progress_msg_self(self) -> str:
         return f'''CurlInternalParallel {self.config_file_path}'''
 
@@ -738,6 +763,27 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         network_retry_budget = 12
         network_attempt = 0
         return_code = 0
+
+        # Cumulative & monotonic progress state carried ACROSS re-runs (each
+        # _run_curl_once is one curl pass; on pause/network-resume curl is
+        # re-launched and its Xfers/Dled restart at 0). Without this, the
+        # logged counts would reset on every resume and the UI would appear to
+        # "start from the beginning". See _run_curl_once for the accounting.
+        #
+        # FILES: a re-run re-walks the WHOLE config -- already-finished files
+        #   are still counted in Xfers (processed/skipped fast) so
+        #   previously_downloaded_files + (Xfers - Live) trends back up to the
+        #   true total on its own; we add NO per-run baseline (that would
+        #   double-count). We only clamp it monotonic via this high-water mark.
+        # BYTES: with curl resume (`continue-at = -`) a re-run's Dled counts
+        #   only the NEW bytes this run. So cumulative = bytes_baseline (sum of
+        #   each prior run's final Dled) + this run's current Dled. We fold the
+        #   run's last Dled into the baseline when each run ends/pauses, and
+        #   clamp monotonic via its own high-water mark.
+        self._files_high_water = 0
+        self._bytes_baseline = 0
+        self._bytes_high_water = 0
+
         while True:
             return_code, paused = self._run_curl_once(config_file_path_fixed, pause_check)
             if paused:
@@ -804,6 +850,11 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
         bytes_to_download_str = self.bytes_to_string(self.total_bytes_to_download)
 
+        # Last Dled (in bytes) parsed this run; folded into the cumulative
+        # bytes baseline when the run ends/pauses (so the next run's Dled, which
+        # restarts at 0 yet only fetches the remaining bytes, adds on top).
+        last_run_dled_bytes = 0
+
         paused = False
         while process.poll() is None:
             # Check pause before blocking on the next progress line so a pause
@@ -826,9 +877,29 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                     except:
                         pass  # in case 'Xfers' could not be converted to int
 
+                    # FILES: monotonic only (no per-run baseline -- a re-run
+                    # re-counts finished files in Xfers, so the value already
+                    # trends back to the true total). Never report below the
+                    # high-water mark, cap at the total.
+                    if downloaded_files > self._files_high_water:
+                        self._files_high_water = downloaded_files
+                    downloaded_files = min(self._files_high_water, self.total_files_to_download)
+
+                    # BYTES: cumulative across re-runs. This run's Dled only
+                    # counts new bytes (curl resumes via continue-at), so add
+                    # the baseline of bytes finished in prior runs. Clamp
+                    # monotonic and cap at the total.
+                    current_dled_bytes = self.string_to_bytes(match.group('Dled'))
+                    last_run_dled_bytes = current_dled_bytes
+                    cumulative_bytes = self._bytes_baseline + current_dled_bytes
+                    if cumulative_bytes > self._bytes_high_water:
+                        self._bytes_high_water = cumulative_bytes
+                    cumulative_bytes = min(self._bytes_high_water, self.total_bytes_to_download)
+                    downloaded_bytes_str = self.bytes_to_string(cumulative_bytes)
+
                     message = f"Progress ... of ...; " \
                               f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
-                              f"Downloaded {match.group('Dled')} of {bytes_to_download_str}, " \
+                              f"Downloaded {downloaded_bytes_str} of {bytes_to_download_str}, " \
                               f"Speed {match.group('Speed')}"
                     log.info(message)
 
@@ -837,6 +908,10 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         except Exception:
             pass
         process.wait()
+        # Fold this run's final Dled into the cumulative byte baseline so the
+        # next re-run (whose Dled restarts at 0 but fetches only the remaining
+        # bytes) is reported on top of what this run actually transferred.
+        self._bytes_baseline += last_run_dled_bytes
         return process.returncode, paused
 
     def _is_network_error(self, exit_code):
