@@ -1,7 +1,6 @@
 import os
 import sqlite3
 from contextlib import contextmanager
-import datetime
 import inspect
 from pathlib import Path
 from _collections import defaultdict
@@ -141,7 +140,6 @@ class DBMaster(object):
             self.__conn = None
         if bool(config_vars.get("PRINT_STATISTICS_DB", "False")) and self.statistics:
             for name, stats in sorted(self.statistics.items()):
-                average = stats.time/stats.count
                 print(f"{name}, {repr(stats)}")
 
                 max_count = max(self.statistics.items(), key=lambda S: S[1].count)
@@ -162,7 +160,7 @@ class DBMaster(object):
             self.__curs.execute(get_pragma_q)
             pragma_value = self.__curs.fetchone()[0]
         except Exception as ex:  # just return the default value
-            pass
+            log.debug("get_db_pragma(%s) failed, using default: %s", pragma_name, ex)
         return pragma_value
 
     def begin(self):
@@ -213,7 +211,7 @@ class DBMaster(object):
             if not description:
                 try:  # sporadically inspect.stack()[2] will raise 'list index out of range'
                     description = inspect.stack()[2][3]
-                except IndexError as ex:
+                except IndexError:
                     description = "unknown"
             with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
                 #time1 = time.perf_counter()
@@ -224,7 +222,7 @@ class DBMaster(object):
                 #if self.print_execute_times:
                 #    print('DB transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
                 #self.statistics[description].add_instance((time2-time1)*1000.0)
-        except sqlite3.OperationalError as s3oo:
+        except sqlite3.OperationalError:
             if not self.memory_db:
                 log.error("database error, disk %s", str(shutil.disk_usage(self.db_file_path.parent)), exc_info=True)
             self.rollback()
@@ -237,40 +235,20 @@ class DBMaster(object):
         """ returns a cursor for SELECT queries.
             no commit is done
         """
-        try:
-            if not description:
-                description = inspect.stack()[2][3]
-            with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
-                #time1 = time.perf_counter()
-                yield self.__conn.cursor()
-                #time2 = time.perf_counter()
-                #if self.print_execute_times:
-                #    if not description:
-                #        description = inspect.stack()[2][3]
-                #    print('DB selection %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-                #self.statistics[description].add_instance((time2-time1)*1000.0)
-        except Exception as ex:
-            raise
+        if not description:
+            description = inspect.stack()[2][3]
+        with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
+            yield self.__conn.cursor()
 
     @contextmanager
     def temp_transaction(self, description=None, progress_callback=None, progress_callback_n_instructions=50*1024*1024):
         """ returns a cursor for working with CREATE TEMP TABLE.
             no commit is done
         """
-        try:
-            if not description:
-                description = inspect.stack()[2][3]
-            with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
-                #time1 = time.perf_counter()
-                yield self.__conn.cursor()
-                #time2 = time.perf_counter()
-                #if self.print_execute_times:
-                #    if not description:
-                #        description = inspect.stack()[2][3]
-                #    print('DB temporary transaction %s took %0.3f ms' % (description, (time2-time1)*1000.0))
-                #self.statistics[description].add_instance((time2-time1)*1000.0)
-        except Exception as ex:
-            raise
+        if not description:
+            description = inspect.stack()[2][3]
+        with self.ProgressCallBacker(self, description, progress_callback, progress_callback_n_instructions):
+            yield self.__conn.cursor()
 
     def exec_script_file(self, file_name):
         with self.transaction("exec_script_file_"+file_name) as curs:
@@ -289,23 +267,20 @@ class DBMaster(object):
             return empty list of no values were found.
         """
         retVal = None
-        try:
-            if query_params is None:
-                query_params = {}
-            if self.print_execute_times:
-                description = inspect.stack()[1][3]
-            else:
-                description = None
-            with self.selection(description=description, progress_callback=progress_callback) as curs:
-                curs.execute(query_text, query_params)
-                one_result = curs.fetchone()
-                if one_result:
-                    if isinstance(one_result, (tuple, list)):
-                        retVal = one_result[0]
-                    else:
-                        retVal = one_result
-        except sqlite3.Error as ex:
-            raise
+        if query_params is None:
+            query_params = {}
+        if self.print_execute_times:
+            description = inspect.stack()[1][3]
+        else:
+            description = None
+        with self.selection(description=description, progress_callback=progress_callback) as curs:
+            curs.execute(query_text, query_params)
+            one_result = curs.fetchone()
+            if one_result:
+                if isinstance(one_result, (tuple, list)):
+                    retVal = one_result[0]
+                else:
+                    retVal = one_result
         return retVal
 
     def select_and_fetchall(self, query_text, query_params=None, progress_callback=None):
@@ -315,23 +290,20 @@ class DBMaster(object):
             return empty list of no values were found.
         """
         retVal = list()
-        try:
-            if query_params is None:
-                query_params = {}
-            if self.print_execute_times:
-                description = inspect.stack()[1][3]
-            else:
-                description = None
-            with self.selection(description=description, progress_callback=progress_callback) as curs:
-                curs.execute(query_text, query_params)
-                all_results = curs.fetchall()
-                if all_results:
-                    if len(all_results[0]) == 1:  # all_results is a list of one item lists, so flaten and return a list of items
-                        retVal.extend([res[0] for res in all_results])
-                    else:
-                        retVal.extend(all_results)
-        except sqlite3.Error as ex:
-            raise
+        if query_params is None:
+            query_params = {}
+        if self.print_execute_times:
+            description = inspect.stack()[1][3]
+        else:
+            description = None
+        with self.selection(description=description, progress_callback=progress_callback) as curs:
+            curs.execute(query_text, query_params)
+            all_results = curs.fetchall()
+            if all_results:
+                if len(all_results[0]) == 1:  # all_results is a list of one item lists, so flaten and return a list of items
+                    retVal.extend([res[0] for res in all_results])
+                else:
+                    retVal.extend(all_results)
         return retVal
 
     def lock_table(self, table_name):
