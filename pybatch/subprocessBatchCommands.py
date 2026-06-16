@@ -692,6 +692,18 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         all_args.append(self.named__init__param("previously_downloaded_files", self.previously_downloaded_files))
         all_args.append(self.named__init__param("total_bytes_to_download", self.total_bytes_to_download))
 
+    def _control_channel(self):
+        """The stdin control channel singleton, or None if unavailable.
+
+        Mirrors ParallelRun._control_channel. Imported lazily to avoid a
+        utils->pyinstl import at module load.
+        """
+        try:
+            from pyinstl.downloadControlChannel import get_global_channel
+            return get_global_channel()
+        except Exception:
+            return None
+
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
 
@@ -702,10 +714,48 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
             import win32api
             config_file_path_fixed = win32api.GetShortPathName(config_file_path_fixed)
 
+        # Honor the Central pause/resume control channel during the curl
+        # download. This class is the path that actually runs the bulk
+        # download (a single `curl --config` using curl's internal --parallel),
+        # so pause must be enforced HERE -- not only in ParallelRun. On pause
+        # we SIGTERM curl (so the partial .part files flush), wait for resume,
+        # then re-run `curl --config`, which resumes from the partial files via
+        # the `continue-at` entries curlHelper wrote. Without a channel (e.g.
+        # non-sync invocations) pause_check is None and behavior is unchanged.
+        channel = self._control_channel()
+        pause_check = channel.is_paused if channel is not None else None
+
+        return_code = 0
+        while True:
+            return_code, paused = self._run_curl_once(config_file_path_fixed, pause_check)
+            if paused and channel is not None:
+                log.info(f"{self.progress_msg_self()} paused; holding until resume")
+                channel.wait_if_paused()
+                continue  # resume: re-run curl --config (continue-at resumes partial files)
+            break
+
+        print(f"Curl ended {return_code}")
+        if self._can_run_fallback(return_code):
+            self._run_fallback_after_curl_range_failure(return_code)
+        self.increment_progress()
+
+    def _run_curl_once(self, config_file_path_fixed, pause_check):
+        """Run one `curl --config` pass, logging progress.
+
+        Returns (returncode, paused). If pause_check() becomes true while curl
+        is running we terminate it (SIGTERM, so partial .part files flush for a
+        later resume) and return paused=True. Pause-detection latency is bounded
+        by curl's progress cadence (~1s), same as utils.parallel_run.run_process.
+        """
+        # start_new_session so curl becomes its own process-group leader, which
+        # is what terminate_process()'s os.killpg() targets on pause (mirrors
+        # launch_process's preexec_fn=os.setsid in parallel_run). Without it the
+        # killpg has no group to signal and curl would keep downloading.
         process = subprocess.Popen([os.fspath(self.curl_path), "--config", config_file_path_fixed],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
+                                   start_new_session=True,
                                    bufsize=1)
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
@@ -714,7 +764,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
            (?P<Uled>[\d.a-z]+)\s+
            (?P<Xfers>[\d]+)\s+
            (?P<Live>[\d]+)\s+
-           (?P<Queue>[\d]+)?\s*?                        
+           (?P<Queue>[\d]+)?\s*?
            (?P<Total>[\d:-]+)\s+
            (?P<Current>[\d:-]+)\s+
            (?P<Left>[\d:-]+)\s+
@@ -724,17 +774,21 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
         bytes_to_download_str = self.bytes_to_string(self.total_bytes_to_download)
 
+        paused = False
         while process.poll() is None:
+            # Check pause before blocking on the next progress line so a pause
+            # stops the transfer within roughly one progress tick.
+            if pause_check is not None and pause_check():
+                from utils.parallel_run import terminate_process
+                terminate_process(process)
+                paused = True
+                log.info(f"{self.progress_msg_self()} paused - terminated curl")
+                break
             stdout_line = process.stdout.readline().strip()
             stdout_lines = stdout_line.split('\r')
             for stdout_line in stdout_lines:
                 match = reg.match(stdout_line)
                 if match:
-                    # print(f"Dled:{match.group('Dled')}; "
-                    #       f"Xfers:{match.group('Xfers')}; "
-                    #       f"Live:{match.group('Live')}; "
-                    #       f"Speed:{match.group('Speed')}; "
-                    #       )
                     downloaded_files = self.previously_downloaded_files
                     try:
                         # Add the total Xfers, Reduce by the live count
@@ -748,12 +802,12 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                               f"Speed {match.group('Speed')}"
                     log.info(message)
 
-        process.stdout.close()
+        try:
+            process.stdout.close()
+        except Exception:
+            pass
         process.wait()
-        print(f"Curl ended {process.returncode}")
-        if self._can_run_fallback(process.returncode):
-            self._run_fallback_after_curl_range_failure(process.returncode)
-        self.increment_progress()
+        return process.returncode, paused
 
     def _can_run_fallback(self, exit_code):
         return (
