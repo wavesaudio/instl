@@ -10,3 +10,5 @@ python_batch_test_results
 configVar/test/test_out.yaml
 venv
 pythonVirtualEnv
+.venv/
+pyinstl/test/*.out.yaml
