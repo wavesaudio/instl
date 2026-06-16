@@ -19,7 +19,7 @@
 # Possible future enhancements
 # tie in with application identifier codes for locating apps and replacing them in the dock with newer versions?
 
-import sys, plistlib, subprocess, os, getopt, re, pipes, tempfile, pwd, logging
+import sys, plistlib, subprocess, os, getopt, re, shlex, tempfile, pwd, logging
 import platform
 
 import utils
@@ -271,7 +271,7 @@ def dock_util(args):
         if os.path.exists(os.path.expanduser(plist_path)):
             plist_path = os.path.expanduser(plist_path)
             plist_path = os.path.abspath(plist_path)
-            plist_path = pipes.quote(plist_path)
+            plist_path = shlex.quote(plist_path)
         else:
             print(plist_path, 'does not seem to be a home directory or a dock plist')
             return 1
