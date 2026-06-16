@@ -57,7 +57,6 @@ class InstlClientRemove(InstlClient):
                         sources_for_iid = self.items_table.get_sources_for_iid(IID)
                         resolved_sources_for_iid = [(config_vars.resolve_str(s[0]), s[1]) for s in sources_for_iid]
                         for source in resolved_sources_for_iid:
-                            _, source_leaf = os.path.split(source[0])
                             iid_accum_transaction += self.accumulate_actions_for_iid(iid=IID, detail_name="pre_remove_item")
                             iid_accum_transaction += self.create_remove_instructions_for_source(IID, folder_name, source)
                             iid_accum_transaction += self.accumulate_actions_for_iid(iid=IID, detail_name="post_remove_item")
@@ -94,7 +93,7 @@ class InstlClientRemove(InstlClient):
                     remove_items = self.info_map_table.get_items_in_dir(dir_path=source_path, immediate_children_only=True)
                     remove_paths = utils.original_names_from_wtars_names(item.path for item in remove_items)
                     for remove_path in remove_paths:
-                        base_, leaf = os.path.split(remove_path)
+                        _, leaf = os.path.split(remove_path)
                         full_path_to_remove = os.path.normpath(os.path.join(folder, leaf))
                         retVal += RmFileOrDir(full_path_to_remove)
         else:

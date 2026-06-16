@@ -3,7 +3,6 @@
 
 from configVar import config_vars
 from .instlClient import InstlClient
-from pybatch import Stage
 
 
 class InstlClientSync(InstlClient):

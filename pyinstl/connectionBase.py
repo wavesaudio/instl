@@ -4,7 +4,6 @@
 import abc
 import json
 import ssl
-import urllib.error
 import urllib.parse
 
 import requests
@@ -102,11 +101,6 @@ def inject_truststore():
         pass  # truststore not installed — OpenSSL path is used
 
 have_boto = False
-# try:
-#     import boto3
-#     have_boto = True
-# except Exception:
-#     pass
 
 
 class ConnectionBase(object):

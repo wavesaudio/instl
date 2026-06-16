@@ -1,12 +1,8 @@
 #!/usr/bin/env python3.12
 
 import utils
-from configVar import config_vars
 
-try:
-    import networkx as nx
-except ImportError as IE:
-    raise IE
+import networkx as nx
 
 
 def create_dependencies_graph(items_table):
@@ -21,7 +17,7 @@ def create_inheritItem_graph(items_table):
     retVal = nx.DiGraph()
     for iid in items_table.get_all_iids():
         for dependant in items_table.get_resolved_details_for_iid(iid, "inherit"):
-                retVal.add_edge(iid, dependant)
+            retVal.add_edge(iid, dependant)
     return retVal
 
 
