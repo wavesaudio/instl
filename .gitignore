@@ -12,3 +12,4 @@ venv
 pythonVirtualEnv
 .venv/
 pyinstl/test/*.out.yaml
+pyinstl/test/*out.yaml

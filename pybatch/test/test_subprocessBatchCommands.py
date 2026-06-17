@@ -346,6 +346,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                                    KillProcess("pesach", retries=5),
                                    KillProcess("nurit", sleep_sec=0.1))
 
+    @pytest.mark.skipif(
+        os.environ.get("INSTL_RUN_GUI_TESTS") != "1",
+        reason="non-hermetic: launches and kills a real GUI app (Notes / notepad++), "
+               "has side effects and is timing-flaky. Set INSTL_RUN_GUI_TESTS=1 to run manually.",
+    )
     def test_KillProcess(self):
         app_base_name = ""
         if sys.platform == 'win32':
