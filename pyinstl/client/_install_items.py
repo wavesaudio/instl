@@ -25,6 +25,14 @@ class _InstallItemsClientMixin:
         """ calculate the set of iids to install from the "MAIN_INSTALL_TARGETS" variable.
             Full set of install iids and orphan iids are also writen to variable.
         """
+        # TODO(W7/W6): these __MAIN_INSTALL_IIDS__ / __MAIN_UPDATE_IIDS__ /
+        # __ORPHAN_INSTALL_TARGETS__ / __FULL_LIST_OF_INSTALL_TARGETS__ writes use
+        # config_vars as an implicit, order-dependent data channel between
+        # calculate_*_install_items and downstream do_copy/do_remove. Containing
+        # this coupling means returning an explicit InstallPlan dataclass (W6) and
+        # keeping the public keys as a thin write-through at the boundary. NOT done
+        # in this incremental pass because it would change the emitted batch scripts
+        # (a behavior change) and belongs to the dedicated W6 workstream.
         # utils.add_to_actions_stack("calculating main items to install")
         if "MAIN_INSTALL_TARGETS" not in config_vars:
             # Without MAIN_INSTALL_TARGETS there is nothing to install and no way
