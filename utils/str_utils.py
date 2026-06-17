@@ -82,6 +82,23 @@ def quoteme_raw_string(simple_string):
     return retVal
 
 def quoteme_raw_by_type(some_thing, config_vars=None, resolve_path=False) -> str:
+    """ Render a value as an eval-able Python literal for the pybatch repr() backbone.
+
+        This is the single chokepoint that pybatch command ``repr()``s use to
+        serialize their constructor arguments into the emitted ``.py`` batch file
+        (see ``PythonBatchCommandBase.__repr__``). It must produce text that
+        ``eval()`` turns back into an *equal* value:
+          * numbers/bools  -> their ``str()`` (no quoting);
+          * strings        -> a raw string literal via ``quoteme_raw_string``
+                              (optionally config-var resolved / path resolved first);
+          * PathLike       -> the same, via ``os.fspath``;
+          * sequences      -> ``[...]`` of recursively rendered items;
+          * mappings       -> ``{...}`` with keys sorted for deterministic output;
+          * classes        -> the bare class name (resolved in the exec namespace).
+        Using *raw* string literals is what keeps user/path data from ever being
+        interpreted as code on the eval side. Changing this output is a contract
+        change — verify the characterization goldens stay byte-identical.
+    """
     retVal = None
     match some_thing:
         case int() | float() | bool():

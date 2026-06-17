@@ -83,7 +83,27 @@ from .new_batchCommands import *
 
 
 def EvalShellCommand(action_str: str, message: str, python_batch_names=None, raise_on_error=False) -> PythonBatchCommandBase:
-    """ shell commands from index can be evaled to a PythonBatchCommand, otherwise a ShellCommand is instantiated
+    """ Turn an *action string* from the index into a PythonBatchCommand object.
+
+        This is the deserialization counterpart of the ``repr()`` serializer: an
+        ``action`` declared in a Central-authored index (e.g. ``MakeDir(r"x")``)
+        is ``eval()``-ed here against the ``pybatch`` package namespace to
+        re-materialize the typed command object. If the string is NOT a valid
+        pybatch constructor call (SyntaxError / TypeError / NameError) it is
+        treated as a raw shell command and wrapped in ``ShellCommand`` instead.
+
+        ATTACK SURFACE / TRUST MODEL (documented — see docs/REFACTORING.md W8):
+          * ``action_str`` is trusted input: it originates from the index that
+            Central generates, not from end users. ``eval`` here is the same
+            trust boundary as ``exec``-ing the emitted batch file.
+          * ``eval`` is given ``globals()`` (the pybatch command namespace) and
+            ``locals()`` (this function's frame). The ``locals()`` exposure is
+            historical and slightly wider than necessary; tightening it could
+            change which strings evaluate successfully, so it is deliberately
+            left unchanged and is tracked as future, golden-verified work in
+            docs/REFACTORING.md W8 rather than altered here.
+          * A bare quoted string ``"foo"`` evals to a ``str`` (not a command);
+            the ``isinstance`` check below converts that case to a ShellCommand.
     """
     retVal = Echo(message)
     try:

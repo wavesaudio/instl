@@ -152,6 +152,39 @@ class PythonBatchCommandBase(abc.ABC):
         pass
 
     def __repr__(self) -> str:
+        """ Serialize this command to an *eval-able* constructor-call string.
+
+            CONTRACT (load-bearing — this is Waves Central's runtime interface):
+            The string returned here is written verbatim into the emitted ``.py``
+            batch file. Central later runs that file via ``instl --run`` /
+            ``run-process``, which ``compile()`` + ``exec()``s it (see
+            ``pyinstl/instlInstanceBase.py:run_batch_file``). Therefore the
+            returned text MUST be a valid Python expression that, when evaluated
+            in a namespace where ``from pybatch import *`` has been executed,
+            reconstructs an object *equal* to ``self`` (``obj == eval(repr(obj))``).
+
+            INVARIANTS this method and every ``repr_own_args`` override must keep:
+              * Output is ``ClassName(<args>)`` — the class name must be a name
+                exported by ``pybatch/__init__.py`` (the exec namespace).
+              * Positional args come first (``repr_own_args``), then non-default
+                kwargs (``repr_default_kwargs``); ``None`` entries are dropped so
+                an optional arg that is absent emits nothing rather than a stray
+                comma.
+              * All scalar/path/list/dict values are rendered via
+                ``utils.quoteme_raw_by_type`` so they survive the round-trip as
+                raw strings (no shell quoting, no eval of user data as code).
+              * ``__init__`` must only *record* args (never do work), so that the
+                reconstructed object is behaviourally identical.
+
+            RISKS (documented; do NOT silently change the output to "fix" them):
+              * The emitted text is byte-pinned by the characterization goldens
+                (``tests/characterization/test_pybatch_serialization_golden.py``)
+                and by Central's contract. Any drift here is a breaking change and
+                must be coordinated with Central — see docs/REFACTORING.md W8.
+              * ``exec()`` of the whole script trusts the script's provenance
+                (instl wrote it). It is NOT a sandbox; do not feed externally
+                authored batch files to ``run_batch_file``.
+        """
         all_args = list()
         self.repr_own_args(all_args)
         self.repr_default_kwargs(all_args)

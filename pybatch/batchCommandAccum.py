@@ -99,6 +99,38 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
         return cc
 
     def __repr__(self):
+        """ Render the entire accumulated plan as a standalone, executable ``.py``
+            batch program — the artifact Waves Central runs.
+
+            STRUCTURE of the emitted script (do not reorder; pinned by goldens and
+            by Central's contract):
+              1. prolog  (``_python_opening_code``): header comment, imports,
+                 ``sys.path.append``, ``utils.set_acting_ids``,
+                 ``from pybatch import *`` (this defines the exec namespace that
+                 every command's ``repr()`` is evaluated against), and the
+                 ``total_progress`` / ``running_progress`` globals;
+              2. the ``assign`` section (config-var assignments) emitted at top level;
+              3. the run body wrapped in ``with PythonBatchRuntime(...)`` containing
+                 each ordered section as ``with Stage(...)`` blocks; every command is
+                 emitted via ``repr(cmd)`` either as a bare statement, a call, or a
+                 ``with cmd as <name>:`` context manager per its
+                 ``call__call__`` / ``is_context_manager`` flags;
+              4. the ``epilog`` section (always appended; carries
+                 ``PatchPyBatchWithTimings``) and the ``# eof`` closing code.
+
+            IMPORTANT side effects executed here (kept for output-equivalence):
+              * sets ``PythonBatchCommandBase.config_vars_for_repr = config_vars`` for
+                the duration of the call so child ``repr()``s resolve config vars,
+                then resets it to ``None``;
+              * appends ``PatchPyBatchWithTimings`` to the epilog and recomputes
+                ``total_progress``;
+              * assigns each command a monotonic ``prog_num`` as it walks the tree.
+
+            The body is config-var-resolved and unresolved ``$(...)`` are rewritten to
+            the native-var pattern for the current OS. This text is then written and
+            ``compile()``/``exec()``-ed by ``run_batch_file``. See the contract notes
+            on ``PythonBatchCommandBase.__repr__`` and docs/REFACTORING.md W8.
+        """
         single_indent = "    "
         running_progress_count = self.initial_progress
         PythonBatchCommandBase.config_vars_for_repr = config_vars  # so __repr__ of object derived from PythonBatchCommandBase will resolve config_vars values

@@ -574,3 +574,88 @@ These change object structure and must each sit behind green goldens, one seam a
 - **W4 / W5 / W14 / W15** — platform centralization (`RuntimeLayout`, per-OS strategy
   backends), GUI decomposition, and the `ConfigVarStack` split; medium payoff,
   sequenced after their foundations.
+
+---
+
+## 8. W8 — pybatch `repr()`→`eval()` serialization backbone: hardening notes
+
+This section is the design note for the highest-risk seam: the emitted `.py` batch
+is **Waves Central's runtime contract**. Central runs it via `instl --run` /
+`run-process`, which `compile()`+`exec()`s it in-process
+(`pyinstl/instlInstanceBase.py:run_batch_file`). The serialized text is byte-pinned by
+`tests/characterization/test_pybatch_serialization_golden.py`. The default stance for
+this seam is **document, don't change output**.
+
+### 8.1 The contract, restated (invariants)
+
+1. `repr(cmd)` returns `ClassName(<args>)` where `ClassName` is a name exported by
+   `pybatch/__init__.py` (the namespace `from pybatch import *` installs in the exec
+   frame). `repr(accum)` returns the whole script (prolog + sections + epilog).
+2. Round-trip: `obj == eval(repr(obj))` for round-trippable commands (the ones whose
+   repr is a constructor call). A handful — `Echo`/`Remark`/`ConfigVarAssign` — emit a
+   bare statement (`print(...)`, `# ...`, `config_vars[...] = ...`) and intentionally do
+   **not** round-trip to an equal object; that set is pinned as `NON_ROUND_TRIPPING` in
+   the golden test.
+3. `__init__` only records args (never does work). Argument values are rendered only
+   through `utils.quoteme_raw_by_type` → `quoteme_raw_string`, i.e. **raw string
+   literals**, so path/user data can never be re-interpreted as code on the eval side.
+4. Argument order is positional-first (`repr_own_args`) then non-default kwargs
+   (`repr_default_kwargs`), with `None` entries filtered out so an absent optional arg
+   emits nothing (no stray comma).
+
+These invariants are now documented in-code on `PythonBatchCommandBase.__repr__`,
+`PythonBatchCommandAccum.__repr__`, `pybatch.EvalShellCommand`, and
+`utils.quoteme_raw_by_type` (W8 hardening pass — comments/docstrings only, output
+verified byte-identical against the goldens).
+
+### 8.2 The eval/exec surface (3 sites) and why it is trusted today
+
+| Site | What is eval'd | Trust source |
+| --- | --- | --- |
+| `pybatch/__init__.py:EvalShellCommand` | an index `action` string → typed command | Central-generated index |
+| `pybatch/conditionalBatchCommands.py:If.__call__` | a stringified `condition` | the emitted script itself |
+| `pyinstl/instlInstanceBase.py:run_batch_file` | the whole `.py` batch file | instl wrote it |
+
+All three trust the *provenance* of their input (Central / instl), not a sandbox. The
+risk is therefore **supply-chain / tamper**, not arbitrary end-user input.
+
+### 8.3 Latent sharp edges found during this pass (documented, not changed)
+
+- **`EvalShellCommand` passes `locals()` to `eval`.** The action string can therefore
+  reference this function's locals (`action_str`, `message`, `retVal`, …). This is wider
+  than needed; in practice index actions only reference pybatch class names. Removing
+  `locals()` would *narrow* the surface but could change which strings evaluate
+  successfully (anything relying on a local name would flip to a `ShellCommand`
+  fallback), so it is a behaviour change and is deferred — see migration below.
+- **`If.__call__` does `eval(condition_obj)` with the ambient module globals** (no
+  explicit namespace), so the condition string resolves against
+  `conditionalBatchCommands`'s globals. Same trust model; same deferral.
+
+### 8.4 Safe migration path (future, Central-coordinated)
+
+Do these only behind green goldens, one seam at a time, with Central sign-off because
+any output change is a wire-format change for already-deployed clients reading
+already-deployed indexes:
+
+1. **Tighten the `EvalShellCommand` eval namespace without changing accepted input.**
+   Build an explicit, frozen dict of `{name: class}` from
+   `PythonBatchCommandBase.get_derived_class_names()` plus the few helpers actions
+   legitimately use, and pass it as the eval globals with an empty locals. Land it
+   guarded by a new characterization golden that asserts the *same* set of real-world
+   index actions still produce the *same* command objects (and that a probe action which
+   references a former local now falls through to `ShellCommand`). If any real action
+   regresses, the namespace is widened to include exactly that name — never reverted to
+   `locals()`.
+2. **Introduce a structured IR + registry deserializer** (the actual W8 deliverable):
+   represent each command as `{op, args, kwargs}` and reconstruct via a name→class
+   registry lookup + validated kwargs binding, eliminating `eval` for the
+   deserialization path. The `repr()` *emitter* can stay byte-identical during the
+   transition (emit both the legacy `.py` and the IR side-car), so old clients keep
+   working while new clients prefer the IR. Cut over only when the deployed-client floor
+   supports the IR.
+3. **Only after (2) is the deployed floor**, consider replacing the in-process
+   `exec(compiled_py)` in `run_batch_file` with an IR interpreter, removing the last
+   `exec` of generated code. This is the largest blast radius and is explicitly last.
+
+Until those land, the emitted `.py` and the three eval/exec sites are **frozen**; treat
+the goldens as the spec.
