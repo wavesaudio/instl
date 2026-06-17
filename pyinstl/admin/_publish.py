@@ -27,6 +27,7 @@ import aYaml
 from pybatch import *
 from configVar import ConfigVarYamlReader
 from configVar import current_os
+from configVar import run_batch
 
 from ._helpers import start_redis_heartbeat_thread, smart_merge_dicts, dict_in_canonical_order
 
@@ -87,7 +88,7 @@ class _PublishAdminMixin:
                     sub_accum += Subprocess("aws", "s3", "cp", os.fspath(repo_rev_file_path), "s3://$(S3_BUCKET_NAME)/$(REPO_NAME)/$(__CURR_REPO_FOLDER_HIERARCHY__)/instl/"+repo_rev_file_path.name, "--content-type", 'text/plain')
 
             self.write_batch_file(batch_accum)
-            if bool(config_vars["__RUN_BATCH__"]):
+            if run_batch():
                 self.run_batch_file()
 
             r.hset(config_vars["UPLOAD_SHORT_INDEX_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))
@@ -180,7 +181,7 @@ class _PublishAdminMixin:
             batch_accum += RmDirContents(revision_folder_path, exclude=['instl'])
 
             self.write_batch_file(batch_accum)
-            if bool(config_vars["__RUN_BATCH__"]):
+            if run_batch():
                 self.run_batch_file()
 
             r.hset(config_vars["UPLOAD_REPO_REV_DONE_LIST_REDIS_KEY"].str(), config_vars["TARGET_REFERENCE"].str(), str(datetime.datetime.now()))

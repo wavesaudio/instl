@@ -25,7 +25,7 @@
         can pass an injected stack without touching the call sites again.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pathlib import Path
 
 from .configVarStack import config_vars as _global_config_vars
@@ -67,3 +67,81 @@ def main_input_file_path(resolve: bool = False, cv=None) -> Optional[Path]:
     """
     cv = _global_config_vars if cv is None else cv
     return cv["__MAIN_INPUT_FILE__"].Path(resolve=resolve)
+
+
+def main_input_file_str(cv=None) -> str:
+    """Return `__MAIN_INPUT_FILE__` as an os.fspath-style string.
+
+    Mirrors the common `os.fspath(config_vars["__MAIN_INPUT_FILE__"])` idiom used
+    where an API wants a plain `str`/path-like rather than a `Path`.
+    """
+    import os
+    cv = _global_config_vars if cv is None else cv
+    return os.fspath(cv["__MAIN_INPUT_FILE__"])
+
+
+def main_out_file_path(resolve: bool = False, cv=None) -> Optional[Path]:
+    """Return `__MAIN_OUT_FILE__` as a Path (the primary command output file).
+
+    `resolve=True` expands vars and resolves the path, matching
+    `config_vars["__MAIN_OUT_FILE__"].Path(resolve=True)`.
+    """
+    cv = _global_config_vars if cv is None else cv
+    return cv["__MAIN_OUT_FILE__"].Path(resolve=resolve)
+
+
+def run_batch(cv=None) -> bool:
+    """True if the emitted batch file should be run after writing (`__RUN_BATCH__`).
+
+    Mirrors the ubiquitous `bool(config_vars["__RUN_BATCH__"])` flag check used by
+    the doit/client/admin command flows to decide whether to execute the script.
+    """
+    cv = _global_config_vars if cv is None else cv
+    return bool(cv["__RUN_BATCH__"])
+
+
+def repo_rev(cv=None) -> int:
+    """Return the source repository revision (`REPO_REV`) as an int.
+
+    `REPO_REV` is the revision instl is operating against; admin/sync flows read it
+    when computing folder hierarchy and revision ranges.
+    """
+    cv = _global_config_vars if cv is None else cv
+    return cv["REPO_REV"].int()
+
+
+def target_repo_rev(cv=None) -> int:
+    """Return the target repository revision (`TARGET_REPO_REV`) as an int.
+
+    The revision being published/activated; distinct from `REPO_REV` (the source).
+    """
+    cv = _global_config_vars if cv is None else cv
+    return cv["TARGET_REPO_REV"].int()
+
+
+def instl_version(cv=None) -> Tuple[int, ...]:
+    """Return the running instl version (`__INSTL_VERSION__`) as a tuple of ints.
+
+    Matches `list(map(int, list(config_vars["__INSTL_VERSION__"])))`, used for
+    minimum-version compatibility checks.
+    """
+    cv = _global_config_vars if cv is None else cv
+    return tuple(int(part) for part in list(cv["__INSTL_VERSION__"]))
+
+
+def target_os(cv=None) -> str:
+    """Return the target OS family name (`TARGET_OS`), e.g. "Mac", "Win".
+
+    The OS instl is *building for* (may differ from `current_os()`, the host).
+    """
+    cv = _global_config_vars if cv is None else cv
+    return cv["TARGET_OS"].str()
+
+
+def target_os_names(cv=None) -> List[str]:
+    """Return the list of target OS names (`TARGET_OS_NAMES`).
+
+    Family + aliases for the OS instl is building for, mirroring `current_os_names`.
+    """
+    cv = _global_config_vars if cv is None else cv
+    return list(cv["TARGET_OS_NAMES"])

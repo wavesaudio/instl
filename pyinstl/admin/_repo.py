@@ -13,6 +13,7 @@ import filecmp
 
 import utils
 from pybatch import *
+from configVar import run_batch
 from ..instlException import InstlException
 
 
@@ -64,7 +65,7 @@ class _RepoAdminMixin:
                         repo_folder_accum += SVNSetProp('svn:executable', 'yes', item.path)
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def is_file_exec(self, file_path):
@@ -87,7 +88,7 @@ class _RepoAdminMixin:
             self.batch_accum += CreateSymlinkFilesInFolder(folder_to_check)
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def compile_exclude_regexi(self):
@@ -141,7 +142,7 @@ class _RepoAdminMixin:
             self.stage2svn_with_comparator(comparator)
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def stage2svn_with_comparator(self, comparator):
@@ -267,7 +268,7 @@ class _RepoAdminMixin:
             self.batch_accum += CopyDirContentsToDir(limit_info[1], limit_info[2], hard_links=False, ignore_patterns=[".svn", ".DS_Store"], delete_extraneous_files=True)
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def should_file_be_exec(self, file_path):
@@ -323,5 +324,5 @@ class _RepoAdminMixin:
                 self.progress("   ", a_file)
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()

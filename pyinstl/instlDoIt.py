@@ -4,7 +4,7 @@ import logging
 log = logging.getLogger()
 
 from .instlInstanceBase import InstlInstanceBase
-from configVar import current_os
+from configVar import current_os, run_batch
 from pybatch import *
 
 
@@ -39,7 +39,7 @@ class InstlDoIt(InstlInstanceBase):
 
         self.write_config_vars_to_file(config_vars.get("__WRITE_CONFIG_VARS_TO_FILE__", None).Path())
 
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def init_default_doit_vars(self):

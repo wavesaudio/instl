@@ -24,7 +24,7 @@ import aYaml
 from ..instlInstanceBase import check_version_compatibility
 from ..instlException import InstlFatalException
 from configVar import config_vars
-from configVar import current_os
+from configVar import current_os, run_batch
 from pybatch import *
 from ..connectionBase import connection_factory
 
@@ -85,7 +85,7 @@ class _CoreClientMixin:
         # utils.add_to_actions_stack("writing batch file..")
         self.write_batch_file(self.batch_accum)
         self.write_config_vars_to_file(config_vars.get("__WRITE_CONFIG_VARS_TO_FILE__", None).Path())
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
 
     def init_default_client_vars(self):

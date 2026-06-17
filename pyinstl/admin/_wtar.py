@@ -11,6 +11,7 @@ import re
 
 import utils
 from pybatch import *
+from configVar import run_batch
 
 
 class _WtarAdminMixin:
@@ -129,5 +130,5 @@ class _WtarAdminMixin:
             self.progress(total_redundant_wtar_files, "redundant wtar files will be removed")
 
         self.write_batch_file(self.batch_accum)
-        if bool(config_vars["__RUN_BATCH__"]):
+        if run_batch():
             self.run_batch_file()
