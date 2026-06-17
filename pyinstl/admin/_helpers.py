@@ -4,33 +4,16 @@
 This is a pure structural decomposition (extract-module refactor): the code below
 is MOVED verbatim from the original god-object. No logic was changed.
 """
-import json
 import logging
 log = logging.getLogger()
 
-import os
-import sys
-import traceback
-import filecmp
-import multiprocessing as mp
+import collections
 import time
 import datetime
-import re
 import redis
-import boto3
 import threading
-import io
 
-from dataclasses import dataclass
 import dictdiffer
-
-import utils
-import yaml
-import aYaml
-from ..instlInstanceBase import InstlInstanceBase
-from pybatch import *
-from ..instlException import InstlException
-from configVar import ConfigVarYamlReader
 
 def start_redis_heartbeat_thread(redis_host, redis_port, heartbeat_key, heartbeat_interval):
     """ start a daemon thread that will periodically set a redis key to a string containing the current date/time

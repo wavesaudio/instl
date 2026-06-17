@@ -21,7 +21,7 @@ log = logging.getLogger()
 
 import utils
 import aYaml
-from ..instlInstanceBase import InstlInstanceBase, check_version_compatibility
+from ..instlInstanceBase import check_version_compatibility
 from ..instlException import InstlFatalException
 from configVar import config_vars
 from configVar import current_os
