@@ -9,6 +9,7 @@ log = logging.getLogger()
 
 import utils
 from configVar import config_vars
+from configVar import current_os as get_current_os
 from pybatch import *
 
 
@@ -40,7 +41,7 @@ class _BinariesClientMixin:
                 ignore_file_regex_list = list(config_vars["CHECK_BINARIES_VERSION_FILE_EXCLUDE_REGEX"])
                 ignore_regexes_filter.set_file_ignore_regexes(ignore_file_regex_list)
 
-            current_os = config_vars["__CURRENT_OS__"].str()
+            current_os = get_current_os()
             path_to_search = list(config_vars.get('CHECK_BINARIES_VERSION_FOLDERS', []))
             for a_path in path_to_search:
                 binaries_version_from_folder = utils.check_binaries_versions_in_folder(current_os, Path(a_path), ignore_regexes_filter)

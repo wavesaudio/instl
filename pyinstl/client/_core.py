@@ -24,6 +24,7 @@ import aYaml
 from ..instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from ..instlException import InstlFatalException
 from configVar import config_vars
+from configVar import current_os
 from pybatch import *
 from ..connectionBase import connection_factory
 
@@ -94,7 +95,7 @@ class _CoreClientMixin:
             config_vars["SYNC_BASE_URL_MAIN_ITEM"] = url_main_item
         # TARGET_OS_NAMES defaults to __CURRENT_OS_NAMES__, which is not what we want if syncing to
         # an OS which is not the current
-        if config_vars["TARGET_OS"].str() != config_vars["__CURRENT_OS__"].str():
+        if config_vars["TARGET_OS"].str() != current_os():
             target_os_names = list(config_vars[config_vars.resolve_str("$(TARGET_OS)_ALL_OS_NAMES")])
             config_vars["TARGET_OS_NAMES"] = target_os_names
             second_name: str = config_vars["TARGET_OS"].str()

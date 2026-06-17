@@ -32,6 +32,7 @@ from ..instlInstanceBase import InstlInstanceBase
 from pybatch import *
 from ..instlException import InstlException
 from configVar import ConfigVarYamlReader
+from configVar import current_os
 
 from ._helpers import start_redis_heartbeat_thread, smart_merge_dicts, dict_in_canonical_order
 
@@ -208,7 +209,7 @@ class _PublishAdminMixin:
             instl_info_dict["version string"] = self.get_version_str(short=False)
             instl_info_dict["path"] = config_vars["__INSTL_EXE_PATH__"].str()
             instl_info_dict["python version"] = config_vars["__PYTHON_VERSION__"].str()
-            instl_info_dict["current os"] = config_vars["__CURRENT_OS__"].str()
+            instl_info_dict["current os"] = current_os()
             redis_instance.hmset(instl_info_redis_key, instl_info_dict)
 
     def print_wait_on_action_trigger_info(self, _redis_host, _redis_port, _waiting_list_redis_key):
