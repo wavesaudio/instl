@@ -30,9 +30,26 @@ class _InstallItemsClientMixin:
         # config_vars as an implicit, order-dependent data channel between
         # calculate_*_install_items and downstream do_copy/do_remove. Containing
         # this coupling means returning an explicit InstallPlan dataclass (W6) and
-        # keeping the public keys as a thin write-through at the boundary. NOT done
-        # in this incremental pass because it would change the emitted batch scripts
-        # (a behavior change) and belongs to the dedicated W6 workstream.
+        # keeping the public keys as a thin write-through at the boundary.
+        #
+        # Why NOT in this incremental pass: the channel is genuinely cross-module
+        # (it is not local to the client calculate path), so it cannot be made a
+        # safe, output-preserving local change. The concrete writer/reader map is:
+        #   writers (here): __MAIN_INSTALL_IIDS__/__MAIN_UPDATE_IIDS__/
+        #     __ORPHAN_INSTALL_TARGETS__ in calculate_main_install_items;
+        #     __FULL_LIST_OF_INSTALL_TARGETS__ in calculate_all_install_items.
+        #   cross-module readers (must all migrate together to a threaded
+        #   InstallPlan, or keep these keys as a write-through):
+        #     - instlClientUninstall.py:41,124 read __MAIN_INSTALL_IIDS__ and
+        #       :87,90,183,186 *re-write* __FULL_LIST_OF_INSTALL_TARGETS__ /
+        #       __ORPHAN_INSTALL_TARGETS__ (uninstall reuses the same channel);
+        #     - instlInstanceSync_p4.py:32, instlInstanceSync_svn.py:34,40 and
+        #       instlClientRemove.py:44,66 read __FULL_LIST_OF_INSTALL_TARGETS__;
+        #     - instlClientCopy.py:135 reads __ORPHAN_INSTALL_TARGETS__.
+        # W6 step (4) keeps these public keys as a thin boundary write-through so
+        # sync/remove/uninstall are unaffected; doing it piecemeal here would
+        # change emitted batch scripts (a behavior change) and break goldens.
+        # Belongs to the dedicated W6 workstream, sequenced with W7's run context.
         # utils.add_to_actions_stack("calculating main items to install")
         if "MAIN_INSTALL_TARGETS" not in config_vars:
             # Without MAIN_INSTALL_TARGETS there is nothing to install and no way
