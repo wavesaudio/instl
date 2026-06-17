@@ -13,6 +13,7 @@ log = logging.getLogger()
 
 from configVar import config_vars
 from .instlClient import InstlClient
+from .instlException import InstlFatalException
 import svnTree
 from pybatch import *
 
@@ -72,6 +73,18 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created, but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
+            # Only pre-check local paths (a URL is read directly by the reader).
+            # The info-map describes the synced files; without it copy cannot
+            # proceed, and the previous behavior surfaced an opaque
+            # FileNotFoundError from deep inside the reader. Point the user at the
+            # likely cause (sync not run / wrong path) instead.
+            is_url = "://" in have_info_path
+            if not is_url and not os.path.isfile(have_info_path):
+                raise InstlFatalException(
+                    f"Cannot copy: the synced files manifest was not found at '{have_info_path}'",
+                    "(config var HAVE_INFO_MAP_COPY_PATH).",
+                    "This usually means the 'sync' step did not run or did not complete.",
+                    "Run sync before copy, or check the HAVE_INFO_MAP_COPY_PATH setting.")
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
 
         self.avoid_copy_markers = list(config_vars.get('AVOID_COPY_MARKERS', []))
@@ -137,7 +150,13 @@ class InstlClientCopy(InstlClient):
         retVal = AnonymousAccum()
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
-            log.warning(f"""no source files for {source_path}""")
+            # The index references a file that is absent from the info-map (the
+            # synced repo listing). This usually means the source was not synced,
+            # the path in index.yaml is wrong, or the repo-rev is mismatched.
+            # Nothing gets copied for it; make that visible with the owning item.
+            owning_iid = f" (item '{self.current_iid}')" if self.current_iid else ""
+            log.warning(f"no source files found for '{source_path}'{owning_iid}; "
+                        f"it will not be copied. Check that it was synced and that its path in index.yaml is correct.")
             return retVal
         num_wtars: int = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)
@@ -276,7 +295,14 @@ class InstlClientCopy(InstlClient):
             case '!dir_cont':  # get all files and folders from a folder
                 retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message, use_hard_links)
             case _:
-                raise ValueError(f"unknown source type {source[1]} for {source[0]}")
+                # Unknown source tag in index.yaml. Name the offending item so
+                # whoever maintains the index can find and fix it; valid tags are
+                # !dir, !file and !dir_cont. (Kept as ValueError to preserve the
+                # established exception-type contract; only the message is richer.)
+                owning_iid = f" of item '{self.current_iid}'" if self.current_iid else ""
+                raise ValueError(
+                    f"Cannot create copy instructions: unknown source type '{source[1]}' "
+                    f"for source '{source[0]}'{owning_iid} (expected one of !dir, !file, !dir_cont).")
         return retVal
 
     # special handling when running on macOS

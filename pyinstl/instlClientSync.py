@@ -3,6 +3,7 @@
 
 from configVar import config_vars
 from .instlClient import InstlClient
+from .instlException import InstlFatalException
 
 
 class InstlClientSync(InstlClient):
@@ -13,6 +14,7 @@ class InstlClientSync(InstlClient):
         self.action_type_to_progress_message.update({'pre_sync': "pre_sync step", 'post_sync': "post_sync step"})
 
     def do_sync(self):
+        repo_type_defined = "REPO_TYPE" in config_vars
         repo_type = config_vars.get("REPO_TYPE", "URL").str()
         # REPO_TYPE can only be "URL", other types were not maintained or used in many years.
         # creating a sync class according to REPO_TYPE is only left here as an example format
@@ -31,7 +33,18 @@ class InstlClientSync(InstlClient):
                 from .instlInstanceSync_p4 import InstlInstanceSync_p4
                 syncer = InstlInstanceSync_p4(self)
             case _:
-                raise ValueError('REPO_TYPE is not defined in input file')
+                # REPO_TYPE was present but holds a value we do not support.
+                # The old message ("REPO_TYPE is not defined") was misleading
+                # in this branch since the variable IS defined here.
+                if repo_type_defined:
+                    raise InstlFatalException(
+                        f"Cannot sync: unsupported REPO_TYPE '{repo_type}'.",
+                        "Supported values are: URL, BOTO, SVN, P4 (URL is the maintained default).",
+                        "Check the REPO_TYPE definition in the installation input file.")
+                else:
+                    raise InstlFatalException(
+                        "Cannot sync: REPO_TYPE is not defined in the installation input file.",
+                        "Define REPO_TYPE (e.g. 'URL') so instl knows how to fetch the files.")
 
         syncer.init_sync_vars()
         self.batch_accum.set_current_section('sync')

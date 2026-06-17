@@ -10,6 +10,7 @@ log = logging.getLogger()
 import utils
 from configVar import config_vars
 from pybatch import *
+from ..instlException import InstlFatalException
 
 
 class _InstallItemsClientMixin:
@@ -26,7 +27,14 @@ class _InstallItemsClientMixin:
         """
         # utils.add_to_actions_stack("calculating main items to install")
         if "MAIN_INSTALL_TARGETS" not in config_vars:
-            raise ValueError("'MAIN_INSTALL_TARGETS' was not defined")
+            # Without MAIN_INSTALL_TARGETS there is nothing to install and no way
+            # to proceed. Spell out what is missing and where it should come from
+            # rather than raising a bare ValueError naming only the variable.
+            raise InstlFatalException(
+                "Nothing to install: the configuration variable 'MAIN_INSTALL_TARGETS' was not defined.",
+                "This variable lists the items (IIDs/GUIDs) to install and is normally supplied by the",
+                f"installation input file '{config_vars.get('__MAIN_INPUT_FILE__', '<unknown>')}'",
+                "or on the command line. Make sure at least one install target is provided.")
 
         self.main_install_targets.extend(list(config_vars["MAIN_INSTALL_TARGETS"]))
         main_iids, main_guids = utils.separate_guids_from_iids(self.main_install_targets)

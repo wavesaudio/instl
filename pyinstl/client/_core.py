@@ -22,6 +22,7 @@ log = logging.getLogger()
 import utils
 import aYaml
 from ..instlInstanceBase import InstlInstanceBase, check_version_compatibility
+from ..instlException import InstlFatalException
 from configVar import config_vars
 from pybatch import *
 from ..connectionBase import connection_factory
@@ -41,7 +42,13 @@ class _CoreClientMixin:
 
         verOK, errorMessage = check_version_compatibility()
         if not verOK:
-            raise Exception(errorMessage)
+            # This installation index requires a newer instl than the one running.
+            # Make the failure explicit and actionable instead of a bare Exception
+            # (which surfaced as an opaque traceback to the end user).
+            raise InstlFatalException(
+                f"Cannot install: {errorMessage}.",
+                f"The installation index '{main_input_file_path}' requires a newer version of instl.",
+                "Please update instl (or Waves Central) and try again.")
 
         self.init_default_client_vars()
 

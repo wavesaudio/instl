@@ -11,6 +11,7 @@ log = logging.getLogger()
 import utils
 from configVar import config_vars
 from pybatch import *
+from ..instlException import InstlFatalException
 
 
 class _RemoveSourcesClientMixin:
@@ -36,7 +37,8 @@ class _RemoveSourcesClientMixin:
         retVal = AnonymousAccum()
         iid, source_path, source_type = source[0], source[1], source[2]
         if not source_path:
-            log.warning(f"""empty previous source for {iid}""")
+            log.warning(f"empty 'previous_sources' entry for item '{iid}'; "
+                        f"skipping it (nothing to remove). Check the previous_sources section of '{iid}' in index.yaml.")
             return retVal
 
         to_remove_path = os.path.normpath(os.path.join(folder, source_path))
@@ -47,6 +49,9 @@ class _RemoveSourcesClientMixin:
             case '!file':  # remove single file
                 retVal += RmFile(to_remove_path)
             case '!dir_cont':
-                raise Exception(f"{iid} previous_sources cannot have tag !dir_cont")
+                raise InstlFatalException(
+                    f"Invalid index.yaml: item '{iid}' has a 'previous_sources' entry tagged !dir_cont,",
+                    "which is not allowed for previous_sources (use !dir or !file instead).",
+                    f"Offending source: '{source_path}'.")
 
         return retVal
