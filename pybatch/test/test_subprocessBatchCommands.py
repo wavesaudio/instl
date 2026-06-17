@@ -66,24 +66,19 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
-    @pytest.mark.xfail(
-        reason="Environment/external-content dependent: asserts the literal string "
-               "'A static web page' is present in a live download of the Wikipedia "
-               "'Static web page' article, whose HTML no longer contains that exact "
-               "phrase. Not an app defect. See baseline-repair notes.",
-        strict=False,
-    )
+    @pytest.mark.skipif(shutil.which("curl") is None, reason="curl binary not installed")
     def test_Curl(self):
-        #sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
-        #with open(sample_file, 'r') as stream:
-        #    test_data = stream.read()
-        url_from = 'https://en.wikipedia.org/wiki/Static_web_page'
-        to_path = self.pbt.path_inside_test_folder("Static_web_page")
+        # Hermetic: instead of fetching a live web page (whose content drifts),
+        # serve a known local file over a file:// URL so the round-trip is
+        # deterministic and offline. Still exercises the real CUrl batch command.
+        curl_path = shutil.which("curl")
 
-        if sys.platform == 'win32':
-            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        else:
-            curl_path = shutil.which("curl")
+        source_file = self.pbt.path_inside_test_folder("curl_source.txt")
+        expected_content = "A static web page"
+        source_file.write_text(expected_content)
+
+        to_path = self.pbt.path_inside_test_folder("curl_downloaded.txt")
+        url_from = source_file.as_uri()
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
@@ -91,16 +86,8 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         with open(to_path, 'r') as stream:
             downloaded_data = stream.read()
-        self.assertIn("A static web page", downloaded_data)
+        self.assertIn(expected_content, downloaded_data)
 
-    @pytest.mark.xfail(
-        reason="Outdated test: repr round-trip of ShellCommand normalizes "
-               "ignore_specific_exit_codes from a tuple (1, 2, 3) to a list "
-               "[1, 2, 3], so the recreated object compares unequal. The app "
-               "behavior changed; the test asserts the old contract. "
-               "See baseline-repair notes.",
-        strict=False,
-    )
     def test_ShellCommand_repr(self):
         """ validate ShellCommand object recreation with ShellCommand.__repr__() """
         list_of_objs = list()
@@ -127,14 +114,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             batchi += ShellCommand("exit 19", ignore_specific_exit_codes=(17, 36, -17))
         self.pbt.exec_and_capture_output(expected_exception=subprocess.CalledProcessError)
 
-    @pytest.mark.xfail(
-        reason="Outdated test: repr round-trip of ScriptCommand normalizes "
-               "ignore_specific_exit_codes from a tuple (1, 2, 3) to a list "
-               "[1, 2, 3], so the recreated object compares unequal. The app "
-               "behavior changed; the test asserts the old contract. "
-               "See baseline-repair notes.",
-        strict=False,
-    )
     def test_ScriptCommand_repr(self):
         """ validate ScriptCommand object recreation with ScriptCommand.__repr__() """
         list_of_objs = list()
@@ -148,14 +127,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
     def test_ShellCommands_repr(self):
         pass
 
-    @pytest.mark.xfail(
-        reason="App rot under Python 3.12: ShellCommands.__init__ uses "
-               "collections.Sequence, removed in Python 3.10 (now "
-               "collections.abc.Sequence), raising AttributeError. This is a "
-               "Modernize-phase fix in app code; out of scope for the baseline "
-               "repair. See baseline-repair notes.",
-        strict=False,
-    )
     def test_ShellCommands(self):
         batches_dir = self.pbt.path_inside_test_folder("batches")
         # with ShellCommand(shell_command=r'call "C:\Users\nira\AppData\Local\Waves Audio\instl\Cache\instl\V10\Win\Utilities\uninstallshield\uninstall-previous-versions.bat"', message="Uninstall pre 9.6 versions pre-install step 1") as shell_command_010_184:  # 184
@@ -331,17 +302,16 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += Subprocess("python3.12", "-c", "for i in range(4): print(i)")
         self.pbt.exec_and_capture_output()
 
-    @pytest.mark.xfail(
-        reason="Environment dependent: launches /Applications/BBEdit.app, which is "
-               "not installed on this machine (FileNotFoundError). Not an app "
-               "defect. See baseline-repair notes.",
-        strict=False,
-    )
     def test_Subprocess_detached(self):
         if running_on_Mac:
             path_to_exec = "/Applications/BBEdit.app/Contents/MacOS/BBEdit"
         elif running_on_Win:
             path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
+        else:
+            path_to_exec = None
+
+        if not path_to_exec or not os.path.exists(path_to_exec):
+            self.skipTest(f"detached-launch target not installed on this machine: {path_to_exec}")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)

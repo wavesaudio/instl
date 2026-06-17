@@ -38,7 +38,9 @@ class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manag
         if isinstance(ignore_specific_exit_codes, int):
             self.ignore_specific_exit_codes = (ignore_specific_exit_codes,)
         else:
-            self.ignore_specific_exit_codes = ignore_specific_exit_codes
+            # normalize to a tuple so a repr round-trip (which renders the
+            # sequence as a list literal) recreates an equal object
+            self.ignore_specific_exit_codes = tuple(ignore_specific_exit_codes)
         self.shell = kwargs.get('shell', False)
         self.script = kwargs.get('script', False)
         self.stderr = ''  # for log_results

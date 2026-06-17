@@ -98,14 +98,6 @@ a
             self.assertEqual(num_sub_seq, 3)
         self.assertEqual(num_nodes, 1)
 
-    @pytest.mark.xfail(
-        reason="Outdated test: iterating an augmented YAML map now yields a single "
-               "value per node, so 'for key, value in ...' raises "
-               "ValueError: not enough values to unpack (expected 2, got 1). "
-               "Pre-existing breakage; the test asserts an old iteration contract. "
-               "See baseline-repair notes.",
-        strict=False,
-    )
     def test_map_iteration(self):
         """ iterate over map of sequence of scalars """
         someYamlMap = """
@@ -129,8 +121,9 @@ C:
             self.assertFalse("D" in a_node)
 
             # iterate with key/value pair
+            # MappingNode.__iter__ now yields keys only; use .items() for pairs
             list_of_scalars1 = list()
-            for name, a_seq in a_node:
+            for name, a_seq in a_node.items():
                 self.assertIsInstance(name, str)
                 self.assertIsInstance(a_seq, yaml.nodes.Node)
                 num_map_items += 1
@@ -138,9 +131,9 @@ C:
                     list_of_scalars1.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(["a", "aa", "aaa", "b", "c"]))
 
-            # iterate with iterkeys
+            # iterate with keys: MappingNode.__iter__ now yields keys only
             list_of_scalars2 = list()
-            for name in a_node.keys():
+            for name in a_node:
                 for something in a_node[name]:
                     list_of_scalars2.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(list_of_scalars2))
