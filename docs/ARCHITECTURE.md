@@ -1,5 +1,15 @@
 # instl Architecture
 
+> **Modernization status (branch `instl-modernization`).** This document describes instl's
+> architecture; some of the god-objects it names have since been **decomposed into packages
+> behind thin backwards-compatible shims** (see `docs/REFACTORING.md` → "Modernization status").
+> Specifically `pyinstl/instlAdmin.py`, `pyinstl/instlClient.py`, and `pyinstl/instlGui.py` are now
+> re-export shims for the `pyinstl/admin/`, `pyinstl/client/`, and `pyinstl/gui/` packages
+> (behavior-identical mixin extracts). Public import paths and emitted output are unchanged, so the
+> flows and contracts below still hold; only the file layout changed. A typed `config_vars` seam
+> (`configVar/accessors.py`) now fronts the hottest OS-identity / input-file keys (Theme 2). These
+> deltas are flagged inline below.
+
 ## 1. Overview & Purpose
 
 **instl** is a YAML-driven, cross-platform software-deployment / installer engine by Waves Audio. It turns a central, version-controlled description of "what should be installed" (an *index* of install-items plus an *info-map* of every file in the repository) into an ordered, executable plan that downloads, unpacks, copies, permissions, and registers files on an end-user machine — and into the admin tooling that builds and publishes those repositories in the first place.
@@ -230,11 +240,11 @@ The per-subsystem reviews converge on a small number of recurring, high-impact t
 ### Theme 1 — God-objects / mixed concerns (highest impact)
 The largest, most-coupled classes each bundle many unrelated responsibilities:
 - `InstlInstanceBase` — config loading, YAML tag reading, DB lifecycle, cache/sync paths, batch-file generation *and* execution, dependency-graph queries, serialization. It is the root of all five command subclasses, so every concern is forced onto every command.
-- `InstlClient` (~660 lines) — pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require.yaml I/O, binary-version scanning, YAML representation.
-- `InstlAdmin` (~1480 lines) — ~10 distinct command clusters (svn-fix, stage-sync, wtar, verify, up2s3, activate, redis-daemon, manifests, misc) in one class with `getattr`-based dispatch.
+- `InstlClient` (~660 lines) — pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require.yaml I/O, binary-version scanning, YAML representation. *(Now extracted into the `pyinstl/client/` mixin package behind a shim; the deeper collaborator split — `InstallPlan` etc. — is still pending.)*
+- `InstlAdmin` (~1480 lines) — ~10 distinct command clusters (svn-fix, stage-sync, wtar, verify, up2s3, activate, redis-daemon, manifests, misc) in one class with `getattr`-based dispatch. *(Now extracted into the `pyinstl/admin/` mixin package behind a shim; the named command-cluster collaborators are still pending.)*
 - `PythonBatchCommandBase` — execution + serialization + progress + stage stack + timing + error-report + tree-building + hashing.
 - `SVNTable` (~1600 lines) and `IndexItemsTable` — parsing + bulk insert + dozens of query helpers + mutation + URL policy + reporting.
-- `ConfigVarStack` and `FrameController` similarly mix container/resolver/serializer and UI/process/error-parsing concerns.
+- `ConfigVarStack` and `FrameController` similarly mix container/resolver/serializer and UI/process/error-parsing concerns. *(`FrameController` and the GUI now live in the `pyinstl/gui/` package — `gui/_frame_base.py` — behind a shim; `ConfigVarStack` is unchanged.)*
 
 **Direction:** extract cohesive collaborators (e.g. PathResolver, BatchFileWriter, DependencyAnalyzer; SVNReader/Query/Mutator; IndexYamlReader/InheritanceResolver/Query; serialize vs execute mixins) and keep the base classes thin shells.
 
@@ -242,6 +252,12 @@ The largest, most-coupled classes each bundle many unrelated responsibilities:
 Process-wide mutable state is everywhere: `config_vars` (mutated by ~50 modules and by option-parsing side-effects), `DBManager`'s class-level table descriptors, `ConnectionBase.repo_connection`, the download module singletons (control channel, observability, telemetry flag, curl-parallel cache), pybatch's class-level progress/stage state, and `utils` module globals (acting uid/gid, parallel-run state, doing-stack). This makes parsing non-idempotent, tests dependent on `reset_*`/`clear()` hooks, and the runtime non-reentrant/thread-unsafe.
 
 **Direction:** thread explicit context/session objects through the choke points and inject dependencies (config stack, DB, connection) rather than reaching for globals; keep singletons as thin defaults.
+
+> *Modernization delta:* a first containment increment landed — `configVar/accessors.py` provides
+> typed, documented accessors (`current_os`, `target_os`, `main_input_file_path/str`, `run_batch`,
+> `repo_rev`, …) over the hottest read keys, each taking an optional `cv` parameter so a future
+> injected stack can be threaded in without touching call sites. The global singleton itself is
+> unchanged; DB/connection/download-context injection remains future work (download half POC-gated).
 
 ### Theme 3 — `eval`/`exec` on supplied input & repr→eval serialization (high impact)
 The plan is shipped as Python source and `eval`'d (`EvalShellCommand`, `If.__call__`, `batch_accum.__repr__`); config `__if__` conditions are `eval`'d (`eval_conditional`, with `os`/`sys` imported solely for reachability); `do_python` is an unguarded `eval`; `run_batch_file` can `exec` into the host globals; `send_email_from_template_file` `eval`s a template. This couples every command's `__init__`/`__repr__`, is hard to sandbox/test, and is a security surface.
@@ -264,3 +280,8 @@ Repeated implementations create divergence risk: the pause/offline/network-retry
 Pervasive `if False:` blocks, no-op stubs (`text_with_color`, `teardown_file_logging` unreachable body), dead helpers (`find_leaves`, `can_skip_unwtar`, `_option_1`), always-false debug flags, and commented-out blocks add noise. Broad `except: pass` swallowing hides failures in `should_wtar`, `do_translate_guids`, `extract_info`, the heartbeat thread, and GUI activate/upload. Concrete latent bugs flagged: `verbatim=source_url==['url']` (always False), the P4 command-string quoting, `SVNRow.__eq__` omitting a column and a broken `__repr__` f-string, `RmGlob` `log.wanging` typo, a missing-`f` f-string in `baseClasses`, `IsSymlink` defining `repr_own_args` instead of `__repr__`, broken hand-rolled transaction nesting in `DBMaster` (swallowing `OperationalError`), `get_disk_free_space` referencing an unimported `win32file`, and the vendored `dockutil` using `plistlib` APIs removed in Python 3.9+.
 
 **Direction:** delete dead code, narrow exception handling and log instead of `pass`, and fix the enumerated bugs (each is small but several are correctness-affecting).
+
+> *Modernization delta:* the dead-code / narrowed-`except` hygiene pass has **landed** across the
+> pybatch, configVar/aYaml, utils, db/svnTree, and pyinstl-core packages, and the latent bugs
+> surfaced by the new characterization goldens (e.g. `SVNRow.__eq__`/`__repr__`) are fixed. The
+> remaining off-happy-path items fold into their structural workstreams (see `docs/REFACTORING.md`).

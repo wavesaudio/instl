@@ -2,6 +2,17 @@
 
 Detailed, code-grounded design of each subsystem. See ARCHITECTURE.md for the cross-cutting view and HLD.md for the subsystem-level design.
 
+> **Modernization note (branch `instl-modernization`).** Three former single-file god-objects are now
+> packages behind thin re-export shims: `pyinstl/instlAdmin.py` → `pyinstl/admin/`,
+> `pyinstl/instlClient.py` → `pyinstl/client/`, `pyinstl/instlGui.py` → `pyinstl/gui/` (behavior-identical
+> mixin extracts). A typed `config_vars` seam lives at `configVar/accessors.py`. A characterization test
+> net was added under `tests/characterization/` — `test_pybatch_serialization_golden.py`,
+> `test_configvar_resolution_golden.py`, and `test_instlclient_copy_golden.py` — alongside the existing
+> per-package suites (`pybatch/test/`, `configVar/test/`, `svnTree/test/`, `utils/test/`, `pyinstl/test/`).
+> These goldens pin emitted output and must stay byte-stable; the suite is the GREEN gate
+> (`./.venv/bin/python -m pytest -q -p no:cacheprovider`). Subsystem sections below are annotated with
+> these deltas where the file layout changed; line numbers cite the original monolithic files.
+
 ## Contents
 
 - [CLI & Entry Point](#cli-entry-point)
@@ -478,9 +489,19 @@ This subsystem implements the end-user-facing modes of `instl`: the install work
 - `InstlMisc(initial_vars, command).do_command()` — mode `do_something` and `command-list`.
 - The `do_<fixed_command>()` convention: `do_command()` calls `getattr(self, "do_"+self.fixed_command)()`. So `do_copy`/`do_remove`/`do_uninstall`/`do_report_versions`/`do_read_yaml`/`do_synccopy` etc. are resolved dynamically.
 
-### `InstlClient` (base, `pyinstl/instlClient.py`)
+### `InstlClient` (base, `pyinstl/client/` package; `pyinstl/instlClient.py` is now a shim)
 
-Base class for sync/copy/synccopy/remove/uninstall/report. ~660-line "god class" owning the whole pipeline plus DB-status mutation, target-folder bookkeeping, sync-location resolution, require.yaml I/O, binary-version scanning, YAML representation, and name resolution.
+Base class for sync/copy/synccopy/remove/uninstall/report. Historically a ~660-line "god class" owning the whole pipeline plus DB-status mutation, target-folder bookkeeping, sync-location resolution, require.yaml I/O, binary-version scanning, YAML representation, and name resolution.
+
+> **Layout (post-modernization).** `pyinstl/instlClient.py` is a shim re-exporting `InstlClient`
+> and `InstlClientFactory` from `pyinstl/client/`. `InstlClient` is composed from the mixins
+> `_CoreClientMixin` (`client/_core.py`), `_InstallItemsClientMixin` (`_install_items.py`),
+> `_RequireClientMixin` (`_require.py`), `_ActionsClientMixin` (`_actions.py`),
+> `_BinariesClientMixin` (`_binaries.py`), `_SyncLocationsClientMixin` (`_sync_locations.py`),
+> `_RemoveSourcesClientMixin` (`_remove_sources.py`), `_NamingClientMixin` (`_naming.py`).
+> `InstlClientFactory` and the inline `InstlClientSyncCopy` class now live in `client/__init__.py`.
+> Pure extract-module refactor; behavior and emitted output identical, so the references below
+> still hold.
 
 Key `__init__` state:
 - `total_self_progress = 15000`, `internal_progress`.
@@ -624,7 +645,17 @@ I now have the full picture. Here is the LLD section.
 
 ## Admin Tooling
 
-The admin subsystem is the build/maintenance side of `instl`, used by Waves Audio engineers and CI to populate and maintain the deployment repository (SVN + S3 + Redis). It is implemented as a single god-class, `InstlAdmin`, in `pyinstl/instlAdmin.py` (~1480 lines), plus three module-level helper functions. Every `instl admin` subcommand is a `do_<command>` method dispatched dynamically.
+The admin subsystem is the build/maintenance side of `instl`, used by Waves Audio engineers and CI to populate and maintain the deployment repository (SVN + S3 + Redis). It was historically a single ~1480-line god-class, `InstlAdmin`, plus three module-level helper functions. Every `instl admin` subcommand is a `do_<command>` method dispatched dynamically.
+
+> **Layout (post-modernization).** `pyinstl/instlAdmin.py` is now a thin shim that re-exports
+> `InstlAdmin` (and `start_redis_heartbeat_thread`/`smart_merge_dicts`/`dict_in_canonical_order`)
+> from the `pyinstl/admin/` package. `InstlAdmin` is composed via multiple inheritance from the
+> mixins `_CoreAdminMixin` (`admin/_core.py`), `_RepoAdminMixin` (`_repo.py`), `_WtarAdminMixin`
+> (`_wtar.py`), `_VerifyAdminMixin` (`_verify.py`), `_InfoAdminMixin` (`_info.py`),
+> `_PublishAdminMixin` (`_publish.py`), with the free functions in `admin/_helpers.py`. This was a
+> pure extract-module refactor: method names, signatures, the `getattr("do_"+name)` dispatch, and
+> emitted output are identical, so the line-numbered breakdown below still describes the same code,
+> now distributed across those submodules.
 
 ### Component breakdown
 
@@ -770,7 +801,9 @@ The email template is rendered from `config_vars`, so STATUS/EXCEPTION double as
 9. **Hardcoded service clients**: `redis.Redis(...)` constructed in `up_short_index_repo_rev` (`:935`), `up2s3_repo_rev` (`:994`), `do_wait_on_action_trigger` (`:1126`), `do_activate_repo_rev` (`:1209`) and `boto3.resource('s3')` (`:1216`). Untestable without live services; provide lazy cached accessors (`self._redis()`, `self._s3()`) or inject clients.
 10. **Deprecated `hmset`** (`report_instl_info_to_redis` `:1090`) — `hmset` is removed in redis-py 4+. Replace with `hset(key, mapping=...)`.
 
-Relevant file: `/Users/matantiram/Library/CloudStorage/OneDrive-Waves/Documents/projects/instl/pyinstl/instlAdmin.py`
+Relevant files: `pyinstl/instlAdmin.py` (shim) and the `pyinstl/admin/` package
+(`__init__.py`, `_core.py`, `_repo.py`, `_wtar.py`, `_verify.py`, `_info.py`, `_publish.py`,
+`_helpers.py`). The line numbers cited above are relative to the original monolithic file.
 
 ---
 
@@ -780,7 +813,7 @@ Now I have a complete and accurate picture of the file. Let me write the LLD sec
 
 ### Overview
 
-The GUI subsystem is a Tk/ttk desktop front-end for `instl`, implemented entirely in `pyinstl/instlGui.py`. Its defining architectural choice is that it does **not** call instl logic in-process to run commands. Instead, each of its three tabs (Client, Admin, Activate) builds an instl command line out of `config_vars` and spawns the instl executable (`config_vars["__INSTL_EXE_PATH__"]`) as an **external subprocess** via `subprocess.Popen`. The GUI is itself an `instl` "instance": `InstlGui` subclasses `InstlInstanceBase` and reuses base-class facilities for config-var resolution, YAML reading/writing (`read_yaml_file`), the version string (`get_version_str`), and history persistence.
+The GUI subsystem is a Tk/ttk desktop front-end for `instl`, historically implemented entirely in one `pyinstl/instlGui.py` module and now decomposed into the `pyinstl/gui/` package behind a thin `pyinstl/instlGui.py` re-export shim (submodules `_globals.py` — the import-time Tk root + `default_font_size` —, `_tkvars.py`, `_tooltip.py`, `_frame_base.py`, `_client_frame.py`, `_admin_frame.py`, `_activate_frame.py`, `__init__.py`; behavior-identical, so the breakdown below still applies). Its defining architectural choice is that it does **not** call instl logic in-process to run commands. Instead, each of its three tabs (Client, Admin, Activate) builds an instl command line out of `config_vars` and spawns the instl executable (`config_vars["__INSTL_EXE_PATH__"]`) as an **external subprocess** via `subprocess.Popen`. The GUI is itself an `instl` "instance": `InstlGui` subclasses `InstlInstanceBase` and reuses base-class facilities for config-var resolution, YAML reading/writing (`read_yaml_file`), the version string (`get_version_str`), and history persistence.
 
 The Activate tab is the exception to the "spawn a subprocess" rule: it talks **directly** to a Redis server (via `utils.redisClient.RedisClient`) to display, activate, and upload repo-revs.
 
@@ -1389,6 +1422,7 @@ Package layout (`configVar/`):
 - `configVarStack.py` — the `ConfigVarStack` container/resolver and the global `config_vars`.
 - `configVarParser.py` — the `$()` mini-language parser (`var_parse_imp`).
 - `configVarYamlReader.py` — YAML loading of variable definitions.
+- `accessors.py` — *(modernization)* typed, documented accessor helpers over the hottest read keys (OS identity, main input/output file, run-batch flag, repo-revs, instl version), the first `config_vars` containment seam (REFACTORING.md W7 / ARCHITECTURE.md Theme 2).
 - `__init__.py` — public re-exports and the `var_stack` backward-compat alias.
 
 The public surface re-exported from `configVar/__init__.py`:
@@ -1396,8 +1430,21 @@ The public surface re-exported from `configVar/__init__.py`:
 from .configVarStack import config_vars
 from .configVarStack import private_config_vars
 from .configVarYamlReader import ConfigVarYamlReader, eval_conditional, smart_resolve_yaml
+from .accessors import (current_os, current_os_names, is_current_os,
+                        main_input_file_path, main_input_file_str,
+                        main_out_file_path, run_batch, repo_rev,
+                        target_repo_rev, instl_version, target_os, target_os_names)
 var_stack = config_vars  # backward compatibility for scripts run via "exec"
 ```
+
+> **`configVar/accessors.py` seam (modernization).** These helpers are a thin, typed wrapper over
+> the handful of most-read `config_vars` keys. Each documents the type/shape its key resolves to and
+> takes an optional `cv` parameter that defaults to the global stack, so a future injected stack
+> (a `RunContext`) can be threaded through without touching call sites again. They are
+> behavior-preserving (still read the global default). Call sites already routed through them include
+> `instlDoIt`, `instlMisc`, `instlInstanceBase`, `instlClientCopy`, `admin/_info.py`,
+> `admin/_verify.py`, and `client/_core.py`/`_require.py`/`_install_items.py`. The remaining direct
+> `config_vars[...]` hotspots are tracked as W6/W7 follow-ups.
 
 ---
 

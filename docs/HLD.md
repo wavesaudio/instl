@@ -182,7 +182,7 @@ the out-file instead.
 - **In:** the CLI dispatcher; admin; interactive.
 
 ### Design notes & constraints
-- `InstlClient` is a god-class bundling pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require-file I/O, and name resolution; subclasses inherit all of it.
+- `InstlClient` is a god-class bundling pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require-file I/O, and name resolution; subclasses inherit all of it. *(Modernization: now composed from the `pyinstl/client/` mixin package — `_core`/`_install_items`/`_require`/`_actions`/`_binaries`/`_sync_locations`/`_remove_sources`/`_naming` — behind a `pyinstl/instlClient.py` shim; behavior identical. The deeper collaborator extraction remains pending.)*
 - Calculation results are passed between methods implicitly through config-var keys, making data flow order-dependent.
 - Mac/Win platform handling is interleaved through the copy logic.
 - The misc check-checksum command has grown into a cross-subsystem download-telemetry orchestrator.
@@ -336,7 +336,7 @@ config vars). The wait daemon spawns a separate instl process per trigger.
 - **In:** the entry point (admin/interactive families, Mac/Linux only); interactive (receives an admin instance); CI/operators (lpush triggers to the daemon).
 
 ### Design notes & constraints
-- Single ~1500-line god-class spanning ~10 command clusters sharing mutable instance state.
+- Historically a single ~1500-line god-class spanning ~10 command clusters sharing mutable instance state. *(Modernization: `InstlAdmin` is now composed from the `pyinstl/admin/` mixin package — `_core`/`_repo`/`_wtar`/`_verify`/`_info`/`_publish` plus `_helpers` — behind a `pyinstl/instlAdmin.py` shim. Behavior, command dispatch, and emitted output are identical; the named command-cluster collaborators are still future work.)*
 - `up2s3` and `up-short-index` share near-identical threshold/assert/Redis/email scaffolding kept in sync by hand.
 - Config vars double as a status/inter-step messaging channel (status/exception keys feeding the email template).
 - External clients (Redis, boto3) are constructed inline in multiple methods; some filesystem commands perform direct side effects (immediate unlink) rather than emitting batch ops; several silent except-pass blocks hide failures.
@@ -351,6 +351,12 @@ in-process to execute commands; each tab builds an instl command line from confi
 as an external subprocess. The GUI is itself an instl instance (subclasses Instance Base) and reuses
 base-class config resolution, YAML read/write, version string, and history persistence. The Activate
 tab additionally talks directly to Redis to display/activate/upload repo-revs.
+
+> *Modernization:* the GUI was decomposed from one `pyinstl/instlGui.py` file into the
+> `pyinstl/gui/` package (`_globals`/`_tkvars`/`_tooltip`/`_frame_base`/`_client_frame`/`_admin_frame`/
+> `_activate_frame` + `__init__`) behind a `pyinstl/instlGui.py` shim. The components below are
+> unchanged in behavior; the single Tk root still lives at module import time (now in
+> `gui/_globals.py`, not yet lazy).
 
 ### Key components
 | Component | Responsibility |
