@@ -4,6 +4,7 @@ import logging
 log = logging.getLogger()
 
 from .instlInstanceBase import InstlInstanceBase
+from configVar import current_os
 from pybatch import *
 
 
@@ -47,7 +48,7 @@ class InstlDoIt(InstlInstanceBase):
             url_main_item = utils.main_url_item(resolved_sync_base_url)
             config_vars["SYNC_BASE_URL_MAIN_ITEM"] = url_main_item
 
-        if config_vars["TARGET_OS"].str() != config_vars["__CURRENT_OS__"].str():
+        if config_vars["TARGET_OS"].str() != current_os():
             target_os_names = list(config_vars[config_vars.resolve_str("$(TARGET_OS)_ALL_OS_NAMES")])
             config_vars["TARGET_OS_NAMES"] = target_os_names
             second_name = config_vars["TARGET_OS"].str()

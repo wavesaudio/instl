@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import logging
 log = logging.getLogger()
 
-from configVar import config_vars
+from configVar import config_vars, is_current_os
 from .instlClient import InstlClient
 from .instlException import InstlFatalException
 import svnTree
@@ -43,8 +43,8 @@ class InstlClientCopy(InstlClient):
         self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
-        self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
-        self.win_current_and_target = 'Win' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Win' in list(config_vars["TARGET_OS"])
+        self.mac_current_and_target = is_current_os('Mac') and 'Mac' in list(config_vars["TARGET_OS"])
+        self.win_current_and_target = is_current_os('Win') and 'Win' in list(config_vars["TARGET_OS"])
 
     def write_copy_debug_info(self) -> None:
         try:
