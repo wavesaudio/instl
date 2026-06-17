@@ -9,6 +9,7 @@ import logging
 log = logging.getLogger()
 
 from configVar import config_vars
+from configVar import main_input_file_path
 from pybatch import *
 
 
@@ -88,7 +89,7 @@ class _RequireClientMixin:
     def save_previous_state(self):
         current_require_file_path = config_vars["SITE_REQUIRE_FILE_PATH"].Path()
         new_require_file_path = config_vars["NEW_SITE_REQUIRE_FILE_PATH"].Path()
-        main_input_file = config_vars["__MAIN_INPUT_FILE__"].Path()
+        main_input_file = main_input_file_path()
 
         save_require_before_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_before.yaml")
         save_require_after_file_path = main_input_file.parent.joinpath(main_input_file.stem + "_require_after.yaml")

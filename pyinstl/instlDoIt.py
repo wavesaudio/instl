@@ -4,7 +4,7 @@ import logging
 log = logging.getLogger()
 
 from .instlInstanceBase import InstlInstanceBase
-from configVar import current_os, run_batch
+from configVar import current_os, run_batch, main_input_file_str
 from pybatch import *
 
 
@@ -20,7 +20,7 @@ class InstlDoIt(InstlInstanceBase):
         # __QUIET_UNTIL_ERROR__ is set to true when command line argument "--quiet-until-error" is found
         utils.set_log_quiet_until_error(config_vars.get("__QUIET_UNTIL_ERROR__", False))
         # print("client_commands", fixed_command_name)
-        main_input_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        main_input_file_path = main_input_file_str()
         self.read_yaml_file(main_input_file_path)
         active_oses = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)

@@ -6,6 +6,7 @@ from collections import namedtuple
 
 from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
+from configVar import main_input_file_path, main_input_file_str
 import utils
 import psutil
 
@@ -60,12 +61,12 @@ class InstlMisc(InstlInstanceBase):
         help.helpHelper.do_help(config_vars["__HELP_SUBJECT__"].str(), help_folder_path, self)
 
     def do_parallel_run(self):
-        processes_list_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        processes_list_file = main_input_file_path(resolve=True)
 
         ParallelRun(processes_list_file, shell=False)()
 
     def do_wtar(self):
-        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        what_to_work_on = main_input_file_path(resolve=True)
         if not what_to_work_on.exists():
             log.error(f"""{what_to_work_on} does not exists""")
             return
@@ -85,7 +86,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_check_checksum(self):
         self.progress_staccato_command = True
-        info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        info_map_file = main_input_file_str()
         # Phase 4 P4-001: scope the throughput/error sampler to this
         # in-process check-checksum invocation. CheckDownloadFolderChecksum
         # and its re_download_bad_files retry loop both record outcomes
@@ -203,12 +204,12 @@ class InstlMisc(InstlInstanceBase):
 
     def do_translate_url(self):
         from . import connectionBase  # importing connectionBase take time so do it only when and where needed
-        url_to_translate = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        url_to_translate = main_input_file_str()
         translated_url = connectionBase.connection_factory(config_vars).translate_url(url_to_translate)
         print(translated_url)
 
     def do_ls(self):
-        main_folder_to_list = config_vars["__MAIN_INPUT_FILE__"].Path()
+        main_folder_to_list = main_input_file_path()
         folders_to_list = []
         if config_vars.defined("__LIMIT_COMMAND_TO__"):
             limit_list = list(config_vars["__LIMIT_COMMAND_TO__"])
@@ -234,7 +235,7 @@ class InstlMisc(InstlInstanceBase):
         sys.exit(exit_code)
 
     def do_checksum(self):
-        path_to_checksum = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
+        path_to_checksum = main_input_file_str()
         ignore_files = list(config_vars.get("WTAR_IGNORE_FILES", []))
         checksums_dict = utils.get_recursive_checksums(path_to_checksum, ignore=ignore_files)
         total_checksum = checksums_dict.pop('total_checksum', "Unknown total checksum")
@@ -248,7 +249,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_resolve(self):
         config_files = config_vars.get("__CONFIG_FILE__", []).list()
-        input_file = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        input_file = main_input_file_path(resolve=True)
         output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
         config_vars["PRINT_COMMAND_TIME"] = "no" # do not print time report
         compare_dates = config_vars.get('COMPARE_DATES_ON_RESOLVE', False).bool()
@@ -261,7 +262,7 @@ class InstlMisc(InstlInstanceBase):
 
     def do_exec(self):
         try:
-            py_file_path = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+            py_file_path = main_input_file_path(resolve=True)
             config_files = None
             if "__CONFIG_FILE__" in config_vars:
                 config_files = [Path(config_file) for config_file in config_vars["__CONFIG_FILE__"].list()]
@@ -277,7 +278,7 @@ class InstlMisc(InstlInstanceBase):
                 raise
 
     def do_wzip(self):
-        what_to_work_on = config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True)
+        what_to_work_on = main_input_file_path(resolve=True)
         if not what_to_work_on.exists():
             log.error(f"""{what_to_work_on} does not exists""")
             return

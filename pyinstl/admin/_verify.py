@@ -11,12 +11,13 @@ import os
 import utils
 import aYaml
 from pybatch import *
+from configVar import main_input_file_path, main_input_file_str
 
 
 class _VerifyAdminMixin:
 
     def do_verify_index(self):
-        self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path())
+        self.read_yaml_file(main_input_file_path())
         self.info_map_table.read_from_file(config_vars["FULL_INFO_MAP_FILE_PATH"].Path(), disable_indexes_during_read=True)
         self.verify_actions()
         self.verify_index_to_repo()
@@ -24,7 +25,7 @@ class _VerifyAdminMixin:
     def do_depend(self):
         from .. import installItemGraph
 
-        self.read_yaml_file(os.fspath(config_vars["__MAIN_INPUT_FILE__"]))
+        self.read_yaml_file(main_input_file_str())
         self.items_table.activate_all_oses()
         self.items_table.resolve_inheritance()
         depend_result = defaultdict(dict)

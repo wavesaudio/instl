@@ -13,6 +13,7 @@ import re
 
 import utils
 from pybatch import *
+from configVar import main_input_file_path
 
 
 class _InfoAdminMixin:
@@ -20,7 +21,7 @@ class _InfoAdminMixin:
     def do_file_sizes(self):
         out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         with utils.write_to_file_or_stdout(out_file_path) as out_file:
-            what_to_scan = config_vars["__MAIN_INPUT_FILE__"].Path()
+            what_to_scan = main_input_file_path()
             if what_to_scan.is_file():
                 file_size = what_to_scan.stat().st_size
                 print(f"{what_to_scan}, {file_size}", file=out_file)
@@ -40,7 +41,7 @@ class _InfoAdminMixin:
                 self.info_map_table.read_from_file(f2r, progress_callback=self.progress)
 
     def do_check_instl_folder_integrity(self):
-        instl_folder_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        instl_folder_path = main_input_file_path()
         index_path = instl_folder_path.joinpath("index.yaml")
         self.read_yaml_file(index_path)
         main_info_map_path = instl_folder_path.joinpath("info_map.txt")
@@ -71,7 +72,7 @@ class _InfoAdminMixin:
 
     def do_translate_guids(self):
 
-        input_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        input_path = main_input_file_path()
         files_to_translate_path = list()
         if input_path.is_dir():
             for root, dirs, files in os.walk(input_path):
@@ -124,7 +125,7 @@ class _InfoAdminMixin:
 
     def do_short_index(self):
         config_vars['__SILENT__'] = True  # disable InstlClientReport from doing output since ShortIndexYamlCreator already does that
-        in_file_path = config_vars["__MAIN_INPUT_FILE__"].Path()
+        in_file_path = main_input_file_path()
         with IndexYamlReader(in_file_path, report_own_progress=False) as yaml_reader:
             yaml_reader()
         out_file_path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
@@ -133,7 +134,7 @@ class _InfoAdminMixin:
 
     def do_dump_config_vars(self):
         if "__MAIN_INPUT_FILE__" in config_vars:
-            self.read_yaml_file(config_vars["__MAIN_INPUT_FILE__"].Path(resolve=True))
+            self.read_yaml_file(main_input_file_path(resolve=True))
 
         output_file = config_vars.get("__MAIN_OUT_FILE__", None).Path(resolve=True)
         with open(output_file, "w") as wfd:
