@@ -93,6 +93,18 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
+        # Workstream 2 (phase honesty): announce the copy/install phase so
+        # Central's structured UX shows "Installing" instead of a bar frozen
+        # near 99% while files are copied and archives unwtarred (often the
+        # slowest, least-visible part of an install). copy may run in its own
+        # instl invocation (after sync), so this is emitted here, not in sync.
+        # Keep a reference so phase_bytes_planned can be filled in after the copy
+        # loop below accumulates bytes_to_copy (the command is positioned before
+        # the copies but serialized afterward, so the emitted script carries the
+        # final planned total) -- Workstream 3 option b.
+        copying_state_command = ReportDownloadState("copying", reason="copy_started",
+                                                    own_progress_count=0, report_own_progress=False)
+        self.batch_accum += copying_state_command
 
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
@@ -118,6 +130,12 @@ class InstlClientCopy(InstlClient):
                 folder_accum += self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
         self.progress(self.bytes_to_copy, "bytes to copy")
+        # Workstream 3 option b: now that the copy loop has accumulated the total
+        # install footprint, arm the copy-phase byte progress. Serialization
+        # happens after this returns, so the "copying" command emitted into the
+        # script carries this planned total and the copy/unwtar commands report
+        # determinate progress against it.
+        copying_state_command.phase_bytes_planned = self.bytes_to_copy
 
         self.batch_accum += self.accumulate_unique_actions_for_active_iids('post_copy')
 
@@ -134,6 +152,11 @@ class InstlClientCopy(InstlClient):
         # messages about orphan iids
         for iid in sorted(list(config_vars["__ORPHAN_INSTALL_TARGETS__"])):
             self.batch_accum += Echo(f"Don't know how to install {iid}")
+        # Workstream 2 (phase honesty): the install is finished -- move Central's
+        # structured UX to its terminal state so the dialog doesn't linger on
+        # "Installing" after the work is actually done.
+        self.batch_accum += ReportDownloadState("completed", reason="install_complete",
+                                                own_progress_count=0, report_own_progress=False)
         self.batch_accum += Progress("Done copy")
         self.progress("create copy instructions done")
         self.progress("")

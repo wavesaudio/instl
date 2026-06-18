@@ -309,6 +309,15 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 raise
         else:
             self.statistics['skipped_files'] += 1
+        # Workstream 3 option b: report this file's bytes toward the copy-phase
+        # progress. No-op unless an install copy phase is armed; reported for
+        # copied, hard-linked AND skipped files because the planned total counts
+        # every source file. Best-effort -- never break a copy.
+        try:
+            from pybatch.copyPhaseProgress import report_copy_bytes
+            report_copy_bytes(src.stat().st_size)
+        except Exception:
+            pass
         return dst
 
     def copy_file_to_dir(self, src: Path, dst: Path, follow_symlinks=True):

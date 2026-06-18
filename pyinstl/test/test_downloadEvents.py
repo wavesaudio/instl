@@ -159,6 +159,52 @@ class TestSessionStateEvent(unittest.TestCase):
         )
         self.assertEqual(event["state"], "downloading")
 
+    def test_live_progress_fields_present_when_supplied(self):
+        # Workstream 1: in-flight download ticks carry cumulative bytes/files
+        # and a smoothed throughput so Central can compute a live ETA.
+        event = make_session_state_event(
+            session_id="s1",
+            state="downloading",
+            bytes_planned=5000,
+            bytes_received=1234,
+            files_completed=3,
+            observed_throughput_bytes_per_second=456,
+            reason="download_progress",
+            timestamp="2026-05-17T10:00:00Z",
+        )
+        self.assertEqual(event["bytesReceived"], 1234)
+        self.assertEqual(event["filesCompleted"], 3)
+        self.assertEqual(event["observedThroughputBytesPerSecond"], 456)
+
+    def test_phase_progress_fields_present_when_supplied(self):
+        # Workstream 3 option b: post-download phases (e.g. verify) carry
+        # per-phase byte progress so Central can drive a determinate install bar.
+        event = make_session_state_event(
+            session_id="s1",
+            state="verifying_downloads",
+            phase_bytes_done=4096,
+            phase_bytes_planned=8192,
+            reason="verify_progress",
+            timestamp="2026-05-17T10:00:00Z",
+        )
+        self.assertEqual(event["phaseBytesDone"], 4096)
+        self.assertEqual(event["phaseBytesPlanned"], 8192)
+
+    def test_live_progress_fields_absent_on_lifecycle_transitions(self):
+        # Lifecycle-transition events (no live fields supplied) must keep their
+        # original shape so existing consumers/fixtures are unaffected.
+        event = make_session_state_event(
+            session_id="s1",
+            state="downloading",
+            files_planned=10,
+            bytes_planned=5000,
+            reason="download_started",
+            timestamp="2026-05-17T10:00:00Z",
+        )
+        self.assertNotIn("bytesReceived", event)
+        self.assertNotIn("filesCompleted", event)
+        self.assertNotIn("observedThroughputBytesPerSecond", event)
+
 
 class TestFileStateEvent(unittest.TestCase):
     def test_file_state_event_shape(self):

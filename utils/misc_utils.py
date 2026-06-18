@@ -312,8 +312,15 @@ def check_file_checksum(file_path, expected_checksum):
     retVal = False  # if file does not exist return False
     if file_path and expected_checksum:  # prevent reading the file if file_path or expected_checksum is None
         try:
+            # read in chunks so multi-GB files are not slurped into RAM (same SHA1 digest)
+            sha1ner = hashlib.sha1()
             with open(file_path, "rb") as rfd:
-                retVal = check_buffer_checksum(rfd.read(), expected_checksum)
+                while True:
+                    chunk = rfd.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    sha1ner.update(chunk)
+            retVal = compare_checksums(sha1ner.hexdigest(), expected_checksum)
         except:
             log.debug("check_file_checksum failed for %s", file_path, exc_info=True)
     return retVal
@@ -329,8 +336,15 @@ def get_file_checksum(file_path, follow_symlinks=True):
     if os.path.islink(file_path) and not follow_symlinks:
         retVal = get_buffer_checksum(os.readlink(file_path).encode())
     else:
+        # read in chunks so multi-GB files are not slurped into RAM (same SHA1 digest)
+        sha1ner = hashlib.sha1()
         with open(file_path, "rb") as rfd:
-            retVal = get_buffer_checksum(rfd.read())
+            while True:
+                chunk = rfd.read(1024 * 1024)
+                if not chunk:
+                    break
+                sha1ner.update(chunk)
+        retVal = sha1ner.hexdigest()
     return retVal
 
 
@@ -349,9 +363,30 @@ def compare_files_by_checksum(_1st_file_path, _2nd_file_path, follow_symlinks=Fa
     return retVal
 
 
-def need_to_download_file(file_path, file_checksum):
+def need_to_download_file(file_path, file_checksum, expected_size=None):
+    """ Decide whether file_path must be (re)downloaded.
+
+        - Missing file  => must download (True).
+        - SIZE pre-filter: if expected_size is a known, valid size (a non-negative
+          integer) and the on-disk size differs, the file MUST be downloaded (True)
+          WITHOUT hashing -- a different size always means different content, so this
+          short-circuit is always correct and avoids reading the whole file.
+        - When sizes match (or expected_size is unknown), fall through to the existing
+          checksum compare: download iff the checksum does not match.
+    """
     retVal = True
     if os.path.isfile(file_path):
+        # SIZE pre-filter: only short-circuit when we have a trustworthy expected size.
+        # size may be None / -1 / 0 in the info-map when it is unknown -- in that case
+        # we must NOT short-circuit and fall through to the checksum compare (preserves
+        # the previous, checksum-only behavior).
+        if expected_size is not None and expected_size >= 0:
+            try:
+                on_disk_size = os.path.getsize(file_path)
+            except OSError:
+                on_disk_size = None
+            if on_disk_size is not None and on_disk_size != expected_size:
+                return True  # different size => different content => must download (no hashing)
         retVal = not check_file_checksum(file_path, file_checksum)
     return retVal
 

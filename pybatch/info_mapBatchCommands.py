@@ -2,6 +2,7 @@ from typing import List
 import os
 import sys
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import logging
 
@@ -391,23 +392,133 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def break_file_callback(self, msg):
         super().increment_and_output_progress(increment_by=0, prog_msg=msg)
 
+    def _emit_verify_progress(self, done_bytes, planned_bytes, force=False):
+        """Emit a throttled ``verifying_downloads`` session_state tick carrying
+        per-phase byte progress (Workstream 3 option b).
+
+        Lets Central drive a determinate bar through the checksum-verify tail
+        instead of parking it at the end of the download band. Best-effort and
+        throttled (≥1s) so it never slows the verify loop; instrumentation must
+        never break a sync.
+        """
+        try:
+            import time as _time
+            now = _time.monotonic()
+            last = getattr(self, "_verify_last_emit", None)
+            if not force and last is not None and (now - last) < 1.0:
+                return
+            self._verify_last_emit = now
+            _events_emit_session_state(
+                session_id=_config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
+                state="verifying_downloads",
+                phase_bytes_done=int(done_bytes),
+                phase_bytes_planned=int(planned_bytes),
+                reason="verify_progress",
+            )
+        except Exception as ex:  # pragma: no cover - instrumentation must never break sync
+            log.debug(f"could not emit verify progress tick: {ex}")
+
+    def _resolve_verify_workers(self, num_items: int) -> int:
+        """Return the worker count for the parallel verify pass.
+
+        Gated by DOWNLOAD_PARALLEL_VERIFY. DOWNLOAD_PARALLEL_WORKERS==0 means
+        "auto" (os.cpu_count()). Returns 1 (serial) when the flag is off, when
+        there is at most one item, or when the resolved count is <= 1.
+        """
+        if not _config_var_bool("DOWNLOAD_PARALLEL_VERIFY", False):
+            return 1
+        if num_items <= 1:
+            return 1
+        configured = _config_var_int("DOWNLOAD_PARALLEL_WORKERS", 0)
+        if configured <= 0:
+            configured = os.cpu_count() or 1
+        # No point spawning more workers than there are files to hash.
+        workers = min(configured, num_items)
+        return max(1, workers)
+
+    @staticmethod
+    def _precompute_verify_hashes(file_item):
+        """Read-only, independent per-file hashing. Runs in a worker thread.
+
+        hashlib releases the GIL during update(), so this gives real speedup.
+        Touches NO process-global state (config_vars, progress/stage stack) —
+        only the filesystem (read) and the passed-in file_item (read). Returns
+        a tuple consumed by the main-thread bookkeeping loop:
+            (final_path_matches, temp_is_file, temp_checksum)
+        Mirrors the serial path exactly: the final-path match is computed for
+        every file; the temp-path sha1 is computed only when the temp file
+        exists (it is unused unless the final path failed to match, but hashing
+        it is harmless, read-only, and keeps the worker branch-free).
+        """
+        final_path = Path(file_item.download_path)
+        temp_path = temp_path_for_download_item(file_item)
+        final_path_matches = checksum_matches(final_path, file_item.checksum)
+        temp_is_file = temp_path.is_file()
+        temp_checksum = get_file_sha1(temp_path) if temp_is_file else None
+        return final_path_matches, temp_is_file, temp_checksum
+
+    def _precompute_all_verify_hashes(self, dl_file_items):
+        """Compute per-file hash results for every download item, in order.
+
+        Returns a list aligned 1:1 with ``dl_file_items``. When
+        DOWNLOAD_PARALLEL_VERIFY is on (and there is more than one file and >1
+        worker) the hashing runs across a ThreadPoolExecutor; otherwise it
+        falls back to the serial path. Either way the result list is identical
+        and is consumed on the main thread, so the verify semantics never
+        change. Any failure setting up the pool falls back to serial — best-
+        effort parallelism must never break a sync.
+        """
+        workers = self._resolve_verify_workers(len(dl_file_items))
+        if workers <= 1:
+            return [self._precompute_verify_hashes(fi) for fi in dl_file_items]
+        try:
+            with ThreadPoolExecutor(max_workers=workers,
+                                    thread_name_prefix="instl-verify") as pool:
+                # executor.map preserves input order, so results stay aligned
+                # with dl_file_items for the in-order main-thread bookkeeping.
+                return list(pool.map(self._precompute_verify_hashes, dl_file_items))
+        except Exception as ex:  # pragma: no cover - parallelism must never break sync
+            log.warning(f"parallel verify pool failed ({ex}); falling back to serial hashing")
+            return [self._precompute_verify_hashes(fi) for fi in dl_file_items]
+
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
+
+        # Workstream 3 (option b): total bytes this verify pass will process, so
+        # the ticks below carry a determinate fraction. file_item.size is the
+        # repo file size; missing/unknown sizes contribute 0.
+        verify_planned_bytes = sum(
+            int(fi.size) for fi in dl_file_items if getattr(fi, "size", None) and fi.size > 0)
+        verify_done_bytes = 0
 
         utils.wait_for_break_file_to_be_removed(
             config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"),
             self.break_file_callback)
 
-        for file_item in dl_file_items:
+        # Hash files in parallel when enabled. The hashing (read bytes + sha1)
+        # is the only work that runs off the main thread; it is read-only and
+        # independent per file. ALL bookkeeping below (promotion, sidecars,
+        # lists_of_files, num_bad_files, the verify-progress ticks, and the
+        # max_bad_files_to_redownload early-stop) runs on the main thread in the
+        # original order using these precomputed results — preserving the exact
+        # serial semantics and avoiding any mutation of process-global state
+        # from worker threads.
+        precomputed = self._precompute_all_verify_hashes(dl_file_items)
+
+        for file_index, file_item in enumerate(dl_file_items):
             self.doing = f"""check checksum for '{file_item.download_path}'"""
             super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
+            if getattr(file_item, "size", None) and file_item.size > 0:
+                verify_done_bytes += int(file_item.size)
+            self._emit_verify_progress(verify_done_bytes, verify_planned_bytes)
 
             final_path = Path(file_item.download_path)
             temp_path = temp_path_for_download_item(file_item)
+            final_path_matches, temp_is_file, file_checksum = precomputed[file_index]
             _save_resume_sidecar(self.info_map_table, file_item, DownloadFileState.VERIFYING)
 
-            if checksum_matches(final_path, file_item.checksum):
+            if final_path_matches:
                 already_valid_bytes = final_path.stat().st_size
                 _save_resume_sidecar(
                     self.info_map_table,
@@ -421,8 +532,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 remove_stale_temp_for_download_item(file_item)
                 continue
 
-            if temp_path.is_file():
-                file_checksum = get_file_sha1(temp_path)
+            if temp_is_file:
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
                     self.num_bad_files += 1
                     super().increment_and_output_progress(increment_by=0,
@@ -474,6 +584,10 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 super().increment_and_output_progress(increment_by=0,
                                                       prog_msg=f"stopping checksum check too many bad or missing files found")
                 break
+
+        # Final verify tick (force past the throttle) so the phase bar reaches
+        # its full planned bytes when verification finishes.
+        self._emit_verify_progress(verify_done_bytes, verify_planned_bytes, force=True)
 
         if not self.is_checksum_ok():
             if self.max_bad_files_to_redownload is not None and self.num_bad_files <= self.max_bad_files_to_redownload:
@@ -686,6 +800,76 @@ class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call_
 
     def __call__(self, *args, **kwargs) -> None:
         _emit_download_started(self.files_planned, self.bytes_planned)
+
+
+def _emit_download_state(state, reason=None, files_planned=None, bytes_planned=None):
+    """Emit a post-download ``session_state`` transition (Workstream 2).
+
+    Without these, Central's structured UX has no backend state once the curl
+    transfer finishes, so its progress bar freezes near 99% while checksum
+    verification and copy/unwtar run -- often for minutes on large bundles.
+    Emitting the transition lets Central show "Verifying" / "Installing" (its
+    state pill already maps these states) instead of an apparently-stuck bar.
+
+    Telemetry gating mirrors ``_emit_download_started`` so a fresh ``copy``
+    invocation honors the same rollout flag as the ``sync`` that preceded it
+    (each instl invocation is a separate process; the kill switch is per
+    process). Best-effort: instrumentation must never break a sync/copy run.
+    """
+    try:
+        session_id = _config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
+        rollout_flags = _cohort_active_flags_from_config(config_vars)
+        telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
+        _events_set_telemetry_enabled(telemetry_enabled)
+        _events_emit_session_state(
+            session_id=session_id,
+            state=state,
+            files_planned=files_planned,
+            bytes_planned=bytes_planned,
+            reason=reason,
+        )
+    except Exception as ex:  # pragma: no cover - instrumentation must never break sync
+        log.debug(f"could not emit download state {state!r}: {ex}")
+
+
+class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
+    """Emit a post-download ``session_state`` transition so Central's structured
+    UX shows the right phase (Verifying / Installing) instead of freezing near
+    99% while checksum-verify and copy/unwtar run.
+
+    Carries no byte/file counts (those phases aren't byte-weighted yet -- see
+    Workstream 3); it only moves the state machine. ``own_progress_count=0`` /
+    ``report_own_progress=False`` so it never perturbs the progress total."""
+
+    def __init__(self, state, reason=None, phase_bytes_planned=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.state = state
+        self.reason = reason
+        # When set on a "copying" transition, arms the copy-phase byte-progress
+        # accumulator (Workstream 3 option b) so copy/unwtar commands can report
+        # into it. May be assigned after construction (once bytes_to_copy is
+        # known) but before the script is serialized.
+        self.phase_bytes_planned = phase_bytes_planned
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.state))
+        all_args.append(self.optional_named__init__param("reason", self.reason, None))
+        all_args.append(self.optional_named__init__param("phase_bytes_planned", self.phase_bytes_planned, None))
+
+    def progress_msg_self(self) -> str:
+        return f'''Report download state {self.state}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        _emit_download_state(self.state, reason=self.reason)
+        # Arm the copy-phase accumulator at the start of the copy phase so the
+        # copy/unwtar commands that follow report determinate byte progress.
+        if self.state == "copying" and self.phase_bytes_planned is not None:
+            try:
+                from pybatch.copyPhaseProgress import begin_copy_phase
+                begin_copy_phase(self.phase_bytes_planned,
+                                 _config_var_str("__INVOCATION_RANDOM_ID__", "unknown"))
+            except Exception as ex:  # pragma: no cover - instrumentation must never break copy
+                log.debug(f"could not begin copy phase: {ex}")
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):

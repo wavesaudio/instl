@@ -588,6 +588,126 @@ class TestDownloadPromotion(unittest.TestCase):
                                         own_progress_count=0, report_own_progress=False)
         command()  # must not raise
 
+    def test_checksum_command_emits_verify_phase_byte_progress(self):
+        # Workstream 3 (option b): the verify pass emits verifying_downloads
+        # session_state ticks carrying per-phase byte progress so Central can
+        # drive a determinate bar through the checksum tail.
+        import pybatch.info_mapBatchCommands as imbc
+        payload = b"verified payload"
+        item = self.make_item("Products/Foo.pkg", payload)
+        final_path = Path(item.download_path)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        final_path.write_bytes(payload)  # already valid -> fast path, still ticks
+
+        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
+        command.info_map_table = FakeInfoMapTable([item])
+
+        with mock.patch.object(imbc, "_events_emit_session_state") as emit:
+            command()
+
+        # The mock captures the emitter's Python kwargs (phase_bytes_done/planned),
+        # which the builder maps to phaseBytesDone/phaseBytesPlanned on the wire.
+        verify_calls = [c.kwargs for c in emit.call_args_list
+                        if c.kwargs.get("state") == "verifying_downloads"]
+        self.assertTrue(verify_calls, "expected at least one verifying_downloads tick")
+        final = verify_calls[-1]
+        self.assertEqual(final["phase_bytes_planned"], len(payload))
+        self.assertEqual(final["phase_bytes_done"], len(payload))
+
+    def test_verify_progress_never_raises(self):
+        # Instrumentation must never break verification.
+        import pybatch.info_mapBatchCommands as imbc
+        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
+        with mock.patch.object(imbc, "_events_emit_session_state",
+                               side_effect=RuntimeError("emit failed")):
+            command._emit_verify_progress(10, 100, force=True)  # must not raise
+
+    def test_copy_phase_progress_gated_and_capped(self):
+        # Workstream 3 option b: report_copy_bytes is a no-op until a copy phase
+        # is armed, then emits throttled "copying" ticks capped at planned.
+        import pybatch.copyPhaseProgress as cpp
+        import pyinstl.downloadEvents as dev
+        self.addCleanup(lambda: cpp.begin_copy_phase(0))
+        with mock.patch.object(dev, "emit_session_state") as emit:
+            cpp.report_copy_bytes(500)               # not armed -> no-op
+            self.assertEqual(emit.call_count, 0)
+            cpp.begin_copy_phase(1000, session_id="sess")
+            cpp.report_copy_bytes(400, force=True)
+            self.assertEqual(emit.call_count, 1)
+            kw = emit.call_args.kwargs
+            self.assertEqual(kw["state"], "copying")
+            self.assertEqual(kw["session_id"], "sess")
+            self.assertEqual(kw["phase_bytes_done"], 400)
+            self.assertEqual(kw["phase_bytes_planned"], 1000)
+            cpp.report_copy_bytes(9999, force=True)   # overshoot -> capped at planned
+            self.assertEqual(emit.call_args.kwargs["phase_bytes_done"], 1000)
+
+    def test_report_download_state_copying_arms_copy_phase(self):
+        from pybatch import ReportDownloadState
+        import pybatch.copyPhaseProgress as cpp
+        import pybatch.info_mapBatchCommands as imbc
+        with mock.patch.object(imbc, "_events_emit_session_state"), \
+                mock.patch.object(cpp, "begin_copy_phase") as begin:
+            ReportDownloadState("copying", reason="copy_started", phase_bytes_planned=5000,
+                                own_progress_count=0, report_own_progress=False)()
+        begin.assert_called_once()
+        self.assertEqual(begin.call_args.args[0], 5000)
+
+    def test_report_download_state_copying_repr_round_trips(self):
+        from pybatch import ReportDownloadState
+        obj = ReportDownloadState("copying", reason="copy_started", phase_bytes_planned=5000,
+                                  own_progress_count=0, report_own_progress=False)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, obj.explain_diff(obj_recreated))
+
+    def test_copy_file_to_file_reports_bytes_when_armed(self):
+        # The single copy funnel reports its bytes toward the copy phase.
+        import pybatch.copyPhaseProgress as cpp
+        import pyinstl.downloadEvents as dev
+        from pybatch import CopyFileToFile
+        src = Path(self.temp_dir.name, "src.bin")
+        dst = Path(self.temp_dir.name, "dst.bin")
+        src.write_bytes(b"x" * 1234)
+        self.addCleanup(lambda: cpp.begin_copy_phase(0))
+        cpp.begin_copy_phase(10000, session_id="s")
+        with mock.patch.object(dev, "emit_session_state") as emit:
+            CopyFileToFile(src, dst, report_own_progress=False)()
+        self.assertTrue(dst.exists())
+        copy_calls = [c.kwargs for c in emit.call_args_list if c.kwargs.get("state") == "copying"]
+        self.assertTrue(copy_calls, "expected a copying tick from the copy funnel")
+        self.assertEqual(copy_calls[-1]["phase_bytes_done"], 1234)
+
+    def test_report_download_state_repr_round_trips(self):
+        # Workstream 2: ReportDownloadState is a pybatch command, so its
+        # __repr__ must eval() back to an equal object (the dual-identity
+        # contract -- a mismatch silently corrupts the generated script).
+        from pybatch import ReportDownloadState
+        obj = ReportDownloadState("verifying_downloads", reason="checksum_verify",
+                                  own_progress_count=0, report_own_progress=False)
+        obj_recreated = eval(repr(obj))
+        self.assertEqual(obj, obj_recreated, obj.explain_diff(obj_recreated))
+
+    def test_report_download_state_emits_transition(self):
+        # Workstream 2: the command must emit a session_state event carrying the
+        # requested state so Central can show "Verifying"/"Installing".
+        from pybatch import ReportDownloadState
+        import pybatch.info_mapBatchCommands as imbc
+        with mock.patch.object(imbc, "_events_emit_session_state") as emit:
+            ReportDownloadState("copying", reason="copy_started",
+                                own_progress_count=0, report_own_progress=False)()
+        emit.assert_called_once()
+        self.assertEqual(emit.call_args.kwargs["state"], "copying")
+        self.assertEqual(emit.call_args.kwargs["reason"], "copy_started")
+
+    def test_report_download_state_never_raises(self):
+        # Instrumentation must never break a sync/copy run.
+        from pybatch import ReportDownloadState
+        import pybatch.info_mapBatchCommands as imbc
+        with mock.patch.object(imbc, "_events_emit_session_state",
+                               side_effect=RuntimeError("emit failed")):
+            ReportDownloadState("completed", own_progress_count=0,
+                                report_own_progress=False)()  # must not raise
+
     def test_killed_curl_leaves_only_recoverable_temp_artifact(self):
         curl_path = shutil.which("curl")
         if not curl_path:

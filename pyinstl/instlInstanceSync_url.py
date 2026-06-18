@@ -340,6 +340,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         dl_commands += self.create_curl_download_instructions()
 
         dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
+        # Workstream 2 (phase honesty): announce the verify phase so Central's
+        # structured UX shows "Verifying" rather than a bar frozen near 99%
+        # while checksums are recomputed over the downloaded files.
+        dl_commands += ReportDownloadState("verifying_downloads", reason="checksum_verify",
+                                           own_progress_count=0, report_own_progress=False)
         dl_commands += self.create_check_checksum_instructions(to_sync_num_files)
         return dl_commands
 

@@ -1232,7 +1232,9 @@ class SVNTable(object):
         return retVal
 
     def mark_need_download(self, progress_callback=None) -> None:
-        self.db.create_function("need_to_download_file", 2, utils.need_to_download_file)
+        # pass the expected size (svn_item_t.size) so need_to_download_file can
+        # short-circuit on a size mismatch without hashing the whole file
+        self.db.create_function("need_to_download_file", 3, utils.need_to_download_file)
         # mark files that need download
         query_text = """
             UPDATE svn_item_t
@@ -1240,7 +1242,7 @@ class SVNTable(object):
             WHERE required == 1
             AND ignore == 0
             AND fileFlag == 1
-            AND need_to_download_file(download_path, checksum)
+            AND need_to_download_file(download_path, checksum, size)
             """
         with self.db.transaction("mark_need_download", progress_callback=progress_callback,
                                  progress_callback_n_instructions=1024 * 10) as curs:

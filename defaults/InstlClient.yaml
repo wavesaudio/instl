@@ -34,6 +34,21 @@ DOWNLOAD_CONCURRENCY_DECREASE_STEP: 4
 DOWNLOAD_CONCURRENCY_ERROR_BACKOFF: 0.15
 DOWNLOAD_CONCURRENCY_ERROR_GROW: 0.02
 
+# Parallelization of the CPU-bound post-download stages (perf work). Each is a
+# kill switch so a stage can fall back to the original serial path if a problem
+# surfaces. DOWNLOAD_PARALLEL_WORKERS = 0 means "auto" (os.cpu_count()).
+# - DOWNLOAD_PARALLEL_UNWTAR: extract wtar archives across a process pool
+#   (decompression is CPU-bound and was fully serial).
+# - DOWNLOAD_PARALLEL_VERIFY:  hash files in the checksum-verify pass across a
+#   pool instead of one-at-a-time on a single core.
+# - DOWNLOAD_CURL_HTTP2: request HTTP/2 in the curl config (multiplex many
+#   small transfers over fewer connections); falls back to HTTP/1.1 if the
+#   server/proxy doesn't support it.
+DOWNLOAD_PARALLEL_UNWTAR: yes
+DOWNLOAD_PARALLEL_VERIFY: yes
+DOWNLOAD_PARALLEL_WORKERS: 0
+DOWNLOAD_CURL_HTTP2: yes
+
 # Phase 6 rollout flags (P6-001..P6-003, D-005, NFR-004). Each major
 # behavior must be independently flag-gated and remotely controllable so
 # rollout can advance or retreat one workstream at a time. The flag set

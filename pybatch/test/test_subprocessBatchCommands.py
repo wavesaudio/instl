@@ -452,5 +452,69 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.batch_accum += CurlWithInternalParallel(curl_path, config_file)
         self.pbt.exec_and_capture_output()
 
+    def test_CurlInternalParallel_progress_tick_throttle_and_ema(self):
+        """Workstream 1: _maybe_emit_progress_tick throttles to one emit per
+        interval and reports an EMA-smoothed throughput plus cumulative bytes/
+        files, so Central can compute a live ETA during the download."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path("cfg"),
+            total_files_to_download=10,
+            previously_downloaded_files=0,
+            total_bytes_to_download=10000,
+        )
+        # State normally seeded in __call__ before the curl loop.
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+        obj._session_id = "sess-1"
+
+        emit = mock.MagicMock(return_value="line")
+        # monotonic() is called once per _maybe_emit_progress_tick.
+        clock = [100.0, 100.5, 101.5]
+        with mock.patch.object(sbc.time, "monotonic", side_effect=clock), \
+                mock.patch("pyinstl.downloadEvents.emit_session_state", emit):
+            obj._maybe_emit_progress_tick(0, 0)        # t=100.0: seed + emit (EMA still 0)
+            obj._maybe_emit_progress_tick(500, 1)      # t=100.5: dt<1.0 -> throttled, no emit
+            obj._maybe_emit_progress_tick(1500, 3)     # t=101.5: dt=1.5 -> emit w/ EMA>0
+
+        self.assertEqual(emit.call_count, 2, "throttle should suppress the mid-interval tick")
+
+        first = emit.call_args_list[0].kwargs
+        self.assertEqual(first["state"], "downloading")
+        self.assertEqual(first["session_id"], "sess-1")
+        self.assertEqual(first["bytes_received"], 0)
+        self.assertEqual(first["observed_throughput_bytes_per_second"], 0)
+
+        second = emit.call_args_list[1].kwargs
+        self.assertEqual(second["bytes_received"], 1500)
+        self.assertEqual(second["files_completed"], 3)
+        # inst = (1500-0)/1.5 = 1000 b/s; EMA seeds to the first sample.
+        self.assertEqual(second["observed_throughput_bytes_per_second"], 1000)
+
+    def test_CurlInternalParallel_progress_tick_never_raises(self):
+        """Instrumentation must never break a download: a failing emitter is
+        swallowed, not propagated."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path("cfg"),
+            total_files_to_download=1,
+            previously_downloaded_files=0,
+            total_bytes_to_download=100,
+        )
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+        obj._session_id = "sess-1"
+
+        boom = mock.MagicMock(side_effect=RuntimeError("emit failed"))
+        with mock.patch.object(sbc.time, "monotonic", return_value=100.0), \
+                mock.patch("pyinstl.downloadEvents.emit_session_state", boom):
+            obj._maybe_emit_progress_tick(10, 1)  # must not raise
+
     def test_Dummy(self):
         pass

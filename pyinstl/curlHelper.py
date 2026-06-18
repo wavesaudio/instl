@@ -85,7 +85,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 {extra_retry_options}
-cookie = {cookie_text}
+{http2_option}cookie = {cookie_text}
 write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
 
 
@@ -105,7 +105,7 @@ max-time = {max_time}
 retry = {retries}
 retry-delay = {retry_delay}
 {extra_retry_options}
-cookie = {cookie_text}
+{http2_option}cookie = {cookie_text}
 parallel-max = {max_parallel_downloads}
 
 
@@ -267,7 +267,13 @@ parallel-max = {max_parallel_downloads}
                 and str(config_vars.setdefault("CURL_RETRY_ALL_ERRORS", "yes")).strip().lower() in ("yes", "true", "1")):
             extra_retry_lines.append("retry-all-errors")
 
+        # HTTP/2 lets curl multiplex many transfers over fewer connections; curl
+        # silently falls back to HTTP/1.1 when the server/proxy can't negotiate
+        # h2, so the only cost when it's unsupported is the ALPN attempt. Gated
+        # behind a config flag so it can be turned off without a code change.
+        http2_enabled = str(config_vars.setdefault("DOWNLOAD_CURL_HTTP2", "yes")).strip().lower() in ("yes", "true", "1")
         config_options = {
+            "http2_option": "http2\n" if http2_enabled else "",
             "connect_time_out": str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16")),
             "max_time": str(config_vars.setdefault("CURL_MAX_TIME", "180")),
             "retries": str(config_vars.setdefault("CURL_RETRIES", "5")),
@@ -334,8 +340,12 @@ parallel-max = {max_parallel_downloads}
             last_file = config_file_list.pop()
 
         def url_sorter(l, r):
-            """ smaller files should be downloaded first so the progress bar gets moving early. """
-            return l.size - r.size  # non Info.xml files are sorted by size
+            """ External parallel path: largest files first (longest-processing-time
+                first). Across the ~50 parallel curl workers this minimizes makespan —
+                a few huge wtars are the tail-latency problem, so we must not leave them
+                to finish last. (Info.xml's download-last behavior is handled separately
+                via urls_to_download_last and is unaffected.) """
+            return r.size - l.size  # non Info.xml files are sorted by size, descending
 
         cfig_file_cycler = itertools.cycle(config_file_list)
         total_url_num = 0

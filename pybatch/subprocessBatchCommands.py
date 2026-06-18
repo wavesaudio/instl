@@ -21,6 +21,14 @@ from .baseClasses import PythonBatchCommandBase
 
 log = logging.getLogger(__name__)
 
+# Workstream 1 (live ETA): cadence + smoothing for the in-loop `session_state`
+# progress ticks emitted during the curl download. curl's per-tick Speed is too
+# jittery to drive a stable ETA, so we feed Central an EMA-smoothed throughput
+# (alpha weights the newest sample) at most once per interval. Best-effort:
+# emitting must never break a download.
+_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC = 1.0
+_DOWNLOAD_PROGRESS_THROUGHPUT_EMA_ALPHA = 0.2
+
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
                      kwargs_defaults={"stderr_means_err": True, "capture_stdout": False, "out_file": None,
@@ -787,6 +795,20 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         self._bytes_baseline = 0
         self._bytes_high_water = 0
 
+        # Workstream 1 (live ETA): EMA-smoothed throughput and the last-emit
+        # sample baseline. The EMA value persists ACROSS re-runs so the ETA
+        # stays stable through pause/resume; the per-run sample baseline is
+        # re-seeded in _run_curl_once so the paused/offline gap is never divided
+        # into a bogus "slow" speed. session_id is resolved once (not per tick).
+        self._ema_throughput_bps = 0.0
+        self._last_emit_monotonic = None
+        self._last_emit_bytes = 0
+        try:
+            self._session_id = str(config_vars["__INVOCATION_RANDOM_ID__"]) \
+                if config_vars.defined("__INVOCATION_RANDOM_ID__") else "unknown"
+        except Exception:
+            self._session_id = "unknown"
+
         while True:
             return_code, paused = self._run_curl_once(config_file_path_fixed, pause_check)
             if paused:
@@ -817,6 +839,59 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         if self._can_run_fallback(return_code):
             self._run_fallback_after_curl_range_failure(return_code)
         self.increment_progress()
+
+    def _maybe_emit_progress_tick(self, cumulative_bytes, downloaded_files):
+        """Emit a throttled, EMA-smoothed ``session_state`` progress tick.
+
+        Workstream 1 (live ETA): curl's per-tick Speed is too jittery to drive
+        a stable ETA, and the structured ``session_state`` events otherwise
+        carry no in-flight bytes/throughput -- so Central could only compute an
+        ETA from the end-of-session summary (i.e. never, during the download).
+        This feeds Central cumulative received bytes plus a smoothed throughput
+        roughly once per second, so its ETA is populated and stable from the
+        first tick.
+
+        The EMA persists across re-runs (smoothing survives pause/resume); the
+        first sample of each curl pass only re-establishes the baseline (see the
+        ``_last_emit_monotonic = None`` reset in ``_run_curl_once``) so a paused
+        gap is never divided into a bogus low speed. Best-effort: any failure is
+        swallowed -- instrumentation must never break a download.
+        """
+        try:
+            now = time.monotonic()
+            last = getattr(self, "_last_emit_monotonic", None)
+            if last is None:
+                # First sample of this curl pass: establish the baseline only.
+                # The carried-over EMA (if any) still rides along on the tick.
+                self._last_emit_monotonic = now
+                self._last_emit_bytes = cumulative_bytes
+            else:
+                dt = now - last
+                if dt < _DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC:
+                    return  # throttle: at most one tick per interval
+                inst_bps = max(0.0, (cumulative_bytes - self._last_emit_bytes) / dt)
+                if self._ema_throughput_bps <= 0.0:
+                    self._ema_throughput_bps = inst_bps
+                else:
+                    a = _DOWNLOAD_PROGRESS_THROUGHPUT_EMA_ALPHA
+                    self._ema_throughput_bps = a * inst_bps + (1.0 - a) * self._ema_throughput_bps
+                self._last_emit_monotonic = now
+                self._last_emit_bytes = cumulative_bytes
+
+            try:
+                from pyinstl.downloadEvents import emit_session_state
+            except Exception:
+                return  # structured channel unavailable; legacy text line still flows
+            emit_session_state(
+                session_id=getattr(self, "_session_id", "unknown"),
+                state="downloading",
+                bytes_received=int(cumulative_bytes),
+                files_completed=int(downloaded_files),
+                observed_throughput_bytes_per_second=int(self._ema_throughput_bps),
+                reason="download_progress",
+            )
+        except Exception as ex:  # pragma: no cover - instrumentation must never break sync
+            log.debug(f"could not emit download progress tick: {ex}")
 
     def _run_curl_once(self, config_file_path_fixed, pause_check):
         """Run one `curl --config` pass, logging progress.
@@ -857,6 +932,12 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         # bytes baseline when the run ends/pauses (so the next run's Dled, which
         # restarts at 0 yet only fetches the remaining bytes, adds on top).
         last_run_dled_bytes = 0
+
+        # Workstream 1: re-seed the throughput sample baseline for THIS curl
+        # pass. The EMA value itself carries over (smoothing survives resume),
+        # but the first sample of each pass only re-establishes the baseline so
+        # the paused/offline wall-time gap is never counted as transfer time.
+        self._last_emit_monotonic = None
 
         paused = False
         while process.poll() is None:
@@ -905,6 +986,11 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                               f"Downloaded {downloaded_bytes_str} of {bytes_to_download_str}, " \
                               f"Speed {match.group('Speed')}"
                     log.info(message)
+
+                    # Workstream 1: feed Central live cumulative bytes + a
+                    # smoothed throughput so its ETA is populated and stable
+                    # during the download (not only from the end summary).
+                    self._maybe_emit_progress_tick(cumulative_bytes, downloaded_files)
 
         try:
             process.stdout.close()
