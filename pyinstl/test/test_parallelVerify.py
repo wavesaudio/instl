@@ -178,19 +178,24 @@ class TestParallelVerify(unittest.TestCase):
         self.assertEqual(redl_parallel, redl_serial)
         self.assertEqual(redl_parallel, ["Products/Bad.pkg", "Products/Missing.pkg"])
 
-    def test_parallel_promotes_and_sets_sidecars(self):
+    def test_parallel_promotes_and_marks_bad_files(self):
         items = self._build_mixed_scenario()
         self._run_verify(items, parallel=True, workers=4)
         snap = self._snapshot_outcome(items)
 
-        self.assertEqual(snap["Products/AlreadyValid.pkg"]["sidecar_state"],
-                         DownloadFileState.ALREADY_VALID)
+        # The verify loop intentionally writes NO resume sidecar for files that
+        # verify successfully: resume bookkeeping is a download-phase concern and
+        # resume_decision never reads the verify-time transfer_state, so the
+        # per-file write was pure I/O with no consumer (it dominated the verify
+        # pass). A cache-hit / promoted file therefore has no verify sidecar.
+        self.assertIsNone(snap["Products/AlreadyValid.pkg"]["sidecar_state"])
         # Promoted file: final now exists with the temp bytes, temp gone.
-        self.assertEqual(snap["Products/Promote.pkg"]["sidecar_state"],
-                         DownloadFileState.VERIFIED)
+        self.assertIsNone(snap["Products/Promote.pkg"]["sidecar_state"])
         self.assertTrue(snap["Products/Promote.pkg"]["final_exists"])
         self.assertFalse(snap["Products/Promote.pkg"]["temp_exists"])
-        # Bad temp: not promoted, temp retained, marked retryable.
+        # Bad temp: not promoted, temp retained, marked retryable. The retry path
+        # (not the verify loop) still writes a sidecar so a later session can act
+        # on the failure — bad/missing files are rare, so this is not hot.
         self.assertFalse(snap["Products/Bad.pkg"]["final_exists"])
         self.assertTrue(snap["Products/Bad.pkg"]["temp_exists"])
         self.assertEqual(snap["Products/Bad.pkg"]["sidecar_state"],
@@ -222,8 +227,10 @@ class TestParallelVerify(unittest.TestCase):
             self._run_verify(items, parallel=False)
         pool_ctor.assert_not_called()
         snap = self._snapshot_outcome(items)
-        self.assertEqual(snap["Products/Promote.pkg"]["sidecar_state"],
-                         DownloadFileState.VERIFIED)
+        # Promote happened (final exists, temp gone); verify writes no sidecar.
+        self.assertTrue(snap["Products/Promote.pkg"]["final_exists"])
+        self.assertFalse(snap["Products/Promote.pkg"]["temp_exists"])
+        self.assertIsNone(snap["Products/Promote.pkg"]["sidecar_state"])
 
     def test_single_item_falls_back_to_serial(self):
         # A single download item must not spin up a worker pool even when the
@@ -255,9 +262,32 @@ class TestParallelVerify(unittest.TestCase):
                                side_effect=RuntimeError("no threads for you")):
             command()  # must not raise; falls back to serial
         snap = self._snapshot_outcome(items)
-        self.assertEqual(snap["Products/Promote.pkg"]["sidecar_state"],
-                         DownloadFileState.VERIFIED)
+        # Promote happened via the serial fallback; verify writes no sidecar.
+        self.assertTrue(snap["Products/Promote.pkg"]["final_exists"])
+        self.assertFalse(snap["Products/Promote.pkg"]["temp_exists"])
+        self.assertIsNone(snap["Products/Promote.pkg"]["sidecar_state"])
         self.assertEqual(command.num_bad_files, 2)
+
+    def test_progress_log_throttled_but_counts_every_file(self):
+        # The per-file progress LOG is throttled (it was the dominant cost of the
+        # verify pass: a line per file across tens of thousands of files), but the
+        # progress COUNTER must still advance exactly once per file so Central's
+        # running total stays accurate.
+        from pybatch.baseClasses import PythonBatchCommandBase
+        cmd = FakeCheckDownloadFolderChecksum(report_own_progress=True)
+        PythonBatchCommandBase.running_progress = 0
+        PythonBatchCommandBase.total_progress = 100000
+        PythonBatchCommandBase.ignore_progress = False
+        n = 200
+        with mock.patch.object(imbc.log, "info") as log_info:
+            for i in range(n):
+                cmd._verify_progress_log(f"check checksum for file {i}", 1, i, n)
+        # Counter advanced exactly once per file.
+        self.assertEqual(PythonBatchCommandBase.running_progress, n)
+        # Logging was throttled to far fewer than one line per file (the loop runs
+        # well within the 0.25s window, so essentially just the first + last).
+        self.assertLess(log_info.call_count, n)
+        self.assertGreaterEqual(log_info.call_count, 1)
 
     def test_resolve_workers_respects_flags(self):
         cmd = FakeCheckDownloadFolderChecksum(report_own_progress=False)

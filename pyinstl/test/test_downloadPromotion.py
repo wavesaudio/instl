@@ -332,7 +332,10 @@ class TestDownloadPromotion(unittest.TestCase):
         self.run_resume_fallback_case("conditional_failure")
 
     def test_checksum_command_promotes_only_verified_temp_file(self):
-        # Resume sidecars are only written when resume bookkeeping is enabled.
+        # Even with resume bookkeeping enabled, the verify loop writes NO per-file
+        # sidecar for a successfully promoted file: resume_decision never reads the
+        # verify-time transfer_state, so the write was pure I/O with no consumer
+        # (it dominated the verify pass). Promotion itself is unchanged.
         config_vars["DOWNLOAD_RESUME_ENABLED"] = "yes"
         payload = b"verified payload"
         item = self.make_item("Products/Foo.pkg", payload)
@@ -349,9 +352,7 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(final_path.read_bytes(), payload)
         self.assertFalse(temp_path.exists())
         sidecar = DownloadStateStore.from_bookkeeping_dir(config_vars["LOCAL_REPO_BOOKKEEPING_DIR"].Path()).load_file(file_id_for_download_item(item))
-        self.assertEqual(sidecar.transfer.state, DownloadFileState.VERIFIED)
-        self.assertEqual(sidecar.transfer.received_bytes, len(payload))
-        self.assertEqual(sidecar.expected.checksum, item.checksum)
+        self.assertIsNone(sidecar)
 
     def test_checksum_command_rejects_bad_temp_without_replacing_final(self):
         # Resume sidecars are only written when resume bookkeeping is enabled.

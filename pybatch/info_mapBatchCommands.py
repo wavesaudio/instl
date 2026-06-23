@@ -356,6 +356,30 @@ def _save_resume_sidecar(info_map_table, file_item, transfer_state, received_byt
         return None
 
 
+def _emit_throttled_progress(cmd, prog_msg, increment_by, index, total, throttle_attr):
+    """Advance the progress counter every item, but THROTTLE the log line to
+    ~4x/sec (always logging the first and last item).
+
+    The high-fan-out loops — the post-download checksum verify and sync-folder
+    creation — used to emit a "Progress N of M; <msg>" line for *every* one of
+    tens of thousands of items, and that per-item logging (not the real work) was
+    the dominant cost of the phase. The progress counter still advances on every
+    item, so Central's running total stays exact; only the log emission is
+    rate-limited. Important one-off lines (errors, section markers) are never
+    routed through here.
+    """
+    if not (cmd.report_own_progress and not PythonBatchCommandBase.ignore_progress):
+        return
+    if increment_by:
+        cmd.increment_progress(increment_by)
+    import time as _time
+    now = _time.monotonic()
+    last = getattr(cmd, throttle_attr, None)
+    if last is None or index >= total - 1 or (now - last) >= 0.25:
+        setattr(cmd, throttle_attr, now)
+        log.info(f"{cmd.progress_msg()} {prog_msg}")
+
+
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder, against expected checksums in info_map file
     """
@@ -417,6 +441,16 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             )
         except Exception as ex:  # pragma: no cover - instrumentation must never break sync
             log.debug(f"could not emit verify progress tick: {ex}")
+
+    def _verify_progress_log(self, prog_msg, increment_by, file_index, total_items):
+        """Throttled per-file progress for the verify loop (see
+        :func:`_emit_throttled_progress`). Emitting a line for every one of tens
+        of thousands of files — a check-checksum line AND a promoted line per
+        file — was the dominant cost of the verify pass; the hashing itself is
+        parallel and finishes in seconds. Bad/missing-file lines are NOT routed
+        through here — they stay unconditional (rare and important)."""
+        _emit_throttled_progress(self, prog_msg, increment_by, file_index, total_items,
+                                 "_verify_last_progress_log")
 
     def _resolve_verify_workers(self, num_items: int) -> int:
         """Return the worker count for the parallel verify pass.
@@ -498,17 +532,18 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
         # Hash files in parallel when enabled. The hashing (read bytes + sha1)
         # is the only work that runs off the main thread; it is read-only and
-        # independent per file. ALL bookkeeping below (promotion, sidecars,
-        # lists_of_files, num_bad_files, the verify-progress ticks, and the
+        # independent per file. ALL bookkeeping below (promotion, lists_of_files,
+        # num_bad_files, the verify-progress ticks, and the
         # max_bad_files_to_redownload early-stop) runs on the main thread in the
         # original order using these precomputed results — preserving the exact
         # serial semantics and avoiding any mutation of process-global state
         # from worker threads.
         precomputed = self._precompute_all_verify_hashes(dl_file_items)
+        total_items = len(dl_file_items)
 
         for file_index, file_item in enumerate(dl_file_items):
             self.doing = f"""check checksum for '{file_item.download_path}'"""
-            super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
+            self._verify_progress_log(self.doing, 1, file_index, total_items)
             if getattr(file_item, "size", None) and file_item.size > 0:
                 verify_done_bytes += int(file_item.size)
             self._emit_verify_progress(verify_done_bytes, verify_planned_bytes)
@@ -516,19 +551,21 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             final_path = Path(file_item.download_path)
             temp_path = temp_path_for_download_item(file_item)
             final_path_matches, temp_is_file, file_checksum = precomputed[file_index]
-            _save_resume_sidecar(self.info_map_table, file_item, DownloadFileState.VERIFYING)
+            # NOTE: the verify loop intentionally writes NO per-file resume
+            # sidecar. Resume bookkeeping — source metadata (etag/last-modified/
+            # signed-url) plus partial-temp detection — is a download-phase
+            # concern, and resume_decision_for_download_item never reads the
+            # verify-time transfer_state. Writing VERIFYING/VERIFIED/ALREADY_VALID
+            # sidecars here was therefore pure I/O (a JSON read-back + an atomic
+            # write, ~2 writes/file, ~7ms each) with no consumer — it dominated
+            # the verify pass (~340s of a ~344s loop over 24k files). Recovery
+            # after an interrupted verify is driven by the on-disk checksum check
+            # in mark_need_download, not by these sidecars.
 
             if final_path_matches:
-                already_valid_bytes = final_path.stat().st_size
-                _save_resume_sidecar(
-                    self.info_map_table,
-                    file_item,
-                    DownloadFileState.ALREADY_VALID,
-                    received_bytes=already_valid_bytes,
-                )
-                # Cache hit: no bytes transferred this session, so do not
-                # contribute to throughput. Recording as SUCCESS would make
-                # warm-cache runs look fast for the wrong reason.
+                # Cache hit: final file already valid. No bytes transferred this
+                # session, so do not contribute to throughput. Recording as
+                # SUCCESS would make warm-cache runs look fast for the wrong reason.
                 remove_stale_temp_for_download_item(file_item)
                 continue
 
@@ -551,12 +588,6 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 else:
                     promote_verified_temp_file(temp_path, final_path, file_item.checksum, actual_checksum=file_checksum)
                     promoted_bytes = final_path.stat().st_size
-                    _save_resume_sidecar(
-                        self.info_map_table,
-                        file_item,
-                        DownloadFileState.VERIFIED,
-                        received_bytes=promoted_bytes,
-                    )
                     try:
                         _observability_record_outcome(
                             outcome=DownloadOutcome.SUCCESS,
@@ -565,8 +596,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                         )
                     except Exception as obs_ex:  # pragma: no cover
                         log.debug(f"observability record_outcome failed: {obs_ex}")
-                    super().increment_and_output_progress(increment_by=0,
-                                                          prog_msg=f"promoted verified download '{final_path}'")
+                    self._verify_progress_log(f"promoted verified download '{final_path}'", 0, file_index, total_items)
             else:
                 self.num_bad_files += 1
                 super().increment_and_output_progress(increment_by=0,
@@ -916,11 +946,17 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
         dl_dir_items = self.info_map_table.get_download_items(what="dir")
-        for dl_dir in dl_dir_items:
+        total_dirs = len(dl_dir_items)
+        for dir_index, dl_dir in enumerate(dl_dir_items):
             # direct_sync items have absolute path in member dl_dir.download_path
             # cached items have relative path in member dl_dir.path
             path_to_create = dl_dir.download_path if dl_dir.download_path else dl_dir.path
-            super().increment_and_output_progress(increment_by=1, prog_msg=f"create sync folder {path_to_create}")
+            # Throttle the per-folder log line: creating the sync-cache tree means
+            # thousands of MakeDir calls, and a "create sync folder X" line for each
+            # was a large chunk of the pre-download time (the counter still advances
+            # per folder so the running total stays exact).
+            _emit_throttled_progress(self, f"create sync folder {path_to_create}", 1,
+                                     dir_index, total_dirs, "_sync_folder_last_log")
             self.doing = f"""creating sync folder '{path_to_create}'"""
             with MakeDir(path_to_create, report_own_progress=False) as dir_maker:
                 dir_maker()
