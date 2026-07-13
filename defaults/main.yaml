@@ -40,6 +40,10 @@ Win_ALL_OS_NAMES:
 
 Mac_ALL_OS_NAMES:
     - Mac
+    - Mac32
+    - Mac64
+    - MacArm
+    - MacIntel
 
 BASE_REPO_REV: 1
 LAST_PROGRESS: 0
