@@ -589,8 +589,8 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-
         config_file_path_fixed = os.fspath(self.config_file_path)
+        working_dir = os.fspath(Path(config_file_path_fixed).parent)
         if 'Win' in utils.get_current_os_names():
             # on windows curl fail to read long paths or paths with unicode chars
             # so convert the path to short path (DOS style 8.3 chars)
@@ -601,7 +601,8 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
-                                   bufsize=1)
+                                   bufsize=1,
+                                   cwd=working_dir)
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+
