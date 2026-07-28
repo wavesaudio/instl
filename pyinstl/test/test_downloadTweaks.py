@@ -34,9 +34,13 @@ class TestCurlDownloadTweaks(unittest.TestCase):
         config_vars["CURL_CONFIG_FILE_NAME"] = "dl"
         config_vars["PARALLEL_SYNC"] = "1"
         config_vars["COOKIE_FOR_SYNC_URLS"] = "test=1"
+        # Pin the curl HTTP/2 capability probe (hermetic - no real curl); the
+        # flag tests below exercise the DOWNLOAD_CURL_HTTP2 gate on top of it.
+        CUrlHelper.cached_http2_supported = True
 
     def tearDown(self):
         self.temp_dir.cleanup()
+        CUrlHelper.cached_http2_supported = None  # un-pin the capability probe
 
     def _build_config_text(self, *url_size_pairs):
         helper = CUrlHelper()
@@ -59,6 +63,16 @@ class TestCurlDownloadTweaks(unittest.TestCase):
         config_vars["DOWNLOAD_CURL_HTTP2"] = "no"
         text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
         self.assertNotIn("http2", text, f"http2 must be omitted when flag off; got:\n{text}")
+
+    def test_http2_line_absent_when_curl_lacks_support(self):
+        # The stock Windows System32 curl is built without HTTP/2; for such a
+        # binary the `http2` option is a hard error (exit 2, zero files
+        # downloaded), so the flag must be overridden by the capability probe.
+        config_vars["DOWNLOAD_CURL_HTTP2"] = "yes"
+        CUrlHelper.cached_http2_supported = False
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertNotIn("http2", text,
+                         f"http2 must be omitted when curl does not support it; got:\n{text}")
 
     def test_http2_flag_off_still_produces_valid_config(self):
         # Turning the tweak off must not corrupt the rest of the config format:

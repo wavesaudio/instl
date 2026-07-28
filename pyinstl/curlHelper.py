@@ -112,6 +112,7 @@ parallel-max = {max_parallel_downloads}
 """
     min_supported_parallel_curl_version = "7.66.0"
     cached_internal_parallel = None  # True means curl knows to parallel download internally, set to None
+    cached_http2_supported = None  # True means curl was built with HTTP/2; None means not probed yet
 
 
 
@@ -158,6 +159,32 @@ parallel-max = {max_parallel_downloads}
 
     def use_internal_parallel(self):
         return config_vars["PARALLEL_DOWNLOAD_METHOD"].str() == "internal" and self.is_internal_parallel_supported()
+
+    # The `http2` config option is NOT a soft preference: a libcurl built without
+    # HTTP/2 (e.g. the stock Windows System32 curl, which lacks nghttp2) rejects it
+    # as an unsupported option and exits with code 2 before any transfer — the whole
+    # bulk download "completes" instantly with zero files. So the option may only be
+    # emitted when `curl --version` advertises the HTTP2 feature (same lazy cached
+    # probe pattern as is_internal_parallel_supported).
+    def is_http2_supported(self):
+        if CUrlHelper.cached_http2_supported is None:
+            CUrlHelper.cached_http2_supported = False
+            try:
+                # Features line lists HTTP2 when libcurl is built with nghttp2, e.g.
+                # Features: alt-svc AsynchDNS GSS-API HSTS HTTP2 HTTPS-proxy IPv6 ...
+                exe_name = config_vars.resolve_str("curl")
+                proc = subprocess.Popen(
+                        f"{exe_name} --version",
+                        shell=True,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        universal_newlines=True)
+                version_text = proc.stdout.read()
+                if re.search(r"\bHTTP2\b", version_text) or "nghttp2/" in version_text:
+                    CUrlHelper.cached_http2_supported = True
+            except Exception:
+                log.info("Could not probe curl for HTTP/2 support, assuming unsupported")
+        return CUrlHelper.cached_http2_supported
 
     def add_download_url(self, url, path, verbatim=False, size=0, download_last=False, output_path=None, resume_from_byte=0, conditional_headers=()):
         if verbatim:
@@ -267,11 +294,14 @@ parallel-max = {max_parallel_downloads}
                 and str(config_vars.setdefault("CURL_RETRY_ALL_ERRORS", "yes")).strip().lower() in ("yes", "true", "1")):
             extra_retry_lines.append("retry-all-errors")
 
-        # HTTP/2 lets curl multiplex many transfers over fewer connections; curl
-        # silently falls back to HTTP/1.1 when the server/proxy can't negotiate
-        # h2, so the only cost when it's unsupported is the ALPN attempt. Gated
-        # behind a config flag so it can be turned off without a code change.
-        http2_enabled = str(config_vars.setdefault("DOWNLOAD_CURL_HTTP2", "yes")).strip().lower() in ("yes", "true", "1")
+        # HTTP/2 lets curl multiplex many transfers over fewer connections; when
+        # the SERVER can't negotiate h2 curl falls back to HTTP/1.1 — but when the
+        # curl BINARY was built without HTTP/2 the option itself is a hard error
+        # (exit 2, nothing downloads), so the flag is ANDed with a capability
+        # probe of the actual curl. Gated behind a config flag so it can also be
+        # turned off without a code change.
+        http2_enabled = (str(config_vars.setdefault("DOWNLOAD_CURL_HTTP2", "yes")).strip().lower() in ("yes", "true", "1")
+                         and self.is_http2_supported())
         config_options = {
             "http2_option": "http2\n" if http2_enabled else "",
             "connect_time_out": str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16")),
