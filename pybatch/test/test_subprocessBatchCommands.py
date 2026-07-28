@@ -516,5 +516,112 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                 mock.patch("pyinstl.downloadEvents.emit_session_state", boom):
             obj._maybe_emit_progress_tick(10, 1)  # must not raise
 
+    def test_CurlInternalParallel_parse_part_output_paths(self):
+        """Root-cause fix: the poller's byte source is the curl config's
+        ``output =`` entries (the .part files), parsed once and cached; blank and
+        non-output lines are ignored."""
+        import tempfile
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path("cfg"),
+            total_files_to_download=2, previously_downloaded_files=0,
+            total_bytes_to_download=100,
+        )
+        with tempfile.TemporaryDirectory() as d:
+            cfg = Path(d) / "dl.config"
+            cfg.write_text(
+                'parallel\nprogress-bar\n\n'
+                'continue-at = -\n'
+                'url = "https://x/a"\n'
+                f'output = "{d}/a.part"\n\n'
+                'continue-at = -\n'
+                'url = "https://x/b"\n'
+                f'output = "{d}/b.part"\n',
+                encoding="utf-8",
+            )
+            obj.config_file_path = cfg
+            paths = obj._download_part_output_paths()
+            self.assertEqual(paths, [f"{d}/a.part", f"{d}/b.part"])
+            # parsed once and cached (same list object returned)
+            self.assertIs(obj._download_part_output_paths(), paths)
+
+    def test_CurlInternalParallel_sum_part_bytes_monotonic(self):
+        """Cumulative bytes = sum of on-disk .part sizes; a not-yet-created part
+        is skipped (never raises); the file estimate is byte-proportional and
+        never regresses even if a part shrinks (resume/continue-at safety)."""
+        import tempfile
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path("cfg"),
+            total_files_to_download=4, previously_downloaded_files=0,
+            total_bytes_to_download=1000,
+        )
+        with tempfile.TemporaryDirectory() as d:
+            a = Path(d) / "a.part"
+            b = Path(d) / "b.part"
+            missing = Path(d) / "c.part"
+            obj._part_output_paths_cache = [str(a), str(b), str(missing)]
+
+            a.write_bytes(b"x" * 250)                       # 250 B, b & c absent
+            total, files = obj._sum_downloaded_part_bytes()
+            self.assertEqual(total, 250)                    # missing parts skipped
+            self.assertEqual(files, int(4 * 250 / 1000))    # proportional -> 1
+
+            b.write_bytes(b"y" * 250)                       # 500 B total
+            total2, files2 = obj._sum_downloaded_part_bytes()
+            self.assertEqual(total2, 500)
+            self.assertEqual(files2, 2)
+
+            a.write_bytes(b"z" * 10)                         # total drops to 260
+            total3, files3 = obj._sum_downloaded_part_bytes()
+            self.assertEqual(total3, 260)
+            self.assertGreaterEqual(files3, files2)          # estimate never regresses
+
+    def test_CurlInternalParallel_poller_emits_and_stops(self):
+        """The .part poller emits >=1 download_progress tick with climbing bytes
+        (and verify-parity phase_bytes) from growing part files, then joins
+        promptly when signaled -- it must never wedge the process (P7-010)."""
+        from unittest import mock
+        from threading import Event, Thread
+        import time as _t
+        import tempfile
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path("cfg"),
+            total_files_to_download=2, previously_downloaded_files=0,
+            total_bytes_to_download=1000,
+        )
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+        obj._session_id = "sess-poll"
+
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "a.part"
+            p.write_bytes(b"x" * 100)
+            obj._part_output_paths_cache = [str(p)]
+
+            emit = mock.MagicMock(return_value="line")
+            # Shrink the poll/throttle interval so the test runs fast; the poller
+            # reads the module global at call time, so patching it takes effect.
+            with mock.patch.object(sbc, "_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC", 0.02), \
+                    mock.patch("pyinstl.downloadEvents.emit_session_state", emit):
+                stop = Event()
+                th = Thread(target=obj._run_download_progress_poller, args=(stop,), daemon=True)
+                th.start()
+                _t.sleep(0.1)                    # first poll seeds baseline; later polls emit
+                p.write_bytes(b"x" * 600)        # bytes climb
+                _t.sleep(0.1)
+                stop.set()
+                th.join(timeout=2.0)
+                self.assertFalse(th.is_alive(), "poller must join promptly on stop")
+
+        self.assertGreaterEqual(emit.call_count, 1)
+        last = emit.call_args_list[-1].kwargs
+        self.assertEqual(last["state"], "downloading")
+        self.assertEqual(last["reason"], "download_progress")
+        self.assertGreaterEqual(last["bytes_received"], 600)
+        self.assertEqual(last["phase_bytes_done"], last["bytes_received"])
+        self.assertEqual(last["phase_bytes_planned"], 1000)
+
     def test_Dummy(self):
         pass

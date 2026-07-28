@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Event
 from typing import List
 
 import psutil
@@ -888,10 +888,91 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                 bytes_received=int(cumulative_bytes),
                 files_completed=int(downloaded_files),
                 observed_throughput_bytes_per_second=int(self._ema_throughput_bps),
+                # phase_bytes_* mirror the verify phase's tick so Central's
+                # phaseDisplayPercent drives a determinate download bar (received
+                # / planned), not just the meta line's byte/throughput counters.
+                phase_bytes_done=int(cumulative_bytes),
+                phase_bytes_planned=int(self.total_bytes_to_download),
                 reason="download_progress",
             )
         except Exception as ex:  # pragma: no cover - instrumentation must never break sync
             log.debug(f"could not emit download progress tick: {ex}")
+
+    def _download_part_output_paths(self):
+        """Parse the curl ``--config`` file once for its ``output = "..."`` entries.
+
+        curlHelper writes every download as ``output = "<final>.instl-<id>.part"``
+        with a ``continue-at`` directive for resume, so these ``.part`` files are
+        exactly what curl grows on disk. Summing their sizes gives true cumulative
+        received bytes -- independent of curl's console meter, the fragile,
+        platform-variable source that yields no in-flight rows on Windows. Parsed
+        once and cached; best-effort (any failure -> empty list, so the poller
+        simply emits nothing rather than breaking the download)."""
+        cached = getattr(self, "_part_output_paths_cache", None)
+        if cached is not None:
+            return cached
+        paths = []
+        try:
+            with open(os.fspath(self.config_file_path), "r", encoding="utf-8", errors="replace") as cfg:
+                for line in cfg:
+                    s = line.strip()
+                    # form: output = "C:\...\file.ext.instl-<id>.part"
+                    if s.startswith("output"):
+                        _, sep, rhs = s.partition("=")
+                        if not sep:
+                            continue
+                        rhs = rhs.strip().strip('"')
+                        if rhs:
+                            paths.append(rhs)
+        except OSError as ex:
+            log.debug(f"download poller: could not read curl config for part paths: {ex}")
+            paths = []
+        self._part_output_paths_cache = paths
+        return paths
+
+    def _sum_downloaded_part_bytes(self):
+        """Sum on-disk sizes of the ``.part`` outputs (cumulative received bytes).
+
+        Best-effort per file: a not-yet-created, locked, or vanished part is
+        skipped, never raised. Returns ``(cumulative_bytes, files_estimate)``.
+        curl writes all parts in place and instl renames only after the batch, so
+        a true per-file completion count is not observable here -- files_estimate
+        is a monotonic, byte-proportional approximation (bytes drive the bar/ETA;
+        the file count is informational)."""
+        total = 0
+        for p in self._download_part_output_paths():
+            try:
+                total += os.path.getsize(p)
+            except OSError:
+                pass  # not created yet / locked / vanished -- skip this sample
+        planned_bytes = self.total_bytes_to_download or 0
+        if planned_bytes > 0:
+            files_est = int(self.total_files_to_download * min(1.0, total / planned_bytes))
+        else:
+            files_est = 0
+        prev_high = getattr(self, "_poll_files_high_water", 0)
+        if files_est < prev_high:
+            files_est = prev_high
+        else:
+            self._poll_files_high_water = files_est
+        files_est = min(files_est, self.total_files_to_download)
+        return total, files_est
+
+    def _run_download_progress_poller(self, stop_event):
+        """Daemon poller: ~once/second, emit a ``download_progress`` tick derived
+        from on-disk ``.part`` sizes -- mirroring the verify phase's in-process
+        Python cadence, the one progress mechanism that works cross-platform.
+
+        Never raises (instrumentation must never break a download) and is bounded
+        by ``stop_event`` so it always joins promptly -- this must never wedge the
+        sync or elevated-copy process (see P7-010)."""
+        while not stop_event.is_set():
+            try:
+                cumulative_bytes, files_est = self._sum_downloaded_part_bytes()
+                self._maybe_emit_progress_tick(cumulative_bytes, files_est)
+            except Exception as ex:  # pragma: no cover - defensive; poller must never raise
+                log.debug(f"download progress poller tick failed: {ex}")
+            stop_event.wait(_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC)
 
     def _run_curl_once(self, config_file_path_fixed, pause_check):
         """Run one `curl --config` pass, logging progress.
@@ -939,58 +1020,80 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         # the paused/offline wall-time gap is never counted as transfer time.
         self._last_emit_monotonic = None
 
+        # Workstream 1 root-cause fix (Windows parity with Mac): drive the
+        # structured download_progress ticks from on-disk .part sizes via a
+        # Python-cadence poller -- exactly like the verify phase -- instead of
+        # scraping curl's --parallel console meter. That meter yields no usable
+        # in-flight rows on Windows (so the download bar/ETA never move), while
+        # verify, an in-process Python loop, ticks fine in the very same run.
+        # Cross-platform, no sys.platform branch: Mac keeps working and gains a
+        # deterministic cadence. Hang-safe (P7-010): daemon thread + stop Event
+        # + bounded join in the finally below; the poller only reads file sizes.
+        _poll_stop = Event()
+        _poll_thread = Thread(target=self._run_download_progress_poller,
+                              args=(_poll_stop,),
+                              name="download-progress-poller",
+                              daemon=True)
+        _poll_thread.start()
+
         paused = False
-        while process.poll() is None:
-            # Check pause before blocking on the next progress line so a pause
-            # stops the transfer within roughly one progress tick.
-            if pause_check is not None and pause_check():
-                from utils.parallel_run import terminate_process
-                terminate_process(process)
-                paused = True
-                log.info(f"{self.progress_msg_self()} paused - terminated curl")
-                break
-            stdout_line = process.stdout.readline().strip()
-            stdout_lines = stdout_line.split('\r')
-            for stdout_line in stdout_lines:
-                match = reg.match(stdout_line)
-                if match:
-                    downloaded_files = self.previously_downloaded_files
-                    try:
-                        # Add the total Xfers, Reduce by the live count
-                        downloaded_files += int(match.group('Xfers')) - int(match.group('Live'))
-                    except:
-                        pass  # in case 'Xfers' could not be converted to int
+        try:
+            while process.poll() is None:
+                # Check pause before blocking on the next progress line so a pause
+                # stops the transfer within roughly one progress tick.
+                if pause_check is not None and pause_check():
+                    from utils.parallel_run import terminate_process
+                    terminate_process(process)
+                    paused = True
+                    log.info(f"{self.progress_msg_self()} paused - terminated curl")
+                    break
+                stdout_line = process.stdout.readline().strip()
+                stdout_lines = stdout_line.split('\r')
+                for stdout_line in stdout_lines:
+                    match = reg.match(stdout_line)
+                    if match:
+                        downloaded_files = self.previously_downloaded_files
+                        try:
+                            # Add the total Xfers, Reduce by the live count
+                            downloaded_files += int(match.group('Xfers')) - int(match.group('Live'))
+                        except:
+                            pass  # in case 'Xfers' could not be converted to int
 
-                    # FILES: monotonic only (no per-run baseline -- a re-run
-                    # re-counts finished files in Xfers, so the value already
-                    # trends back to the true total). Never report below the
-                    # high-water mark, cap at the total.
-                    if downloaded_files > self._files_high_water:
-                        self._files_high_water = downloaded_files
-                    downloaded_files = min(self._files_high_water, self.total_files_to_download)
+                        # FILES: monotonic only (no per-run baseline -- a re-run
+                        # re-counts finished files in Xfers, so the value already
+                        # trends back to the true total). Never report below the
+                        # high-water mark, cap at the total.
+                        if downloaded_files > self._files_high_water:
+                            self._files_high_water = downloaded_files
+                        downloaded_files = min(self._files_high_water, self.total_files_to_download)
 
-                    # BYTES: cumulative across re-runs. This run's Dled only
-                    # counts new bytes (curl resumes via continue-at), so add
-                    # the baseline of bytes finished in prior runs. Clamp
-                    # monotonic and cap at the total.
-                    current_dled_bytes = self.string_to_bytes(match.group('Dled'))
-                    last_run_dled_bytes = current_dled_bytes
-                    cumulative_bytes = self._bytes_baseline + current_dled_bytes
-                    if cumulative_bytes > self._bytes_high_water:
-                        self._bytes_high_water = cumulative_bytes
-                    cumulative_bytes = min(self._bytes_high_water, self.total_bytes_to_download)
-                    downloaded_bytes_str = self.bytes_to_string(cumulative_bytes)
+                        # BYTES: cumulative across re-runs. This run's Dled only
+                        # counts new bytes (curl resumes via continue-at), so add
+                        # the baseline of bytes finished in prior runs. Clamp
+                        # monotonic and cap at the total.
+                        current_dled_bytes = self.string_to_bytes(match.group('Dled'))
+                        last_run_dled_bytes = current_dled_bytes
+                        cumulative_bytes = self._bytes_baseline + current_dled_bytes
+                        if cumulative_bytes > self._bytes_high_water:
+                            self._bytes_high_water = cumulative_bytes
+                        cumulative_bytes = min(self._bytes_high_water, self.total_bytes_to_download)
+                        downloaded_bytes_str = self.bytes_to_string(cumulative_bytes)
 
-                    message = f"Progress ... of ...; " \
-                              f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
-                              f"Downloaded {downloaded_bytes_str} of {bytes_to_download_str}, " \
-                              f"Speed {match.group('Speed')}"
-                    log.info(message)
-
-                    # Workstream 1: feed Central live cumulative bytes + a
-                    # smoothed throughput so its ETA is populated and stable
-                    # during the download (not only from the end summary).
-                    self._maybe_emit_progress_tick(cumulative_bytes, downloaded_files)
+                        # Legacy human-readable line (also feeds Central's older
+                        # text-based liveDownload parser where curl's meter is
+                        # available, e.g. Mac). The structured download_progress
+                        # tick is now emitted by the .part poller, not here, so
+                        # the UI advances even when this meter line never appears.
+                        message = f"Progress ... of ...; " \
+                                  f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
+                                  f"Downloaded {downloaded_bytes_str} of {bytes_to_download_str}, " \
+                                  f"Speed {match.group('Speed')}"
+                        log.info(message)
+        finally:
+            # Stop the poller deterministically before returning. Bounded join so
+            # a stuck size-read can never wedge the sync/elevated-copy process.
+            _poll_stop.set()
+            _poll_thread.join(timeout=2.0)
 
         try:
             process.stdout.close()
