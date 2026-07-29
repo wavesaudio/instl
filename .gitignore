@@ -16,3 +16,4 @@ pyinstl/test/*out.yaml
 build/
 dist/
 *.local.spec
+build_instl/temp_build_dir/
