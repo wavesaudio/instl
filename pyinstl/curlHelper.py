@@ -313,7 +313,14 @@ parallel-max = {max_parallel_downloads}
         stall_lines = []
         if str(config_vars.setdefault("DOWNLOAD_CURL_STALL_DETECTION", "yes")).strip().lower() in ("yes", "true", "1"):
             speed_limit = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_LIMIT", "1"))
-            speed_time = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_TIME", "120"))
+            # 30s (was 120): a mid-transfer link drop only STALLS curl's
+            # sockets, so speed-time is the only thing that ever exits a
+            # wedged transfer -- field testing (2026-07-30) showed real
+            # outages shorter than 120s went completely undetected. At
+            # speed-limit=1 byte/sec a 30s window only aborts transfers that
+            # moved essentially nothing for 30s straight, which no healthy
+            # slow network does.
+            speed_time = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_TIME", "30"))
             stall_lines.append(f"speed-limit = {speed_limit}")
             stall_lines.append(f"speed-time = {speed_time}")
             try:

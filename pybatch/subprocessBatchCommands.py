@@ -1498,27 +1498,84 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         still alive, log it and emit a stalled-flavored ``session_state`` as a
         backstop signal. The poller never kills curl -- enforcement is curl's
         own speed-limit/speed-time (see curlHelper), which makes a stalled
-        transfer exit 28 and feed the offline-hold/retry loop. 0 disables."""
+        transfer exit 28 and feed the offline-hold/retry loop. 0 disables.
+
+        Fast offline detection (field finding 2026-07-30): when the link drops
+        mid-transfer, curl's sockets merely STALL -- no exit code fires until
+        speed-time, so the offline hold in _run_config_with_recovery could
+        not start for minutes while the UI showed a climbing ETA. The poller
+        is the component that notices the freeze within a tick, so after
+        DOWNLOAD_STALL_PROBE_SECONDS of zero byte growth it runs the same
+        connectivity probe the recovery loop uses: probe-offline raises the
+        paused/offline_no_network hold events immediately (curl keeps
+        running; if the outage outlives speed-time the recovery loop takes
+        over seamlessly), and the hold is released with
+        resuming_after_offline only when bytes actually grow again -- probe
+        success alone keeps the UI paused, because a wedged curl will be
+        speed-time-aborted and re-run before real progress resumes. 0
+        disables the probe; emissions stay gated by the client capability
+        handshake inside the emit helpers."""
         stall_watchdog_seconds = max(0, _download_config_int("DOWNLOAD_STALL_WATCHDOG_SECONDS", 180))
+        stall_probe_seconds = max(0, _download_config_int("DOWNLOAD_STALL_PROBE_SECONDS", 8))
+        probe_interval = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
+        event_interval = max(probe_interval, _download_config_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
+        probe_enabled = stall_probe_seconds > 0 and _download_config_flag("DOWNLOAD_OFFLINE_HOLD_ENABLED", True)
         last_growth_bytes = -1
         last_growth_monotonic = time.monotonic()
         last_stall_emit_monotonic = 0.0
+        last_probe_monotonic = 0.0
+        last_hold_emit_monotonic = 0.0
+        stall_offline_active = False
         while not stop_event.is_set():
             try:
                 cumulative_bytes, files_est = self._sum_downloaded_part_bytes()
-                self._maybe_emit_progress_tick(cumulative_bytes, files_est)
                 now = time.monotonic()
                 if cumulative_bytes > last_growth_bytes:
+                    if stall_offline_active:
+                        # Announce the resume BEFORE the first grown tick so
+                        # Central's detector takes the explicit
+                        # resuming_after_offline path (streak reset + online),
+                        # not the weaker hold-ended-without-announcement one.
+                        log.info(f"{self.progress_msg_self()} download progress resumed after "
+                                 f"{int(now - last_growth_monotonic)}s offline stall")
+                        self._emit_hold_session_state("downloading", "resuming_after_offline",
+                                                      previous_state="paused")
+                        stall_offline_active = False
                     last_growth_bytes = cumulative_bytes
                     last_growth_monotonic = now
-                elif (stall_watchdog_seconds > 0
-                        and now - last_growth_monotonic >= stall_watchdog_seconds
-                        and now - last_stall_emit_monotonic >= stall_watchdog_seconds):
-                    log.info(f"{self.progress_msg_self()} no download progress for "
-                             f"{int(now - last_growth_monotonic)}s while curl is running; "
-                             f"transfer appears stalled")
-                    self._emit_hold_session_state("downloading", "stalled_no_progress")
-                    last_stall_emit_monotonic = now
+                    self._maybe_emit_progress_tick(cumulative_bytes, files_est)
+                else:
+                    stalled_for = now - last_growth_monotonic
+                    if not stall_offline_active:
+                        # Flat ticks are only emitted while NOT holding: a
+                        # non-paused session state would clear Central's
+                        # backend-hold flag every second and churn its logs
+                        # (the frozen UI needs no updates for frozen bytes).
+                        self._maybe_emit_progress_tick(cumulative_bytes, files_est)
+                    if (probe_enabled and stalled_for >= stall_probe_seconds
+                            and now - last_probe_monotonic >= probe_interval):
+                        last_probe_monotonic = now
+                        online, _probe_failure_class = self._probe_connectivity()
+                        if not online and (not stall_offline_active
+                                           or now - last_hold_emit_monotonic >= event_interval):
+                            if not stall_offline_active:
+                                log.info(f"{self.progress_msg_self()} no byte progress for "
+                                         f"{int(stalled_for)}s and connectivity probe failed; "
+                                         f"reporting offline hold while curl transfer is stalled")
+                            self._emit_hold_session_state("paused", "offline_no_network",
+                                                          previous_state="downloading")
+                            last_hold_emit_monotonic = now
+                            stall_offline_active = True
+                        # probe success while still stalled: keep the hold visible;
+                        # resuming_after_offline is announced only on real byte growth
+                    if (stall_watchdog_seconds > 0 and not stall_offline_active
+                            and stalled_for >= stall_watchdog_seconds
+                            and now - last_stall_emit_monotonic >= stall_watchdog_seconds):
+                        log.info(f"{self.progress_msg_self()} no download progress for "
+                                 f"{int(stalled_for)}s while curl is running; "
+                                 f"transfer appears stalled")
+                        self._emit_hold_session_state("downloading", "stalled_no_progress")
+                        last_stall_emit_monotonic = now
             except Exception as ex:  # pragma: no cover - defensive; poller must never raise
                 log.debug(f"download progress poller tick failed: {ex}")
             stop_event.wait(_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC)

@@ -917,6 +917,112 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertEqual(stalled[0]["state"], "downloading")
         self.assertEqual(stalled[0]["bytes_received"], 100)
 
+    def test_CurlInternalParallel_poller_offline_probe_raises_hold_fast(self):
+        """Fast offline detection (field finding 2026-07-30): when bytes stop
+        growing and the connectivity probe fails, the poller must raise the
+        paused/offline_no_network hold within DOWNLOAD_STALL_PROBE_SECONDS --
+        long before curl's speed-time -- and announce resuming_after_offline
+        (before any further progress tick) once bytes grow again."""
+        from unittest import mock
+        from threading import Event, Thread
+        import time as _t
+        import tempfile
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
+                                  total_files=1, total_bytes=1000)
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+
+        with tempfile.TemporaryDirectory() as d:
+            part = Path(d) / "a.part"
+            part.write_bytes(b"x" * 100)     # static at first: stalls immediately
+            obj._part_output_paths_cache = [str(part)]
+
+            emit = mock.MagicMock(return_value="line")
+            config_vars["DOWNLOAD_STALL_PROBE_SECONDS"] = "1"
+            config_vars["DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS"] = "1"
+            config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "600"  # backstop must not fire here
+            config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "yes"
+            try:
+                with mock.patch.object(sbc, "_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC", 0.05), \
+                        mock.patch.object(obj, "_probe_connectivity", return_value=(False, "tcp_connect")), \
+                        mock.patch("pyinstl.downloadEvents.emit_session_state", emit):
+                    stop = Event()
+                    th = Thread(target=obj._run_download_progress_poller, args=(stop,), daemon=True)
+                    th.start()
+                    _t.sleep(2.5)                    # > probe threshold with zero growth
+                    part.write_bytes(b"x" * 500)     # bytes grow: outage over
+                    _t.sleep(1.0)
+                    stop.set()
+                    th.join(timeout=2.0)
+                    self.assertFalse(th.is_alive(), "poller must join promptly on stop")
+            finally:
+                config_vars["DOWNLOAD_STALL_PROBE_SECONDS"] = "8"
+                config_vars["DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS"] = "5"
+                config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "180"
+                config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+
+        reasons = [call.kwargs.get("reason") for call in emit.call_args_list]
+        self.assertIn("offline_no_network", reasons, "expected a fast offline hold from the poller")
+        self.assertIn("resuming_after_offline", reasons, "expected a resume announcement after bytes grew")
+        hold_at = reasons.index("offline_no_network")
+        resume_at = reasons.index("resuming_after_offline")
+        self.assertGreater(resume_at, hold_at, "resume must be announced after the hold")
+        hold_call = emit.call_args_list[hold_at]
+        self.assertEqual(hold_call.kwargs["state"], "paused")
+        # while the hold is active the poller must not interleave non-paused
+        # progress ticks (they would churn Central's backend-hold flag)
+        between = [call.kwargs.get("state") for call in emit.call_args_list[hold_at + 1:resume_at]]
+        self.assertNotIn("downloading", between,
+                         "no downloading session_state may be emitted while the stall hold is active")
+
+    def test_CurlInternalParallel_poller_probe_online_no_false_hold(self):
+        """A stalled transfer on a HEALTHY network (probe succeeds -- e.g. a
+        slow CDN moment) must not raise the offline hold."""
+        from unittest import mock
+        from threading import Event, Thread
+        import time as _t
+        import tempfile
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
+                                  total_files=1, total_bytes=1000)
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+
+        with tempfile.TemporaryDirectory() as d:
+            part = Path(d) / "a.part"
+            part.write_bytes(b"x" * 100)     # static: never grows
+            obj._part_output_paths_cache = [str(part)]
+
+            emit = mock.MagicMock(return_value="line")
+            config_vars["DOWNLOAD_STALL_PROBE_SECONDS"] = "1"
+            config_vars["DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS"] = "1"
+            config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "600"
+            config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "yes"
+            try:
+                with mock.patch.object(sbc, "_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC", 0.05), \
+                        mock.patch.object(obj, "_probe_connectivity", return_value=(True, None)), \
+                        mock.patch("pyinstl.downloadEvents.emit_session_state", emit):
+                    stop = Event()
+                    th = Thread(target=obj._run_download_progress_poller, args=(stop,), daemon=True)
+                    th.start()
+                    _t.sleep(2.5)
+                    stop.set()
+                    th.join(timeout=2.0)
+            finally:
+                config_vars["DOWNLOAD_STALL_PROBE_SECONDS"] = "8"
+                config_vars["DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS"] = "5"
+                config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "180"
+                config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+
+        reasons = [call.kwargs.get("reason") for call in emit.call_args_list]
+        self.assertNotIn("offline_no_network", reasons,
+                         "probe success must not raise an offline hold")
+
     def test_CurlInternalParallel_probe_host_from_base_links_url(self):
         """The connectivity probe targets the validated download host from
         BASE_LINKS_URL; without it, the first url in the curl config; and

@@ -120,6 +120,16 @@ DOWNLOAD_COHORT: control
 #   observability backstop: the .part-size poller logs and emits a
 #   stalled-flavored session_state when total bytes have not grown for that
 #   long while curl is alive (it never kills curl; 0 disables).
+# - DOWNLOAD_STALL_PROBE_SECONDS: fast offline detection. A mid-transfer
+#   link drop merely stalls curl's sockets (no exit code until speed-time),
+#   so the .part-size poller -- which notices frozen bytes within a tick --
+#   probes connectivity after this many seconds of zero byte growth and,
+#   when the probe fails, raises the paused/offline_no_network hold events
+#   immediately (curl keeps running; the hold is released by
+#   resuming_after_offline only when bytes actually grow again). This is
+#   what gets the Central UI into pause mode within seconds of pulling the
+#   plug instead of after speed-time. 0 disables; emissions remain gated by
+#   DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD.
 DOWNLOAD_RECONCILE_MISSING_OUTPUTS: yes
 DOWNLOAD_RECONCILE_MAX_ROUNDS: 3
 DOWNLOAD_OFFLINE_HOLD_ENABLED: yes
@@ -129,8 +139,9 @@ DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS: 5
 DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS: 30
 DOWNLOAD_CURL_STALL_DETECTION: yes
 DOWNLOAD_CURL_SPEED_LIMIT: 1
-DOWNLOAD_CURL_SPEED_TIME: 120
+DOWNLOAD_CURL_SPEED_TIME: 30
 DOWNLOAD_STALL_WATCHDOG_SECONDS: 180
+DOWNLOAD_STALL_PROBE_SECONDS: 8
 
 # Capability handshake with the client driving this engine (Waves Central).
 # When ON, the engine emits the NEW backend-hold observability events: the
