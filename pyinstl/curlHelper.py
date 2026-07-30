@@ -73,7 +73,6 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
 
     # text for curl config file in case instl is running curl copies in parallel
     external_parallel_header_text = """
-insecure
 raw
 fail
 silent
@@ -94,7 +93,6 @@ write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
     internal_parallel_header_text = """
 parallel
 progress-bar
-insecure
 raw
 fail
 show-error

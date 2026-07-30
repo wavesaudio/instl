@@ -394,7 +394,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         config_file_text = f"""
             parallel
             progress-bar
-            insecure
             raw
             fail
             show-error
@@ -643,7 +642,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         """Write a curlHelper-shaped internal-parallel config: header block +
         one entry (no-fail/continue-at/url/output) per output path."""
         lines = [
-            "parallel", "progress-bar", "insecure", "raw", "fail", "show-error",
+            "parallel", "progress-bar", "raw", "fail", "show-error",
             "compressed", "create-dirs", "connect-timeout = 16", "max-time = 600",
             "retry = 12", "retry-delay = 12", "retry-connrefused",
             "retry-max-time = 90", "retry-all-errors", "cookie = test=1",

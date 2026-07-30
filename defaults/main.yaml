@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 2         # major version e.g. python-batch
   - 6         # new major feature e.g. new command
   - 3         # new minor feature e.g. new option to command, new python batch class
-  - 7         # bug fix, new param to pybatch class
+  - 8         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: Download UX/perf enhancements and codebase modernization
+INSTL_VERSION_CHANGE_REASON: Download UX/perf enhancements; merged master fixes (curl cwd CEN2-3679, removed insecure, Mac ARM/Intel OS names CEN2-3753)
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
@@ -40,6 +40,10 @@ Win_ALL_OS_NAMES:
 
 Mac_ALL_OS_NAMES:
     - Mac
+    - Mac32
+    - Mac64
+    - MacArm
+    - MacIntel
 
 BASE_REPO_REV: 1
 LAST_PROGRESS: 0

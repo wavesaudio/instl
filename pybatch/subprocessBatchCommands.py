@@ -796,7 +796,6 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-
         config_file_path_fixed = os.fspath(self.config_file_path)
         if 'Win' in utils.get_current_os_names():
             # on windows curl fail to read long paths or paths with unicode chars
@@ -1592,12 +1591,16 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         # is what terminate_process()'s os.killpg() targets on pause (mirrors
         # launch_process's preexec_fn=os.setsid in parallel_run). Without it the
         # killpg has no group to signal and curl would keep downloading.
+        # cwd is the config file's folder so relative paths in the config
+        # resolve next to it (CEN2-3679).
+        working_dir = os.fspath(Path(config_file_path_fixed).parent)
         process = subprocess.Popen([os.fspath(self.curl_path), "--config", config_file_path_fixed],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
                                    start_new_session=True,
-                                   bufsize=1)
+                                   bufsize=1,
+                                   cwd=working_dir)
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+
