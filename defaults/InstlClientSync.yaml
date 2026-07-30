@@ -5,4 +5,9 @@ __SYNC_PREREQUISITE_VARIABLES__:
     - REPO_REV
     - LOCAL_REPO_SYNC_DIR
 
+# With DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES on (see InstlClient.yaml) this is a
+# WARN threshold: the checksum-verify pass counts all bad/missing files and
+# always attempts the budget-bounded redownload pass; 0 disables redownload
+# entirely. With that flag off it is the legacy hard cap: more bad files than
+# this fails the install without any redownload attempt.
 MAX_BAD_FILES_TO_REDOWNLOAD: 16

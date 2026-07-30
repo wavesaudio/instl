@@ -1,6 +1,7 @@
 from typing import List
 import os
 import sys
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -380,6 +381,77 @@ def _emit_throttled_progress(cmd, prog_msg, increment_by, index, total, throttle
         log.info(f"{cmd.progress_msg()} {prog_msg}")
 
 
+class _RedownloadBudget:
+    """Bounds an uncapped redownload pass by total bytes and/or wall seconds
+    (DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES / DOWNLOAD_REDOWNLOAD_MAX_SECONDS)
+    instead of the legacy MAX_BAD_FILES_TO_REDOWNLOAD count cliff, which used
+    to skip recovery entirely once cap+1 files were bad (33 missing files
+    failed the whole install without a single recovery attempt even though the
+    network was back). A budget dimension of 0 means unlimited.
+
+    The seconds budget measures ACTIVE time: time spent paused (Central
+    pause / offline auto-pause via the control channel) is passed in by the
+    caller and subtracted, so an outage hold never burns the recovery budget
+    — that would recreate the very failure this budget replaces.
+    """
+
+    def __init__(self, max_total_bytes: int, max_seconds: int) -> None:
+        self.max_total_bytes = max(int(max_total_bytes), 0)
+        self.max_seconds = max(int(max_seconds), 0)
+        self.bytes_spent = 0
+        self.started_at = time.monotonic()
+
+    @classmethod
+    def from_config(cls) -> "_RedownloadBudget":
+        # Both budgets default to 0 (unlimited): the legacy (macOS-validated)
+        # redownload pass always completed every file it attempted, however
+        # long that took, and a non-zero default would abandon slow-network
+        # recoveries that used to succeed (e.g. 16 large wtars at ~5 min each
+        # is > 1 hour but was always fully recovered). The budgets are opt-in
+        # protections, not shipped behavior changes.
+        return cls(
+            max_total_bytes=_config_var_int("DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES", 0),
+            max_seconds=_config_var_int("DOWNLOAD_REDOWNLOAD_MAX_SECONDS", 0),
+        )
+
+    def spend_bytes(self, num_bytes: int) -> None:
+        self.bytes_spent += max(int(num_bytes or 0), 0)
+
+    def active_seconds(self, paused_seconds: float = 0.0) -> float:
+        return (time.monotonic() - self.started_at) - paused_seconds
+
+    def exhausted_reason(self, paused_seconds: float = 0.0):
+        """Return a short human-readable reason when a budget dimension is
+        spent, or None while there is budget left. Checked between files —
+        a file already in flight is never abandoned mid-transfer."""
+        if self.max_total_bytes and self.bytes_spent >= self.max_total_bytes:
+            return f"max total bytes {self.max_total_bytes} reached"
+        if self.max_seconds and self.active_seconds(paused_seconds) >= self.max_seconds:
+            return f"max seconds {self.max_seconds} reached"
+        return None
+
+
+class _PauseTrackingChannel:
+    """Delegating wrapper around the download control channel that measures
+    time spent blocked in ``wait_if_paused``, so :class:`_RedownloadBudget`
+    can exclude pause time from its seconds budget. All other channel calls
+    (``sleep_or_wake`` for backoff, ``try_now_requested``) pass through, so
+    the redownload loop stays fully pause/try_now-aware.
+    """
+
+    def __init__(self, channel) -> None:
+        self._channel = channel
+        self.paused_seconds = 0.0
+
+    def wait_if_paused(self, poll_seconds: float = 0.5) -> None:
+        before = time.monotonic()
+        self._channel.wait_if_paused(poll_seconds)
+        self.paused_seconds += time.monotonic() - before
+
+    def __getattr__(self, name):
+        return getattr(self._channel, name)
+
+
 class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     """ check checksums in download folder, against expected checksums in info_map file
     """
@@ -396,7 +468,14 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         self.missing_files_exception_message = ""
         self.retried_files_exception_message = ""
         self.num_bad_files = 0
+        # Back-compat: old generated batch scripts pass max_bad_files_to_redownload
+        # as a hard cap. With DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES on (the default)
+        # it is reinterpreted: None/0 still means "verify only, no redownload
+        # pass" (e.g. instl check-checksum), but a positive value is a WARN
+        # threshold — the verify loop counts ALL bad files and recovery always
+        # runs, bounded by the byte/time budgets instead of a count cliff.
         self.max_bad_files_to_redownload = max_bad_files_to_redownload
+        self._bad_files_threshold_warned = False
         self.report_lines = None
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -442,13 +521,42 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         except Exception as ex:  # pragma: no cover - instrumentation must never break sync
             log.debug(f"could not emit verify progress tick: {ex}")
 
+    def _count_all_bad_files(self) -> bool:
+        """True when the verify loop counts ALL bad/missing files and the
+        redownload pass is budget-bounded instead of count-capped
+        (DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES, default on). Off restores the
+        legacy count-cliff behavior exactly (kill switch, D-005 pattern)."""
+        return _config_var_bool("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True)
+
+    def _redownload_pass_enabled(self) -> bool:
+        """The redownload pass runs only when the caller asked for one:
+        max_bad_files_to_redownload None/0 keeps meaning "verify only" (the
+        in-process check-checksum command and old scripts rely on that)."""
+        return bool(self.max_bad_files_to_redownload)
+
+    def _bad_file_progress(self, prog_msg, file_index, total_items):
+        """Bad/missing-file lines stay unconditional up to the warn threshold
+        (rare and important). Beyond it — a mass failure, e.g. connectivity
+        lost mid-download leaving thousands of files with no .part — they are
+        throttled like the per-file check lines so counting every bad file
+        does not flood the log. The bookkeeping (lists_of_files/num_bad_files)
+        and the per-file retry_decision events are never throttled."""
+        threshold = self.max_bad_files_to_redownload
+        if (threshold is None
+                or not self._count_all_bad_files()
+                or self.num_bad_files <= max(int(threshold), 1)):
+            super().increment_and_output_progress(increment_by=0, prog_msg=prog_msg)
+        else:
+            self._verify_progress_log(prog_msg, 0, file_index, total_items)
+
     def _verify_progress_log(self, prog_msg, increment_by, file_index, total_items):
         """Throttled per-file progress for the verify loop (see
         :func:`_emit_throttled_progress`). Emitting a line for every one of tens
         of thousands of files — a check-checksum line AND a promoted line per
         file — was the dominant cost of the verify pass; the hashing itself is
-        parallel and finishes in seconds. Bad/missing-file lines are NOT routed
-        through here — they stay unconditional (rare and important)."""
+        parallel and finishes in seconds. Bad/missing-file lines go through
+        :meth:`_bad_file_progress`: unconditional up to the warn threshold,
+        routed here (throttled) past it so mass failures don't flood the log."""
         _emit_throttled_progress(self, prog_msg, increment_by, file_index, total_items,
                                  "_verify_last_progress_log")
 
@@ -533,8 +641,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         # Hash files in parallel when enabled. The hashing (read bytes + sha1)
         # is the only work that runs off the main thread; it is read-only and
         # independent per file. ALL bookkeeping below (promotion, lists_of_files,
-        # num_bad_files, the verify-progress ticks, and the
-        # max_bad_files_to_redownload early-stop) runs on the main thread in the
+        # num_bad_files, the verify-progress ticks, and the warn-threshold /
+        # legacy early-stop on max_bad_files_to_redownload) runs on the main thread in the
         # original order using these precomputed results — preserving the exact
         # serial semantics and avoiding any mutation of process-global state
         # from worker threads.
@@ -572,8 +680,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             if temp_is_file:
                 if not utils.compare_checksums(file_checksum, file_item.checksum):
                     self.num_bad_files += 1
-                    super().increment_and_output_progress(increment_by=0,
-                                                          prog_msg=f"bad checksum for temp download '{temp_path}'\nexpected: {file_item.checksum}, found: {file_checksum}")
+                    self._bad_file_progress(
+                        f"bad checksum for temp download '{temp_path}'\nexpected: {file_item.checksum}, found: {file_checksum}",
+                        file_index, total_items)
                     self.lists_of_files["bad_checksum"].append(" ".join(("Bad checksum:", os.fspath(temp_path),
                                                                          "expected", file_item.checksum, "found",
                                                                          file_checksum)))
@@ -599,8 +708,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                     self._verify_progress_log(f"promoted verified download '{final_path}'", 0, file_index, total_items)
             else:
                 self.num_bad_files += 1
-                super().increment_and_output_progress(increment_by=0,
-                                                      prog_msg=f"missing temp download '{temp_path}' for '{file_item.download_path}'")
+                self._bad_file_progress(
+                    f"missing temp download '{temp_path}' for '{file_item.download_path}'",
+                    file_index, total_items)
                 self.lists_of_files["missing_files"].append(" ".join((os.fspath(temp_path), "was not found")))
                 self.lists_of_files["to redownload"].append(file_item)
                 _emit_retry_decision(
@@ -611,21 +721,46 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                     resume_eligible=False,  # restart_required by class
                 )
             if self.max_bad_files_to_redownload is not None and self.num_bad_files > self.max_bad_files_to_redownload:
-                super().increment_and_output_progress(increment_by=0,
-                                                      prog_msg=f"stopping checksum check too many bad or missing files found")
-                break
+                if self._count_all_bad_files():
+                    # Recovery-cliff removal: keep counting so EVERY bad file
+                    # gets a recovery chance; max_bad_files_to_redownload is
+                    # only a warn threshold now (warn once at the crossing).
+                    if not self._bad_files_threshold_warned:
+                        self._bad_files_threshold_warned = True
+                        threshold_msg = (f"more than {self.max_bad_files_to_redownload} bad or missing files found; "
+                                         f"continuing to count them all, redownload will be budget-bounded")
+                        log.warning(threshold_msg)
+                        super().increment_and_output_progress(increment_by=0, prog_msg=threshold_msg)
+                else:
+                    super().increment_and_output_progress(increment_by=0,
+                                                          prog_msg=f"stopping checksum check too many bad or missing files found")
+                    break
 
         # Final verify tick (force past the throttle) so the phase bar reaches
         # its full planned bytes when verification finishes.
         self._emit_verify_progress(verify_done_bytes, verify_planned_bytes, force=True)
 
         if not self.is_checksum_ok():
-            if self.max_bad_files_to_redownload is not None and self.num_bad_files <= self.max_bad_files_to_redownload:
+            if self._count_all_bad_files():
+                # Recovery is ALWAYS attempted when the redownload pass is
+                # enabled, no matter how many files are bad — the pause-aware
+                # per-file loop plus the byte/time budgets replace the old
+                # count cliff that used to fail the install with zero recovery
+                # attempts at cap+1 bad files.
+                attempt_recovery = self._redownload_pass_enabled()
+            else:
+                # Legacy count-cliff behavior (kill switch off).
+                attempt_recovery = (self.max_bad_files_to_redownload is not None
+                                    and self.num_bad_files <= self.max_bad_files_to_redownload)
+            if attempt_recovery:
                 utils.wait_for_break_file_to_be_removed(
                     config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_REDOWNLOAD"),
                     self.break_file_callback)
                 self.re_download_bad_files()
 
+        # The ValueError below is raised only AFTER recovery had its chance;
+        # Central's error parser regexes on /Bad checksum/i, so the message
+        # format must not change.
         if not self.is_checksum_ok():  # some files still not OK after re_download_bad_files
             if self.raise_on_bad_checksum:
                 exception_message = "\n".join(
@@ -640,13 +775,38 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         # invariants (D-001/D-009/D-010): no temp ``.part`` is promoted while
         # paused. A terminal failure on one file no longer aborts the whole
         # redownload pass — the remaining bad files still get their chance.
+        #
+        # With DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES on, the pass is bounded by a
+        # byte/time budget (_RedownloadBudget) instead of the legacy count
+        # cliff: the budget is checked BETWEEN files (a file in flight is
+        # never abandoned) and only the files beyond an exhausted budget are
+        # left unrecovered — they stay counted as bad so the caller raises the
+        # existing 'Bad checksum ...' error after the pass. Time spent paused
+        # does not burn the budget (_PauseTrackingChannel).
         control_channel = get_global_channel()
         retry_enabled = _config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
+        budget = None
+        if self._count_all_bad_files():
+            budget = _RedownloadBudget.from_config()
+            control_channel = _PauseTrackingChannel(control_channel)
+        files_to_redownload = list(self.lists_of_files["to redownload"])
         with DownloadManager(cookie=config_vars["COOKIE_JAR"].str(),
                              report_own_progress=False) as dler:  # should get the cookie from the config vars
-            for file_item in list(self.lists_of_files["to redownload"]):
+            for file_index, file_item in enumerate(files_to_redownload):
+                if budget is not None:
+                    exhausted_reason = budget.exhausted_reason(control_channel.paused_seconds)
+                    if exhausted_reason:
+                        files_left = len(files_to_redownload) - file_index
+                        budget_msg = (f"redownload budget exhausted ({exhausted_reason}) after "
+                                      f"{budget.bytes_spent} bytes / {budget.active_seconds(control_channel.paused_seconds):.1f}s; "
+                                      f"leaving {files_left} of {len(files_to_redownload)} bad files unrecovered")
+                        log.warning(budget_msg)
+                        super().increment_and_output_progress(increment_by=0, prog_msg=budget_msg)
+                        break
                 try:
                     self._redownload_one_file(dler, file_item, control_channel, retry_enabled)
+                    if budget is not None:
+                        budget.spend_bytes(getattr(file_item, "size", 0) or 0)
                 except Exception as ex:
                     # Terminal for this file (retries exhausted or non-retryable).
                     # Leave it counted as bad so the caller raises after the pass.

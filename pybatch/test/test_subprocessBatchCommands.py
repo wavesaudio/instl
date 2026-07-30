@@ -623,5 +623,498 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.assertEqual(last["phase_bytes_done"], last["bytes_received"])
         self.assertEqual(last["phase_bytes_planned"], 1000)
 
+    # -- Workstream A: post-run completeness reconciliation ------------------
+
+    @staticmethod
+    def _make_curl_obj(config_file_path, total_files=3, total_bytes=300):
+        obj = CurlWithInternalParallel(
+            Path("curl"), Path(config_file_path),
+            total_files_to_download=total_files,
+            previously_downloaded_files=0,
+            total_bytes_to_download=total_bytes,
+        )
+        obj._session_id = "sess-test"
+        obj._hold_seconds_used = 0.0
+        obj._offline_probe_attempt = 0
+        return obj
+
+    @staticmethod
+    def _write_internal_parallel_config(cfg_path, outputs, headers_for=()):
+        """Write a curlHelper-shaped internal-parallel config: header block +
+        one entry (no-fail/continue-at/url/output) per output path."""
+        lines = [
+            "parallel", "progress-bar", "insecure", "raw", "fail", "show-error",
+            "compressed", "create-dirs", "connect-timeout = 16", "max-time = 600",
+            "retry = 12", "retry-delay = 12", "retry-connrefused",
+            "retry-max-time = 90", "retry-all-errors", "cookie = test=1",
+            "parallel-max = 50", "",
+        ]
+        for out_i, out_path in enumerate(outputs):
+            lines.append("no-fail")
+            lines.append("continue-at = -")
+            if out_i in headers_for:
+                lines.append('header = "If-None-Match: abc"')
+            lines.append(f'url = "https://cdn.example.com/file{out_i}.wtar"')
+            lines.append(f'output = "{out_path}"')
+            lines.append("")
+        Path(cfg_path).write_text("\n".join(lines), encoding="utf-8")
+
+    def test_CurlInternalParallel_reconcile_parses_header_and_entries(self):
+        """The reconciliation parser must split a curlHelper-generated config
+        into header lines and per-download entries, preserving each entry's
+        original no-fail/continue-at/header/url/output lines."""
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        out_dir = self.pbt.path_inside_test_folder("outs")
+        out_dir.mkdir(exist_ok=True)
+        outputs = [str(out_dir / f"f{i}.wtar.instl-x.part") for i in range(3)]
+        self._write_internal_parallel_config(cfg, outputs, headers_for={1})
+
+        obj = self._make_curl_obj(cfg)
+        header_lines, entries, uses_next = obj._parse_curl_config_for_reconcile(cfg)
+
+        self.assertFalse(uses_next)
+        self.assertIn("parallel", header_lines)
+        self.assertIn("retry-all-errors", header_lines)
+        self.assertEqual(len(entries), 3)
+        self.assertEqual(entries[0]["output_path"], outputs[0])
+        self.assertEqual(entries[0]["pre_lines"], ["no-fail", "continue-at = -"])
+        self.assertEqual(entries[1]["pre_lines"],
+                         ["no-fail", "continue-at = -", 'header = "If-None-Match: abc"'])
+        self.assertEqual(entries[2]["url_line"], 'url = "https://cdn.example.com/file2.wtar"')
+
+    def test_CurlInternalParallel_reconcile_redownloads_only_missing(self):
+        """curl --parallel can exit 0 while transfers failed permanently; the
+        reconciliation pass must re-run curl with a config containing ONLY the
+        entries whose expected output is missing on disk."""
+        from unittest import mock
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        out_dir = self.pbt.path_inside_test_folder("outs")
+        out_dir.mkdir(exist_ok=True)
+        outputs = [str(out_dir / f"f{i}.wtar.instl-x.part") for i in range(3)]
+        self._write_internal_parallel_config(cfg, outputs)
+        Path(outputs[0]).write_bytes(b"x")   # present
+        Path(outputs[2]).write_bytes(b"y")   # present; outputs[1] missing
+
+        obj = self._make_curl_obj(cfg)
+        ran_configs = []
+
+        def fake_run(config_path_fixed, pause_check, channel):
+            ran_configs.append(config_path_fixed)
+            Path(outputs[1]).write_bytes(b"z")  # the re-run "downloads" it
+            return 0
+
+        with mock.patch.object(obj, "_run_config_with_recovery", side_effect=fake_run):
+            return_code = obj._reconcile_missing_outputs(None, None)
+
+        self.assertEqual(return_code, 0)
+        self.assertEqual(len(ran_configs), 1, "one reconciliation round should suffice")
+        retry_text = Path(f"{os.fspath(cfg)}.reconcile-01").read_text(encoding="utf-8")
+        self.assertIn('url = "https://cdn.example.com/file1.wtar"', retry_text)
+        self.assertNotIn("file0.wtar", retry_text)
+        self.assertNotIn("file2.wtar", retry_text)
+        self.assertIn("continue-at = -", retry_text)   # entry lines preserved
+        self.assertIn("parallel", retry_text)          # header preserved
+
+    def test_CurlInternalParallel_reconcile_rounds_are_bounded(self):
+        """When outputs never appear, reconciliation must stop after
+        DOWNLOAD_RECONCILE_MAX_ROUNDS and leave recovery to the checksum
+        phase (no exception, no endless loop)."""
+        from unittest import mock
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        out_dir = self.pbt.path_inside_test_folder("outs")
+        out_dir.mkdir(exist_ok=True)
+        outputs = [str(out_dir / "never.wtar.instl-x.part")]
+        self._write_internal_parallel_config(cfg, outputs)
+
+        obj = self._make_curl_obj(cfg, total_files=1, total_bytes=100)
+        config_vars["DOWNLOAD_RECONCILE_MAX_ROUNDS"] = "2"
+        try:
+            with mock.patch.object(obj, "_run_config_with_recovery", return_value=0) as run_mock:
+                return_code = obj._reconcile_missing_outputs(None, None)
+        finally:
+            config_vars["DOWNLOAD_RECONCILE_MAX_ROUNDS"] = "3"
+        self.assertEqual(return_code, 0)
+        self.assertEqual(run_mock.call_count, 2, "must re-run exactly max_rounds times")
+
+    def test_CurlInternalParallel_reconcile_kill_switch(self):
+        """DOWNLOAD_RECONCILE_MISSING_OUTPUTS=no must restore the old behavior:
+        trust curl's exit code, run nothing."""
+        from unittest import mock
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        outputs = [str(self.pbt.path_inside_test_folder("missing.part"))]
+        self._write_internal_parallel_config(cfg, outputs)
+
+        obj = self._make_curl_obj(cfg, total_files=1, total_bytes=100)
+        config_vars["DOWNLOAD_RECONCILE_MISSING_OUTPUTS"] = "no"
+        try:
+            with mock.patch.object(obj, "_run_config_with_recovery") as run_mock:
+                return_code = obj._reconcile_missing_outputs(None, None)
+        finally:
+            config_vars["DOWNLOAD_RECONCILE_MISSING_OUTPUTS"] = "yes"
+        self.assertEqual(return_code, 0)
+        run_mock.assert_not_called()
+
+    # -- Workstream B: offline-hold with structured events -------------------
+
+    def test_CurlInternalParallel_offline_hold_emits_events_and_resumes(self):
+        """While offline the hold loop must emit a paused session_state whose
+        reason looks offline to Central plus a network-class retry_decision per
+        failed probe (feeding Central's >=3 streak detector), then emit a
+        resuming 'downloading' session_state when connectivity returns.
+        Requires the client to have declared the backend-hold capability
+        (DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD) -- a new Central sets it."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        obj._part_output_paths_cache = []
+
+        emit_state = mock.MagicMock(return_value="line")
+        emit_retry = mock.MagicMock(return_value="line")
+        probes = [(False, "tcp_connect"), (False, "dns_resolution"), (True, None)]
+        config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "yes"
+        try:
+            with mock.patch.object(obj, "_probe_connectivity", side_effect=probes), \
+                    mock.patch.object(sbc.time, "sleep"), \
+                    mock.patch("pyinstl.downloadEvents.emit_session_state", emit_state), \
+                    mock.patch("pyinstl.downloadEvents.emit_retry_decision", emit_retry):
+                came_back = obj._hold_until_online(None)
+        finally:
+            config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+
+        self.assertTrue(came_back)
+        # session_state: first is the offline-flavored pause, last is the resume
+        first_state = emit_state.call_args_list[0].kwargs
+        self.assertEqual(first_state["state"], "paused")
+        self.assertIn("offline", first_state["reason"])
+        last_state = emit_state.call_args_list[-1].kwargs
+        self.assertEqual(last_state["state"], "downloading")
+        self.assertEqual(last_state["reason"], "resuming_after_offline")
+        # retry_decision: one per failed probe, network-class failureClass
+        self.assertEqual(emit_retry.call_count, 2)
+        failure_classes = [call.args[0].failure_class.value for call in emit_retry.call_args_list]
+        self.assertEqual(failure_classes, ["tcp_connect", "dns_resolution"])
+        reasons = [call.args[0].reason for call in emit_retry.call_args_list]
+        self.assertEqual(reasons, ["offline_hold_probe_failed"] * 2)
+
+    def test_CurlInternalParallel_offline_hold_overall_timeout(self):
+        """The hold is bounded: once the overall hold budget is spent the loop
+        returns False so the old retries-exhausted path applies."""
+        from unittest import mock
+        import itertools
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        obj._part_output_paths_cache = []
+
+        config_vars["DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS"] = "5"
+        try:
+            with mock.patch.object(obj, "_probe_connectivity", return_value=(False, "tcp_connect")), \
+                    mock.patch.object(sbc.time, "sleep"), \
+                    mock.patch.object(sbc.time, "monotonic",
+                                      side_effect=itertools.count(start=0.0, step=1.0)), \
+                    mock.patch("pyinstl.downloadEvents.emit_session_state", mock.MagicMock()), \
+                    mock.patch("pyinstl.downloadEvents.emit_retry_decision", mock.MagicMock()):
+                came_back = obj._hold_until_online(None)
+        finally:
+            config_vars["DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS"] = "1800"
+        self.assertFalse(came_back, "hold must give up after the overall timeout")
+
+    def test_CurlInternalParallel_network_error_emits_retry_decision_then_holds(self):
+        """A network-class curl exit must emit a retry_decision DOWNLOAD_EVENT
+        (curlExitCode preserved, network failureClass) and, when the probe says
+        offline, enter the hold instead of burning the backoff budget."""
+        from unittest import mock
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        emit_retry = mock.MagicMock(return_value="line")
+        runs = [(7, False), (0, False)]
+        config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "yes"
+        try:
+            with mock.patch.object(obj, "_run_curl_once", side_effect=runs), \
+                    mock.patch.object(obj, "_probe_connectivity", return_value=(False, "tcp_connect")), \
+                    mock.patch.object(obj, "_hold_until_online", return_value=True) as hold_mock, \
+                    mock.patch("pyinstl.downloadEvents.emit_retry_decision", emit_retry):
+                return_code = obj._run_config_with_recovery("cfg", None, None)
+        finally:
+            config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+
+        self.assertEqual(return_code, 0)
+        hold_mock.assert_called_once()
+        self.assertEqual(emit_retry.call_count, 1)
+        decision = emit_retry.call_args_list[0].args[0]
+        self.assertEqual(decision.failure_class.value, "tcp_connect")
+        self.assertEqual(decision.curl_exit_code, 7)
+        self.assertEqual(decision.reason, "bulk_curl_network_error")
+
+    def test_CurlInternalParallel_offline_hold_kill_switch_keeps_backoff(self):
+        """DOWNLOAD_OFFLINE_HOLD_ENABLED=no restores the legacy bounded-backoff
+        path: no probe, no hold, just the short sleep-and-retry loop."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        runs = [(7, False), (0, False)]
+        config_vars["DOWNLOAD_OFFLINE_HOLD_ENABLED"] = "no"
+        try:
+            with mock.patch.object(obj, "_run_curl_once", side_effect=runs), \
+                    mock.patch.object(obj, "_probe_connectivity") as probe_mock, \
+                    mock.patch.object(obj, "_hold_until_online") as hold_mock, \
+                    mock.patch.object(sbc.time, "sleep") as sleep_mock, \
+                    mock.patch("pyinstl.downloadEvents.emit_retry_decision", mock.MagicMock()):
+                return_code = obj._run_config_with_recovery("cfg", None, None)
+        finally:
+            config_vars["DOWNLOAD_OFFLINE_HOLD_ENABLED"] = "yes"
+
+        self.assertEqual(return_code, 0)
+        probe_mock.assert_not_called()
+        hold_mock.assert_not_called()
+        sleep_mock.assert_called_once()  # legacy backoff slept once before the re-run
+
+    # -- Workstream C: stall watchdog (poller backstop) -----------------------
+
+    def test_CurlInternalParallel_poller_emits_stalled_signal(self):
+        """When on-disk bytes stop growing for the watchdog interval while the
+        poller runs, it must log and emit a stalled-flavored session_state --
+        without killing anything (enforcement is curl's speed-time)."""
+        from unittest import mock
+        from threading import Event, Thread
+        import time as _t
+        import tempfile
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
+                                  total_files=1, total_bytes=1000)
+        obj._ema_throughput_bps = 0.0
+        obj._last_emit_monotonic = None
+        obj._last_emit_bytes = 0
+
+        with tempfile.TemporaryDirectory() as d:
+            part = Path(d) / "a.part"
+            part.write_bytes(b"x" * 100)     # static: never grows
+            obj._part_output_paths_cache = [str(part)]
+
+            emit = mock.MagicMock(return_value="line")
+            config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "1"
+            config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "yes"
+            try:
+                with mock.patch.object(sbc, "_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC", 0.05), \
+                        mock.patch("pyinstl.downloadEvents.emit_session_state", emit):
+                    stop = Event()
+                    th = Thread(target=obj._run_download_progress_poller, args=(stop,), daemon=True)
+                    th.start()
+                    _t.sleep(2.5)            # comfortably > watchdog interval with zero growth
+                    stop.set()
+                    th.join(timeout=2.0)
+                    self.assertFalse(th.is_alive(), "poller must join promptly on stop")
+            finally:
+                config_vars["DOWNLOAD_STALL_WATCHDOG_SECONDS"] = "180"
+                config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+
+        stalled = [call.kwargs for call in emit.call_args_list
+                   if call.kwargs.get("reason") == "stalled_no_progress"]
+        self.assertGreaterEqual(len(stalled), 1, "expected a stalled session_state signal")
+        self.assertEqual(stalled[0]["state"], "downloading")
+        self.assertEqual(stalled[0]["bytes_received"], 100)
+
+    def test_CurlInternalParallel_probe_host_from_base_links_url(self):
+        """The connectivity probe targets the validated download host from
+        BASE_LINKS_URL; without it, the first url in the curl config; and
+        fails open (assume online) when neither is available."""
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        self._write_internal_parallel_config(cfg, [str(self.pbt.path_inside_test_folder("f.part"))])
+
+        config_vars["BASE_LINKS_URL"] = "https://cdn.wavescdn.example:8443/links"
+        try:
+            obj = self._make_curl_obj(cfg)
+            self.assertEqual(obj._probe_host_and_port(), ("cdn.wavescdn.example", 8443))
+        finally:
+            config_vars["BASE_LINKS_URL"] = ""
+
+        obj2 = self._make_curl_obj(cfg)   # falls back to the config's first url
+        self.assertEqual(obj2._probe_host_and_port(), ("cdn.example.com", 443))
+
+    # -- Capability handshake: emissions gated on the driving client ---------
+
+    @staticmethod
+    def _proxy_env(**overrides):
+        """A patch.dict mapping that neutralizes every proxy env var curl
+        honors, then applies overrides — so the test is hermetic no matter
+        what the host machine's environment contains."""
+        env = {name: "" for name in ("https_proxy", "http_proxy", "all_proxy",
+                                     "HTTP_PROXY", "ALL_PROXY", "HTTPS_PROXY")}
+        env.update(overrides)
+        return env
+
+    def test_CurlInternalParallel_no_backend_hold_events_without_capability(self):
+        """With DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD off (the shipped default,
+        i.e. an OLD Central that never declared the capability) the engine
+        must still perform the silent recovery — hold, probe, resume — but
+        emit ZERO new retry_decision / session_state events: an old Central's
+        3-streak online detector would answer them with a stdin pause that
+        nothing auto-resumes on Windows, deadlocking the engine."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        obj._part_output_paths_cache = []
+
+        emit_state = mock.MagicMock(return_value="line")
+        emit_retry = mock.MagicMock(return_value="line")
+        probes = [(False, "tcp_connect"), (False, "dns_resolution"), (True, None)]
+        config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
+        with mock.patch.object(obj, "_probe_connectivity", side_effect=probes), \
+                mock.patch.object(sbc.time, "sleep"), \
+                mock.patch("pyinstl.downloadEvents.emit_session_state", emit_state), \
+                mock.patch("pyinstl.downloadEvents.emit_retry_decision", emit_retry):
+            came_back = obj._hold_until_online(None)
+
+        self.assertTrue(came_back, "silent recovery must still hold and resume")
+        emit_state.assert_not_called()
+        emit_retry.assert_not_called()
+
+        # The bulk network-exit path is likewise silent without the capability.
+        obj2 = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        emit_retry2 = mock.MagicMock(return_value="line")
+        runs = [(7, False), (0, False)]
+        with mock.patch.object(obj2, "_run_curl_once", side_effect=runs), \
+                mock.patch.object(obj2, "_probe_connectivity", return_value=(False, "tcp_connect")), \
+                mock.patch.object(obj2, "_hold_until_online", return_value=True), \
+                mock.patch("pyinstl.downloadEvents.emit_retry_decision", emit_retry2):
+            return_code = obj2._run_config_with_recovery("cfg", None, None)
+        self.assertEqual(return_code, 0)
+        emit_retry2.assert_not_called()
+
+    def test_CurlInternalParallel_hold_budget_excludes_paused_time(self):
+        """Time spent blocked in channel.wait_if_paused() (a user/Central
+        pause) must NOT burn the cumulative offline-hold budget — otherwise
+        one paused outage would spend the whole budget and a LATER outage in
+        the same command would get zero hold protection."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+
+        class _FakeClock:
+            def __init__(self):
+                self.t = 0.0
+
+            def monotonic(self):
+                return self.t
+
+            def advance(self, seconds):
+                self.t += seconds
+
+        clock = _FakeClock()
+
+        class _PausingChannel:
+            """Simulates being paused for 100s on every wait_if_paused."""
+            def wait_if_paused(self, poll_seconds=0.5):
+                clock.advance(100.0)
+
+            def sleep_or_wake(self, seconds):
+                clock.advance(seconds)
+
+        obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
+        obj._part_output_paths_cache = []
+        probes = [(False, "tcp_connect")] * 3 + [(True, None)]
+
+        config_vars["DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS"] = "30"
+        try:
+            with mock.patch.object(obj, "_probe_connectivity", side_effect=probes), \
+                    mock.patch.object(sbc.time, "monotonic", clock.monotonic):
+                came_back = obj._hold_until_online(_PausingChannel())
+        finally:
+            config_vars["DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS"] = "1800"
+
+        # Wall time was ~420s (4x100s paused + 4x5s probe waits) but only the
+        # ~20s of ACTIVE hold count; without the exclusion the 30s budget
+        # would have expired on the second loop and returned False.
+        self.assertTrue(came_back, "paused time must not expire the hold budget")
+        self.assertAlmostEqual(obj._hold_seconds_used, 20.0, places=3)
+
+    def test_CurlInternalParallel_reconcile_rewrites_missing_as_fresh_start(self):
+        """Reconciliation must never replay a resume entry's original
+        'continue-at = N' (N>0) or its stale conditional headers for an output
+        that no longer exists: curl -C N with a nonexistent output writes the
+        ranged body at offset 0 — a silently corrupt file missing its first N
+        bytes. Such entries are rewritten as fresh-start."""
+        from unittest import mock
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        out_dir = self.pbt.path_inside_test_folder("outs")
+        out_dir.mkdir(exist_ok=True)
+        out_path = str(out_dir / "resume.wtar.instl-x.part")
+        lines = [
+            "parallel", "retry = 12", "retry-max-time = 360", "",
+            "no-fail",
+            "continue-at = 12345",
+            'header = "If-None-Match: etag-abc"',
+            'header = "X-Custom: keep-me"',
+            'url = "https://cdn.example.com/resume.wtar"',
+            f'output = "{out_path}"',
+            "",
+        ]
+        Path(cfg).write_text("\n".join(lines), encoding="utf-8")
+
+        obj = self._make_curl_obj(cfg, total_files=1, total_bytes=100)
+
+        def fake_run(config_path_fixed, pause_check, channel):
+            Path(out_path).write_bytes(b"z")  # the re-run "downloads" it
+            return 0
+
+        with mock.patch.object(obj, "_run_config_with_recovery", side_effect=fake_run):
+            return_code = obj._reconcile_missing_outputs(None, None)
+
+        self.assertEqual(return_code, 0)
+        retry_text = Path(f"{os.fspath(cfg)}.reconcile-01").read_text(encoding="utf-8")
+        self.assertNotIn("continue-at = 12345", retry_text,
+                         "must not replay a byte offset for a missing output")
+        self.assertIn("continue-at = -", retry_text)
+        self.assertNotIn("If-None-Match", retry_text,
+                         "stale conditional headers must be dropped")
+        self.assertIn('header = "X-Custom: keep-me"', retry_text,
+                      "non-conditional headers are preserved")
+        self.assertIn("no-fail", retry_text)
+        self.assertIn('url = "https://cdn.example.com/resume.wtar"', retry_text)
+
+    def test_CurlInternalParallel_probe_goes_through_proxy_when_configured(self):
+        """On proxy-only networks a direct TCP connect to the download host
+        always fails while curl (which honors the proxy env vars) is fine —
+        so when a proxy is configured the probe must target the PROXY
+        endpoint, not the origin host."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        self._write_internal_parallel_config(cfg, [str(self.pbt.path_inside_test_folder("f.part"))])
+        obj = self._make_curl_obj(cfg)
+
+        with mock.patch.dict(os.environ,
+                             self._proxy_env(HTTPS_PROXY="http://proxy.corp.example:3128")), \
+                mock.patch.object(sbc.socket, "create_connection") as connect_mock:
+            online, failure_class = obj._probe_connectivity()
+
+        self.assertTrue(online)
+        self.assertIsNone(failure_class)
+        (address,), kwargs = connect_mock.call_args
+        self.assertEqual(address, ("proxy.corp.example", 3128),
+                         "probe must connect to the proxy, not the origin host")
+
+    def test_CurlInternalParallel_probe_fails_open_on_unparsable_proxy(self):
+        """A proxy that is configured but whose endpoint cannot be determined
+        (no explicit port) makes the probe INCONCLUSIVE: it must fail open
+        (report online -> legacy bounded backoff), never guess a port and
+        risk a 30-minute false offline hold on a healthy network."""
+        from unittest import mock
+        import pybatch.subprocessBatchCommands as sbc
+        cfg = self.pbt.path_inside_test_folder("dl-00")
+        self._write_internal_parallel_config(cfg, [str(self.pbt.path_inside_test_folder("f.part"))])
+        obj = self._make_curl_obj(cfg)
+
+        with mock.patch.dict(os.environ, self._proxy_env(HTTPS_PROXY="proxy.corp.example")), \
+                mock.patch.object(sbc.socket, "create_connection") as connect_mock:
+            online, failure_class = obj._probe_connectivity()
+
+        self.assertTrue(online, "unparsable proxy must be inconclusive, not offline")
+        self.assertIsNone(failure_class)
+        connect_mock.assert_not_called()
+
     def test_Dummy(self):
         pass

@@ -1,6 +1,6 @@
 # Download event contract (instl → Waves Central)
 
-Status: **Authoritative contract** · Last updated: 2026-06-17
+Status: **Authoritative contract** · Last updated: 2026-07-30
 
 This document is the contract of record for the structured download-telemetry
 channel that instl emits and Waves Central consumes. It is the "harden the
@@ -90,6 +90,26 @@ falls back to `download.session_summary` totals when they are absent.
 checksum pass, `copying` at copy start, `completed` after the require-file write.
 Central maps these to the "Verifying" / "Installing" / terminal UX states.
 
+**Backend-hold session states (offline-hold / stall / reconcile) — gated on
+`DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`:** the bulk-download engine
+(`CurlWithInternalParallel`) now recovers from connectivity loss itself and,
+*only* when the driving client declared the backend-hold capability (see §3.6),
+narrates that recovery with additional `session_state` transitions:
+
+| state | reason | when |
+|---|---|---|
+| `paused` | `offline_no_network` | connectivity probe failed; engine is holding (re-emitted, throttled to `DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS`) |
+| `downloading` | `resuming_after_offline` | connectivity returned; curl is re-run (`continue-at` resumes `.part` files) |
+| `downloading` | `stalled_no_progress` | stall-watchdog backstop: on-disk bytes have not grown for `DOWNLOAD_STALL_WATCHDOG_SECONDS` while curl is alive |
+| `retrying` | `reconcile_missing_outputs` | curl exited 0 but expected outputs are missing; a reconciliation round re-downloads only the missing entries |
+
+These carry the current on-disk byte progress (`bytesReceived`,
+`filesCompleted`, `phaseBytesDone`, `phaseBytesPlanned`) so Central's bar keeps
+its position while frozen, and deliberately **no**
+`observedThroughputBytesPerSecond` — the hold gap must not be averaged into the
+ETA. All are additive (schemaVersion stays 1). Without the capability the
+engine still holds/reconciles silently and emits only the legacy log lines.
+
 ### 3.2 `download.file_state`
 
 Per-file transitions. Keys: `fileId`, `repoPath`, `state` (§4.2),
@@ -104,6 +124,21 @@ Wrapped form of the legacy `DOWNLOAD_RETRY_DECISION` line. Keys: `fileId`,
 `receivedBytes`, `concurrency`, `retryAfterSeconds`, `httpStatus`,
 `curlExitCode`. The legacy text line is still emitted unchanged (D-016).
 
+**Bulk-download network events — gated on
+`DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (§3.6):** the bulk curl loop, which
+previously only wrote a free-text log line on network errors, now also emits
+`retry_decision` events with the exact same schema. `fileId`/`repoPath` are
+`null` (the failure is the bulk transfer, not one file), `decision` is
+`resume` (the loop always retries in place via `continue-at`), and `reason`
+distinguishes the two emitters:
+
+* `bulk_curl_network_error` — a network-class curl exit from the bulk run
+  (`curlExitCode` carries the code; `failureClass` is derived from it).
+* `offline_hold_probe_failed` — one per failed connectivity probe while the
+  engine holds offline (`failureClass` is `dns_resolution` or `tcp_connect`,
+  both network-class, so Central's ≥3-streak online detector still fires even
+  though curl is not being re-run while offline).
+
 ### 3.4 `download.capability`
 
 One-shot backend feature snapshot Central uses for UX gating (D-004). Keys:
@@ -113,6 +148,13 @@ One-shot backend feature snapshot Central uses for UX gating (D-004). Keys:
 `retryPolicyEnabled`. **`centralUxEnabled` is the master gate** for the new
 structured UX.
 
+`featureFlags` now also surfaces the connectivity-loss self-sufficiency gates
+(`downloadCohort._TRACKED_FLAGS`): `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`,
+`DOWNLOAD_OFFLINE_HOLD_ENABLED`, `DOWNLOAD_CURL_STALL_DETECTION`,
+`DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (all default **true**) and
+`DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (default **false**), so Central and
+telemetry can see which recovery layers are active.
+
 ### 3.5 `download.session_summary`
 
 The aggregated `session-summary.json` payload lifted onto the channel so Central
@@ -120,6 +162,25 @@ need not read the sidecar. Carries `summary` (object): `wallMs`, `filesPlanned`,
 `bytesPlanned`, `concurrencyPlanned`, `totals` (incl. `successes`,
 `failuresRetryable`, `bytesReceived`), `observedThroughputBytesPerSecond`,
 `errorRate`, `retryableErrorRate`, `hosts`.
+
+### 3.6 The backend-hold capability handshake (`DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`)
+
+This is a **client→engine** declaration, not an event: a NEW Central injects
+`DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: true` into the download settings of the
+generated yaml, declaring that it treats the backend-hold signals above (the
+bulk-loop network-class `retry_decision`s and the offline-hold / stall /
+reconcile `session_state`s) as **informational** — it never answers them with
+a stdin pause, because the engine is already holding and resumes itself.
+
+The shipped default is **`no`**, because an OLD Central's 3-streak online
+detector would respond to a burst of network-class `retry_decision`s with a
+pause that nothing auto-resumes on Windows (`navigator.onLine` lies there),
+deadlocking the engine in `wait_if_paused`. With the flag off, **all** silent
+recovery (output reconciliation, offline-hold, stall detection, redownload
+budgets) still runs — only the legacy log lines / event stream are produced,
+so an old Central sees exactly today's events. The flag is surfaced on
+`download.capability.featureFlags` (§3.4). Emitter gate:
+`_client_handles_backend_hold()` in `pybatch/subprocessBatchCommands.py`.
 
 ---
 

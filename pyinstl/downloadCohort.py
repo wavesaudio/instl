@@ -173,6 +173,21 @@ _TRACKED_FLAGS: tuple[tuple[str, bool], ...] = (
     ("DOWNLOAD_RETRY_POLICY_ENABLED", True),
     ("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
     ("DOWNLOAD_CENTRAL_UX_ENABLED", False),
+    # Connectivity-loss self-sufficiency gates (offline-hold workstream).
+    # Default ON in shipped builds; surfaced here so Central/telemetry can
+    # see which recovery layers are active and rollout can retreat one
+    # behavior at a time without a code change.
+    ("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True),
+    ("DOWNLOAD_OFFLINE_HOLD_ENABLED", True),
+    ("DOWNLOAD_CURL_STALL_DETECTION", True),
+    # Capability handshake: set to true by a NEW Central (which treats
+    # backend-hold evidence as informational and never auto-pauses on it);
+    # default FALSE so an old Central sees only the legacy event stream
+    # while the engine still recovers silently.
+    ("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False),
+    # Recovery-cliff removal: checksum-verify counts ALL bad files and the
+    # redownload pass always runs, budget-bounded (see InstlClient.yaml).
+    ("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True),
 )
 
 

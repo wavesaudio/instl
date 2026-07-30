@@ -5,10 +5,12 @@ import logging
 import os
 import re
 import shlex
+import socket
 import stat
 import subprocess
 import sys
 import time
+import urllib.parse
 from pathlib import Path
 from threading import Thread, Event
 from typing import List
@@ -28,6 +30,50 @@ log = logging.getLogger(__name__)
 # emitting must never break a download.
 _DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC = 1.0
 _DOWNLOAD_PROGRESS_THROUGHPUT_EMA_ALPHA = 0.2
+
+
+def _download_config_flag(name, default_yes=True):
+    """Read a yes/no DOWNLOAD_* config var defensively.
+
+    The bulk download runs inside an emitted batch script (possibly elevated
+    via run-process), so config-var access must never raise -- a missing var
+    or an unusable config stack falls back to the shipped default. Matches
+    the truthy set used by curlHelper for the same family of flags.
+    """
+    try:
+        default_str = "yes" if default_yes else "no"
+        return str(config_vars.get(name, default_str)).strip().lower() in ("yes", "true", "1")
+    except Exception:
+        return bool(default_yes)
+
+
+def _download_config_int(name, default):
+    """Read an integer DOWNLOAD_* config var defensively (see _download_config_flag)."""
+    try:
+        return int(str(config_vars.get(name, str(default))).strip())
+    except Exception:
+        return int(default)
+
+
+def _client_handles_backend_hold():
+    """Capability handshake with the driving client (Waves Central).
+
+    A NEW Central injects DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: true into the
+    generated yaml, declaring that it treats backend-derived offline evidence
+    (the bulk-loop network-class retry_decision events and the offline-hold /
+    stall session_state events) as INFORMATIONAL -- it will never respond
+    with a stdin pause, because the engine is already holding and resumes
+    itself.
+
+    Default FALSE: an OLD Central's pre-existing 3-streak online detector
+    would answer a burst of network-class retry_decisions with a pause that
+    nothing ever auto-resumes on Windows (navigator.onLine lies there),
+    deadlocking the engine in wait_if_paused. When false, the engine still
+    performs ALL silent recovery (reconciliation, offline-hold/backoff, stall
+    detection, redownload budgets) but emits only the legacy log lines -- an
+    old Central sees exactly today's event stream.
+    """
+    return _download_config_flag("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False)
 
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
@@ -342,6 +388,14 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
           short blip recovers instead of failing the session.
         - The curl range-failure fallback (exit 33) and genuine failures keep
           their existing behavior.
+
+        TODO(external-parallel): CurlWithInternalParallel (the shipped path)
+        additionally gained post-run output reconciliation, an offline-hold
+        with structured events, and a stall watchdog. Sharing those here is
+        not trivial because this runner drives many curl processes through
+        run_processes_in_parallel and only sees an aggregate exit code, so
+        external mode intentionally keeps the older bounded-backoff behavior
+        for now (the checksum phase remains its completeness gate).
         """
         is_curl = self._is_curl_command(commands)
         channel = self._control_channel() if is_curl else None
@@ -761,20 +815,6 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         channel = self._control_channel()
         pause_check = channel.is_paused if channel is not None else None
 
-        # Re-run loop honoring pause/resume and surviving brief network drops
-        # (mirrors ParallelRun._run_with_pause_and_offline_hold -- the bulk
-        # download actually runs here, not there). On pause we hold then re-run;
-        # on a network-class curl exit we hold if Central paused us (offline),
-        # otherwise back off and retry a bounded number of times so a quick
-        # disconnect/reconnect recovers instead of failing the session. Terminal
-        # behavior is intentionally unchanged: once retries are exhausted (or for
-        # a non-network error) we fall through to the existing fallback /
-        # increment_progress and let the downstream checksum pass redownload
-        # whatever is still missing -- this class never raised on curl failure.
-        network_retry_budget = 12
-        network_attempt = 0
-        return_code = 0
-
         # Cumulative & monotonic progress state carried ACROSS re-runs (each
         # _run_curl_once is one curl pass; on pause/network-resume curl is
         # re-launched and its Xfers/Dled restart at 0). Without this, the
@@ -809,6 +849,56 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         except Exception:
             self._session_id = "unknown"
 
+        # Offline-hold bookkeeping shared by the whole call (the initial pass
+        # and any reconciliation passes draw from ONE overall hold budget so a
+        # flapping network cannot hold an install forever).
+        self._hold_seconds_used = 0.0
+
+        return_code = self._run_config_with_recovery(config_file_path_fixed, pause_check, channel)
+        if return_code == 0:
+            # Workstream A: in --parallel mode curl's final exit code can be 0
+            # while individual transfers failed permanently (their per-transfer
+            # retries were exhausted while offline). Do not trust exit 0 --
+            # reconcile expected outputs against the disk and re-download only
+            # what is missing.
+            return_code = self._reconcile_missing_outputs(pause_check, channel)
+
+        print(f"Curl ended {return_code}")
+        if self._can_run_fallback(return_code):
+            self._run_fallback_after_curl_range_failure(return_code)
+        self.increment_progress()
+
+    def _run_config_with_recovery(self, config_file_path_fixed, pause_check, channel):
+        """Run one curl config to completion, honoring pause/resume and
+        surviving network drops. Returns curl's final return code.
+
+        Re-run loop honoring pause/resume (mirrors
+        ParallelRun._run_with_pause_and_offline_hold -- the bulk download
+        actually runs here, not there). On pause we hold then re-run; on a
+        network-class curl exit we:
+
+        * emit a structured ``download.retry_decision`` event -- ONLY when
+          the driving client declared DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD
+          (a new Central treats it as informational offline evidence; an old
+          Central's 3-streak detector would answer with a never-resumed
+          pause, so without the capability only the legacy log line is
+          written);
+        * probe connectivity ourselves (``DOWNLOAD_OFFLINE_HOLD_ENABLED``):
+          when the probe fails we HOLD -- probing in a pause-aware loop and
+          emitting offline session_state events -- until the network returns
+          or the overall hold timeout expires, WITHOUT burning the bounded
+          retry budget. This makes the engine self-sufficient even when
+          Central never sends a pause (e.g. elevated runs);
+        * otherwise (reachable host, transfer-level failure) back off briefly
+          and retry a bounded number of times so a short blip recovers.
+
+        Terminal behavior is intentionally unchanged: once retries are
+        exhausted / the hold times out (or for a non-network error) we return
+        and let the downstream checksum pass redownload whatever is still
+        missing -- this class never raised on curl failure.
+        """
+        network_retry_budget = 12
+        network_attempt = 0
         while True:
             return_code, paused = self._run_curl_once(config_file_path_fixed, pause_check)
             if paused:
@@ -819,12 +909,26 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                 continue  # resume: re-run curl --config (continue-at resumes partial files)
             if return_code != 0 and self._is_network_error(return_code):
                 # Offline grace: hold if Central paused us (offline), otherwise
-                # back off briefly and retry so a short blip recovers.
+                # probe/hold or back off briefly and retry.
                 if channel is not None:
                     channel.wait_if_paused()
+                network_attempt += 1
+                self._emit_network_retry_decision(
+                    attempt=network_attempt,
+                    reason="bulk_curl_network_error",
+                    curl_exit_code=return_code,
+                )
+                if _download_config_flag("DOWNLOAD_OFFLINE_HOLD_ENABLED", True) \
+                        and not self._probe_connectivity()[0]:
+                    # Genuinely offline: hold until connectivity returns.
+                    # A hold does not consume the retry budget -- waiting out
+                    # an outage is not a failed attempt.
+                    if self._hold_until_online(channel):
+                        continue  # back online: re-run (continue-at resumes .part files)
+                    log.info(f"{self.progress_msg_self()} network error (curl {return_code}); offline hold timeout expired, continuing")
+                    return return_code
                 if network_retry_budget > 0:
                     network_retry_budget -= 1
-                    network_attempt += 1
                     backoff = min(2 * network_attempt, 10)
                     log.info(f"{self.progress_msg_self()} network error (curl {return_code}); retry in {backoff}s ({network_retry_budget} left)")
                     if channel is not None:
@@ -833,12 +937,434 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                         time.sleep(backoff)
                     continue
                 log.info(f"{self.progress_msg_self()} network error (curl {return_code}); retries exhausted, continuing")
-            break
+            return return_code
 
-        print(f"Curl ended {return_code}")
-        if self._can_run_fallback(return_code):
-            self._run_fallback_after_curl_range_failure(return_code)
-        self.increment_progress()
+    # -- Workstream B: offline-hold with structured events --------------------
+
+    def _probe_host_and_port(self):
+        """The (host, port) to probe for connectivity: the validated download
+        host from BASE_LINKS_URL when available, else the host of the first
+        url entry in the curl config. Cached; (None, 443) when undeterminable
+        (the probe then fails open -- assume online, keep legacy behavior)."""
+        cached = getattr(self, "_probe_host_port_cache", None)
+        if cached is not None:
+            return cached
+        host, port = None, 443
+        try:
+            base_links_url = str(config_vars.get("BASE_LINKS_URL", "")).strip()
+        except Exception:
+            base_links_url = ""
+        candidates = [base_links_url] if base_links_url else []
+        if not candidates:
+            try:
+                with open(os.fspath(self.config_file_path), "r", encoding="utf-8", errors="replace") as cfg:
+                    for line in cfg:
+                        s = line.strip()
+                        if s.startswith("url"):
+                            _, sep, rhs = s.partition("=")
+                            if sep:
+                                candidates.append(rhs.strip().strip('"'))
+                                break
+            except OSError:
+                pass
+        for candidate in candidates:
+            try:
+                split = urllib.parse.urlsplit(candidate)
+                if split.hostname:
+                    host = split.hostname
+                    port = split.port or (80 if split.scheme == "http" else 443)
+                    break
+            except ValueError:
+                continue
+        self._probe_host_port_cache = (host, port)
+        return self._probe_host_port_cache
+
+    # Proxy env vars curl honors (checked in this order; os.environ lookup is
+    # case-insensitive on Windows, so both cases are listed for POSIX).
+    _PROXY_ENV_VARS = ("https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY",
+                       "all_proxy", "ALL_PROXY")
+
+    @classmethod
+    def _proxy_probe_target(cls):
+        """When curl's transfers go through a proxy, a DIRECT TCP connect to
+        the download host proves nothing -- on proxy-only networks outbound
+        443 is firewalled and the direct probe always fails, which would turn
+        every transient curl exit into a long false offline hold while the
+        (proxied) network is perfectly healthy.
+
+        Returns:
+        * ``None`` -- no proxy env var set: probe the download host directly.
+        * ``(host, port)`` -- probe THROUGH the proxy, i.e. TCP connect to
+          the proxy endpoint itself (reachable proxy == usable network for
+          curl, which uses the same env vars).
+        * ``("", 0)`` -- a proxy is configured but its address cannot be
+          determined: the probe is INCONCLUSIVE and must fail open (assume
+          online -> legacy bounded backoff, never a false 30-min hold).
+        """
+        proxy_url = ""
+        for env_name in cls._PROXY_ENV_VARS:
+            value = os.environ.get(env_name, "").strip()
+            if value:
+                proxy_url = value
+                break
+        if not proxy_url:
+            return None
+        try:
+            if "://" not in proxy_url:
+                proxy_url = "http://" + proxy_url
+            split = urllib.parse.urlsplit(proxy_url)
+            if split.hostname and split.port:
+                return split.hostname, split.port
+        except ValueError:
+            pass
+        # Proxy set but host/port unparsable (e.g. no explicit port): probing
+        # a guessed port risks a false offline -- treat as inconclusive.
+        return "", 0
+
+    def _probe_connectivity(self):
+        """Cheap connectivity probe: DNS resolve + TCP connect to the download
+        host -- or to the PROXY when proxy env vars are set (curl connects to
+        the proxy, not the origin, so that is the reachability that matters;
+        see :meth:`_proxy_probe_target`). Returns ``(online, failure_class)``
+        where failure_class is a DownloadFailureClass value string when
+        offline (dns_resolution / tcp_connect -- both network-class for
+        Central's online detector). Fails OPEN: when no probe host can be
+        determined, or a proxy is configured but not parsable, report online
+        so behavior degrades to the legacy bounded-backoff path."""
+        proxy_target = self._proxy_probe_target()
+        if proxy_target is not None:
+            host, port = proxy_target
+            if not host:
+                return True, None  # proxy configured but undeterminable: inconclusive, fail open
+        else:
+            host, port = self._probe_host_and_port()
+            if not host:
+                return True, None
+        timeout = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS", 5))
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                return True, None
+        except socket.gaierror:
+            return False, "dns_resolution"
+        except OSError:
+            return False, "tcp_connect"
+
+    def _hold_until_online(self, channel):
+        """Hold the download while the network is down (Workstream B).
+
+        Probes connectivity in a pause-aware loop (``sleep_or_wake`` so
+        Central's pause/resume/try_now still interrupt), emitting:
+
+        * a throttled ``session_state`` event with ``state=paused`` and an
+          offline-flavored ``reason`` so Central freezes the progress UI and
+          shows the offline label (downloadVisibleState.reasonLooksOffline);
+        * a network-class ``retry_decision`` event per failed probe so
+          Central's online detector reaches its >=3 streak even though curl
+          is not being re-run while offline.
+
+        Both emissions are gated on DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD
+        (inside the emit helpers): a client that did not declare the
+        capability gets the legacy log lines only, while the hold itself
+        still recovers silently.
+
+        Returns True when connectivity returned (a ``downloading`` /
+        ``resuming_after_offline`` session_state is emitted), False when the
+        OVERALL hold timeout (cumulative across holds in this command, config
+        var DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS) expired.
+
+        The hold budget measures ACTIVE hold time only: time spent blocked in
+        ``channel.wait_if_paused()`` (an explicit user/Central pause) is
+        subtracted -- otherwise one paused outage would silently spend the
+        whole cumulative budget and a LATER outage in the same command would
+        get zero hold protection (the same principle _RedownloadBudget
+        applies to the redownload pass).
+        """
+        probe_interval = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
+        hold_timeout = max(0, _download_config_int("DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS", 1800))
+        event_interval = max(probe_interval, _download_config_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
+        already_used = getattr(self, "_hold_seconds_used", 0.0)
+        hold_start = time.monotonic()
+        paused_seconds = 0.0
+        log.info(f"{self.progress_msg_self()} offline detected; holding until connectivity returns "
+                 f"(overall hold budget {hold_timeout}s, {int(already_used)}s already used)")
+        self._emit_hold_session_state("paused", "offline_no_network", previous_state="downloading")
+        last_state_emit = time.monotonic()
+        while True:
+            elapsed_total = already_used + (time.monotonic() - hold_start) - paused_seconds
+            self._hold_seconds_used = elapsed_total
+            if hold_timeout > 0 and elapsed_total >= hold_timeout:
+                return False
+            if channel is not None:
+                pause_wait_start = time.monotonic()
+                channel.wait_if_paused()          # explicit Central pause still holds here
+                paused_seconds += time.monotonic() - pause_wait_start  # paused time is not hold time
+                channel.sleep_or_wake(probe_interval)  # try_now probes immediately
+            else:
+                time.sleep(probe_interval)
+            online, probe_failure_class = self._probe_connectivity()
+            if online:
+                self._hold_seconds_used = already_used + (time.monotonic() - hold_start) - paused_seconds
+                log.info(f"{self.progress_msg_self()} connectivity returned after "
+                         f"{int(time.monotonic() - hold_start)}s offline hold; resuming download")
+                self._emit_hold_session_state("downloading", "resuming_after_offline", previous_state="paused")
+                return True
+            self._offline_probe_attempt = getattr(self, "_offline_probe_attempt", 0) + 1
+            self._emit_network_retry_decision(
+                attempt=self._offline_probe_attempt,
+                reason="offline_hold_probe_failed",
+                failure_class=probe_failure_class,
+                delay_seconds=probe_interval,
+            )
+            if time.monotonic() - last_state_emit >= event_interval:
+                self._emit_hold_session_state("paused", "offline_no_network", previous_state="downloading")
+                last_state_emit = time.monotonic()
+
+    def _emit_network_retry_decision(self, *, attempt, reason, curl_exit_code=None,
+                                     failure_class=None, delay_seconds=0.0):
+        """Emit a structured ``download.retry_decision`` DOWNLOAD_EVENT for a
+        bulk-download network failure (curl exit or connectivity probe).
+
+        The bulk curl loop previously only wrote a free-text log line on
+        network errors, so Central's online detector (which counts a streak
+        of network-class retry_decision events) never fired. Best-effort and
+        additive: schema/fields are exactly the existing retry_decision event
+        (fileId/repoPath stay null for the bulk transfer); the emitter is
+        gated by the DOWNLOAD_TELEMETRY_ENABLED kill switch like every other
+        structured event.
+
+        Emitted ONLY when the driving client declared it handles backend
+        holds (see :func:`_client_handles_backend_hold`): an old Central's
+        streak detector would answer these events with a pause nothing
+        auto-resumes on Windows. When the capability is absent the bulk loop
+        keeps its legacy free-text log lines only.
+        """
+        if not _client_handles_backend_hold():
+            return
+        try:
+            from pyinstl.downloadEvents import emit_retry_decision
+            from pyinstl.downloadFailures import DownloadFailureClass, classify_curl_exit_code
+            from pyinstl.downloadRetry import RetryAction, RetryDecision
+            if curl_exit_code is not None:
+                failure_enum = classify_curl_exit_code(curl_exit_code).failure_class
+            else:
+                failure_enum = DownloadFailureClass(failure_class)
+            decision = RetryDecision(
+                action=RetryAction.RESUME,  # the bulk loop always retries in place (continue-at)
+                failure_class=failure_enum,
+                attempt=int(attempt),
+                delay_seconds=float(delay_seconds),
+                reason=reason,
+                curl_exit_code=int(curl_exit_code) if curl_exit_code is not None else None,
+            )
+            emit_retry_decision(decision, session_id=getattr(self, "_session_id", "unknown"))
+        except Exception as ex:  # pragma: no cover - instrumentation must never break a download
+            log.debug(f"could not emit bulk retry decision event: {ex}")
+
+    def _emit_hold_session_state(self, state, reason, previous_state=None):
+        """Emit a ``session_state`` transition for the offline hold / resume.
+
+        Carries the current on-disk byte progress so Central's bar keeps its
+        position while frozen. No throughput field is sent -- the hold gap
+        must not be averaged into the ETA (the EMA baseline is re-seeded per
+        curl pass, see _run_curl_once). Additive to the existing schema.
+
+        Like the bulk retry_decision events, these offline-hold / stall /
+        reconcile session_states are emitted ONLY when the driving client
+        declared DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD (see
+        :func:`_client_handles_backend_hold`) -- an old Central must see
+        exactly the legacy event stream while the engine recovers silently.
+        """
+        if not _client_handles_backend_hold():
+            return
+        try:
+            from pyinstl.downloadEvents import emit_session_state
+            try:
+                cumulative_bytes, files_est = self._sum_downloaded_part_bytes()
+            except Exception:
+                cumulative_bytes, files_est = 0, 0
+            emit_session_state(
+                session_id=getattr(self, "_session_id", "unknown"),
+                state=state,
+                previous_state=previous_state,
+                reason=reason,
+                bytes_received=int(cumulative_bytes),
+                files_completed=int(files_est),
+                phase_bytes_done=int(cumulative_bytes),
+                phase_bytes_planned=int(self.total_bytes_to_download),
+            )
+        except Exception as ex:  # pragma: no cover - instrumentation must never break a download
+            log.debug(f"could not emit hold session_state event: {ex}")
+
+    # -- Workstream A: post-run completeness reconciliation -------------------
+
+    # Directive keys that curlHelper writes per download entry; everything
+    # else in the config file is header material (see curlHelper
+    # write_download_entry / *_parallel_header_text).
+    _CURL_ENTRY_KEYS = frozenset({"no-fail", "continue-at", "header", "url", "output", "next"})
+
+    def _parse_curl_config_for_reconcile(self, config_path):
+        """Parse a curlHelper-generated ``--config`` file into its header and
+        per-download entries so a retry config can be written for missing
+        outputs, preserving each entry's original lines (url / output /
+        continue-at / conditional headers).
+
+        Returns ``(header_lines, entries, uses_isolated_sections)`` where each
+        entry is a dict with ``pre_lines`` (no-fail / continue-at / header
+        lines), ``url_line``, ``output_line`` and the unquoted ``output_path``.
+        Best-effort: any read problem returns empty results so reconciliation
+        degrades to a no-op instead of breaking the download.
+        """
+        header_lines = []
+        entries = []
+        uses_isolated_sections = False
+        pre_lines = []
+        url_line = None
+        in_entries = False
+        try:
+            with open(os.fspath(config_path), "r", encoding="utf-8", errors="replace") as cfg:
+                for raw in cfg:
+                    line = raw.rstrip("\n")
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    key = stripped.partition("=")[0].strip().lower()
+                    if key in self._CURL_ENTRY_KEYS:
+                        in_entries = True
+                        if key == "next":
+                            # isolated transfer sections: 'next' + repeated
+                            # header; the repeats are skipped below because
+                            # in_entries is already True.
+                            uses_isolated_sections = True
+                            pre_lines = []
+                            url_line = None
+                        elif key == "output":
+                            output_path = stripped.partition("=")[2].strip().strip('"')
+                            entries.append({
+                                "pre_lines": pre_lines,
+                                "url_line": url_line,
+                                "output_line": line,
+                                "output_path": output_path,
+                            })
+                            pre_lines = []
+                            url_line = None
+                        elif key == "url":
+                            url_line = line
+                        else:  # no-fail / continue-at / header
+                            pre_lines.append(line)
+                    elif not in_entries:
+                        header_lines.append(line)
+                    # non-entry keys after the first entry are repeated header
+                    # lines from isolated sections -- skip them.
+        except OSError as ex:
+            log.warning(f"{self.progress_msg_self()} could not parse curl config for reconciliation: {ex}")
+            return [], [], False
+        return header_lines, entries, uses_isolated_sections
+
+    @staticmethod
+    def _fresh_start_entry(entry):
+        """Rewrite a reconcile entry as a FRESH-START transfer.
+
+        Reconciliation only ever re-runs entries whose output file is MISSING
+        on disk, so the entry's original resume/conditional lines must not be
+        replayed verbatim:
+
+        * ``continue-at = N`` (N>0, written for resume entries): with a
+          nonexistent output, curl fetches the ranged body (bytes N..end) but
+          writes it at offset 0 -- a silently corrupt file missing its first
+          N bytes that reconciliation would then count as recovered (or the
+          server answers 416 / curl exits 33). Rewritten to ``continue-at =
+          -`` so curl starts from whatever is on disk -- nothing, i.e. byte 0.
+        * ``header = "If-..."`` conditional headers (If-None-Match /
+          If-Modified-Since etc., written alongside resume entries): stale
+          without the partial file they validated; a 304 would produce no
+          body at all. Dropped.
+
+        ``no-fail`` and any other non-conditional pre-lines are preserved.
+        """
+        fresh_pre_lines = []
+        for pre_line in entry["pre_lines"]:
+            key, _, value = pre_line.strip().partition("=")
+            key = key.strip().lower()
+            if key == "continue-at":
+                if value.strip() != "-":
+                    pre_line = "continue-at = -"
+            elif key == "header":
+                header_name = value.strip().strip('"').partition(":")[0].strip().lower()
+                if header_name.startswith("if-"):
+                    continue  # stale conditional header: drop for a fresh start
+            fresh_pre_lines.append(pre_line)
+        fresh_entry = dict(entry)
+        fresh_entry["pre_lines"] = fresh_pre_lines
+        return fresh_entry
+
+    def _write_reconcile_config(self, retry_config_path, header_lines, entries, uses_isolated_sections):
+        """Write a retry curl config containing only ``entries``, preserving
+        their original lines, under the original config's header."""
+        header_text = "\n".join(header_lines)
+        with utils.utf8_open_for_write(retry_config_path, "w") as wfd:
+            wfd.write(header_text + "\n\n")
+            for entry_i, entry in enumerate(entries):
+                if uses_isolated_sections and entry_i > 0:
+                    wfd.write("next\n")
+                    wfd.write(header_text + "\n\n")
+                for pre_line in entry["pre_lines"]:
+                    wfd.write(pre_line + "\n")
+                if entry["url_line"] is not None:
+                    wfd.write(entry["url_line"] + "\n")
+                wfd.write(entry["output_line"] + "\n\n")
+
+    def _reconcile_missing_outputs(self, pause_check, channel):
+        """Workstream A: verify every expected output exists after curl exit 0
+        and re-download only the missing ones.
+
+        curl --parallel masks per-transfer failures: transfers whose internal
+        retries were exhausted (e.g. while offline) are simply dropped, yet
+        the final exit code can still be 0. The config's ``output`` entries
+        ARE the ``.part`` paths curl writes, so a missing output means the
+        transfer never produced a byte. Bounded by
+        DOWNLOAD_RECONCILE_MAX_ROUNDS; each round re-runs through the same
+        pause/offline-hold recovery loop. After rounds are exhausted we log
+        and continue -- the checksum phase remains the final gate.
+
+        Returns the final curl return code (0 when nothing was missing or the
+        reconciliation runs succeeded).
+        """
+        return_code = 0
+        if not _download_config_flag("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True):
+            return return_code
+        max_rounds = max(0, _download_config_int("DOWNLOAD_RECONCILE_MAX_ROUNDS", 3))
+        if max_rounds == 0:
+            return return_code
+        header_lines, entries, uses_isolated_sections = \
+            self._parse_curl_config_for_reconcile(self.config_file_path)
+        if not entries:
+            return return_code
+        missing = []
+        for round_i in range(1, max_rounds + 1):
+            # Entries here are by definition missing their output file, so
+            # each is rewritten as a fresh-start transfer (no continue-at = N
+            # replay, no stale conditional headers -- see _fresh_start_entry).
+            missing = [self._fresh_start_entry(entry) for entry in entries
+                       if not os.path.exists(entry["output_path"])]
+            if not missing:
+                if round_i > 1:
+                    log.info(f"{self.progress_msg_self()} reconciliation recovered all missing outputs")
+                return return_code
+            log.info(f"{self.progress_msg_self()} curl exited 0 but {len(missing)} of {len(entries)} "
+                     f"expected outputs are missing; reconciliation round {round_i} of {max_rounds}")
+            self._emit_hold_session_state("retrying", "reconcile_missing_outputs")
+            retry_config_path = Path(f"{os.fspath(self.config_file_path)}.reconcile-{round_i:02}")
+            self._write_reconcile_config(retry_config_path, header_lines, missing, uses_isolated_sections)
+            retry_config_path_fixed = os.fspath(retry_config_path)
+            if 'Win' in utils.get_current_os_names():
+                import win32api
+                retry_config_path_fixed = win32api.GetShortPathName(retry_config_path_fixed)
+            return_code = self._run_config_with_recovery(retry_config_path_fixed, pause_check, channel)
+        still_missing = [entry for entry in entries if not os.path.exists(entry["output_path"])]
+        if still_missing:
+            log.warning(f"{self.progress_msg_self()} {len(still_missing)} outputs still missing after "
+                        f"{max_rounds} reconciliation rounds; leaving recovery to the checksum phase")
+        return return_code
 
     def _maybe_emit_progress_tick(self, cumulative_bytes, downloaded_files):
         """Emit a throttled, EMA-smoothed ``session_state`` progress tick.
@@ -965,11 +1491,34 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
         Never raises (instrumentation must never break a download) and is bounded
         by ``stop_event`` so it always joins promptly -- this must never wedge the
-        sync or elevated-copy process (see P7-010)."""
+        sync or elevated-copy process (see P7-010).
+
+        Workstream C (stall watchdog, observability half): when total on-disk
+        bytes have not grown for DOWNLOAD_STALL_WATCHDOG_SECONDS while curl is
+        still alive, log it and emit a stalled-flavored ``session_state`` as a
+        backstop signal. The poller never kills curl -- enforcement is curl's
+        own speed-limit/speed-time (see curlHelper), which makes a stalled
+        transfer exit 28 and feed the offline-hold/retry loop. 0 disables."""
+        stall_watchdog_seconds = max(0, _download_config_int("DOWNLOAD_STALL_WATCHDOG_SECONDS", 180))
+        last_growth_bytes = -1
+        last_growth_monotonic = time.monotonic()
+        last_stall_emit_monotonic = 0.0
         while not stop_event.is_set():
             try:
                 cumulative_bytes, files_est = self._sum_downloaded_part_bytes()
                 self._maybe_emit_progress_tick(cumulative_bytes, files_est)
+                now = time.monotonic()
+                if cumulative_bytes > last_growth_bytes:
+                    last_growth_bytes = cumulative_bytes
+                    last_growth_monotonic = now
+                elif (stall_watchdog_seconds > 0
+                        and now - last_growth_monotonic >= stall_watchdog_seconds
+                        and now - last_stall_emit_monotonic >= stall_watchdog_seconds):
+                    log.info(f"{self.progress_msg_self()} no download progress for "
+                             f"{int(now - last_growth_monotonic)}s while curl is running; "
+                             f"transfer appears stalled")
+                    self._emit_hold_session_state("downloading", "stalled_no_progress")
+                    last_stall_emit_monotonic = now
             except Exception as ex:  # pragma: no cover - defensive; poller must never raise
                 log.debug(f"download progress poller tick failed: {ex}")
             stop_event.wait(_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC)

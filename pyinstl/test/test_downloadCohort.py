@@ -160,6 +160,14 @@ class TestActiveFlagsFromConfig(unittest.TestCase):
             "DOWNLOAD_RETRY_POLICY_ENABLED",
             "DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED",
             "DOWNLOAD_CENTRAL_UX_ENABLED",
+            # connectivity-loss self-sufficiency gates (offline-hold workstream)
+            "DOWNLOAD_RECONCILE_MISSING_OUTPUTS",
+            "DOWNLOAD_OFFLINE_HOLD_ENABLED",
+            "DOWNLOAD_CURL_STALL_DETECTION",
+            # checksum recovery-cliff removal (budget-bounded redownload)
+            "DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES",
+            # capability handshake set by a NEW Central (backend-hold events)
+            "DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD",
         })
 
     def test_active_flags_defaults_match_shipping_defaults(self):
@@ -172,6 +180,14 @@ class TestActiveFlagsFromConfig(unittest.TestCase):
         self.assertEqual(flags["DOWNLOAD_RESUME_ENABLED"], False)
         self.assertEqual(flags["DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED"], False)
         self.assertEqual(flags["DOWNLOAD_CENTRAL_UX_ENABLED"], False)
+        # connectivity-loss self-sufficiency gates default ON (kill switches)
+        self.assertEqual(flags["DOWNLOAD_RECONCILE_MISSING_OUTPUTS"], True)
+        self.assertEqual(flags["DOWNLOAD_OFFLINE_HOLD_ENABLED"], True)
+        self.assertEqual(flags["DOWNLOAD_CURL_STALL_DETECTION"], True)
+        self.assertEqual(flags["DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES"], True)
+        # the backend-hold capability handshake defaults OFF: only a NEW
+        # Central that handles the events without auto-pausing declares it
+        self.assertEqual(flags["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"], False)
 
     def test_active_flags_read_from_config(self):
         cfg = _FakeConfig({
@@ -252,6 +268,13 @@ class TestCapabilityEmissionSmoke(unittest.TestCase):
             "DOWNLOAD_RETRY_POLICY_ENABLED": True,
             "DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED": True,
             "DOWNLOAD_CENTRAL_UX_ENABLED": True,
+            # self-sufficiency gates ride along at their default (ON)
+            "DOWNLOAD_RECONCILE_MISSING_OUTPUTS": True,
+            "DOWNLOAD_OFFLINE_HOLD_ENABLED": True,
+            "DOWNLOAD_CURL_STALL_DETECTION": True,
+            "DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES": True,
+            # handshake flag defaults OFF (a new Central sets it explicitly)
+            "DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD": False,
         })
 
     def test_misconfigured_resume_cohort_downgrades_to_atomicity(self):

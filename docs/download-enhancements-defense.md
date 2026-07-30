@@ -276,3 +276,40 @@ These are the honest edges. None is a known break; raising them first is what ke
 ---
 
 *Prepared from a per-subsystem code audit of both branches against their base commits. macOS behavior verified live; Windows assurances are code-reasoned and pending the §E checklist.*
+
+---
+
+# Part F — Addendum (2026-07, `download-enhancements-cont`): connectivity-loss self-sufficiency
+
+A later change set on the continuation branch makes the engine survive a lost connection **without Central's help** (elevated runs never get a Central pause), and removes the checksum-phase recovery cliff. Every behavior is an independent kill switch, default ON, following the same rollout pattern as Part A; the gates ride on `download.capability.featureFlags`. Doc of record for the event side: `docs/download-events.md` (§3.1/§3.3/§3.6); internals: `docs/LLD.md` (Download Subsystem + pybatch §2.4/§2.5/§3.2).
+
+## F1. Workstream A — post-run output reconciliation (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, default yes)
+
+- **What:** `curl --parallel` can exit 0 while individual transfers failed permanently (their internal retries were exhausted while offline), leaving expected outputs with no `.part` at all. After curl exit 0, `CurlWithInternalParallel._reconcile_missing_outputs` checks every `output` path from the config against the disk and re-runs curl with a `.reconcile-NN` config containing only the missing entries, up to `DOWNLOAD_RECONCILE_MAX_ROUNDS` (3) rounds through the same pause/offline-hold loop.
+- **Why it's safe:** entries are rewritten as **fresh-start** — `continue-at = N` (N>0) is rewritten to `continue-at = -` and stale `If-*` conditional headers are dropped (replaying a byte offset against a nonexistent output writes the ranged body at offset 0: a silently corrupt file). Config parsing is best-effort (any read problem → no-op). The checksum phase remains the final gate. Kill switch restores trust-exit-0 exactly.
+- **Verified:** unit tests in `pybatch/test/test_subprocessBatchCommands.py` (parser, missing-only retry config, bounded rounds, kill switch, fresh-start rewrite).
+
+## F2. Workstream B — engine-side offline-hold (`DOWNLOAD_OFFLINE_HOLD_ENABLED`, default yes)
+
+- **What:** on a network-class curl exit the engine probes connectivity itself (TCP connect to the `BASE_LINKS_URL` host — or to the **proxy** when proxy env vars are set, since curl's transfers go through it) instead of blindly burning the bounded 12-attempt backoff budget. While genuinely offline it holds, probing every `DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS` (5), until connectivity returns or the cumulative `DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS` (1800) budget is spent — then the old retries-exhausted path applies. Central pause/resume/try_now still interrupt the hold; time spent client-paused does not burn the hold budget.
+- **Why it's safe:** the probe **fails open** — no determinable host, or a proxy configured but unparsable, reports "online" and degrades to the legacy bounded backoff (never a false 30-minute hold on a healthy network). Terminal behavior unchanged: after hold timeout the checksum phase still recovers. Kill switch restores the legacy backoff-only loop.
+- **Events (capability-gated, see F5):** throttled `paused/offline_no_network` session_states + one network-class `retry_decision` per failed probe (`reason="offline_hold_probe_failed"`), a `downloading/resuming_after_offline` on reconnect, and `retry_decision(reason="bulk_curl_network_error")` per network-class curl exit — the bulk loop previously emitted only free-text log lines, so Central's online detector never saw it.
+- **Verified:** unit tests (hold-emits-events-and-resumes, overall timeout, retry_decision-then-hold, kill switch, probe host resolution, proxy probe target, fail-open on unparsable proxy, paused-time exclusion).
+
+## F3. Workstream C — stall detection (`DOWNLOAD_CURL_STALL_DETECTION`, default yes)
+
+- **What:** two halves. *Enforcement:* curlHelper adds `speed-limit = 1` / `speed-time = 120` to generated configs so a silent TCP stall (dropped VPN, NAT timeout) exits 28 — network-class, feeding the offline-hold loop — instead of hanging forever; `retry-max-time` is bumped to ≥3× `speed-time` (never lowering a larger explicit value) so the promised in-place retry of a stall abort is actually possible. *Observability backstop:* the `.part`-size poller logs and emits a `downloading/stalled_no_progress` session_state when total bytes haven't grown for `DOWNLOAD_STALL_WATCHDOG_SECONDS` (180; 0 disables) while curl is alive — it never kills curl.
+- **Why it's safe:** kill switch restores the previous (macOS-validated) config format byte-for-byte (test-locked). Exit 28 is already transient for plain `retry`, orthogonal to the `retry-all-errors`/resume exclusion.
+- **Verified:** `pyinstl/test/test_downloadTweaks.py` (lines present/absent/config-driven, retry-max-time bump + keep-larger + off-keeps-legacy) and the poller stall test.
+
+## F4. Recovery-cliff removal in checksum-verify (`DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES`, default yes)
+
+- **What:** the verify pass used to stop counting at `MAX_BAD_FILES_TO_REDOWNLOAD`+1 bad/missing files and skip the redownload pass entirely — 33 files missing after an offline window with a cap of 32 failed the install with **zero** recovery attempts. Now the verify loop counts ALL bad files (`MAX_BAD_FILES_TO_REDOWNLOAD` is reinterpreted as a warn threshold; per-file bad lines are throttled past it so mass failures don't flood the log) and the pause-aware redownload pass always runs, bounded by `_RedownloadBudget` (`DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES` / `DOWNLOAD_REDOWNLOAD_MAX_SECONDS`) instead of a count cliff.
+- **Why it's safe:** both budgets default **0 = unlimited** — the legacy pass always completed every file it attempted, and a non-zero default would abandon slow-network recoveries that used to succeed. The budget is checked between files (never abandons a file in flight); paused time is excluded from the seconds budget (`_PauseTrackingChannel`); `None`/0 `max_bad_files_to_redownload` keeps meaning "verify only" (old generated scripts, `check-checksum`); the final `Bad checksum for N files / Missing M files` error format Central parses is unchanged; the kill switch restores the legacy count-cliff exactly.
+- **Verified:** `pyinstl/test/test_redownloadBudget.py` (10 tests: cap+1 recovers, budgets bound the pass, warn-threshold semantics, kill-switch legacy behavior).
+
+## F5. Capability handshake — `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (default **no**)
+
+- **What:** all NEW event emission above (bulk-loop network retry_decisions; offline-hold / stall / reconcile session_states) is emitted ONLY when the driving client injected `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: true` into the generated yaml, declaring it treats backend-hold evidence as informational (never answers with a stdin pause — the engine is already holding and resumes itself).
+- **Why the default is off:** an OLD Central's 3-streak online detector (§B3) would respond to a burst of network-class retry_decisions with a pause that nothing auto-resumes on Windows (`navigator.onLine` lies there), deadlocking the engine in `wait_if_paused`. With the flag off, ALL silent recovery (F1-F4) still runs — only the legacy log lines / event stream are produced, so an old Central sees exactly today's behavior. Test-locked (`test_CurlInternalParallel_no_backend_hold_events_without_capability`).
+- **Scope note:** the new recovery lives in `CurlWithInternalParallel` (the shipped path); `ParallelRun` (external parallel) intentionally keeps the older bounded-backoff behavior — it only sees an aggregate exit code across many curl processes (in-code `TODO(external-parallel)`); its completeness gate remains the checksum phase.

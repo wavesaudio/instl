@@ -83,6 +83,66 @@ class TestCurlDownloadTweaks(unittest.TestCase):
         self.assertIn("cookie = test=1", text)
         self.assertIn('url = "https://cdn.example.com/Foo.pkg"', text)
 
+    def test_stall_detection_lines_present_by_default(self):
+        # Workstream C: a silently stalled transfer must exit (28) instead of
+        # hanging forever; speed-limit/speed-time are emitted by default.
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "yes"
+        config_vars["DOWNLOAD_CURL_SPEED_LIMIT"] = "1"
+        config_vars["DOWNLOAD_CURL_SPEED_TIME"] = "120"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertIn("speed-limit = 1", text)
+        self.assertIn("speed-time = 120", text)
+
+    def test_stall_detection_lines_absent_when_flag_off(self):
+        # Kill switch: turning the flag off must restore the previous
+        # (macOS-validated) config format exactly.
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "no"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertNotIn("speed-limit", text)
+        self.assertNotIn("speed-time", text)
+        # the rest of the retry block is unaffected
+        self.assertIn("retry-connrefused", text)
+        self.assertIn("retry-max-time", text)
+
+    def test_stall_detection_values_come_from_config(self):
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "yes"
+        config_vars["DOWNLOAD_CURL_SPEED_LIMIT"] = "512"
+        config_vars["DOWNLOAD_CURL_SPEED_TIME"] = "60"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertIn("speed-limit = 512", text)
+        self.assertIn("speed-time = 60", text)
+
+    def test_stall_detection_bumps_retry_max_time_above_speed_time(self):
+        # curl's --retry-max-time window starts at the transfer's first
+        # attempt while a speed-limit abort fires only AFTER speed-time
+        # seconds of stall — with retry-max-time (90) < speed-time (120) the
+        # promised in-place retry of a stall abort could never happen. The
+        # emitted retry-max-time must comfortably exceed speed-time (3x).
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "yes"
+        config_vars["DOWNLOAD_CURL_SPEED_LIMIT"] = "1"
+        config_vars["DOWNLOAD_CURL_SPEED_TIME"] = "120"
+        config_vars["CURL_RETRY_MAX_TIME"] = "90"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertIn("retry-max-time = 360", text)
+        self.assertNotIn("retry-max-time = 90", text)
+
+    def test_stall_detection_keeps_larger_explicit_retry_max_time(self):
+        # An explicitly configured retry window larger than 3x speed-time is
+        # never lowered.
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "yes"
+        config_vars["DOWNLOAD_CURL_SPEED_TIME"] = "60"
+        config_vars["CURL_RETRY_MAX_TIME"] = "600"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertIn("retry-max-time = 600", text)
+
+    def test_stall_detection_off_keeps_legacy_retry_max_time(self):
+        # With the kill switch off the legacy (macOS-validated) retry window
+        # is emitted untouched.
+        config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "no"
+        config_vars["CURL_RETRY_MAX_TIME"] = "90"
+        text = self._build_config_text(("https://cdn.example.com/Foo.pkg", 10))
+        self.assertIn("retry-max-time = 90", text)
+
     def test_external_ordering_is_largest_first(self):
         config_vars["DOWNLOAD_CURL_HTTP2"] = "no"
         # Intentionally add in non-sorted order; expect output ordered by

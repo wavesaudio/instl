@@ -289,10 +289,45 @@ parallel-max = {max_parallel_downloads}
             for entry in itertools.chain(urls_to_download, urls_to_download_last)
         )
         retry_max_time = str(config_vars.setdefault("CURL_RETRY_MAX_TIME", "90"))
+
+        # Stall watchdog (enforcement half): a silent TCP stall (dropped VPN,
+        # NAT timeout, half-open socket) otherwise leaves curl waiting forever
+        # while the UI's ETA climbs -- nothing ever exits. speed-limit /
+        # speed-time make curl abort a transfer that stays below speed-limit
+        # bytes/sec for speed-time seconds with exit 28 -- a network-class,
+        # transient code, so plain `retry` retries it in place and the
+        # offline-hold/reconciliation loop in CurlWithInternalParallel handles
+        # a genuine outage. Orthogonal to the retry-all-errors / resume-entry
+        # mutual exclusion below (exit 28 is transient for plain `retry` too),
+        # and kill-switchable without a code change like the other DOWNLOAD_*
+        # flags so macOS behavior can be restored from config alone.
+        #
+        # CONSISTENCY: curl's --retry-max-time window starts at the transfer's
+        # first attempt, and a speed-limit abort by definition fires only
+        # AFTER speed-time seconds of stall -- so for the in-place retry
+        # promised above to be possible at all, retry-max-time must
+        # comfortably exceed speed-time. Bump it (never lower an explicit
+        # larger config value) to 3x speed-time so a stall abort still leaves
+        # room for a couple of in-place retries instead of failing the whole
+        # parallel run and burning a unit of the outer 12-attempt budget.
+        stall_lines = []
+        if str(config_vars.setdefault("DOWNLOAD_CURL_STALL_DETECTION", "yes")).strip().lower() in ("yes", "true", "1"):
+            speed_limit = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_LIMIT", "1"))
+            speed_time = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_TIME", "120"))
+            stall_lines.append(f"speed-limit = {speed_limit}")
+            stall_lines.append(f"speed-time = {speed_time}")
+            try:
+                min_retry_window = int(float(speed_time)) * 3
+                if int(float(retry_max_time)) < min_retry_window:
+                    retry_max_time = str(min_retry_window)
+            except ValueError:
+                pass  # unparsable overrides: keep the configured values as-is
+
         extra_retry_lines = ["retry-connrefused", f"retry-max-time = {retry_max_time}"]
         if (not has_resume_entries
                 and str(config_vars.setdefault("CURL_RETRY_ALL_ERRORS", "yes")).strip().lower() in ("yes", "true", "1")):
             extra_retry_lines.append("retry-all-errors")
+        extra_retry_lines.extend(stall_lines)
 
         # HTTP/2 lets curl multiplex many transfers over fewer connections; when
         # the SERVER can't negotiate h2 curl falls back to HTTP/1.1 — but when the

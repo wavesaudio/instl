@@ -80,6 +80,101 @@ DOWNLOAD_RETRY_POLICY_ENABLED: yes
 DOWNLOAD_CENTRAL_UX_ENABLED: yes
 DOWNLOAD_COHORT: control
 
+# Connectivity-loss self-sufficiency (offline-hold / completeness
+# reconciliation / stall watchdog). Each behavior is an independent kill
+# switch, default ON, following the DOWNLOAD_* rollout pattern above; the
+# boolean gates are surfaced on the download.capability event's featureFlags
+# so Central and telemetry can see which layers are active. Turning any of
+# them off restores the previous (macOS-validated) behavior with no code
+# change.
+#
+# - DOWNLOAD_RECONCILE_MISSING_OUTPUTS: `curl --parallel` can exit 0 while
+#   individual transfers failed permanently (their internal retries were
+#   exhausted while offline), leaving files with no .part at all. When on,
+#   after curl exits 0 the engine checks every expected output on disk and
+#   re-runs curl with a config containing only the missing entries
+#   (preserving each entry's original url/output/continue-at/header lines),
+#   up to DOWNLOAD_RECONCILE_MAX_ROUNDS rounds. The checksum phase remains
+#   the final gate.
+# - DOWNLOAD_OFFLINE_HOLD_ENABLED: on a network-class curl exit the engine
+#   probes connectivity itself (TCP connect to the BASE_LINKS_URL host --
+#   or, when proxy env vars are set, to the proxy, since curl transfers go
+#   through it; DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS per probe) instead of
+#   blindly burning the bounded retry budget. While offline it holds --
+#   probing every DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS -- until
+#   connectivity returns or the overall (cumulative, ACTIVE time only: time
+#   spent client-paused is excluded) DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS
+#   budget is spent, after which the old retries-exhausted path applies.
+#   Pause/resume/try_now from Central still interrupt the hold. The
+#   network-class retry_decision events per failed probe and the
+#   offline-reason paused session_state (throttled to
+#   DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS) are emitted ONLY when
+#   DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD is on (see below) -- the hold
+#   itself is silent-recovery otherwise, so an old Central sees exactly the
+#   legacy event stream.
+# - DOWNLOAD_CURL_STALL_DETECTION: adds speed-limit/speed-time to the
+#   generated curl configs so a silently stalled transfer (no bytes for
+#   DOWNLOAD_CURL_SPEED_TIME seconds below DOWNLOAD_CURL_SPEED_LIMIT
+#   bytes/sec) exits 28 (network-class) instead of hanging forever, feeding
+#   the offline-hold loop above. DOWNLOAD_STALL_WATCHDOG_SECONDS is the
+#   observability backstop: the .part-size poller logs and emits a
+#   stalled-flavored session_state when total bytes have not grown for that
+#   long while curl is alive (it never kills curl; 0 disables).
+DOWNLOAD_RECONCILE_MISSING_OUTPUTS: yes
+DOWNLOAD_RECONCILE_MAX_ROUNDS: 3
+DOWNLOAD_OFFLINE_HOLD_ENABLED: yes
+DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS: 1800
+DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS: 5
+DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS: 5
+DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS: 30
+DOWNLOAD_CURL_STALL_DETECTION: yes
+DOWNLOAD_CURL_SPEED_LIMIT: 1
+DOWNLOAD_CURL_SPEED_TIME: 120
+DOWNLOAD_STALL_WATCHDOG_SECONDS: 180
+
+# Capability handshake with the client driving this engine (Waves Central).
+# When ON, the engine emits the NEW backend-hold observability events: the
+# bulk-loop network-class download.retry_decision events and the
+# offline-hold / stall / reconcile session_state events. A NEW Central sets
+# this var to true in the download settings it injects into the generated
+# yaml, and treats those backend-derived signals as INFORMATIONAL (it never
+# sends a stdin pause for them -- the engine is already holding and resumes
+# itself). The default here is OFF because an OLD Central's 3-streak online
+# detector would respond to a burst of network-class retry_decisions with a
+# pause that nothing auto-resumes on Windows (navigator.onLine lies),
+# deadlocking the engine in wait_if_paused. With the var off ALL silent
+# recovery above (reconciliation, offline-hold, stall detection, redownload
+# budgets) still runs -- only the legacy log lines / event stream are
+# produced, so an old Central cannot be tripped into a pause storm.
+DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: no
+
+# Recovery-cliff removal in the checksum-verify phase. The verify pass used
+# to stop counting at MAX_BAD_FILES_TO_REDOWNLOAD+1 bad/missing files and
+# skip the pause-aware redownload pass entirely — e.g. 33 files missing after
+# an offline window with a cap of 32 failed the whole install with ZERO
+# recovery attempts even though connectivity was back.
+# - DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES: when on, the verify loop counts ALL
+#   bad/missing files (per-file bad lines are throttled past the threshold so
+#   large counts don't flood the log) and the redownload pass ALWAYS runs,
+#   protected by the budgets below instead of a count cliff.
+#   MAX_BAD_FILES_TO_REDOWNLOAD (InstlClientSync.yaml) is reinterpreted as a
+#   warn threshold (None/0 still means "verify only, no redownload"). Turning
+#   this off restores the legacy (macOS-validated) count-cliff behavior.
+# - DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES / DOWNLOAD_REDOWNLOAD_MAX_SECONDS:
+#   OPT-IN budgets for the redownload pass; 0 (the default for both) means
+#   unlimited, preserving the legacy always-completes recovery -- the legacy
+#   path recovered every bad file within the count cap no matter how long it
+#   took, and a non-zero default here would abandon slow-network recoveries
+#   that used to succeed. When set, the budget is checked between files (a
+#   file in flight is never abandoned) and time spent paused (user pause /
+#   offline auto-pause) does not count against the seconds budget. Files
+#   beyond an exhausted budget are left unrecovered and reported by the
+#   existing 'Bad checksum for N files / Missing M files' error that Central
+#   already parses.
+DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES: yes
+DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES: 0
+DOWNLOAD_REDOWNLOAD_MAX_SECONDS: 0
+
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
 LOCAL_REPO_SYNC_DIR: $(LOCAL_SYNC_DIR)/$(REPO_NAME)
 LOCAL_REPO_BOOKKEEPING_DIR: $(LOCAL_REPO_SYNC_DIR)/bookkeeping
