@@ -220,6 +220,15 @@ def _child_reprs(accum):
     return [repr(c) for c in accum.child_batch_commands]
 
 
+def native_source(relative_path):
+    """ A copy source under $(COPY_SOURCES_ROOT_DIR) as this platform writes it.
+        The copy commands normalize the joined path when building repr(), so the
+        separators come out native - backslashes on Windows - and a POSIX literal
+        would never match here.
+    """
+    return os.path.normpath(os.path.join("$(COPY_SOURCES_ROOT_DIR)", relative_path))
+
+
 class TestInstlClientCopyGolden(unittest.TestCase):
     """Pins the pybatch command(s) emitted for each source type against a
     synthetic info_map. Targets Win so output is host-independent.
@@ -256,7 +265,7 @@ class TestInstlClientCopyGolden(unittest.TestCase):
     def test_copy_file_command(self):
         accum = self.client.create_copy_instructions_for_file("src/app.bin", "TheApp 1.2.3")
         self.assertEqual(
-            [r'CopyFileToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/app.bin", r".")'],
+            [f'CopyFileToDir(r"{native_source("src/app.bin")}", r".")'],
             _child_reprs(accum))
         # plain (non-wtar) file accrues its raw size.
         self.assertEqual(100, self.client.bytes_to_copy)
@@ -264,13 +273,13 @@ class TestInstlClientCopyGolden(unittest.TestCase):
     def test_copy_dir_command(self):
         accum = self.client.create_copy_instructions_for_dir("src/AppBundle", "TheApp 1.2.3")
         self.assertEqual(
-            [r'CopyDirToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/AppBundle", r".", delete_extraneous_files=True)'],
+            [f'CopyDirToDir(r"{native_source("src/AppBundle")}", r".", delete_extraneous_files=True)'],
             _child_reprs(accum))
 
     def test_copy_dir_cont_command(self):
         accum = self.client.create_copy_instructions_for_dir_cont("src/libdir", "TheLib")
         self.assertEqual(
-            [r'CopyDirContentsToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/libdir", r".")'],
+            [f'CopyDirContentsToDir(r"{native_source("src/libdir")}", r".")'],
             _child_reprs(accum))
 
     def test_copy_wtar_file_emits_unwtar(self):
@@ -278,18 +287,18 @@ class TestInstlClientCopyGolden(unittest.TestCase):
         # NOT a plain copy.
         accum = self.client.create_copy_instructions_for_file("src/big.tar", "Big")
         self.assertEqual(
-            [r'Unwtar(what_to_unwtar=r"$(COPY_SOURCES_ROOT_DIR)/src/big.tar.wtar", where_to_unwtar=r".")'],
+            [f'Unwtar(what_to_unwtar=r"{native_source("src/big.tar.wtar")}", where_to_unwtar=r".")'],
             _child_reprs(accum))
 
     def test_copy_instructions_for_source_dispatches_on_tag(self):
         # the (source_path, tag) tuple form used by the per-iid copy loop.
         for tag, source_path, expected in (
                 ("!file", "src/app.bin",
-                 r'CopyFileToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/app.bin", r".")'),
+                 f'CopyFileToDir(r"{native_source("src/app.bin")}", r".")'),
                 ("!dir", "src/AppBundle",
-                 r'CopyDirToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/AppBundle", r".", delete_extraneous_files=True)'),
+                 f'CopyDirToDir(r"{native_source("src/AppBundle")}", r".", delete_extraneous_files=True)'),
                 ("!dir_cont", "src/libdir",
-                 r'CopyDirContentsToDir(r"$(COPY_SOURCES_ROOT_DIR)/src/libdir", r".")'),
+                 f'CopyDirContentsToDir(r"{native_source("src/libdir")}", r".")'),
         ):
             accum = self.client.create_copy_instructions_for_source((source_path, tag), "x")
             self.assertEqual([expected], _child_reprs(accum), f"tag={tag}")
@@ -318,7 +327,7 @@ class TestInstlClientCopyGolden(unittest.TestCase):
 #     ValueError on an unknown tag, and bytes_to_copy accrual for a plain file.
 #
 # NOT pinned hermetically (documented gap):
-#   * The full end-to-end create_copy_instructions() batch (the whole
+#   * The full end-to-end create_copy_instructions batch (the whole
 #     batch_accum tree, stages, progress, require-file + have-info-map copies):
 #     it depends on a synced repo layout on disk (HAVE_INFO_MAP_COPY_PATH,
 #     SITE_HAVE_INFO_MAP_PATH), the active-iid status tables populated by the

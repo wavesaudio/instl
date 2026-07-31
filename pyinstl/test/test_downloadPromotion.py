@@ -139,8 +139,14 @@ class TestDownloadPromotion(unittest.TestCase):
         config_files = helper.create_config_files(Path(self.temp_dir.name), 1)
 
         config_text = config_files[0].path.read_text(encoding="utf-8")
-        self.assertIn(f'output = "{temp_path}"', config_text)
-        self.assertNotIn(f'output = "{final_path}"', config_text)
+        # curl is always pointed at the temp artifact, never at the final path.
+        # Match on the file name rather than the whole path: on Windows curlHelper
+        # rewrites the parent to its 8.3 short form (see curlHelper.fix_path).
+        output_lines = [line for line in config_text.splitlines() if line.startswith("output = ")]
+        self.assertEqual(1, len(output_lines), config_text)
+        self.assertTrue(output_lines[0].endswith('.part"'), output_lines[0])
+        self.assertIn(temp_path.name, output_lines[0])
+        self.assertNotIn(f'{final_path.name}"', output_lines[0])
 
     def test_curl_resume_config_requests_range_and_does_not_leak_to_next_url(self):
         curl_path = shutil.which("curl")
@@ -590,7 +596,7 @@ class TestDownloadPromotion(unittest.TestCase):
         command()  # must not raise
 
     def test_checksum_command_emits_verify_phase_byte_progress(self):
-        # Workstream 3 (option b): the verify pass emits verifying_downloads
+        # the verify pass emits verifying_downloads
         # session_state ticks carrying per-phase byte progress so Central can
         # drive a determinate bar through the checksum tail.
         import pybatch.info_mapBatchCommands as imbc
@@ -624,7 +630,7 @@ class TestDownloadPromotion(unittest.TestCase):
             command._emit_verify_progress(10, 100, force=True)  # must not raise
 
     def test_copy_phase_progress_gated_and_capped(self):
-        # Workstream 3 option b: report_copy_bytes is a no-op until a copy phase
+        # report_copy_bytes is a no-op until a copy phase
         # is armed, then emits throttled "copying" ticks capped at planned.
         import pybatch.copyPhaseProgress as cpp
         import pyinstl.downloadEvents as dev
@@ -679,8 +685,8 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(copy_calls[-1]["phase_bytes_done"], 1234)
 
     def test_report_download_state_repr_round_trips(self):
-        # Workstream 2: ReportDownloadState is a pybatch command, so its
-        # __repr__ must eval() back to an equal object (the dual-identity
+        # ReportDownloadState is a pybatch command, so its
+        # __repr__ must eval back to an equal object (the dual-identity
         # contract -- a mismatch silently corrupts the generated script).
         from pybatch import ReportDownloadState
         obj = ReportDownloadState("verifying_downloads", reason="checksum_verify",
@@ -689,7 +695,7 @@ class TestDownloadPromotion(unittest.TestCase):
         self.assertEqual(obj, obj_recreated, obj.explain_diff(obj_recreated))
 
     def test_report_download_state_emits_transition(self):
-        # Workstream 2: the command must emit a session_state event carrying the
+        # the command must emit a session_state event carrying the
         # requested state so Central can show "Verifying"/"Installing".
         from pybatch import ReportDownloadState
         import pybatch.info_mapBatchCommands as imbc

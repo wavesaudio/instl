@@ -77,7 +77,8 @@ class TestDownloadState(unittest.TestCase):
         target = DownloadTargetState.from_final_path("/cache/Foo.pkg", file_id)
 
         self.assertEqual(target.final_path, "/cache/Foo.pkg")
-        self.assertEqual(target.temp_path, "/cache/Foo.pkg.instl-abcdef1234567890.part")
+        self.assertEqual(Path(target.temp_path).as_posix(),
+                         "/cache/Foo.pkg.instl-abcdef1234567890.part")
 
     def test_download_item_temp_path_uses_manifest_identity(self):
         item = FakeDownloadItem(
