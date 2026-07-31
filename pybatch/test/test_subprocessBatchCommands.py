@@ -20,6 +20,7 @@ import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
 from pybatch.copyBatchCommands import RsyncClone
+from pyinstl.downloadTransfer import CurlTransfer
 from configVar import config_vars
 from utils.parallel_run import run_process, ProcessTerminatedExternally
 
@@ -415,9 +416,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         interval and reports an EMA-smoothed throughput plus cumulative bytes/
         files, so Central can compute a live ETA during the download."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path("cfg"),
             total_files_to_download=10,
             previously_downloaded_files=0,
@@ -456,9 +457,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         """Instrumentation must never break a download: a failing emitter is
         swallowed, not propagated."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path("cfg"),
             total_files_to_download=1,
             previously_downloaded_files=0,
@@ -479,7 +480,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         ``output =`` entries (the .part files), parsed once and cached; blank and
         non-output lines are ignored."""
         import tempfile
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path("cfg"),
             total_files_to_download=2, previously_downloaded_files=0,
             total_bytes_to_download=100,
@@ -507,7 +508,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         is skipped (never raises); the file estimate is byte-proportional and
         never regresses even if a part shrinks (resume/continue-at safety)."""
         import tempfile
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path("cfg"),
             total_files_to_download=4, previously_downloaded_files=0,
             total_bytes_to_download=1000,
@@ -541,9 +542,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         from threading import Event, Thread
         import time as _t
         import tempfile
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path("cfg"),
             total_files_to_download=2, previously_downloaded_files=0,
             total_bytes_to_download=1000,
@@ -585,7 +586,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
     @staticmethod
     def _make_curl_obj(config_file_path, total_files=3, total_bytes=300):
-        obj = CurlWithInternalParallel(
+        obj = CurlTransfer(
             Path("curl"), Path(config_file_path),
             total_files_to_download=total_files,
             previously_downloaded_files=0,
@@ -722,7 +723,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         Requires the client to have declared the backend-hold capability
         (DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD) -- a new Central sets it."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
         obj._part_output_paths_cache = []
@@ -760,7 +761,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         returns False so the old retries-exhausted path applies."""
         from unittest import mock
         import itertools
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
         obj._part_output_paths_cache = []
@@ -809,7 +810,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         """DOWNLOAD_OFFLINE_HOLD_ENABLED=no restores the legacy bounded-backoff
         path: no probe, no hold, just the short sleep-and-retry loop."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
         runs = [(7, False), (0, False)]
@@ -839,7 +840,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         from threading import Event, Thread
         import time as _t
         import tempfile
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
                                   total_files=1, total_bytes=1000)
@@ -885,7 +886,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         from threading import Event, Thread
         import time as _t
         import tempfile
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
                                   total_files=1, total_bytes=1000)
@@ -943,7 +944,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         from threading import Event, Thread
         import time as _t
         import tempfile
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"),
                                   total_files=1, total_bytes=1000)
@@ -1018,7 +1019,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         3-streak online detector would answer them with a stdin pause that
         nothing auto-resumes on Windows, deadlocking the engine."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         obj = self._make_curl_obj(self.pbt.path_inside_test_folder("dl-00"))
         obj._part_output_paths_cache = []
@@ -1055,7 +1056,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         one paused outage would spend the whole budget and a LATER outage in
         the same command would get zero hold protection."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
 
         class _FakeClock:
             def __init__(self):
@@ -1145,7 +1146,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         so when a proxy is configured the probe must target the PROXY
         endpoint, not the origin host."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
         cfg = self.pbt.path_inside_test_folder("dl-00")
         self._write_internal_parallel_config(cfg, [str(self.pbt.path_inside_test_folder("f.part"))])
         obj = self._make_curl_obj(cfg)
@@ -1167,7 +1168,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         (report online -> legacy bounded backoff), never guess a port and
         risk a 30-minute false offline hold on a healthy network."""
         from unittest import mock
-        import pybatch.subprocessBatchCommands as sbc
+        import pyinstl.downloadTransfer as sbc
         cfg = self.pbt.path_inside_test_folder("dl-00")
         self._write_internal_parallel_config(cfg, [str(self.pbt.path_inside_test_folder("f.part"))])
         obj = self._make_curl_obj(cfg)
