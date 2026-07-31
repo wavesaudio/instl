@@ -155,6 +155,9 @@ class TestPythonBatch(object):
         """ for each test create it's own test sub-fold
             if sub-folder already exists - remove it.
         """
+        # a test that ran earlier may have called config_vars.clear (testConfigVar does),
+        # which also takes the OS identity that batch_accum's repr needs - so restate it
+        config_vars["__CURRENT_OS_NAMES__"] = current_os_names
         if self.test_folder.exists():
             with FixAllPermissions(self.test_folder, recursive=True, report_own_progress=False)as fixer:
                 fixer()
