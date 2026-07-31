@@ -21,9 +21,8 @@ from configVar import config_vars  # √
 from . import connectionBase
 from pybatch import *
 # pybatch imports this module while it is still initializing, so the star import above
-# can bind an incomplete namespace: which names arrive depends on who imported whom
-# first. Reach the batch commands through the module instead - resolved when called,
-# so it holds whatever the import order was (same reason conditionalBatchCommands does it).
+# can bind an incomplete namespace. Reach the batch commands through the module instead,
+# resolved at call time (same reason conditionalBatchCommands does it).
 import pybatch
 
 @dataclass
@@ -41,9 +40,8 @@ class CurlDownloadEntry:
     size: int = 0
     resume_from_byte: int = 0
     conditional_headers: tuple[str, ...] = ()
-    # When True, force curl to (re)start this transfer from byte 0 and never
-    # emit a continue-at directive. Used by the exit-33 range-failure fallback,
-    # which must overwrite any leftover partial .part instead of resuming it.
+    # set by the exit 33 range-failure fallback: no continue-at directive at all,
+    # so curl overwrites a leftover .part instead of resuming it.
     force_restart_from_zero: bool = False
 
     def has_per_transfer_options(self):
@@ -163,12 +161,9 @@ parallel-max = {max_parallel_downloads}
     def use_internal_parallel(self):
         return config_vars["PARALLEL_DOWNLOAD_METHOD"].str() == "internal" and self.is_internal_parallel_supported()
 
-    # The `http2` config option is NOT a soft preference: a libcurl built without
-    # HTTP/2 (e.g. the stock Windows System32 curl, which lacks nghttp2) rejects it
-    # as an unsupported option and exits with code 2 before any transfer — the whole
-    # bulk download "completes" instantly with zero files. So the option may only be
-    # emitted when `curl --version` advertises the HTTP2 feature (same lazy cached
-    # probe pattern as is_internal_parallel_supported).
+    # a libcurl built without HTTP/2 (e.g. the stock Windows System32 curl, which lacks
+    # nghttp2) rejects the `http2` config option as unsupported and exits with code 2
+    # before any transfer - the whole bulk download "completes" instantly with zero files
     def is_http2_supported(self):
         if CUrlHelper.cached_http2_supported is None:
             CUrlHelper.cached_http2_supported = False
@@ -272,57 +267,32 @@ parallel-max = {max_parallel_downloads}
         if len(urls_to_download) + len(urls_to_download_last) <= 0:
             return config_file_list
 
-        # Offline grace window: on a network drop mid-sync, curl's default
-        # retry set does not cover "network unreachable" (exit 7), so the
-        # session fails within ~one connect-timeout. retry-connrefused +
-        # retry-all-errors make curl keep retrying through a brief outage,
-        # bounded by retry-max-time so genuine failures still terminate.
-        # retry-all-errors needs curl >= 7.71; it is gated behind a config var
-        # so it can be turned off (e.g. for an old bundled curl) without code.
-        #
-        # IMPORTANT: retry-all-errors is mutually exclusive with the resume
-        # fallback. The fallback restarts a transfer from zero when curl exits
-        # 33 (range not satisfiable / bad Content-Range); retry-all-errors would
-        # instead retry that same request, defeating the fallback. So we only
-        # add it when this config batch has NO resume entries (the production
-        # default, since resume ships off). Resume batches keep the exit-33
-        # fallback and skip retry-all-errors.
+        # curl's default retry set does not cover "network unreachable" (exit 7),
+        # so a network drop mid-sync fails the session within ~one connect-timeout.
+        # retry-connrefused + retry-all-errors keep curl retrying through a brief
+        # outage, bounded by retry-max-time so genuine failures still terminate.
+        # retry-all-errors needs curl >= 7.71, and must not be combined with resume
+        # entries: it would retry the exit 33 (range not satisfiable) that the
+        # fresh-restart fallback needs to see.
         has_resume_entries = any(
             entry.resume_from_byte > 0
             for entry in itertools.chain(urls_to_download, urls_to_download_last)
         )
         retry_max_time = str(config_vars.setdefault("CURL_RETRY_MAX_TIME", "90"))
 
-        # Stall watchdog (enforcement half): a silent TCP stall (dropped VPN,
-        # NAT timeout, half-open socket) otherwise leaves curl waiting forever
-        # while the UI's ETA climbs -- nothing ever exits. speed-limit /
-        # speed-time make curl abort a transfer that stays below speed-limit
-        # bytes/sec for speed-time seconds with exit 28 -- a network-class,
-        # transient code, so plain `retry` retries it in place and the
-        # offline-hold/reconciliation loop in CurlWithInternalParallel handles
-        # a genuine outage. Orthogonal to the retry-all-errors / resume-entry
-        # mutual exclusion below (exit 28 is transient for plain `retry` too),
-        # and kill-switchable without a code change like the other DOWNLOAD_*
-        # flags so macOS behavior can be restored from config alone.
-        #
-        # CONSISTENCY: curl's --retry-max-time window starts at the transfer's
-        # first attempt, and a speed-limit abort by definition fires only
-        # AFTER speed-time seconds of stall -- so for the in-place retry
-        # promised above to be possible at all, retry-max-time must
-        # comfortably exceed speed-time. Bump it (never lower an explicit
-        # larger config value) to 3x speed-time so a stall abort still leaves
-        # room for a couple of in-place retries instead of failing the whole
-        # parallel run and burning a unit of the outer 12-attempt budget.
+        # a silent TCP stall (dropped VPN, NAT timeout, half-open socket) leaves curl
+        # waiting forever - nothing ever exits. speed-limit / speed-time make curl
+        # abort a transfer that stayed below speed-limit bytes/sec for speed-time
+        # seconds with exit 28, a transient code, so plain `retry` retries it in place.
+        # curl's retry-max-time window starts at the transfer's first attempt while a
+        # speed-limit abort can only fire after speed-time seconds, so retry-max-time
+        # must exceed speed-time for that in-place retry to be possible at all: bump it
+        # to 3x speed-time, never lowering a larger configured value.
         stall_lines = []
         if str(config_vars.setdefault("DOWNLOAD_CURL_STALL_DETECTION", "yes")).strip().lower() in ("yes", "true", "1"):
             speed_limit = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_LIMIT", "1"))
-            # 30s (was 120): a mid-transfer link drop only STALLS curl's
-            # sockets, so speed-time is the only thing that ever exits a
-            # wedged transfer -- field testing (2026-07-30) showed real
-            # outages shorter than 120s went completely undetected. At
-            # speed-limit=1 byte/sec a 30s window only aborts transfers that
-            # moved essentially nothing for 30s straight, which no healthy
-            # slow network does.
+            # at speed-limit=1 byte/sec a 30s window only aborts a transfer that moved
+            # essentially nothing for 30 seconds straight, which no healthy slow network does
             speed_time = str(config_vars.setdefault("DOWNLOAD_CURL_SPEED_TIME", "30"))
             stall_lines.append(f"speed-limit = {speed_limit}")
             stall_lines.append(f"speed-time = {speed_time}")
@@ -339,12 +309,8 @@ parallel-max = {max_parallel_downloads}
             extra_retry_lines.append("retry-all-errors")
         extra_retry_lines.extend(stall_lines)
 
-        # HTTP/2 lets curl multiplex many transfers over fewer connections; when
-        # the SERVER can't negotiate h2 curl falls back to HTTP/1.1 — but when the
-        # curl BINARY was built without HTTP/2 the option itself is a hard error
-        # (exit 2, nothing downloads), so the flag is ANDed with a capability
-        # probe of the actual curl. Gated behind a config flag so it can also be
-        # turned off without a code change.
+        # a server that can't negotiate h2 just falls back to HTTP/1.1, but a curl built
+        # without HTTP/2 exits 2 before downloading anything - hence the capability probe
         http2_enabled = (str(config_vars.setdefault("DOWNLOAD_CURL_HTTP2", "yes")).strip().lower() in ("yes", "true", "1")
                          and self.is_http2_supported())
         config_options = {
@@ -400,9 +366,8 @@ parallel-max = {max_parallel_downloads}
                 file_details.wfd.write("no-fail\n")
                 file_details.wfd.write(f"continue-at = {download_entry.resume_from_byte}\n")
             elif not download_entry.force_restart_from_zero:
-                # Fresh transfer: let curl auto-detect any leftover .part and
-                # resume from its size (continue-at = -). On a paused/interrupted
-                # re-run this resumes instead of truncating and restarting from 0.
+                # continue-at = - lets curl pick up a leftover .part instead of
+                # truncating it, so an interrupted run resumes
                 file_details.wfd.write("no-fail\n")
                 file_details.wfd.write("continue-at = -\n")
             for header in download_entry.conditional_headers:
@@ -415,11 +380,8 @@ parallel-max = {max_parallel_downloads}
             last_file = config_file_list.pop()
 
         def url_sorter(l, r):
-            """ External parallel path: largest files first (longest-processing-time
-                first). Across the ~50 parallel curl workers this minimizes makespan —
-                a few huge wtars are the tail-latency problem, so we must not leave them
-                to finish last. (Info.xml's download-last behavior is handled separately
-                via urls_to_download_last and is unaffected.) """
+            """ largest files first: with ~50 curl workers in parallel a few huge wtars
+                are the tail latency, so they must not be left to start last. """
             return r.size - l.size  # non Info.xml files are sorted by size, descending
 
         cfig_file_cycler = itertools.cycle(config_file_list)
