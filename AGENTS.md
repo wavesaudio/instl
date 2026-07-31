@@ -127,6 +127,6 @@ There is no `pyproject.toml`/`pytest.ini`/`setup.py`; tests assume the repo root
   - Delete dead code (`if False:` blocks, no-op stubs, unreachable bodies, always-false debug flags).
   - Narrow swallowed exceptions (log instead of `except: pass`).
   - Fix the enumerated latent bugs (e.g. `verbatim=source_url==['url']` always False; `RmGlob` `log.wanging` typo; `IsSymlink` defining `repr_own_args` instead of `__repr__`; missing-`f` f-strings; `get_disk_free_space` referencing an unimported `win32file`).
-  - Extract duplicated logic (the curl pause/offline/retry loop shared by `ParallelRun` and `CurlWithInternalParallel`; the telemetry denylist kept in two places; the repeated detail-query/atomic-write/timestamp helpers).
+  - Extract duplicated logic (the curl pause/offline/retry loop shared by `ParallelRun` (`pybatch/subprocessBatchCommands.py`) and `CurlTransfer` (`pyinstl/downloadTransfer.py`); the telemetry denylist kept in two places; the repeated detail-query/atomic-write/timestamp helpers).
 - When adding a pybatch command, keep `__init__` and `__repr__`/`repr_own_args` in sync and add a round-trip test under `pybatch/test`. When adding config behavior, prefer scoped contexts over mutating the global stack.
 - Test before pushing: `python3.12 -m unittest discover -s . -p 'test_*.py'`. Commit/push only when explicitly asked; branch off `master` first.

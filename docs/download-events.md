@@ -92,7 +92,7 @@ Central maps these to the "Verifying" / "Installing" / terminal UX states.
 
 **Backend-hold session states (offline-hold / stall / reconcile) — gated on
 `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`:** the bulk-download engine
-(`CurlWithInternalParallel`) now recovers from connectivity loss itself and,
+(`CurlTransfer` in `pyinstl/downloadTransfer.py`) now recovers from connectivity loss itself and,
 *only* when the driving client declared the backend-hold capability (see §3.6),
 narrates that recovery with additional `session_state` transitions:
 
@@ -180,7 +180,7 @@ recovery (output reconciliation, offline-hold, stall detection, redownload
 budgets) still runs — only the legacy log lines / event stream are produced,
 so an old Central sees exactly today's events. The flag is surfaced on
 `download.capability.featureFlags` (§3.4). Emitter gate:
-`_client_handles_backend_hold()` in `pybatch/subprocessBatchCommands.py`.
+`_client_handles_backend_hold()` in `pyinstl/downloadTransfer.py`.
 
 ---
 

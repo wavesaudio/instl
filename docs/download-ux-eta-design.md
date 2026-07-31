@@ -32,7 +32,7 @@ Three lifecycle stages:
   (`pybatch/info_mapBatchCommands.py:617-688`).
 - **Downloading** — curl (`--parallel --progress-bar`); instl parses curl's progress
   line ~1/s and re-emits a normalized text line plus structured events
-  (`pybatch/subprocessBatchCommands.py:862-907`).
+  (`CurlTransfer._run_curl_once`, `pyinstl/downloadTransfer.py`).
 - **Post-download** — checksum-verify (`pybatch/info_mapBatchCommands.py:358-490`),
   chown/chmod, copy/`Unwtar` (`pybatch/wtarBatchCommands.py:171-293`), permissions,
   pre/post actions (`pyinstl/client/_actions.py:16-48`), rewrite `require.yaml`.
@@ -61,7 +61,7 @@ received   = input.summary?.summary?.totals?.bytesReceived              // :69
 `bytesReceived` and no throughput** (`pyinstl/downloadEvents.py:240-265`). So until the
 download is over there is nothing for `computeEta` to use → no ETA, no live speed in the
 structured UX. The cumulative bytes/speed exist *inside the curl loop*
-(`subprocessBatchCommands.py:895-906`) but are only written to the legacy text line, not
+(`CurlTransfer._run_curl_once`) but are only written to the legacy text line, not
 to the structured channel.
 
 **B. ETA only models the download, never the install tail.**
@@ -73,7 +73,7 @@ zone, but the ETA still decays to ~0 while unpack/copy run for minutes → the c
 "stuck at 99 %".
 
 **C. Speed is instantaneous and unsmoothed.** The legacy line passes curl's raw
-per-tick `Speed` through (`subprocessBatchCommands.py:906`); the only smoothed figure
+per-tick `Speed` through (`CurlTransfer._run_curl_once`); the only smoothed figure
 (`observedThroughputBytesPerSecond = total_bytes / wall_seconds`,
 `downloadObservability.py:266-273`) is cumulative and end-only.
 
@@ -91,7 +91,7 @@ labels are hardcoded English patterns (`instlProgressPatternMap.tsx`).
   mapping, and a **weighted multi-phase bar** (`phasesFactors`, must sum to 1.0;
   `shellInstlProcessProgressHandler.tsx:97-106,348-358`).
 - The monotonic byte/file high-water accounting across pause/resume
-  (`subprocessBatchCommands.py:770-918`).
+  (`CurlTransfer`, `pyinstl/downloadTransfer.py`).
 
 ---
 
@@ -130,8 +130,8 @@ Extend `make_session_state_event` (`pyinstl/downloadEvents.py:240-265`) with opt
 | `phaseBytesPlanned`, `phaseBytesDone` | per-phase byte budget (§4.3) |
 
 Emit a `session_state` **progress tick** from inside the curl loop on a throttle
-(≥1 s, on meaningful delta), reusing the cumulative figures already computed at
-`subprocessBatchCommands.py:895-906`.
+(≥1 s, on meaningful delta), reusing the cumulative figures already computed in
+`CurlTransfer._run_curl_once` (`pyinstl/downloadTransfer.py`).
 
 ### 3.2 New `phase_state` (or reuse `session_state`) for verify/install (Workstream 2)
 
@@ -147,15 +147,15 @@ periodic ticks carrying `phaseBytesDone/phaseBytesPlanned`.
 ### Workstream 1 — Smoothed throughput / live ETA
 
 **instl side**
-- Add an EMA throughput accumulator to `CurlWithInternalParallel` (or to the active
+- Add an EMA throughput accumulator to `CurlTransfer` (or to the active
   `DownloadObservability`): `ema = α·inst + (1-α)·ema`, α ≈ 0.2, seeded with the first
   cumulative average. Computing instantaneous = Δbytes/Δwall between ticks (we already
   have `cumulative_bytes` and can read a monotonic clock — note `Date`/`monotonic`
   usage already present via `downloadObservability._wall_clock`).
 - On each throttled tick (≥1 s), call `emit_session_state(state="downloading",
   bytes_received=cumulative_bytes, files_completed=downloaded_files,
-  observed_throughput_bytes_per_second=ema, …)`. Seam: inside the `if match:` block at
-  `subprocessBatchCommands.py:875-907`, guarded by a throttle timestamp.
+  observed_throughput_bytes_per_second=ema, …)`. Seam: inside the `if match:` block in
+  `CurlTransfer._run_curl_once` (`pyinstl/downloadTransfer.py`), guarded by a throttle timestamp.
 - Keep the legacy text line unchanged for old Central.
 
 **Central side**
@@ -265,7 +265,7 @@ structured channel drive the bar % is the same work as the deferred W3 option (b
   fixed 0.7/0.3 split initially, or (b) sum uncompressed sizes from the info-map if
   available. Start with (a); refine later.
 - **R4 — monotonicity across resume.** Live `bytesReceived` must use the existing
-  high-water/baseline accounting (`subprocessBatchCommands.py:887-900,917`) so the ETA
+  high-water/baseline accounting (`CurlTransfer._run_curl_once`) so the ETA
   never jumps backward on retry/resume.
 - **R5 — dual-driver flicker.** If both legacy regex and structured events update the bar
   (Workstream 4 not yet enforced), they can race. Enforce structured-primary first.
@@ -278,8 +278,8 @@ structured channel drive the bar % is the same work as the deferred W3 option (b
    `bytesReceived`/`filesCompleted`/`observedThroughputBytesPerSecond` to
    `make_session_state_event` (`pyinstl/downloadEvents.py`); emit a throttled (≥1 s),
    EMA-smoothed (α=0.2) `session_state="downloading"` tick from the curl loop via
-   `CurlWithInternalParallel._maybe_emit_progress_tick`
-   (`pybatch/subprocessBatchCommands.py`), with the EMA persisting across pause/resume
+   `CurlTransfer._maybe_emit_progress_tick`
+   (`pyinstl/downloadTransfer.py`), with the EMA persisting across pause/resume
    and the per-run sample baseline reset so a paused gap is never counted as slow
    transfer. Central: `ISessionStateEvent` gains the optional fields; `computeEta` and
    the meta-line speed/bytes/files prefer the live tick and fall back to the summary
