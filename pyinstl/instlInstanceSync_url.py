@@ -20,36 +20,11 @@ from .downloadObservability import load_session_summary
 from .downloadControlChannel import get_global_channel
 from . import downloadEvents
 from pybatch import *
+from configVar import config_vars, config_var_bool, config_var_int, config_var_list
 
 import logging
 
 _log = logging.getLogger(__name__)
-
-
-def _config_var_bool(name: str, default=False) -> bool:
-    if name not in config_vars:
-        return default
-    return config_vars[name].bool()
-
-
-def _config_var_int(name: str, default=0) -> int:
-    if name not in config_vars:
-        return default
-    try:
-        return int(config_vars[name].str())
-    except Exception:
-        return default
-
-
-def _config_var_list(name: str) -> list[str]:
-    if name not in config_vars:
-        return []
-    values = config_vars[name].list()
-    if len(values) == 1:
-        value = str(values[0])
-        if "," in value:
-            values = [part.strip() for part in value.split(",")]
-    return [str(value).strip() for value in values if str(value).strip()]
 
 
 class InstlInstanceSync_url(InstlInstanceSync):
@@ -101,15 +76,15 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.sync_base_url = config_vars["SYNC_BASE_URL"].str()
         self.get_cookie_for_sync_urls(self.sync_base_url)
         bookkeeping_dir = config_vars.get("LOCAL_REPO_BOOKKEEPING_DIR", "").str()
-        resume_enabled = _config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
+        resume_enabled = config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
         base_links_url = config_vars.get("BASE_LINKS_URL", "").str() if "BASE_LINKS_URL" in config_vars else ""
         validated_hosts = resolve_validated_hosts(
-            _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
+            config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
             base_links_url,
         )
-        validated_path_prefixes = _config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
-        require_conditional = _config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
-        signed_url_min_ttl_seconds = _config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)
+        validated_path_prefixes = config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
+        require_conditional = config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
+        signed_url_min_ttl_seconds = config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)
         # Phase 7 control channel: wire the URL-sync session into the
         # process-wide control channel. Callbacks persist the session
         # state and emit a ``download.session_state`` event so Central
@@ -324,7 +299,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
 
         dl_commands += self.create_sync_folders()
         # own_progress_count=0: this is a fast, non-reporting prep pass. It must
-        # NOT contribute to the progress total — total_progress_count() sums
+        # NOT contribute to the progress total — total_progress_count sums
         # own_progress_count regardless of report_own_progress, so a non-zero
         # value here adds phantom units to the denominator that are never
         # incremented (report_own_progress=False), which inflates the "of N"
@@ -340,7 +315,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
         dl_commands += self.create_curl_download_instructions()
 
         dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
-        # Workstream 2 (phase honesty): announce the verify phase so Central's
+        # announce the verify phase so Central's
         # structured UX shows "Verifying" rather than a bar frozen near 99%
         # while checksums are recomputed over the downloaded files.
         dl_commands += ReportDownloadState("verifying_downloads", reason="checksum_verify",

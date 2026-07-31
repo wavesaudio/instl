@@ -8,7 +8,7 @@
 
     Typed, documented accessor helpers for the most-used config_vars keys.
 
-    Rationale (REFACTORING.md W7 / ARCHITECTURE.md Theme 2):
+    Rationale:
         `config_vars` is a process-wide mutable singleton read by ~50 modules.
         Removing it is a large, invasive change that is explicitly *not* in scope
         for this incremental pass. Instead these helpers create a thin, typed
@@ -35,7 +35,7 @@ def current_os(cv=None) -> str:
     """Return the current OS family name, e.g. "Mac", "Win", "Linux".
 
     Reads `__CURRENT_OS__`. This is the single OS-identity string used for
-    per-OS branching across the codebase (Theme 4 territory).
+    per-OS branching across the codebase.
     """
     cv = _global_config_vars if cv is None else cv
     return cv["__CURRENT_OS__"].str()
@@ -145,3 +145,55 @@ def target_os_names(cv=None) -> List[str]:
     """
     cv = _global_config_vars if cv is None else cv
     return list(cv["TARGET_OS_NAMES"])
+
+
+# Typed readers for optional keys: a key that was never defined reads as its default
+# rather than raising, which is what tweakable settings (the DOWNLOAD_* family and
+# friends) want. The accessors above are for keys instl always defines.
+
+def config_var_str(name: str, default=None, cv=None):
+    """Return `name` as a non-empty string, or `default`."""
+    cv = _global_config_vars if cv is None else cv
+    if name not in cv:
+        return default
+    try:
+        value = cv[name].str()
+    except Exception:
+        value = str(cv[name])
+    return value if value else default
+
+
+def config_var_bool(name: str, default: bool = False, cv=None) -> bool:
+    """Return `name` as a bool, or `default`. "yes"/"true"/"1" are true, "no"/"false"/"0" false."""
+    cv = _global_config_vars if cv is None else cv
+    if name not in cv:
+        return default
+    return cv[name].bool()
+
+
+def config_var_int(name: str, default: int = 0, cv=None) -> int:
+    """Return `name` as an int, or `default` if unset or not a number."""
+    cv = _global_config_vars if cv is None else cv
+    if name not in cv:
+        return default
+    try:
+        return int(cv[name].str())
+    except (ValueError, TypeError):
+        return default
+
+
+def config_var_list(name: str, cv=None) -> List[str]:
+    """Return `name` as a list of non-empty, stripped strings ([] when unset).
+
+    A single value containing commas is split on them, so a setting can be written
+    either as a yaml list or as one "a, b, c" string.
+    """
+    cv = _global_config_vars if cv is None else cv
+    if name not in cv:
+        return []
+    values = cv[name].list()
+    if len(values) == 1:
+        value = str(values[0])
+        if "," in value:
+            values = [part.strip() for part in value.split(",")]
+    return [str(value).strip() for value in values if str(value).strip()]

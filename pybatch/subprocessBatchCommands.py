@@ -19,40 +19,18 @@ import psutil
 
 import utils
 from configVar import config_vars
+from configVar import config_var_bool, config_var_int
 from .baseClasses import PythonBatchCommandBase
 
 log = logging.getLogger(__name__)
 
-# Workstream 1 (live ETA): cadence + smoothing for the in-loop `session_state`
+# cadence + smoothing for the in-loop `session_state`
 # progress ticks emitted during the curl download. curl's per-tick Speed is too
 # jittery to drive a stable ETA, so we feed Central an EMA-smoothed throughput
 # (alpha weights the newest sample) at most once per interval. Best-effort:
 # emitting must never break a download.
 _DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC = 1.0
 _DOWNLOAD_PROGRESS_THROUGHPUT_EMA_ALPHA = 0.2
-
-
-def _download_config_flag(name, default_yes=True):
-    """Read a yes/no DOWNLOAD_* config var defensively.
-
-    The bulk download runs inside an emitted batch script (possibly elevated
-    via run-process), so config-var access must never raise -- a missing var
-    or an unusable config stack falls back to the shipped default. Matches
-    the truthy set used by curlHelper for the same family of flags.
-    """
-    try:
-        default_str = "yes" if default_yes else "no"
-        return str(config_vars.get(name, default_str)).strip().lower() in ("yes", "true", "1")
-    except Exception:
-        return bool(default_yes)
-
-
-def _download_config_int(name, default):
-    """Read an integer DOWNLOAD_* config var defensively (see _download_config_flag)."""
-    try:
-        return int(str(config_vars.get(name, str(default))).strip())
-    except Exception:
-        return int(default)
 
 
 def _client_handles_backend_hold():
@@ -73,7 +51,7 @@ def _client_handles_backend_hold():
     detection, redownload budgets) but emits only the legacy log lines -- an
     old Central sees exactly today's event stream.
     """
-    return _download_config_flag("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False)
+    return config_var_bool("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False)
 
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
@@ -834,7 +812,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         self._bytes_baseline = 0
         self._bytes_high_water = 0
 
-        # Workstream 1 (live ETA): EMA-smoothed throughput and the last-emit
+        # EMA-smoothed throughput and the last-emit
         # sample baseline. The EMA value persists ACROSS re-runs so the ETA
         # stays stable through pause/resume; the per-run sample baseline is
         # re-seeded in _run_curl_once so the paused/offline gap is never divided
@@ -855,7 +833,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
         return_code = self._run_config_with_recovery(config_file_path_fixed, pause_check, channel)
         if return_code == 0:
-            # Workstream A: in --parallel mode curl's final exit code can be 0
+            # in --parallel mode curl's final exit code can be 0
             # while individual transfers failed permanently (their per-transfer
             # retries were exhausted while offline). Do not trust exit 0 --
             # reconcile expected outputs against the disk and re-download only
@@ -917,7 +895,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                     reason="bulk_curl_network_error",
                     curl_exit_code=return_code,
                 )
-                if _download_config_flag("DOWNLOAD_OFFLINE_HOLD_ENABLED", True) \
+                if config_var_bool("DOWNLOAD_OFFLINE_HOLD_ENABLED", True) \
                         and not self._probe_connectivity()[0]:
                     # Genuinely offline: hold until connectivity returns.
                     # A hold does not consume the retry budget -- waiting out
@@ -938,7 +916,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                 log.info(f"{self.progress_msg_self()} network error (curl {return_code}); retries exhausted, continuing")
             return return_code
 
-    # -- Workstream B: offline-hold with structured events --------------------
+    # -- offline-hold with structured events --------------------
 
     def _probe_host_and_port(self):
         """The (host, port) to probe for connectivity: the validated download
@@ -1039,7 +1017,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
             host, port = self._probe_host_and_port()
             if not host:
                 return True, None
-        timeout = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS", 5))
+        timeout = max(1, config_var_int("DOWNLOAD_OFFLINE_PROBE_TIMEOUT_SECONDS", 5))
         try:
             with socket.create_connection((host, port), timeout=timeout):
                 return True, None
@@ -1049,7 +1027,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
             return False, "tcp_connect"
 
     def _hold_until_online(self, channel):
-        """Hold the download while the network is down (Workstream B).
+        """Hold the download while the network is down.
 
         Probes connectivity in a pause-aware loop (``sleep_or_wake`` so
         Central's pause/resume/try_now still interrupt), emitting:
@@ -1078,9 +1056,9 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         get zero hold protection (the same principle _RedownloadBudget
         applies to the redownload pass).
         """
-        probe_interval = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
-        hold_timeout = max(0, _download_config_int("DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS", 1800))
-        event_interval = max(probe_interval, _download_config_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
+        probe_interval = max(1, config_var_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
+        hold_timeout = max(0, config_var_int("DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS", 1800))
+        event_interval = max(probe_interval, config_var_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
         already_used = getattr(self, "_hold_seconds_used", 0.0)
         hold_start = time.monotonic()
         paused_seconds = 0.0
@@ -1194,7 +1172,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         except Exception as ex:  # pragma: no cover - instrumentation must never break a download
             log.debug(f"could not emit hold session_state event: {ex}")
 
-    # -- Workstream A: post-run completeness reconciliation -------------------
+    # -- post-run completeness reconciliation -------------------
 
     # Directive keys that curlHelper writes per download entry; everything
     # else in the config file is header material (see curlHelper
@@ -1313,7 +1291,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
                 wfd.write(entry["output_line"] + "\n\n")
 
     def _reconcile_missing_outputs(self, pause_check, channel):
-        """Workstream A: verify every expected output exists after curl exit 0
+        """verify every expected output exists after curl exit 0
         and re-download only the missing ones.
 
         curl --parallel masks per-transfer failures: transfers whose internal
@@ -1329,9 +1307,9 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         reconciliation runs succeeded).
         """
         return_code = 0
-        if not _download_config_flag("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True):
+        if not config_var_bool("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True):
             return return_code
-        max_rounds = max(0, _download_config_int("DOWNLOAD_RECONCILE_MAX_ROUNDS", 3))
+        max_rounds = max(0, config_var_int("DOWNLOAD_RECONCILE_MAX_ROUNDS", 3))
         if max_rounds == 0:
             return return_code
         header_lines, entries, uses_isolated_sections = \
@@ -1368,7 +1346,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
     def _maybe_emit_progress_tick(self, cumulative_bytes, downloaded_files):
         """Emit a throttled, EMA-smoothed ``session_state`` progress tick.
 
-        Workstream 1 (live ETA): curl's per-tick Speed is too jittery to drive
+        curl's per-tick Speed is too jittery to drive
         a stable ETA, and the structured ``session_state`` events otherwise
         carry no in-flight bytes/throughput -- so Central could only compute an
         ETA from the end-of-session summary (i.e. never, during the download).
@@ -1492,7 +1470,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         by ``stop_event`` so it always joins promptly -- this must never wedge the
         sync or elevated-copy process (see P7-010).
 
-        Workstream C (stall watchdog, observability half): when total on-disk
+        Stall watchdog: when total on-disk
         bytes have not grown for DOWNLOAD_STALL_WATCHDOG_SECONDS while curl is
         still alive, log it and emit a stalled-flavored ``session_state`` as a
         backstop signal. The poller never kills curl -- enforcement is curl's
@@ -1514,11 +1492,11 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         speed-time-aborted and re-run before real progress resumes. 0
         disables the probe; emissions stay gated by the client capability
         handshake inside the emit helpers."""
-        stall_watchdog_seconds = max(0, _download_config_int("DOWNLOAD_STALL_WATCHDOG_SECONDS", 180))
-        stall_probe_seconds = max(0, _download_config_int("DOWNLOAD_STALL_PROBE_SECONDS", 8))
-        probe_interval = max(1, _download_config_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
-        event_interval = max(probe_interval, _download_config_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
-        probe_enabled = stall_probe_seconds > 0 and _download_config_flag("DOWNLOAD_OFFLINE_HOLD_ENABLED", True)
+        stall_watchdog_seconds = max(0, config_var_int("DOWNLOAD_STALL_WATCHDOG_SECONDS", 180))
+        stall_probe_seconds = max(0, config_var_int("DOWNLOAD_STALL_PROBE_SECONDS", 8))
+        probe_interval = max(1, config_var_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
+        event_interval = max(probe_interval, config_var_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
+        probe_enabled = stall_probe_seconds > 0 and config_var_bool("DOWNLOAD_OFFLINE_HOLD_ENABLED", True)
         last_growth_bytes = -1
         last_growth_monotonic = time.monotonic()
         last_stall_emit_monotonic = 0.0
@@ -1588,7 +1566,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         by curl's progress cadence (~1s), same as utils.parallel_run.run_process.
         """
         # start_new_session so curl becomes its own process-group leader, which
-        # is what terminate_process()'s os.killpg() targets on pause (mirrors
+        # is what terminate_process's os.killpg targets on pause (mirrors
         # launch_process's preexec_fn=os.setsid in parallel_run). Without it the
         # killpg has no group to signal and curl would keep downloading.
         # cwd is the config file's folder so relative paths in the config
@@ -1623,13 +1601,13 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
         # restarts at 0 yet only fetches the remaining bytes, adds on top).
         last_run_dled_bytes = 0
 
-        # Workstream 1: re-seed the throughput sample baseline for THIS curl
+        # re-seed the throughput sample baseline for THIS curl
         # pass. The EMA value itself carries over (smoothing survives resume),
         # but the first sample of each pass only re-establishes the baseline so
         # the paused/offline wall-time gap is never counted as transfer time.
         self._last_emit_monotonic = None
 
-        # Workstream 1 root-cause fix (Windows parity with Mac): drive the
+        # Windows parity with Mac: drive the
         # structured download_progress ticks from on-disk .part sizes via a
         # Python-cadence poller -- exactly like the verify phase -- instead of
         # scraping curl's --parallel console meter. That meter yields no usable

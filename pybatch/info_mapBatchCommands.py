@@ -10,6 +10,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from configVar import config_vars
+from configVar import config_var_str, config_var_bool, config_var_int, config_var_list
 
 import aYaml
 import utils
@@ -72,42 +73,6 @@ from pyinstl.downloadCohort import (
 """
 
 
-def _config_var_str(name: str, default=None):
-    if name not in config_vars:
-        return default
-    try:
-        value = config_vars[name].str()
-    except Exception:
-        value = str(config_vars[name])
-    return value if value else default
-
-
-def _config_var_bool(name: str, default=False):
-    if name not in config_vars:
-        return default
-    return config_vars[name].bool()
-
-
-def _config_var_int(name: str, default=0):
-    if name not in config_vars:
-        return default
-    try:
-        return int(config_vars[name].str())
-    except Exception:
-        return default
-
-
-def _config_var_list(name: str):
-    if name not in config_vars:
-        return []
-    values = config_vars[name].list()
-    if len(values) == 1:
-        value = str(values[0])
-        if "," in value:
-            values = [part.strip() for part in value.split(",")]
-    return [str(value).strip() for value in values if str(value).strip()]
-
-
 def _source_url_for_file_item(info_map_table, file_item):
     try:
         return info_map_table.get_sync_url_for_file_item(file_item)
@@ -142,19 +107,19 @@ def _existing_source_metadata(info_map_table, file_item, bookkeeping_dir, source
 
 
 def _resume_decision_for_file_item(info_map_table, file_item):
-    bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
+    bookkeeping_dir = config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     return resume_decision_for_download_item(
         file_item,
         _source_url_for_file_item(info_map_table, file_item),
         bookkeeping_dir,
-        resume_enabled=_config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
+        resume_enabled=config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
         validated_hosts=resolve_validated_hosts(
-            _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
-            _config_var_str("BASE_LINKS_URL"),
+            config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
+            config_var_str("BASE_LINKS_URL"),
         ),
-        validated_path_prefixes=_config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES"),
-        require_conditional=_config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True),
-        signed_url_min_ttl_seconds=_config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300),
+        validated_path_prefixes=config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES"),
+        require_conditional=config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True),
+        signed_url_min_ttl_seconds=config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300),
     )
 
 
@@ -199,9 +164,9 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     that returns ``None`` without computing/logging a decision or touching
     the resume sidecar's retry bookkeeping.
     """
-    if not _config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True):
+    if not config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True):
         return None
-    bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
+    bookkeeping_dir = config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     previous_retry_count = 0
     if previous_retry_count_override is not None:
         previous_retry_count = previous_retry_count_override
@@ -231,7 +196,7 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     try:
         log_line = format_retry_decision_log_line(
             decision,
-            session_id=_config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
+            session_id=config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
             file_id=file_id,
             repo_path=getattr(file_item, "path", None),
             received_bytes=received_bytes,
@@ -245,7 +210,7 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     # DOWNLOAD_EVENT channel and a paired file_state event so Central can
     # consume one channel instead of parsing the legacy prefix.
     try:
-        session_id = _config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
+        session_id = config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
         _events_emit_retry_decision(
             decision,
             session_id=session_id,
@@ -266,7 +231,7 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     except Exception as ev_ex:  # pragma: no cover - events must never break sync
         log.debug(f"could not emit retry decision event: {ev_ex}")
 
-    _save_resume_sidecar_with_retry_count(
+    _save_resume_sidecar(
         info_map_table,
         file_item,
         transfer_state,
@@ -300,14 +265,13 @@ def _resume_bookkeeping_enabled():
     entirely. Telemetry/UX events are emitted on a separate channel
     (``downloadEvents``) and are unaffected by this gate.
     """
-    return _config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
+    return config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
 
 
-def _save_resume_sidecar_with_retry_count(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, retry_count=None, source_metadata=None):
-    """Variant of :func:`_save_resume_sidecar` that lets the caller pin ``retry_count``."""
+def _save_resume_sidecar(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, source_metadata=None, retry_count=0):
     if not _resume_bookkeeping_enabled():
         return None
-    bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
+    bookkeeping_dir = config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
     if not bookkeeping_dir:
         return None
     source_url = _source_url_for_file_item(info_map_table, file_item)
@@ -318,38 +282,12 @@ def _save_resume_sidecar_with_retry_count(info_map_table, file_item, transfer_st
             file_item,
             source_url,
             bookkeeping_dir,
-            session_id=_config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
-            repository_major_version=_config_var_str("TARGET_MAJOR_VERSION") or _config_var_str("SYNC_BASE_URL_MAIN_ITEM"),
+            session_id=config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
+            repository_major_version=config_var_str("TARGET_MAJOR_VERSION") or config_var_str("SYNC_BASE_URL_MAIN_ITEM"),
             transfer_state=transfer_state,
             received_bytes=received_bytes,
             last_failure_class=last_failure_class,
-            retry_count=retry_count if retry_count is not None else 0,
-            source_metadata=source_metadata,
-        )
-    except Exception as ex:
-        log.warning(f"could not save download resume sidecar for {getattr(file_item, 'path', 'unknown')}: {ex}")
-        return None
-
-
-def _save_resume_sidecar(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, source_metadata=None):
-    if not _resume_bookkeeping_enabled():
-        return None
-    bookkeeping_dir = _config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
-    if not bookkeeping_dir:
-        return None
-    source_url = _source_url_for_file_item(info_map_table, file_item)
-    if source_metadata is None:
-        source_metadata = _existing_source_metadata(info_map_table, file_item, bookkeeping_dir, source_url)
-    try:
-        return save_resume_sidecar_for_download_item(
-            file_item,
-            source_url,
-            bookkeeping_dir,
-            session_id=_config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
-            repository_major_version=_config_var_str("TARGET_MAJOR_VERSION") or _config_var_str("SYNC_BASE_URL_MAIN_ITEM"),
-            transfer_state=transfer_state,
-            received_bytes=received_bytes,
-            last_failure_class=last_failure_class,
+            retry_count=retry_count,
             source_metadata=source_metadata,
         )
     except Exception as ex:
@@ -410,8 +348,8 @@ class _RedownloadBudget:
         # is > 1 hour but was always fully recovered). The budgets are opt-in
         # protections, not shipped behavior changes.
         return cls(
-            max_total_bytes=_config_var_int("DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES", 0),
-            max_seconds=_config_var_int("DOWNLOAD_REDOWNLOAD_MAX_SECONDS", 0),
+            max_total_bytes=config_var_int("DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES", 0),
+            max_seconds=config_var_int("DOWNLOAD_REDOWNLOAD_MAX_SECONDS", 0),
         )
 
     def spend_bytes(self, num_bytes: int) -> None:
@@ -497,7 +435,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
     def _emit_verify_progress(self, done_bytes, planned_bytes, force=False):
         """Emit a throttled ``verifying_downloads`` session_state tick carrying
-        per-phase byte progress (Workstream 3 option b).
+        per-phase byte progress.
 
         Lets Central drive a determinate bar through the checksum-verify tail
         instead of parking it at the end of the download band. Best-effort and
@@ -512,7 +450,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 return
             self._verify_last_emit = now
             _events_emit_session_state(
-                session_id=_config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
+                session_id=config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
                 state="verifying_downloads",
                 phase_bytes_done=int(done_bytes),
                 phase_bytes_planned=int(planned_bytes),
@@ -526,7 +464,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         redownload pass is budget-bounded instead of count-capped
         (DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES, default on). Off restores the
         legacy count-cliff behavior exactly (kill switch, D-005 pattern)."""
-        return _config_var_bool("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True)
+        return config_var_bool("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True)
 
     def _redownload_pass_enabled(self) -> bool:
         """The redownload pass runs only when the caller asked for one:
@@ -567,11 +505,11 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         "auto" (os.cpu_count()). Returns 1 (serial) when the flag is off, when
         there is at most one item, or when the resolved count is <= 1.
         """
-        if not _config_var_bool("DOWNLOAD_PARALLEL_VERIFY", False):
+        if not config_var_bool("DOWNLOAD_PARALLEL_VERIFY", False):
             return 1
         if num_items <= 1:
             return 1
-        configured = _config_var_int("DOWNLOAD_PARALLEL_WORKERS", 0)
+        configured = config_var_int("DOWNLOAD_PARALLEL_WORKERS", 0)
         if configured <= 0:
             configured = os.cpu_count() or 1
         # No point spawning more workers than there are files to hash.
@@ -627,7 +565,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
-        # Workstream 3 (option b): total bytes this verify pass will process, so
+        # total bytes this verify pass will process, so
         # the ticks below carry a determinate fraction. file_item.size is the
         # repo file size; missing/unknown sizes contribute 0.
         verify_planned_bytes = sum(
@@ -784,7 +722,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         # existing 'Bad checksum ...' error after the pass. Time spent paused
         # does not burn the budget (_PauseTrackingChannel).
         control_channel = get_global_channel()
-        retry_enabled = _config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
+        retry_enabled = config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
         budget = None
         if self._count_all_bad_files():
             budget = _RedownloadBudget.from_config()
@@ -918,6 +856,18 @@ class PrepareDownloadTempFiles(DBManager, PythonBatchCommandBase):
                 super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
 
 
+def _download_event_context():
+    """Session id + rollout flags for a download event, applying the telemetry kill switch.
+
+    Each instl invocation is its own process, so a later `copy` must re-read the flag
+    that the `sync` before it honored.
+    """
+    rollout_flags = _cohort_active_flags_from_config(config_vars)
+    telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
+    _events_set_telemetry_enabled(telemetry_enabled)
+    return config_var_str("__INVOCATION_RANDOM_ID__", "unknown"), rollout_flags, telemetry_enabled
+
+
 def _emit_download_started(files_planned, bytes_planned):
     """Emit the capability + ``downloading`` session_state at the start of the
     curl download phase (P5/P7).
@@ -932,25 +882,19 @@ def _emit_download_started(files_planned, bytes_planned):
     Best-effort: instrumentation must never break a sync run.
     """
     try:
-        session_id = _config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
-        try:
-            concurrency_planned = _config_var_int("PARALLEL_SYNC", 0) or None
-        except Exception:
-            concurrency_planned = None
-        rollout_flags = _cohort_active_flags_from_config(config_vars)
-        telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
-        _events_set_telemetry_enabled(telemetry_enabled)
+        session_id, rollout_flags, telemetry_enabled = _download_event_context()
+        concurrency_planned = config_var_int("PARALLEL_SYNC", 0) or None
         try:
             validated_hosts = resolve_validated_hosts(
-                _config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
-                _config_var_str("BASE_LINKS_URL"),
+                config_var_list("DOWNLOAD_RESUME_VALIDATED_HOSTS"),
+                config_var_str("BASE_LINKS_URL"),
             )
         except Exception:
             validated_hosts = []
         _events_emit_capability(
             session_id=session_id,
-            resume_enabled=_config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
-            adaptive_concurrency_enabled=_config_var_bool("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
+            resume_enabled=config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
+            adaptive_concurrency_enabled=config_var_bool("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
             validated_hosts=validated_hosts,
             cohort=_cohort_resolve_cohort_from_config(config_vars),
             feature_flags=rollout_flags,
@@ -993,7 +937,7 @@ class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call_
 
 
 def _emit_download_state(state, reason=None, files_planned=None, bytes_planned=None):
-    """Emit a post-download ``session_state`` transition (Workstream 2).
+    """Emit a post-download ``session_state`` transition.
 
     Without these, Central's structured UX has no backend state once the curl
     transfer finishes, so its progress bar freezes near 99% while checksum
@@ -1007,10 +951,7 @@ def _emit_download_state(state, reason=None, files_planned=None, bytes_planned=N
     process). Best-effort: instrumentation must never break a sync/copy run.
     """
     try:
-        session_id = _config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
-        rollout_flags = _cohort_active_flags_from_config(config_vars)
-        telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
-        _events_set_telemetry_enabled(telemetry_enabled)
+        session_id, _rollout_flags, _telemetry_enabled = _download_event_context()
         _events_emit_session_state(
             session_id=session_id,
             state=state,
@@ -1028,7 +969,7 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
     99% while checksum-verify and copy/unwtar run.
 
     Carries no byte/file counts (those phases aren't byte-weighted yet -- see
-    Workstream 3); it only moves the state machine. ``own_progress_count=0`` /
+    a later change); it only moves the state machine. ``own_progress_count=0`` /
     ``report_own_progress=False`` so it never perturbs the progress total."""
 
     def __init__(self, state, reason=None, phase_bytes_planned=None, **kwargs) -> None:
@@ -1036,7 +977,7 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
         self.state = state
         self.reason = reason
         # When set on a "copying" transition, arms the copy-phase byte-progress
-        # accumulator (Workstream 3 option b) so copy/unwtar commands can report
+        # accumulator so copy/unwtar commands can report
         # into it. May be assigned after construction (once bytes_to_copy is
         # known) but before the script is serialized.
         self.phase_bytes_planned = phase_bytes_planned
@@ -1057,7 +998,7 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
             try:
                 from pybatch.copyPhaseProgress import begin_copy_phase
                 begin_copy_phase(self.phase_bytes_planned,
-                                 _config_var_str("__INVOCATION_RANDOM_ID__", "unknown"))
+                                 config_var_str("__INVOCATION_RANDOM_ID__", "unknown"))
             except Exception as ex:  # pragma: no cover - instrumentation must never break copy
                 log.debug(f"could not begin copy phase: {ex}")
 
