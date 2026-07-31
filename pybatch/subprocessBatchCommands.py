@@ -21,15 +21,10 @@ log = logging.getLogger(__name__)
 
 
 def _download_transfer():
-    """The download-orchestration module, resolved at call time.
-
-    ``pyinstl/__init__`` imports ``pybatch`` (through ``instlInstanceBase``),
-    so a module-level ``import pyinstl.downloadTransfer`` here would drag the
-    whole ``pyinstl`` package in while ``pybatch`` is still initializing and
-    leave the ``from pybatch import *`` sites in ``pyinstl`` bound to a
-    half-built namespace. Every other ``pyinstl`` reference in this file is
-    likewise resolved inside the function that needs it.
-    """
+    """The download-orchestration module, resolved at call time: ``pyinstl/__init__``
+    imports ``pybatch`` (through ``instlInstanceBase``), so importing it at module
+    level would drag ``pyinstl`` in while ``pybatch`` is still initializing and leave
+    the ``from pybatch import *`` sites bound to a half-built namespace."""
     from pyinstl import downloadTransfer
     return downloadTransfer
 
@@ -322,14 +317,8 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
             self.increment_progress()
 
     def _control_channel(self):
-        """The stdin control channel singleton, or None if unavailable.
-
-        One-line seam over downloadTransfer.get_control_channel, which the
-        internal-parallel curl path shares: the lookup used to be duplicated
-        verbatim in both drivers. Kept as a method because it is the hook
-        tests override to inject a fake channel, and kept exception-safe over
-        the module lookup too so "unavailable" still means None, never a raise.
-        """
+        """The stdin control channel singleton, or None if unavailable. A method
+        because it is the hook tests override to inject a fake channel."""
         try:
             return _download_transfer().get_control_channel()
         except Exception:
@@ -338,23 +327,15 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
     def _run_with_pause_and_offline_hold(self, commands):
         """Run the parallel batch, honoring pause and surviving a brief offline.
 
-        - Pause (Central, or auto-pause while offline): the runner terminates
-          curl and returns PAUSED_EXIT_CODE; we wait_if_paused() and re-run,
-          which resumes from the .part files (continue-at). Nothing flows while
-          paused, so this is a real pause (#1) and an offline hold (#2/#6).
-        - Network-class curl exit without a pause: hold if Central has paused us,
-          otherwise back off briefly and retry a bounded number of times so a
-          short blip recovers instead of failing the session.
-        - The curl range-failure fallback (exit 33) and genuine failures keep
-          their existing behavior.
+        On pause the runner terminates curl and returns PAUSED_EXIT_CODE; we
+        wait_if_paused() and re-run, which resumes from the .part files via
+        continue-at. A network-class curl exit without a pause gets a bounded
+        backoff instead, so a short blip recovers rather than failing the session.
 
-        TODO(external-parallel): CurlWithInternalParallel (the shipped path)
-        additionally gained post-run output reconciliation, an offline-hold
-        with structured events, and a stall watchdog. Sharing those here is
-        not trivial because this runner drives many curl processes through
-        run_processes_in_parallel and only sees an aggregate exit code, so
-        external mode intentionally keeps the older bounded-backoff behavior
-        for now (the checksum phase remains its completeness gate).
+        This runner drives many curl processes through run_processes_in_parallel and
+        only sees an aggregate exit code, so it has none of CurlTransfer's
+        reconciliation / offline-hold / stall watchdog: the checksum phase remains
+        its completeness gate.
         """
         download_transfer = _download_transfer()
         is_curl = self._is_curl_command(commands)
@@ -381,9 +362,6 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
                     self._run_fallback_after_curl_range_failure(code)
                     return
                 if is_curl and download_transfer.is_network_error(code):
-                    # Offline grace: if Central paused us (offline), hold here
-                    # until resume; otherwise back off and retry a few times so
-                    # a quick disconnect/reconnect recovers without erroring.
                     if channel is not None:
                         channel.wait_if_paused()
                     if network_retry_budget > 0:
@@ -415,13 +393,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
         return bool(commands) and Path(commands[0][0]).name.lower().startswith("curl")
 
     def _run_fallback_after_curl_range_failure(self, exit_code):
-        """Re-run the batch from zero using the fallback parallel-run config.
-
-        NOT shared with CurlTransfer's same-named method: this one reads a
-        parallel-run command file (one shell command per line) and hands it to
-        utils.run_processes_in_parallel, whereas that one hands curl a single
-        `--config` file of its own. Different input format, different runner.
-        """
+        """Re-run the batch from zero using the fallback parallel-run config."""
         resolved_fallback_config_file = utils.ExpandAndResolvePath(self.fallback_config_file)
         fallback_commands = self._read_parallel_run_config_file(resolved_fallback_config_file)
         self.doing = (
@@ -672,12 +644,8 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 }):
     """ download a batch of files with a single curl using curl's internal --parallel.
 
-    A thin pybatch command: it carries the numbers curlHelper serialized into
-    the batch script and, when called, hands them to
-    pyinstl.downloadTransfer.CurlTransfer, which owns the whole download
-    orchestration (pause/resume, connectivity probing, the offline hold and
-    its structured events, post-run output reconciliation, the .part progress
-    poller with its stall watchdog, and the range-failure fallback).
+    Carries the numbers curlHelper serialized into the batch script and hands them
+    to pyinstl.downloadTransfer.CurlTransfer, which owns the orchestration.
     """
     def __init__(self, curl_path: Path,
                  config_file_path: Path,
@@ -704,8 +672,6 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
 
     def __call__(self, *args, **kwargs):
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
-        # progress_msg_self is passed in as the log label so the collaborator
-        # never has to reach back into this command.
         transfer = _download_transfer().CurlTransfer(
             curl_path=self.curl_path,
             config_file_path=self.config_file_path,
