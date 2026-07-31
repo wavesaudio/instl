@@ -3,7 +3,6 @@
 
 import unittest
 
-import pytest
 
 from pybatch import *
 

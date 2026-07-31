@@ -6,7 +6,6 @@ import os
 import unittest
 import io as StringIO
 
-import pytest
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 import yaml

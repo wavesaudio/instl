@@ -7,7 +7,6 @@ import unittest
 import time
 from pathlib import Path
 
-import pytest
 
 from pybatch.info_mapBatchCommands import IndexYamlReader
 

@@ -19,7 +19,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import pytest
 
 from pybatch import *
 from pybatch.wtarBatchCommands import Unwtar, _unwtar_one_archive

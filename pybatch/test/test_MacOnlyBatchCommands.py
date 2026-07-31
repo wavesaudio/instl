@@ -16,7 +16,6 @@ import string
 from collections import namedtuple
 import unittest
 
-import pytest
 
 import utils
 from pybatch import *
@@ -77,10 +76,8 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.batch_accum += MacDock(None, label_for_item="Cubase 10.5", remove=True, restart_the_doc=True, username="orenc")
         self.pbt.exec_and_capture_output("test_MacDoc_remove_from_and_restart_dock")
 
-    @pytest.mark.skipif(
-        not hasattr(os, "geteuid") or os.geteuid() != 0,
-        reason="MacDock runs 'sudo -u <user> defaults write com.apple.dock ...' which requires root/sudo",
-    )
+    # MacDock runs "sudo -u <user> defaults write com.apple.dock ..."
+    @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "requires root/sudo")
     def test_MacDoc_add_to_and_restart_dock_separately(self):
         """ it's hard to define an automatic assert to result of MacDock operations
             so this test should be run manually

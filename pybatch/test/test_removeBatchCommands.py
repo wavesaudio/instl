@@ -15,7 +15,6 @@ import random
 import string
 from collections import namedtuple
 
-import pytest
 
 import utils
 from pybatch import *

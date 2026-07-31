@@ -15,7 +15,6 @@ import random
 import string
 from collections import namedtuple
 
-import pytest
 
 import utils
 from pybatch import *
@@ -317,10 +316,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
                                    Chown("/a/file/to/append", 123, None),
                                    Chown("/a/file/to/append", None, None))
 
-    @pytest.mark.skipif(
-        not hasattr(os, "geteuid") or os.geteuid() != 0,
-        reason="changing file ownership requires root privileges",
-    )
+    @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "changing file ownership requires root")
     def test_Chown(self):
         user_id = 502
         group_id = 20
@@ -567,7 +563,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(os.path.isfile(list_out_file), f"{self.pbt.which_test} : list_out_file was not created {list_out_file}")
 
     def test_Essentiality(self):
-        # Essentiality is now expressed through Stage.is_essential() rather than
+        # Essentiality is now expressed through Stage.is_essential rather than
         # by total_progress_count being zeroed: a Stage that contains only
         # non-essential commands (Echo) is non-essential, while a Stage holding
         # an essential command (Wzip) is essential. total_progress_count now
