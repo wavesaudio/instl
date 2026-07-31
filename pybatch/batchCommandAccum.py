@@ -129,7 +129,7 @@ class PythonBatchCommandAccum(PythonBatchCommandBase):
             The body is config-var-resolved and unresolved ``$(...)`` are rewritten to
             the native-var pattern for the current OS. This text is then written and
             ``compile()``/``exec()``-ed by ``run_batch_file``. See the contract notes
-            on ``PythonBatchCommandBase.__repr__`` and docs/REFACTORING.md W8.
+            on ``PythonBatchCommandBase.__repr__``.
         """
         single_indent = "    "
         running_progress_count = self.initial_progress

@@ -259,7 +259,7 @@ class Unwtar(PythonBatchCommandBase):
         self.wtar_file_paths = [utils.single_disk_item_listing(wtar_file_path, "PuUgGRTfC") for wtar_file_path in self.wtar_file_paths]
 
     def _report_archive_bytes(self, wtar_file_path_strs) -> None:
-        """ Workstream 3 option b: report an archive's bytes toward the
+        """ Report an archive's bytes toward the
             copy-phase progress (no-op unless an install copy phase is armed).
             MUST run on the MAIN process - copyPhaseProgress is process-global,
             non-reentrant state. Best-effort; never breaks a sync. The size is

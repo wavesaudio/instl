@@ -160,7 +160,7 @@ class TestSessionStateEvent(unittest.TestCase):
         self.assertEqual(event["state"], "downloading")
 
     def test_live_progress_fields_present_when_supplied(self):
-        # Workstream 1: in-flight download ticks carry cumulative bytes/files
+        # In-flight download ticks carry cumulative bytes/files
         # and a smoothed throughput so Central can compute a live ETA.
         event = make_session_state_event(
             session_id="s1",
@@ -177,7 +177,7 @@ class TestSessionStateEvent(unittest.TestCase):
         self.assertEqual(event["observedThroughputBytesPerSecond"], 456)
 
     def test_phase_progress_fields_present_when_supplied(self):
-        # Workstream 3 option b: post-download phases (e.g. verify) carry
+        # Post-download phases (e.g. verify) carry
         # per-phase byte progress so Central can drive a determinate install bar.
         event = make_session_state_event(
             session_id="s1",

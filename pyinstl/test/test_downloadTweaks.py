@@ -84,7 +84,7 @@ class TestCurlDownloadTweaks(unittest.TestCase):
         self.assertIn('url = "https://cdn.example.com/Foo.pkg"', text)
 
     def test_stall_detection_lines_present_by_default(self):
-        # Workstream C: a silently stalled transfer must exit (28) instead of
+        # A silently stalled transfer must exit (28) instead of
         # hanging forever; speed-limit/speed-time are emitted by default.
         config_vars["DOWNLOAD_CURL_STALL_DETECTION"] = "yes"
         config_vars["DOWNLOAD_CURL_SPEED_LIMIT"] = "1"

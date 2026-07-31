@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
 
-"""Contract guard for the structured download-event channel (Workstream 4).
+"""Contract guard for the structured download-event channel.
 
 `test_downloadEvents.py` checks individual builder behavior; this file pins the
 *contract* documented in `docs/download-events.md`: the set of keys each event

@@ -92,7 +92,7 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
         pybatch constructor call (SyntaxError / TypeError / NameError) it is
         treated as a raw shell command and wrapped in ``ShellCommand`` instead.
 
-        ATTACK SURFACE / TRUST MODEL (documented — see docs/REFACTORING.md W8):
+        ATTACK SURFACE / TRUST MODEL (documented):
           * ``action_str`` is trusted input: it originates from the index that
             Central generates, not from end users. ``eval`` here is the same
             trust boundary as ``exec``-ing the emitted batch file.
@@ -100,8 +100,8 @@ def EvalShellCommand(action_str: str, message: str, python_batch_names=None, rai
             ``locals()`` (this function's frame). The ``locals()`` exposure is
             historical and slightly wider than necessary; tightening it could
             change which strings evaluate successfully, so it is deliberately
-            left unchanged and is tracked as future, golden-verified work in
-            docs/REFACTORING.md W8 rather than altered here.
+            left unchanged: narrowing it needs a golden-verified change, not an
+            edit here.
           * A bare quoted string ``"foo"`` evals to a ``str`` (not a command);
             the ``isinstance`` check below converts that case to a ShellCommand.
     """

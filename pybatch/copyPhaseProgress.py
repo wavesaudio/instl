@@ -1,7 +1,6 @@
 #!/usr/bin/env python3.12
 
-"""Process-global copy/install-phase byte-progress accumulator (Workstream 3
-option b).
+"""Process-global copy/install-phase byte-progress accumulator.
 
 The copy phase of an install is a sequence of many discrete pybatch commands
 (CopyFileToDir, CopyDirToDir, Unwtar, ...), so there is no single loop to tick

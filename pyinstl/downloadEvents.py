@@ -279,7 +279,7 @@ def make_session_state_event(*,
         "repositoryRevision": int(repository_revision) if repository_revision is not None else None,
         "reason": reason,
     })
-    # Optional live-progress fields (Workstream 1). Included only when supplied
+    # Optional live-progress fields. Included only when supplied
     # so lifecycle-transition events keep their existing shape; in-flight
     # download ticks carry them to drive Central's ETA. See module docstring.
     if bytes_received is not None:
@@ -288,7 +288,7 @@ def make_session_state_event(*,
         payload["filesCompleted"] = int(files_completed)
     if observed_throughput_bytes_per_second is not None:
         payload["observedThroughputBytesPerSecond"] = int(observed_throughput_bytes_per_second)
-    # Per-phase byte progress (Workstream 3 option b) — present on in-flight
+    # Per-phase byte progress — present on in-flight
     # ticks of post-download phases (e.g. verify) so Central can drive a
     # determinate bar through the install tail instead of parking it. Distinct
     # from the download-phase bytesReceived/bytesPlanned above.

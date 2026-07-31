@@ -160,7 +160,7 @@ class TestActiveFlagsFromConfig(unittest.TestCase):
             "DOWNLOAD_RETRY_POLICY_ENABLED",
             "DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED",
             "DOWNLOAD_CENTRAL_UX_ENABLED",
-            # connectivity-loss self-sufficiency gates (offline-hold workstream)
+            # connectivity-loss self-sufficiency gates (offline-hold)
             "DOWNLOAD_RECONCILE_MISSING_OUTPUTS",
             "DOWNLOAD_OFFLINE_HOLD_ENABLED",
             "DOWNLOAD_CURL_STALL_DETECTION",

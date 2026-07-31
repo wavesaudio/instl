@@ -309,7 +309,7 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 raise
         else:
             self.statistics['skipped_files'] += 1
-        # Workstream 3 option b: report this file's bytes toward the copy-phase
+        # Report this file's bytes toward the copy-phase
         # progress. No-op unless an install copy phase is armed; reported for
         # copied, hard-linked AND skipped files because the planned total counts
         # every source file. Best-effort -- never break a copy.

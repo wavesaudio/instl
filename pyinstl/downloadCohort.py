@@ -173,7 +173,7 @@ _TRACKED_FLAGS: tuple[tuple[str, bool], ...] = (
     ("DOWNLOAD_RETRY_POLICY_ENABLED", True),
     ("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
     ("DOWNLOAD_CENTRAL_UX_ENABLED", False),
-    # Connectivity-loss self-sufficiency gates (offline-hold workstream).
+    # Connectivity-loss self-sufficiency gates (offline-hold).
     # Default ON in shipped builds; surfaced here so Central/telemetry can
     # see which recovery layers are active and rollout can retreat one
     # behavior at a time without a code change.
