@@ -2,27 +2,18 @@
 
 """Retry matrix and backoff for the bulk download engine.
 
-Phase 3 work item ``P3-004`` and ``P3-005``. This module consumes the
-normalized :class:`DownloadFailureClass` taxonomy from
-``downloadFailures.py`` and produces deterministic, testable retry
-decisions and structured retry-decision log payloads.
+Consumes the normalized :class:`DownloadFailureClass` taxonomy from
+``downloadFailures.py`` and produces retry decisions plus structured
+retry-decision log payloads.
 
-Design goals (kept aligned with the workspace docs in
-``download-system-enhancement``):
+A decision is one of ``resume``, ``restart``, or ``fail_terminal``; choosing
+between ``resume`` and ``restart`` is the caller's combined view of the matrix
+(``restart_required``) and the ``resume_decision`` capability gate. Backoff is
+exponential with jitter, bounded per class; ``Retry-After`` (RFC 9110) is
+honored when the class is configured to respect it.
 
-* The retry matrix is data; retry behavior must be derivable from
-  ``DownloadFailureClass`` alone so it can be unit-tested per class.
-* Decisions are one of ``resume``, ``restart``, or ``fail_terminal``.
-  ``resume`` and ``restart`` are both "retry" outcomes; the choice
-  between them is the caller's combined view of the matrix
-  (``restart_required``) and the existing Phase 2 ``resume_decision``
-  capability gate.
-* Backoff is exponential with jitter, bounded by class-specific
-  ``base_delay_seconds`` and ``max_delay_seconds``. ``Retry-After``
-  (RFC 9110) is honored when the class is configured to respect it.
-* The module never logs or persists raw URLs, cookies, headers, or
-  signed-URL material — its output is enum + ints + a small literal
-  reason string.
+The module never logs or persists raw URLs, cookies, headers, or signed-URL
+material — its output is enum + ints + a small literal reason string.
 """
 
 from __future__ import annotations
@@ -60,9 +51,9 @@ DOWNLOAD_RETRY_DECISION_LOG_PREFIX = "DOWNLOAD_RETRY_DECISION"
 class RetryAction(str, Enum):
     """Caller-visible retry decision.
 
-    ``RESUME`` and ``RESTART`` both mean "try again." They differ only in
-    whether the partial temp artifact can be appended to (``RESUME``) or
-    must be discarded and re-transferred from byte zero (``RESTART``).
+    ``RESUME`` and ``RESTART`` both mean "try again"; they differ in whether
+    the partial temp artifact can be appended to or must be discarded and
+    re-transferred from byte zero.
     """
 
     RESUME = "resume"
@@ -83,9 +74,9 @@ class RetryPolicy:
     respect_retry_after: bool = False
 
 
-# Terminal classes (max_attempts == 0) intentionally never retry. The matrix
-# is the single source of truth for retryability so that Phase 5 telemetry
-# and Central UX can derive next-action labels from class alone.
+# Terminal classes (max_attempts == 0) never retry. The matrix is the single
+# source of truth for retryability, so telemetry and Central UX can derive
+# next-action labels from the failure class alone.
 DEFAULT_RETRY_MATRIX: Mapping[DownloadFailureClass, RetryPolicy] = {
     DownloadFailureClass.DNS_RESOLUTION: RetryPolicy(
         max_attempts=3, base_delay_seconds=1.0, max_delay_seconds=30.0, jitter_fraction=0.25),
@@ -150,10 +141,8 @@ def compute_backoff_seconds(
         random_unit_fn: Callable[[], float] | None = None) -> float:
     """Return the delay in seconds before retry attempt ``attempt`` (1-indexed).
 
-    ``retry_after_seconds`` wins when the policy honors it and the server
-    asked for a longer wait. Jitter is full-jitter style multiplied by
-    ``policy.jitter_fraction`` and pulled from ``random_unit_fn`` (default
-    :func:`random.random`).
+    ``retry_after_seconds`` wins when the policy honors it and the server asked
+    for a longer wait.
     """
     if policy.max_attempts <= 0 or attempt < 1:
         return 0.0
@@ -204,12 +193,8 @@ class RetryDecision:
             received_bytes: int | None = None,
             concurrency: int | None = None,
             timestamp: str | None = None) -> dict:
-        """Build the structured ``download.retry_decision`` event payload.
-
-        Field shape matches ``telemetry-diagnostics.md``. Only enum/int
-        fields are emitted; no URLs, headers, or auth material flow
-        through this helper.
-        """
+        """Build the ``download.retry_decision`` event payload; field shape
+        matches ``telemetry-diagnostics.md``."""
         event = {
             "event": "download.retry_decision",
             "sessionId": session_id,
@@ -240,23 +225,11 @@ def decide_retry(
         random_unit_fn: Callable[[], float] | None = None) -> RetryDecision:
     """Decide whether and how to retry after ``failure``.
 
-    Parameters
-    ----------
-    failure:
-        Normalized failure metadata from ``downloadFailures.classify_*``.
-    previous_retry_count:
-        Number of retry attempts already made for this file. ``0`` means
-        we have only seen the original transfer fail; the next decision
-        would be attempt ``1``.
-    resume_eligible:
-        Whether the Phase 2 ``resume_decision_for_download_item`` said
-        the partial temp artifact is safe to append to. Ignored when the
-        matrix forces ``restart_required``.
-    matrix:
-        Override matrix for tests. Defaults to :data:`DEFAULT_RETRY_MATRIX`.
-    random_unit_fn:
-        Injectable RNG returning a value in ``[0, 1)``. Defaults to
-        :func:`random.random`. Used only when the policy has jitter.
+    ``previous_retry_count`` is the retries already made for this file, so
+    ``0`` means only the original transfer has failed and the next decision is
+    attempt ``1``. ``resume_eligible`` is what
+    ``resume_decision_for_download_item`` said about appending to the partial
+    temp artifact; it is ignored when the matrix forces ``restart_required``.
     """
     policy = policy_for(failure.failure_class, matrix)
     next_attempt = max(1, int(previous_retry_count) + 1)
@@ -319,8 +292,7 @@ def decide_retry(
 
 
 _DISALLOWED_EVENT_FIELDS = frozenset({
-    # Defense-in-depth: callers must not pass any of these. The formatter
-    # drops them rather than emit auth/header material in a retry log.
+    # dropped by the formatter rather than emit auth/header material
     "url", "URL", "urlRedacted", "headers", "cookie", "cookies",
     "authorization", "Authorization", "policy", "signature",
     "Signed-URL", "signedUrl", "tempPath", "finalPath",
@@ -339,14 +311,10 @@ def format_retry_decision_log_line(
         extra: Mapping[str, Any] | None = None) -> str:
     """Return a single-line, ingest-friendly log record for a retry decision.
 
-    The output is the literal prefix :data:`DOWNLOAD_RETRY_DECISION_LOG_PREFIX`
-    followed by a space and a compact JSON object. Privacy review:
-    callers must not pass raw URLs, cookies, headers, signed URL policies,
-    or local user paths in ``extra``; the formatter additionally drops a
-    fixed denylist of keys before serializing.
-
-    ``repo_path`` is the in-repo logical path (e.g. ``foo/bar.bundle``)
-    from the manifest, not a local user path, and is safe.
+    The literal prefix :data:`DOWNLOAD_RETRY_DECISION_LOG_PREFIX`, a space,
+    then a compact JSON object. ``repo_path`` is the in-repo logical path from
+    the manifest (e.g. ``foo/bar.bundle``), not a local user path, so it is
+    safe to emit.
     """
     payload = decision.to_event(
         session_id=session_id,
@@ -368,16 +336,10 @@ def format_retry_decision_log_line(
 def sleep_backoff(delay_seconds: float, *, channel=None) -> bool:
     """Sleep for ``delay_seconds`` or return early on ``try_now``.
 
-    Phase 7 control channel hook. Replaces a naked ``time.sleep`` in
-    retry loops so Central can send ``{"cmd":"try_now"}`` and skip
-    the remaining backoff. When ``channel`` is ``None``, the function
-    falls back to the process-wide singleton from
-    :mod:`downloadControlChannel`; tests inject a stub channel
-    directly.
-
-    Returns ``True`` when the sleep was interrupted by a ``try_now``
-    command, ``False`` when the full ``delay_seconds`` elapsed (or
-    when ``delay_seconds`` was non-positive).
+    Central can send ``{"cmd":"try_now"}`` to skip the remaining backoff. With
+    ``channel`` at ``None`` the process-wide :mod:`downloadControlChannel`
+    singleton is used. Returns ``True`` when a ``try_now`` interrupted the
+    sleep, ``False`` when the full ``delay_seconds`` elapsed.
     """
     if delay_seconds is None or delay_seconds <= 0:
         return False
@@ -388,7 +350,6 @@ def sleep_backoff(delay_seconds: float, *, channel=None) -> bool:
             try:
                 from downloadControlChannel import get_global_channel  # type: ignore[no-redef]
             except ImportError:
-                # Control channel not available; fall back to a plain sleep.
                 time.sleep(float(delay_seconds))
                 return False
         try:
@@ -399,8 +360,7 @@ def sleep_backoff(delay_seconds: float, *, channel=None) -> bool:
             return False
     woke = channel.sleep_or_wake(float(delay_seconds))
     if woke:
-        # Drain the consume-once flag so future spurious wakes don't
-        # masquerade as another try_now.
+        # drain the consume-once flag, so a later spurious wake is not read as try_now
         try:
             channel.try_now_requested()
         except Exception:  # pragma: no cover - defensive

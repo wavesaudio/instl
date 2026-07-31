@@ -2,12 +2,10 @@
 
 """Structured event contract from instl to Central.
 
-Phase 5 work item ``P5-001``. This module is the single source of truth
-for the JSON-line event channel that Central consumes instead of
-parsing free-text progress (per ``D-004`` and ``D-007``). It does not
-replace the existing legacy progress text; it runs alongside it so
-older Central builds and the new structured consumer can both work
-during rollout.
+Single source of truth for the JSON-line event channel that Central consumes
+instead of parsing free-text progress. It does not replace the legacy
+progress text; it runs alongside it so older Central builds and the new
+structured consumer both keep working during rollout.
 
 Transport
 ---------
@@ -16,21 +14,18 @@ Every event is emitted as one log line of the form::
 
     DOWNLOAD_EVENT {compact-json-with-sorted-keys}
 
-The literal prefix :data:`DOWNLOAD_EVENT_LOG_PREFIX` lets Central
-identify structured events without parsing every output line. The line
-is written via Python ``logging`` at INFO so the existing instl log
-handlers (which Central captures from stdout) carry it without any
-additional plumbing.
+The literal prefix :data:`DOWNLOAD_EVENT_LOG_PREFIX` lets Central identify
+structured events without parsing every output line. The line is written via
+Python ``logging`` at INFO so the existing instl log handlers (which Central
+captures from stdout) carry it without any additional plumbing.
 
-The existing ``DOWNLOAD_RETRY_DECISION`` log line from
-``downloadRetry.format_retry_decision_log_line`` is part of the same
-family. ``format_retry_decision_event`` wraps the same payload in the
-``DOWNLOAD_EVENT`` envelope so consumers can choose to ingest either
-channel; the legacy prefix remains emitted unchanged for backward
-compatibility per ``D-016``.
+``downloadRetry.format_retry_decision_log_line`` emits the same payload under
+the legacy ``DOWNLOAD_RETRY_DECISION`` prefix, which stays as-is for backward
+compatibility; ``format_retry_decision_event`` wraps that payload in the
+``DOWNLOAD_EVENT`` envelope so consumers can ingest either channel.
 
-Privacy (``D-014``, ``D-016``, ``NFR-005``)
--------------------------------------------
+Privacy
+-------
 
 * Every helper drops a fixed denylist of keys before serializing.
 * Callers must pass redacted URLs only (use
@@ -50,17 +45,15 @@ Event types
     ``actionId``, ``repositoryMajorVersion``, ``repositoryRevision``,
     ``reason`` (optional, short literal string).
 
-    During the download phase the same event additionally carries optional
-    *live-progress* fields so Central can compute a stable ETA without
-    waiting for the end-of-session summary (which only arrives once the
-    download is already over): ``bytesReceived`` and ``filesCompleted``
-    (cumulative, monotonic) and ``observedThroughputBytesPerSecond``
-    (EMA-smoothed bytes/sec). These appear only on in-flight ``downloading``
-    progress ticks; lifecycle transitions omit them. Post-download phases (e.g.
-    ``verifying_downloads``) may instead carry ``phaseBytesDone`` /
-    ``phaseBytesPlanned`` so Central can drive a determinate bar through the
-    install tail. All of these fields are additive and optional, so the event
-    ``schemaVersion`` is unchanged.
+    In-flight ``downloading`` ticks additionally carry ``bytesReceived`` and
+    ``filesCompleted`` (cumulative, monotonic) plus
+    ``observedThroughputBytesPerSecond`` (EMA-smoothed), so Central can
+    compute an ETA without waiting for the end-of-session summary, which
+    only arrives once the download is already over. Lifecycle transitions
+    omit them. Post-download phases (e.g. ``verifying_downloads``) may
+    instead carry ``phaseBytesDone`` / ``phaseBytesPlanned`` to drive a
+    determinate bar through the install tail. All of these are additive and
+    optional, so ``schemaVersion`` is unchanged.
 
 ``download.file_state``
     Per-file transitions. Fields: ``fileId``, ``repoPath``, ``state``
@@ -71,25 +64,22 @@ Event types
 
 ``download.retry_decision``
     Wrapped form of the legacy
-    ``downloadRetry.format_retry_decision_log_line`` payload. Fields
-    match the existing retry-decision JSON (``failureClass``,
-    ``attempt``, ``decision``, ``delayMs``, ``restartRequired``,
-    ``reason``, ``receivedBytes``, ``concurrency``,
-    ``retryAfterSeconds``, ``httpStatus``, ``curlExitCode``,
-    ``repoPath``, ``fileId``).
+    ``downloadRetry.format_retry_decision_log_line`` payload. Fields:
+    ``failureClass``, ``attempt``, ``decision``, ``delayMs``,
+    ``restartRequired``, ``reason``, ``receivedBytes``, ``concurrency``,
+    ``retryAfterSeconds``, ``httpStatus``, ``curlExitCode``, ``repoPath``,
+    ``fileId``.
 
 ``download.capability``
-    One-shot snapshot of the backend feature flags Central must use
-    for UX gating per ``D-004``. Fields: ``resumeEnabled``,
-    ``adaptiveConcurrencyEnabled``, ``validatedHosts`` (list, bare
-    hosts only), ``retryMatrixVersion`` (int), ``stateSchemaVersion``
-    (int), ``eventSchemaVersion`` (int).
+    One-shot snapshot of the backend feature flags Central uses for UX
+    gating. Fields: ``resumeEnabled``, ``adaptiveConcurrencyEnabled``,
+    ``validatedHosts`` (list, bare hosts only), ``retryMatrixVersion``
+    (int), ``stateSchemaVersion`` (int), ``eventSchemaVersion`` (int).
 
 ``download.session_summary``
-    The aggregated session totals already written by
-    ``downloadObservability`` as ``session-summary.json``. Emitted as
-    an event so Central does not have to read the sidecar to render
-    end-of-session UI.
+    The aggregated session totals ``downloadObservability`` writes as
+    ``session-summary.json``, so Central need not read the sidecar to
+    render end-of-session UI.
 
 Envelope
 --------
@@ -125,7 +115,7 @@ _log = logging.getLogger(__name__)
 
 class DownloadEventType(str, Enum):
     """Canonical event identifiers. Consumers must accept unknown values
-    and treat them as forward-compatible no-ops (``D-007``)."""
+    and treat them as forward-compatible no-ops."""
 
     SESSION_STATE = "download.session_state"
     FILE_STATE = "download.file_state"
@@ -134,8 +124,7 @@ class DownloadEventType(str, Enum):
     SESSION_SUMMARY = "download.session_summary"
 
 
-# Denylist of keys callers must never pass through this module. The
-# formatter drops these rather than emit auth/header/local-path material.
+# Dropped by the formatter rather than emit auth/header/local-path material.
 # Kept compatible with ``downloadRetry._DISALLOWED_EVENT_FIELDS``.
 _DISALLOWED_EVENT_FIELDS = frozenset({
     "url", "URL", "urlRedacted", "headers", "cookie", "cookies",
@@ -156,11 +145,7 @@ def _drop_disallowed(mapping: Mapping[str, Any] | None) -> dict[str, Any]:
 
 
 def _enum_value(value: Any) -> Any:
-    """Best-effort flatten of enum values for JSON serialization.
-
-    Accepts ``Enum`` instances, plain strings, or ``None``. Anything else
-    is returned verbatim.
-    """
+    """Flatten enums for JSON serialization; anything else passes through."""
     if value is None:
         return None
     if isinstance(value, Enum):
@@ -185,10 +170,9 @@ def make_envelope(event_type: DownloadEventType | str,
 def format_event_line(event: Mapping[str, Any]) -> str:
     """Return the single-line log record for ``event``.
 
-    The returned string starts with :data:`DOWNLOAD_EVENT_LOG_PREFIX`,
-    followed by a space and a compact JSON object with sorted keys.
-    Denylisted keys are removed in-line so any caller forgetting the
-    redaction contract cannot leak auth material.
+    :data:`DOWNLOAD_EVENT_LOG_PREFIX`, a space, then compact JSON with sorted
+    keys. Denylisted keys are dropped here too, so a caller that forgets the
+    redaction contract still cannot leak auth material.
     """
     safe = _drop_disallowed(event)
     return f"{DOWNLOAD_EVENT_LOG_PREFIX} {json.dumps(safe, sort_keys=True)}"
@@ -197,13 +181,8 @@ def format_event_line(event: Mapping[str, Any]) -> str:
 def emit_event(event: Mapping[str, Any]) -> str | None:
     """Format and emit ``event`` via the module logger. Returns the line.
 
-    Instrumentation must never break a sync run, so all errors are
-    swallowed and logged at debug level only.
-
-    Phase 6 (``P6-002``) adds a process-level kill switch: when
-    :func:`set_telemetry_enabled` has been called with ``False`` the
-    emitter returns ``None`` and does not write anything. This lets
-    rollout disable the structured channel without code changes.
+    Returns ``None`` and writes nothing when :func:`set_telemetry_enabled`
+    has turned the channel off.
     """
     if not _telemetry_enabled:
         return None
@@ -219,12 +198,10 @@ def emit_event(event: Mapping[str, Any]) -> str | None:
     return line
 
 
-# -- Phase 6 telemetry kill switch (P6-002) ---------------------------------
+# -- Telemetry kill switch --------------------------------------------------
 #
-# The structured channel is privacy-safe by construction (D-007, D-016) so
-# the default is ON in shipped builds. The kill switch exists purely so
-# rollout/support can disable the channel out-of-band if a downstream
-# parser regresses or telemetry needs to pause without a code change.
+# Default ON in shipped builds; process-global, so rollout/support can disable
+# the channel out-of-band if a downstream parser regresses.
 
 _telemetry_enabled: bool = True
 
@@ -233,10 +210,8 @@ def set_telemetry_enabled(enabled: bool) -> None:
     """Toggle the structured-event kill switch.
 
     Called from ``do_check_checksum`` based on ``DOWNLOAD_TELEMETRY_ENABLED``.
-    Tests may toggle it directly; the default (``True``) is restored when
-    the test resets the flag. The legacy ``DOWNLOAD_RETRY_DECISION`` text
-    line is emitted by ``downloadRetry`` and is NOT affected by this
-    switch — that path remains on for backward compatibility (``D-016``).
+    The legacy ``DOWNLOAD_RETRY_DECISION`` text line comes from
+    ``downloadRetry`` and is NOT affected by this switch.
     """
     global _telemetry_enabled
     _telemetry_enabled = bool(enabled)
@@ -279,19 +254,16 @@ def make_session_state_event(*,
         "repositoryRevision": int(repository_revision) if repository_revision is not None else None,
         "reason": reason,
     })
-    # Optional live-progress fields. Included only when supplied
-    # so lifecycle-transition events keep their existing shape; in-flight
-    # download ticks carry them to drive Central's ETA. See module docstring.
+    # live-progress fields, included only when supplied so lifecycle-transition
+    # events keep their existing shape
     if bytes_received is not None:
         payload["bytesReceived"] = int(bytes_received)
     if files_completed is not None:
         payload["filesCompleted"] = int(files_completed)
     if observed_throughput_bytes_per_second is not None:
         payload["observedThroughputBytesPerSecond"] = int(observed_throughput_bytes_per_second)
-    # Per-phase byte progress — present on in-flight
-    # ticks of post-download phases (e.g. verify) so Central can drive a
-    # determinate bar through the install tail instead of parking it. Distinct
-    # from the download-phase bytesReceived/bytesPlanned above.
+    # per-phase byte progress for post-download phases (e.g. verify); distinct
+    # from the download-phase bytesReceived/bytesPlanned above
     if phase_bytes_done is not None:
         payload["phaseBytesDone"] = int(phase_bytes_done)
     if phase_bytes_planned is not None:
@@ -349,16 +321,11 @@ def make_capability_event(*,
         for raw in validated_hosts:
             host = str(raw or "").strip().lower()
             if not host or "/" in host or "?" in host or "#" in host:
-                # Defense-in-depth: only accept bare host strings.
-                continue
+                continue  # only bare host strings
             safe_hosts.append(host)
-    # Phase 6 P6-001/P6-003: include cohort and the canonical flag map so
-    # Central + telemetry can compare control/treatment without parsing
-    # text. Cohort normalization happens at the call site
-    # (downloadCohort.resolve_cohort_from_config) so this builder only
-    # has to forward the label. Unknown labels are still allowed through
-    # for forward compatibility, but Central normalizes again on the
-    # consumer side.
+    # cohort + flag map let Central and telemetry compare control/treatment
+    # without parsing text; the real normalization happens at the call site
+    # (downloadCohort.resolve_cohort_from_config)
     try:
         from .downloadCohort import normalize_cohort  # local import: avoid cycle
     except ImportError:  # tests import without the pyinstl package context
@@ -391,10 +358,8 @@ def make_session_summary_event(*,
                                timestamp: str | None = None) -> dict[str, Any]:
     """Wrap the ``session-summary.json`` payload in the event envelope.
 
-    The summary is produced by ``downloadObservability`` and is already
-    redacted (host-only, no URLs/paths). The wrapper simply lifts it
-    onto the structured event channel so Central can consume the same
-    data without reading the local sidecar.
+    ``downloadObservability`` already produced it redacted (host-only, no
+    URLs/paths).
     """
     payload = make_envelope(DownloadEventType.SESSION_SUMMARY,
                             session_id=session_id, timestamp=timestamp)
@@ -412,9 +377,9 @@ def make_retry_decision_event(decision,
                               timestamp: str | None = None) -> dict[str, Any]:
     """Build the unified-envelope form of the retry decision event.
 
-    Mirrors ``downloadRetry.RetryDecision.to_event`` field names so a
-    Central consumer can use the same parser whether it sees the legacy
-    ``DOWNLOAD_RETRY_DECISION`` line or this ``DOWNLOAD_EVENT`` line.
+    Field names mirror ``downloadRetry.RetryDecision.to_event`` so Central can
+    use one parser for both the legacy ``DOWNLOAD_RETRY_DECISION`` line and
+    this ``DOWNLOAD_EVENT`` line.
     """
     payload = make_envelope(DownloadEventType.RETRY_DECISION,
                             session_id=session_id, timestamp=timestamp)

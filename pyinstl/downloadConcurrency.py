@@ -2,28 +2,16 @@
 
 """Adaptive download concurrency controller.
 
-Phase 4 work items ``P4-002`` (bounds), ``P4-003`` (controller), and
-``P4-004`` (manual override). The controller is intentionally
-**between-session**: it inspects the persisted ``session-summary.json``
-written by ``downloadObservability`` for the previous ``instl``
-invocation and produces a ``PARALLEL_SYNC`` recommendation for the
-next run.
+The controller is **between-session**: it inspects the ``session-summary.json``
+written by ``downloadObservability`` for the previous ``instl`` invocation and
+produces a ``PARALLEL_SYNC`` recommendation for the next run. It cannot adapt
+within a session because ``instl`` writes N curl config files at plan time and
+hands them to ``ParallelRun``; the process pool is fixed once the run starts.
 
-Why not within-session? Today ``instl`` writes N curl config files at
-plan time and hands them to ``ParallelRun``; reducing or growing the
-process pool mid-run would require restructuring the curl driver. A
-between-session adapter is the smallest correct step that ``D-005``
-(independent feature flags) and ``D-017`` (this decision) allow us to
-ship.
-
-Design contract:
-
-* The matrix of (signal -> action) is data and unit-testable per branch.
-* The recommendation never goes below ``min``, never above ``max``, and
-  never moves by more than the configured step in a single decision.
-* Manual user overrides (``PARALLEL_SYNC_USER_OVERRIDE``) bypass the
-  controller entirely. The feature flag
-  ``DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED`` is the kill switch.
+The recommendation never goes below ``min``, never above ``max``, and never
+moves by more than the configured step in a single decision. Manual user
+overrides (``PARALLEL_SYNC_USER_OVERRIDE``) bypass the controller entirely,
+and ``DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED`` is the kill switch.
 """
 
 from __future__ import annotations
@@ -33,9 +21,9 @@ from enum import Enum
 from typing import Any, Mapping
 
 
-# Defaults are conservative: 8 processes is the documented safe baseline
-# for CloudFront with signed cookies; the historical PARALLEL_SYNC=50 is
-# kept as the absolute ceiling so a healthy run can climb back to it.
+# 8 processes is the documented safe baseline for CloudFront with signed
+# cookies; the historical PARALLEL_SYNC=50 is kept as the absolute ceiling so
+# a healthy run can climb back to it.
 DEFAULT_MIN_CONCURRENCY = 2
 DEFAULT_MAX_CONCURRENCY = 50
 DEFAULT_START_CONCURRENCY = 8
@@ -58,10 +46,8 @@ class AdaptiveAction(str, Enum):
 class ConcurrencyBounds:
     """Bounds and step sizes for the controller.
 
-    All values are positive integers. ``min`` and ``max`` define the
-    closed range; ``start`` is the recommendation when there is no
-    prior session summary. ``increase_step`` and ``decrease_step``
-    bound how far a single decision can move from the previous run.
+    ``min``/``max`` are a closed range; ``start`` is the recommendation when
+    there is no prior session summary.
     """
 
     min_concurrency: int = DEFAULT_MIN_CONCURRENCY
@@ -73,9 +59,8 @@ class ConcurrencyBounds:
     error_rate_grow_threshold: float = DEFAULT_ERROR_RATE_GROW_THRESHOLD
 
     def __post_init__(self) -> None:
-        # Use object.__setattr__ because the dataclass is frozen but we
-        # still want post-init normalization. This catches misconfigured
-        # YAML values without surprising the caller.
+        # object.__setattr__ because the dataclass is frozen, but misconfigured
+        # YAML values still need normalizing
         normalized_min = max(1, int(self.min_concurrency))
         normalized_max = max(normalized_min, int(self.max_concurrency))
         normalized_start = max(normalized_min, min(normalized_max, int(self.start_concurrency)))
@@ -112,24 +97,14 @@ def decide_next_concurrency(
         configured_default: int | None = None) -> ConcurrencyDecision:
     """Return the recommended PARALLEL_SYNC for the next run.
 
-    Parameters
-    ----------
-    previous_summary:
-        Output of ``downloadObservability.load_session_summary`` for the
-        previous ``instl`` invocation. ``None`` means cold start.
-    bounds:
-        ``ConcurrencyBounds`` to apply. Defaults to module defaults.
-    adaptive_enabled:
-        Feature-flag kill switch. When ``False``, the controller falls
-        back to ``user_override`` if present, then ``configured_default``,
-        then ``bounds.start_concurrency``.
-    user_override:
-        If a non-``None`` positive integer, the controller honors it
-        verbatim (clamped to bounds for safety). This implements ``P4-004``
-        and ``D-017`` — user overrides bypass adaptation entirely.
-    configured_default:
-        The YAML/config baseline ``PARALLEL_SYNC`` value. Used only when
-        adaptation is disabled and no override is set.
+    ``previous_summary`` is the output of
+    ``downloadObservability.load_session_summary`` for the previous ``instl``
+    invocation; ``None`` means cold start.
+
+    ``user_override`` is honored verbatim (clamped to bounds) and bypasses
+    adaptation entirely. When ``adaptive_enabled`` is ``False`` the fallback
+    order is ``user_override``, then ``configured_default`` (the YAML baseline
+    ``PARALLEL_SYNC``), then ``bounds.start_concurrency``.
     """
     effective_bounds = bounds or ConcurrencyBounds()
 
@@ -172,7 +147,6 @@ def decide_next_concurrency(
     retryable_error_rate = float(previous_summary.get("retryableErrorRate", 0.0) or 0.0)
     total_error_rate = float(previous_summary.get("errorRate", 0.0) or 0.0)
 
-    # Empty run: nothing transferred, nothing to learn from.
     if attempts == 0:
         return ConcurrencyDecision(
             action=AdaptiveAction.KEEP,
@@ -182,8 +156,7 @@ def decide_next_concurrency(
             bounds=effective_bounds,
         )
 
-    # Strong distress: terminal failures or restart-required clusters
-    # mean recent throughput was unhealthy. Back off by the full step.
+    # terminal failures or a cluster of restarts mean unhealthy throughput
     if failures_terminal > 0 or restarts >= max(1, attempts // 5):
         return ConcurrencyDecision(
             action=AdaptiveAction.DECREASE,
@@ -193,7 +166,7 @@ def decide_next_concurrency(
             bounds=effective_bounds,
         )
 
-    # Elevated retryable error rate: back off (slow/lossy network signal).
+    # elevated retryable error rate reads as a slow/lossy network
     if retryable_error_rate >= effective_bounds.error_rate_backoff_threshold:
         return ConcurrencyDecision(
             action=AdaptiveAction.DECREASE,
@@ -203,7 +176,6 @@ def decide_next_concurrency(
             bounds=effective_bounds,
         )
 
-    # Healthy run with headroom: nudge concurrency up.
     if total_error_rate <= effective_bounds.error_rate_grow_threshold and successes >= max(4, attempts // 2):
         if previous < effective_bounds.max_concurrency:
             return ConcurrencyDecision(
@@ -214,7 +186,7 @@ def decide_next_concurrency(
                 bounds=effective_bounds,
             )
 
-    # Otherwise hold steady; the controller never moves without a signal.
+    # no signal, so hold steady
     return ConcurrencyDecision(
         action=AdaptiveAction.KEEP,
         recommended=effective_bounds.clamp(previous),
@@ -240,12 +212,10 @@ def _has_previous_concurrency(previous_summary: Mapping[str, Any] | None) -> boo
 def resolve_concurrency_from_config(config_vars, summary_loader=None) -> ConcurrencyDecision:
     """Read the relevant config vars and run the controller.
 
-    ``config_vars`` is the runtime ``configVar.ConfigVarStack`` instance
-    used by ``instl``. ``summary_loader`` is injectable for tests; in
-    production it is :func:`downloadObservability.load_session_summary`.
-
-    The function is forgiving: missing or malformed config falls back
-    to module defaults so an old ``InstlClient.yaml`` keeps working.
+    ``summary_loader`` is injectable for tests; in production it is
+    :func:`downloadObservability.load_session_summary`. Missing or malformed
+    config falls back to module defaults, so an old ``InstlClient.yaml`` keeps
+    working.
     """
     bounds = _bounds_from_config(config_vars)
     adaptive_enabled = _bool_var(config_vars, "DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", default=False)

@@ -1,28 +1,21 @@
 #!/usr/bin/env python3.12
 
-"""Phase 6 rollout cohort assignment for the download enhancement work.
+"""Rollout cohort assignment for the download enhancement work.
 
-The Phase 6 rollout plan (see
-``download-system-enhancement/rollout-plan.md``) defines a small set of
-named cohorts so completion/retry/resume/restart/checksum metrics can be
-compared cohort-against-cohort during rollout. Each cohort layers one
-additional behavior on top of the previous (atomicity -> resume ->
-retry -> adaptive -> ux).
+Named cohorts let completion/retry/resume/restart/checksum metrics be compared
+cohort-against-cohort during rollout. Each cohort layers one more behavior on
+top of the previous (atomicity -> resume -> retry -> adaptive -> ux).
 
-This module exposes :func:`normalize_cohort` and
-:func:`resolve_cohort_from_config` so callers can derive a cohort label
-deterministically from the configured ``DOWNLOAD_COHORT`` value plus the
-rollout flag set. The output is one of :data:`COHORTS`. Unknown or
-missing values fall back to :data:`CONTROL_COHORT` so untagged installs
-always appear in the baseline cohort.
+The label is derived from the configured ``DOWNLOAD_COHORT`` value plus the
+rollout flag set, and is always one of :data:`COHORTS`; unknown or missing
+values fall back to :data:`CONTROL_COHORT` so untagged installs appear in
+the baseline cohort. Per-user assignment is owned by whichever rollout tool
+sets ``DOWNLOAD_COHORT`` — this module only normalizes the label and keeps
+it consistent with the active flags, so a misconfigured rollout cannot claim
+a "resume" cohort while the resume flag is off.
 
-The cohort is emitted on the structured ``download.capability`` event
-and consumed by Central (and any external telemetry pipeline) without
-any further interpretation. There is no per-user assignment here: that
-is owned by whichever rollout tool sets ``DOWNLOAD_COHORT``. This module
-only normalizes the label and keeps it consistent with the active flag
-set so a misconfigured rollout cannot, for example, claim a "resume"
-cohort while the resume flag is off.
+The cohort is emitted on the ``download.capability`` event and consumed by
+Central without further interpretation.
 """
 
 from __future__ import annotations
@@ -48,10 +41,8 @@ COHORTS: tuple[str, ...] = (
 
 _REQUIRED_FLAGS_BY_COHORT: dict[str, tuple[str, ...]] = {
     CONTROL_COHORT: (),
-    # Atomicity is structural and always-on in shipped builds, so the
-    # gate here is "the state schema exists." The cohort label is still
-    # useful to distinguish installs that opted in to the rollout queue
-    # from genuinely untagged installs in `control`.
+    # atomicity is always-on in shipped builds, so there is no flag to gate on;
+    # the label still separates rollout-queue installs from untagged `control`
     ATOMICITY_COHORT: (),
     RESUME_COHORT: ("DOWNLOAD_RESUME_ENABLED",),
     RETRY_COHORT: ("DOWNLOAD_RESUME_ENABLED", "DOWNLOAD_RETRY_POLICY_ENABLED"),
@@ -70,11 +61,7 @@ _REQUIRED_FLAGS_BY_COHORT: dict[str, tuple[str, ...]] = {
 
 
 def normalize_cohort(raw: Any) -> str:
-    """Return one of :data:`COHORTS`.
-
-    Unknown or empty values fall back to :data:`CONTROL_COHORT` so the
-    structured capability event always carries a known label.
-    """
+    """Return one of :data:`COHORTS`, or :data:`CONTROL_COHORT` if unknown."""
     if raw is None:
         return CONTROL_COHORT
     label = str(raw).strip().lower()
@@ -84,12 +71,7 @@ def normalize_cohort(raw: Any) -> str:
 
 
 def required_flags_for(cohort: str) -> tuple[str, ...]:
-    """Return the rollout flags that must be ``yes`` for ``cohort``.
-
-    Used by :func:`resolve_cohort_from_config` to downgrade a label when
-    the corresponding flag set is not fully enabled. Returns an empty
-    tuple for unknown cohorts.
-    """
+    """Return the rollout flags that must be ``yes`` for ``cohort``, if any."""
     return _REQUIRED_FLAGS_BY_COHORT.get(normalize_cohort(cohort), ())
 
 
@@ -112,9 +94,8 @@ def _read_flag(config_vars: Any, name: str, default: bool) -> bool:
     try:
         if config_vars is None:
             return default
-        # `config_vars` here is the instl ConfigVarStack-like object: it
-        # supports `__contains__` and `__getitem__` returning a variable
-        # with `.bool()`. Fall back to mapping-style access for tests.
+        # `config_vars` is the instl ConfigVarStack-like object: `__getitem__`
+        # returns a variable with `.bool()`. Mapping-style access is for tests.
         if hasattr(config_vars, "__contains__") and name not in config_vars:
             return default
         var = config_vars[name]
@@ -140,13 +121,12 @@ def _read_str(config_vars: Any, name: str, default: str) -> str:
 
 
 def resolve_cohort_from_config(config_vars: Any) -> str:
-    """Resolve the active cohort label from ``config_vars``.
+    """Resolve the active cohort label from ``DOWNLOAD_COHORT``.
 
-    The label is taken from ``DOWNLOAD_COHORT``. If a flag required by
-    the requested cohort is off, the cohort is downgraded one step at a
-    time until every required flag is satisfied. This keeps telemetry
-    honest: an install labelled ``resume`` with ``DOWNLOAD_RESUME_ENABLED=no``
-    is recorded as ``control`` instead.
+    When a flag required by the requested cohort is off, the cohort is
+    downgraded one step at a time until every required flag is satisfied: an
+    install labelled ``resume`` with ``DOWNLOAD_RESUME_ENABLED=no`` is
+    recorded as ``control``.
     """
     raw = _read_str(config_vars, "DOWNLOAD_COHORT", CONTROL_COHORT)
     cohort = normalize_cohort(raw)
@@ -173,20 +153,17 @@ _TRACKED_FLAGS: tuple[tuple[str, bool], ...] = (
     ("DOWNLOAD_RETRY_POLICY_ENABLED", True),
     ("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
     ("DOWNLOAD_CENTRAL_UX_ENABLED", False),
-    # Connectivity-loss self-sufficiency gates (offline-hold).
-    # Default ON in shipped builds; surfaced here so Central/telemetry can
-    # see which recovery layers are active and rollout can retreat one
-    # behavior at a time without a code change.
+    # connectivity-loss recovery layers, so rollout can retreat one behavior
+    # at a time without a code change
     ("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True),
     ("DOWNLOAD_OFFLINE_HOLD_ENABLED", True),
     ("DOWNLOAD_CURL_STALL_DETECTION", True),
-    # Capability handshake: set to true by a NEW Central (which treats
-    # backend-hold evidence as informational and never auto-pauses on it);
-    # default FALSE so an old Central sees only the legacy event stream
-    # while the engine still recovers silently.
+    # set to true only by a NEW Central, which treats backend-hold evidence as
+    # informational and never auto-pauses on it; default FALSE so an old
+    # Central sees only the legacy event stream while the engine still recovers
     ("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False),
-    # Recovery-cliff removal: checksum-verify counts ALL bad files and the
-    # redownload pass always runs, budget-bounded (see InstlClient.yaml).
+    # checksum-verify counts ALL bad files and the redownload pass always runs,
+    # budget-bounded (see InstlClient.yaml)
     ("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True),
 )
 

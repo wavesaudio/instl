@@ -85,21 +85,11 @@ class InstlInstanceSync_url(InstlInstanceSync):
         validated_path_prefixes = config_var_list("DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES")
         require_conditional = config_var_bool("DOWNLOAD_RESUME_REQUIRE_CONDITIONAL", True)
         signed_url_min_ttl_seconds = config_var_int("DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS", 300)
-        # Phase 7 control channel: wire the URL-sync session into the
-        # process-wide control channel. Callbacks persist the session
-        # state and emit a ``download.session_state`` event so Central
-        # can reflect the change in the UI. ``wait_if_paused`` below
-        # gates the dispatch of new download URLs without interrupting
-        # already-scheduled work; in-flight ``curl`` invocations run via
-        # external ParallelRun processes and are not interrupted by
-        # pause (their ``.part`` artifacts survive untouched per D-001).
         control_channel = self._bind_control_channel(bookkeeping_dir)
         for file_item in in_file_list:
-            # Cooperative pause check: between every file we may block
-            # here if Central asked to pause. We do not interrupt the
-            # current iteration; the previously scheduled curl configs
-            # are not touched and partial ``.part`` files (if any)
-            # remain valid for the next resume.
+            # pause only gates dispatch of new urls, it does not interrupt already
+            # scheduled work: curl runs in external ParallelRun processes, so its
+            # .part files are left untouched and stay valid for the next resume
             control_channel.wait_if_paused()
             source_url = self.instlObj.info_map_table.get_sync_url_for_file_item(file_item)
             resume_decision = resume_decision_for_download_item(
@@ -125,14 +115,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
         self.instlObj.progress(f"created download urls for {len(in_file_list)} files")
 
     def _bind_control_channel(self, bookkeeping_dir):
-        """Attach pause/resume callbacks to the singleton control channel.
-
-        The callbacks persist ``state="paused"``/``state="downloading"``
-        on disk (best-effort) and emit a ``download.session_state``
-        event with ``reason`` so Central's UI can reflect the change
-        without polling. The event schemaVersion is unchanged because
-        ``reason`` is an additive field; consumers tolerate unknown
-        fields by contract (see ``downloadEvents`` docstring).
+        """ on pause/resume: persist the new state and emit a download.session_state
+            event, so Central's UI can follow the change without polling
         """
         channel = get_global_channel()
         try:
@@ -192,11 +176,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
-        # Phase 4 P4-003: adapt PARALLEL_SYNC for this run before curl
-        # config generation. The controller is between-session: it reads
-        # the previous instl invocation's session-summary.json. When the
-        # feature flag is off (default) or no prior summary exists, it
-        # falls back to the configured baseline so behavior is unchanged.
+        # must happen before curl config generation. PARALLEL_SYNC is adapted
+        # between sessions, from the previous invocation's session-summary.json
         self._apply_adaptive_concurrency()
         dl_commands = AnonymousAccum()
         self.instlObj.dl_tool.create_download_instructions(dl_commands)
@@ -212,12 +193,8 @@ class InstlInstanceSync_url(InstlInstanceSync):
             _log.debug(f"adaptive concurrency controller failed; keeping configured PARALLEL_SYNC: {ex}")
             return
         if decision.action == AdaptiveAction.OVERRIDE:
-            # User override: respect it verbatim (already clamped to bounds).
             config_vars["PARALLEL_SYNC"] = str(decision.recommended)
         elif decision.action == AdaptiveAction.DISABLED:
-            # Feature flag off: leave the configured value as-is unless
-            # nothing is set. The controller still clamps to bounds when
-            # it had to pick a value.
             if "PARALLEL_SYNC" not in config_vars:
                 config_vars["PARALLEL_SYNC"] = str(decision.recommended)
         else:
@@ -298,26 +275,20 @@ class InstlInstanceSync_url(InstlInstanceSync):
                 log.info(f"""{mount_points_to_size[m_p]} bytes to download to drive {"".join(("'", m_p, "'"))} {free_bytes-mount_points_to_size[m_p]} bytes will remain""")
 
         dl_commands += self.create_sync_folders()
-        # own_progress_count=0: this is a fast, non-reporting prep pass. It must
-        # NOT contribute to the progress total — total_progress_count sums
-        # own_progress_count regardless of report_own_progress, so a non-zero
-        # value here adds phantom units to the denominator that are never
-        # incremented (report_own_progress=False), which inflates the "of N"
-        # total Central reads and skews the progress-bar phase weights.
+        # own_progress_count must be 0: total_progress_count sums own_progress_count
+        # even when report_own_progress is False, so any other value adds units to
+        # the "of N" total that are never incremented
         dl_commands += PrepareDownloadTempFiles(own_progress_count=0, report_own_progress=False)
-        # Announce the download session to Central's structured UX before the
-        # curl transfer starts (capability + session_state="downloading" with
-        # planned counts). Without this the dialog has no backend events during
-        # the download and shows no state pill / pause controls / ETA.
+        # announce the session before the curl transfer starts, otherwise Central
+        # gets no events during the download - no state pill, pause controls or ETA
         dl_commands += ReportDownloadStarted(files_planned=to_sync_num_files, bytes_planned=bytes_to_sync,
                                              own_progress_count=0, report_own_progress=False)
         self.create_sync_urls(file_list)
         dl_commands += self.create_curl_download_instructions()
 
         dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
-        # announce the verify phase so Central's
-        # structured UX shows "Verifying" rather than a bar frozen near 99%
-        # while checksums are recomputed over the downloaded files.
+        # announce the verify phase, otherwise Central's bar sits frozen near 99%
+        # while checksums are recomputed over the downloaded files
         dl_commands += ReportDownloadState("verifying_downloads", reason="checksum_verify",
                                            own_progress_count=0, report_own_progress=False)
         dl_commands += self.create_check_checksum_instructions(to_sync_num_files)

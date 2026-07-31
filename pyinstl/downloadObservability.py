@@ -2,26 +2,20 @@
 
 """Throughput and error sampling for the bulk download engine.
 
-Phase 4 work item ``P4-001``. The adaptive concurrency controller in
-``downloadConcurrency.py`` consumes the per-session summary written by
-this module to choose ``PARALLEL_SYNC`` for the next run.
+The adaptive concurrency controller in ``downloadConcurrency.py`` consumes the
+per-session summary written by this module to choose ``PARALLEL_SYNC`` for the
+next run.
 
-Design goals (kept aligned with the workspace docs in
-``download-system-enhancement``):
+Aggregation runs in-process during a single ``instl`` invocation; callers feed
+it normalized outcomes from the existing ``CheckDownloadFolderChecksum`` and
+``_emit_retry_decision`` choke points. The summary is persisted as a small
+JSON sidecar next to ``session.json`` under
+``$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state`` — client-owned local state
+whose only consumer is the controller.
 
-* Aggregation runs in-process during a single ``instl`` invocation. It
-  has no network or threading dependency; callers feed it normalized
-  outcomes from the existing ``CheckDownloadFolderChecksum`` and
-  ``_emit_retry_decision`` choke points.
-* The persisted summary is a small JSON sidecar next to ``session.json``
-  under ``$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state``. It is
-  client-owned local state; the controller is the only consumer.
-* Privacy: hosts are stored as bare hostnames (no path, query, or
-  fragment). No URLs, cookies, headers, signed-URL material, or local
-  user paths flow through this module. ``D-014``/``D-016`` redaction
-  rules apply.
-* The module never raises during ``record_*`` calls — instrumentation
-  must never break a sync run.
+Hosts are stored as bare hostnames (no path, query, or fragment); no URLs,
+cookies, headers, signed-URL material, or local user paths flow through this
+module. ``record_*`` never raises — instrumentation must not break a sync run.
 """
 
 from __future__ import annotations
@@ -53,9 +47,8 @@ STATE_DIR_NAME = "download-state"
 class DownloadOutcome(str):
     """Outcome of a single per-file attempt.
 
-    Kept as a small string subclass so JSON serialization is trivial and
-    callers can compare against literal strings without importing the
-    type. Listed here so the controller can rely on a fixed vocabulary.
+    A string subclass rather than an Enum so JSON serialization is trivial and
+    callers can compare against literals without importing the type.
     """
 
     SUCCESS = "success"
@@ -78,9 +71,8 @@ _VALID_OUTCOMES = frozenset({
 def host_from_url(in_url: str | None) -> str | None:
     """Return the lowercase host of ``in_url`` or ``None``.
 
-    Strips userinfo, port, query, fragment. Safe to log: hosts are not
-    secret in this workspace's threat model and are needed by the
-    capability matrix to bucket throughput/error signal per CDN host.
+    Strips userinfo, port, query, fragment. Hosts are safe to log and are
+    needed to bucket throughput/error signal per CDN host.
     """
     if not in_url:
         return None
@@ -90,8 +82,7 @@ def host_from_url(in_url: str | None) -> str | None:
         return None
     host = parsed.hostname
     if not host:
-        # Treat as a relative path or malformed input; do not invent a host.
-        return None
+        return None  # relative path or malformed input; do not invent a host
     return host.lower()
 
 
@@ -130,8 +121,7 @@ class _HostCounters:
             self.failure_classes[failure_class] = self.failure_classes.get(failure_class, 0) + 1
 
     def to_dict(self) -> dict[str, Any]:
-        # Round seconds to milliseconds so JSON diffs stay readable across
-        # platforms and timer precisions.
+        # milliseconds, so JSON diffs stay readable across timer precisions
         transfer_ms = int(round(self.transfer_time_seconds * 1000))
         return {
             "attempts": self.attempts,
@@ -151,10 +141,8 @@ class _HostCounters:
 class DownloadObservability:
     """Per-session in-memory aggregator.
 
-    Methods are safe to call from any code that already has a normalized
-    outcome and (optionally) a source URL. Callers must not pass headers,
-    cookies, signed-URL query strings, or local user paths — only the
-    URL is consumed and only its host is retained.
+    Callers must not pass headers, cookies, signed-URL query strings, or local
+    user paths; of the URL, only the host is retained.
     """
 
     def __init__(self, session_id: str | None = None,
@@ -182,7 +170,6 @@ class DownloadObservability:
             if bytes_planned is not None:
                 self._bytes_planned = max(0, int(bytes_planned))
         except (TypeError, ValueError):
-            # Planning data is best-effort; do not raise from instrumentation.
             return
 
     # --- recording hooks ---------------------------------------------------
@@ -197,9 +184,7 @@ class DownloadObservability:
                        transfer_time_seconds: float | None = None) -> None:
         """Record one per-file attempt outcome.
 
-        ``url`` is consumed only to derive the host; nothing else is
-        stored. ``host`` may be passed directly when the caller already
-        has the bare host.
+        ``url`` is consumed only to derive the host; nothing else is stored.
         """
         try:
             if outcome not in _VALID_OUTCOMES:
@@ -232,9 +217,8 @@ class DownloadObservability:
                               bytes_received: int | None = None) -> None:
         """Map a ``RetryDecision`` to an outcome and record it.
 
-        Used by ``_emit_retry_decision`` so retry events feed the sampler
-        with no extra plumbing on the caller side. Successful transfers
-        flow through ``record_outcome(outcome=SUCCESS, ...)`` separately.
+        Successful transfers flow through
+        ``record_outcome(outcome=SUCCESS, ...)`` separately.
         """
         try:
             action = getattr(decision, "action", None)
@@ -300,8 +284,8 @@ class DownloadObservability:
     def save(self, bookkeeping_dir: str | Path | None) -> Path | None:
         """Persist the snapshot to ``download-state/session-summary.json``.
 
-        Returns the output path on success, ``None`` on any failure
-        (including missing or non-writable bookkeeping dir).
+        Returns the output path, or ``None`` on any failure (including a
+        missing or non-writable bookkeeping dir).
         """
         if not bookkeeping_dir:
             return None
@@ -326,9 +310,9 @@ def start_session(session_id: str | None = None,
                   concurrency_planned: int | None = None) -> DownloadObservability:
     """Begin a new session-scoped sampler and install it as the active one.
 
-    Subsequent ``record_*`` module functions delegate to this instance
-    until the next ``start_session`` call. Safe to call repeatedly; the
-    previous instance is dropped without persistence.
+    The module-level ``record_*`` functions delegate to this instance until the
+    next ``start_session`` call, which drops the previous one without
+    persisting it.
     """
     global _active_observability
     _active_observability = DownloadObservability(
@@ -377,8 +361,8 @@ def set_plan(files_planned: int | None, bytes_planned: int | None) -> None:
 def load_session_summary(bookkeeping_dir: str | Path | None) -> dict[str, Any] | None:
     """Read the previous session-summary.json, or ``None`` if absent.
 
-    Returns the raw dict (not a typed object) so the controller can
-    tolerate added fields between versions without a migration.
+    Returns the raw dict, not a typed object, so the controller tolerates
+    fields added between versions without a migration.
     """
     if not bookkeeping_dir:
         return None
@@ -391,9 +375,7 @@ def load_session_summary(bookkeeping_dir: str | Path | None) -> dict[str, Any] |
         if not isinstance(data, dict):
             return None
         if int(data.get("schemaVersion", 0)) != DOWNLOAD_OBSERVABILITY_SCHEMA_VERSION:
-            # Unknown schema: caller should treat it as "no data" and
-            # fall back to defaults.
-            return None
+            return None  # unknown schema reads as "no data"
         return data
     except (OSError, ValueError):
         return None

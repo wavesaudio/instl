@@ -2,19 +2,21 @@
 
 """Process-global copy/install-phase byte-progress accumulator.
 
-The copy phase of an install is a sequence of many discrete pybatch commands
-(CopyFileToDir, CopyDirToDir, Unwtar, ...), so there is no single loop to tick
-from like the download or verify phases have. Instead, the copy/unwtar commands
-report the bytes they handle into this module, which emits throttled ``copying``
-``session_state`` ticks carrying ``phaseBytesDone`` / ``phaseBytesPlanned`` so
-Central can drive a determinate bar through the install tail.
+The copy phase is a sequence of many discrete pybatch commands (CopyFileToDir,
+CopyDirToDir, Unwtar, ...), so unlike download or verify there is no single loop
+to tick from. The copy/unwtar commands report the bytes they handle here, and
+this module emits throttled ``copying`` ``session_state`` ticks carrying
+``phaseBytesDone`` / ``phaseBytesPlanned``, which Central needs for a
+determinate bar through the install tail.
 
-Gating: ``report_copy_bytes`` is a no-op until ``begin_copy_phase`` has set a
-positive planned total. ``begin_copy_phase`` is called only from the client
-copy flow (via the ``copying`` ``ReportDownloadState``), so the copy commands
-stay silent in every other context (admin, tests, ad-hoc copies).
+The counters below are module state, so reporting MUST happen on the main
+process - bytes reported from a worker process accumulate in that process and
+are lost.
 
-Best-effort throughout: instrumentation must never break a copy run.
+``report_copy_bytes`` is a no-op until ``begin_copy_phase`` has set a positive
+planned total, and ``begin_copy_phase`` is called only from the client copy
+flow (via the ``copying`` ``ReportDownloadState``), so the copy commands stay
+silent in every other context: admin, tests, ad-hoc copies.
 """
 
 from __future__ import annotations
@@ -29,12 +31,11 @@ _done: int = 0
 _session_id: str = "unknown"
 _last_emit: float | None = None
 
-# Mirror the cadence of the download/verify ticks.
+# same cadence as the download/verify ticks
 _EMIT_MIN_INTERVAL_SEC = 1.0
 
 
 def begin_copy_phase(planned_bytes, session_id: str = "unknown") -> None:
-    """Arm the accumulator for a copy phase of ``planned_bytes`` total."""
     global _planned, _done, _session_id, _last_emit
     try:
         _planned = max(0, int(planned_bytes or 0))
@@ -46,11 +47,8 @@ def begin_copy_phase(planned_bytes, session_id: str = "unknown") -> None:
 
 
 def report_copy_bytes(num_bytes, force: bool = False) -> None:
-    """Add ``num_bytes`` of copied/unwtarred work and maybe emit a tick.
-
-    No-op unless a copy phase is armed (``begin_copy_phase`` with planned > 0).
-    Throttled to one emit per interval; ``force`` bypasses the throttle (used
-    for a final tick). Never raises.
+    """ throttled to one emit per _EMIT_MIN_INTERVAL_SEC, force bypasses the
+        throttle - for the final tick of a phase
     """
     global _done, _last_emit
     if _planned <= 0:

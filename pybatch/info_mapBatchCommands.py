@@ -124,13 +124,8 @@ def _resume_decision_for_file_item(info_map_table, file_item):
 
 
 def _build_failure_info(failure_class, *, http_status=None, curl_exit_code=None, retry_after_seconds=None, reason=""):
-    """Construct a minimal DownloadFailureInfo for callers that already know the class.
-
-    Phase 3 callers in this module record classes by name (e.g. ``checksum_mismatch``,
-    ``missing_temp``). This helper centralizes the conversion so retry decisions get
-    the same shape whether they come from exceptions, curl exit codes, or direct
-    classification at known checkpoints.
-    """
+    """DownloadFailureInfo for a caller that already knows the class, so a decision made
+    at a known checkpoint has the same shape as one made from an exception."""
     try:
         cls = DownloadFailureClass(failure_class) if isinstance(failure_class, str) else failure_class
     except ValueError:
@@ -147,22 +142,12 @@ def _build_failure_info(failure_class, *, http_status=None, curl_exit_code=None,
 
 
 def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=None, resume_eligible=False, concurrency=None, previous_retry_count_override=None):
-    """Compute a retry decision for ``file_item``, persist it on the sidecar, and log it.
-
-    The matrix-derived decision (count, delay, action) is recorded for Phase 5
-    telemetry/UX and operators, and is also **returned** so callers (the
-    redownload loop) can drive the actual retry: whether to retry, and how long
-    to back off before doing so.
-
-    ``previous_retry_count_override`` lets the caller supply an in-memory attempt
-    count. The redownload loop must use this because the persisted retry count
-    lives on the resume sidecar, which is not written when resume bookkeeping is
-    disabled (the default); reading it would always return ``0`` and the matrix
-    would never reach its terminal attempt.
-
-    Phase 6 P6-002: ``DOWNLOAD_RETRY_POLICY_ENABLED=no`` is the kill switch
-    that returns ``None`` without computing/logging a decision or touching
-    the resume sidecar's retry bookkeeping.
+    """Compute a retry decision for file_item, persist it on the sidecar, log it, and
+    return it so callers can drive the retry. None when DOWNLOAD_RETRY_POLICY_ENABLED
+    is off. The redownload loop must pass previous_retry_count_override: the persisted
+    count lives on the resume sidecar, which is not written when resume bookkeeping is
+    disabled (the default), so reading it would always give 0 and the matrix would
+    never reach its terminal attempt.
     """
     if not config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True):
         return None
@@ -206,9 +191,7 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
     except Exception as log_ex:  # pragma: no cover - logging must never break sync
         log.debug(f"could not format retry decision log: {log_ex}")
 
-    # Phase 5 P5-001: emit the same retry decision through the unified
-    # DOWNLOAD_EVENT channel and a paired file_state event so Central can
-    # consume one channel instead of parsing the legacy prefix.
+    # the same decision plus a paired file_state event, on the DOWNLOAD_EVENT channel
     try:
         session_id = config_var_str("__INVOCATION_RANDOM_ID__", "unknown")
         _events_emit_retry_decision(
@@ -254,17 +237,11 @@ def _emit_retry_decision(info_map_table, file_item, failure, *, received_bytes=N
 
 
 def _resume_bookkeeping_enabled():
-    """Whether per-file resume sidecars should be written this run.
-
-    Sidecars are per-file JSON files written with fsync + atomic replace
-    (``downloadState.write_json_atomic``). Writing one for every file in a
-    large sync (tens of thousands of files) adds minutes of disk-flush
-    latency to the pre-download preparation stage. They are only ever read
-    back to drive a byte-range resume, so when ``DOWNLOAD_RESUME_ENABLED``
-    is off (the default) there is no consumer and we skip the writes
-    entirely. Telemetry/UX events are emitted on a separate channel
-    (``downloadEvents``) and are unaffected by this gate.
-    """
+    """Whether per-file resume sidecars should be written this run. Each is a JSON file
+    written with fsync + atomic replace, so one per file in a large sync (tens of
+    thousands) costs minutes of disk-flush latency, and they are only ever read back to
+    drive a byte-range resume. Telemetry events are on a separate channel, not gated
+    by this."""
     return config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
 
 
@@ -296,17 +273,10 @@ def _save_resume_sidecar(info_map_table, file_item, transfer_state, received_byt
 
 
 def _emit_throttled_progress(cmd, prog_msg, increment_by, index, total, throttle_attr):
-    """Advance the progress counter every item, but THROTTLE the log line to
-    ~4x/sec (always logging the first and last item).
-
-    The high-fan-out loops — the post-download checksum verify and sync-folder
-    creation — used to emit a "Progress N of M; <msg>" line for *every* one of
-    tens of thousands of items, and that per-item logging (not the real work) was
-    the dominant cost of the phase. The progress counter still advances on every
-    item, so Central's running total stays exact; only the log emission is
-    rate-limited. Important one-off lines (errors, section markers) are never
-    routed through here.
-    """
+    """Advance the progress counter every item, but throttle the log line to ~4x/sec
+    (first and last item always logged). In the high fan-out loops the per-item
+    "Progress N of M" line, not the real work, was the dominant cost of the phase; the
+    counter still advances per item so Central's running total stays exact."""
     if not (cmd.report_own_progress and not PythonBatchCommandBase.ignore_progress):
         return
     if increment_by:
@@ -320,18 +290,11 @@ def _emit_throttled_progress(cmd, prog_msg, increment_by, index, total, throttle
 
 
 class _RedownloadBudget:
-    """Bounds an uncapped redownload pass by total bytes and/or wall seconds
-    (DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES / DOWNLOAD_REDOWNLOAD_MAX_SECONDS)
-    instead of the legacy MAX_BAD_FILES_TO_REDOWNLOAD count cliff, which used
-    to skip recovery entirely once cap+1 files were bad (33 missing files
-    failed the whole install without a single recovery attempt even though the
-    network was back). A budget dimension of 0 means unlimited.
-
-    The seconds budget measures ACTIVE time: time spent paused (Central
-    pause / offline auto-pause via the control channel) is passed in by the
-    caller and subtracted, so an outage hold never burns the recovery budget
-    — that would recreate the very failure this budget replaces.
-    """
+    """Bounds the redownload pass by total bytes and/or wall seconds
+    (DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES / DOWNLOAD_REDOWNLOAD_MAX_SECONDS).
+    A budget dimension of 0 means unlimited. The seconds budget measures ACTIVE time:
+    paused time (Central pause / offline auto-pause) is passed in by the caller and
+    subtracted, so an outage hold does not burn the recovery budget."""
 
     def __init__(self, max_total_bytes: int, max_seconds: int) -> None:
         self.max_total_bytes = max(int(max_total_bytes), 0)
@@ -341,12 +304,8 @@ class _RedownloadBudget:
 
     @classmethod
     def from_config(cls) -> "_RedownloadBudget":
-        # Both budgets default to 0 (unlimited): the legacy (macOS-validated)
-        # redownload pass always completed every file it attempted, however
-        # long that took, and a non-zero default would abandon slow-network
-        # recoveries that used to succeed (e.g. 16 large wtars at ~5 min each
-        # is > 1 hour but was always fully recovered). The budgets are opt-in
-        # protections, not shipped behavior changes.
+        # both default to 0 (unlimited) - a non-zero default would abandon slow-network
+        # recoveries that do succeed (16 large wtars at ~5 min each is over an hour)
         return cls(
             max_total_bytes=config_var_int("DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES", 0),
             max_seconds=config_var_int("DOWNLOAD_REDOWNLOAD_MAX_SECONDS", 0),
@@ -359,9 +318,8 @@ class _RedownloadBudget:
         return (time.monotonic() - self.started_at) - paused_seconds
 
     def exhausted_reason(self, paused_seconds: float = 0.0):
-        """Return a short human-readable reason when a budget dimension is
-        spent, or None while there is budget left. Checked between files —
-        a file already in flight is never abandoned mid-transfer."""
+        """Short reason when a budget dimension is spent, None while budget is left.
+        Checked between files - a file in flight is never abandoned mid-transfer."""
         if self.max_total_bytes and self.bytes_spent >= self.max_total_bytes:
             return f"max total bytes {self.max_total_bytes} reached"
         if self.max_seconds and self.active_seconds(paused_seconds) >= self.max_seconds:
@@ -370,12 +328,9 @@ class _RedownloadBudget:
 
 
 class _PauseTrackingChannel:
-    """Delegating wrapper around the download control channel that measures
-    time spent blocked in ``wait_if_paused``, so :class:`_RedownloadBudget`
-    can exclude pause time from its seconds budget. All other channel calls
-    (``sleep_or_wake`` for backoff, ``try_now_requested``) pass through, so
-    the redownload loop stays fully pause/try_now-aware.
-    """
+    """Delegating wrapper around the download control channel that measures time spent
+    blocked in wait_if_paused, so _RedownloadBudget can exclude pause time from its
+    seconds budget. All other channel calls pass through."""
 
     def __init__(self, channel) -> None:
         self._channel = channel
@@ -406,12 +361,9 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         self.missing_files_exception_message = ""
         self.retried_files_exception_message = ""
         self.num_bad_files = 0
-        # Back-compat: old generated batch scripts pass max_bad_files_to_redownload
-        # as a hard cap. With DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES on (the default)
-        # it is reinterpreted: None/0 still means "verify only, no redownload
-        # pass" (e.g. instl check-checksum), but a positive value is a WARN
-        # threshold — the verify loop counts ALL bad files and recovery always
-        # runs, bounded by the byte/time budgets instead of a count cliff.
+        # old generated batch scripts pass this as a hard cap; None/0 still means
+        # "verify only, no redownload pass" (instl check-checksum), but a positive value
+        # is only a warn threshold - recovery always runs, bounded by budget
         self.max_bad_files_to_redownload = max_bad_files_to_redownload
         self._bad_files_threshold_warned = False
         self.report_lines = None
@@ -434,14 +386,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         super().increment_and_output_progress(increment_by=0, prog_msg=msg)
 
     def _emit_verify_progress(self, done_bytes, planned_bytes, force=False):
-        """Emit a throttled ``verifying_downloads`` session_state tick carrying
-        per-phase byte progress.
-
-        Lets Central drive a determinate bar through the checksum-verify tail
-        instead of parking it at the end of the download band. Best-effort and
-        throttled (≥1s) so it never slows the verify loop; instrumentation must
-        never break a sync.
-        """
+        """``verifying_downloads`` session_state tick with per-phase byte progress,
+        throttled to 1/sec so it never slows the verify loop."""
         try:
             import time as _time
             now = _time.monotonic()
@@ -460,25 +406,20 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             log.debug(f"could not emit verify progress tick: {ex}")
 
     def _count_all_bad_files(self) -> bool:
-        """True when the verify loop counts ALL bad/missing files and the
-        redownload pass is budget-bounded instead of count-capped
-        (DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES, default on). Off restores the
-        legacy count-cliff behavior exactly (kill switch, D-005 pattern)."""
+        """True when the verify loop counts ALL bad/missing files and the redownload pass
+        is budget-bounded. Off (kill switch) restores the legacy count cliff exactly."""
         return config_var_bool("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True)
 
     def _redownload_pass_enabled(self) -> bool:
-        """The redownload pass runs only when the caller asked for one:
-        max_bad_files_to_redownload None/0 keeps meaning "verify only" (the
-        in-process check-checksum command and old scripts rely on that)."""
+        """max_bad_files_to_redownload None/0 means "verify only" - the in-process
+        check-checksum command and old scripts rely on that."""
         return bool(self.max_bad_files_to_redownload)
 
     def _bad_file_progress(self, prog_msg, file_index, total_items):
-        """Bad/missing-file lines stay unconditional up to the warn threshold
-        (rare and important). Beyond it — a mass failure, e.g. connectivity
-        lost mid-download leaving thousands of files with no .part — they are
-        throttled like the per-file check lines so counting every bad file
-        does not flood the log. The bookkeeping (lists_of_files/num_bad_files)
-        and the per-file retry_decision events are never throttled."""
+        """Bad/missing-file lines are logged unconditionally up to the warn threshold and
+        throttled beyond it - a mass failure (connectivity lost mid-download leaves
+        thousands of files with no .part) would flood the log. Bookkeeping and the
+        retry_decision events are never throttled."""
         threshold = self.max_bad_files_to_redownload
         if (threshold is None
                 or not self._count_all_bad_files()
@@ -488,23 +429,13 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             self._verify_progress_log(prog_msg, 0, file_index, total_items)
 
     def _verify_progress_log(self, prog_msg, increment_by, file_index, total_items):
-        """Throttled per-file progress for the verify loop (see
-        :func:`_emit_throttled_progress`). Emitting a line for every one of tens
-        of thousands of files — a check-checksum line AND a promoted line per
-        file — was the dominant cost of the verify pass; the hashing itself is
-        parallel and finishes in seconds. Bad/missing-file lines go through
-        :meth:`_bad_file_progress`: unconditional up to the warn threshold,
-        routed here (throttled) past it so mass failures don't flood the log."""
+        """Throttled per-file progress for the verify loop, see _emit_throttled_progress."""
         _emit_throttled_progress(self, prog_msg, increment_by, file_index, total_items,
                                  "_verify_last_progress_log")
 
     def _resolve_verify_workers(self, num_items: int) -> int:
-        """Return the worker count for the parallel verify pass.
-
-        Gated by DOWNLOAD_PARALLEL_VERIFY. DOWNLOAD_PARALLEL_WORKERS==0 means
-        "auto" (os.cpu_count()). Returns 1 (serial) when the flag is off, when
-        there is at most one item, or when the resolved count is <= 1.
-        """
+        """Worker count for the parallel verify pass. DOWNLOAD_PARALLEL_WORKERS==0 means
+        auto (os.cpu_count()); 1 means serial."""
         if not config_var_bool("DOWNLOAD_PARALLEL_VERIFY", False):
             return 1
         if num_items <= 1:
@@ -512,24 +443,17 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         configured = config_var_int("DOWNLOAD_PARALLEL_WORKERS", 0)
         if configured <= 0:
             configured = os.cpu_count() or 1
-        # No point spawning more workers than there are files to hash.
         workers = min(configured, num_items)
         return max(1, workers)
 
     @staticmethod
     def _precompute_verify_hashes(file_item):
-        """Read-only, independent per-file hashing. Runs in a worker thread.
-
-        hashlib releases the GIL during update(), so this gives real speedup.
-        Touches NO process-global state (config_vars, progress/stage stack) —
-        only the filesystem (read) and the passed-in file_item (read). Returns
-        a tuple consumed by the main-thread bookkeeping loop:
-            (final_path_matches, temp_is_file, temp_checksum)
-        Mirrors the serial path exactly: the final-path match is computed for
-        every file; the temp-path sha1 is computed only when the temp file
-        exists (it is unused unless the final path failed to match, but hashing
-        it is harmless, read-only, and keeps the worker branch-free).
-        """
+        """Read-only, independent per-file hashing, runs in a worker thread - hashlib
+        releases the GIL during update(), so this gives real speedup. Touches NO
+        process-global state (config_vars, progress/stage stack), only the filesystem and
+        the passed-in file_item, both read-only. Returns (final_path_matches,
+        temp_is_file, temp_checksum); the temp sha1 is unused unless the final path
+        failed to match, but hashing it anyway keeps the worker branch-free."""
         final_path = Path(file_item.download_path)
         temp_path = temp_path_for_download_item(file_item)
         final_path_matches = checksum_matches(final_path, file_item.checksum)
@@ -538,16 +462,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         return final_path_matches, temp_is_file, temp_checksum
 
     def _precompute_all_verify_hashes(self, dl_file_items):
-        """Compute per-file hash results for every download item, in order.
-
-        Returns a list aligned 1:1 with ``dl_file_items``. When
-        DOWNLOAD_PARALLEL_VERIFY is on (and there is more than one file and >1
-        worker) the hashing runs across a ThreadPoolExecutor; otherwise it
-        falls back to the serial path. Either way the result list is identical
-        and is consumed on the main thread, so the verify semantics never
-        change. Any failure setting up the pool falls back to serial — best-
-        effort parallelism must never break a sync.
-        """
+        """Hash results for every download item, a list aligned 1:1 with dl_file_items
+        whether the hashing ran on the thread pool or serially."""
         workers = self._resolve_verify_workers(len(dl_file_items))
         if workers <= 1:
             return [self._precompute_verify_hashes(fi) for fi in dl_file_items]
@@ -555,7 +471,6 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             with ThreadPoolExecutor(max_workers=workers,
                                     thread_name_prefix="instl-verify") as pool:
                 # executor.map preserves input order, so results stay aligned
-                # with dl_file_items for the in-order main-thread bookkeeping.
                 return list(pool.map(self._precompute_verify_hashes, dl_file_items))
         except Exception as ex:  # pragma: no cover - parallelism must never break sync
             log.warning(f"parallel verify pool failed ({ex}); falling back to serial hashing")
@@ -565,9 +480,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         super().__call__(*args, **kwargs)  # read the info map file from TO_SYNC_INFO_MAP_PATH - if provided
         dl_file_items = self.info_map_table.get_download_items(what="file")
 
-        # total bytes this verify pass will process, so
-        # the ticks below carry a determinate fraction. file_item.size is the
-        # repo file size; missing/unknown sizes contribute 0.
+        # total bytes this pass will process, so the ticks carry a determinate fraction
         verify_planned_bytes = sum(
             int(fi.size) for fi in dl_file_items if getattr(fi, "size", None) and fi.size > 0)
         verify_done_bytes = 0
@@ -576,14 +489,8 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"),
             self.break_file_callback)
 
-        # Hash files in parallel when enabled. The hashing (read bytes + sha1)
-        # is the only work that runs off the main thread; it is read-only and
-        # independent per file. ALL bookkeeping below (promotion, lists_of_files,
-        # num_bad_files, the verify-progress ticks, and the warn-threshold /
-        # legacy early-stop on max_bad_files_to_redownload) runs on the main thread in the
-        # original order using these precomputed results — preserving the exact
-        # serial semantics and avoiding any mutation of process-global state
-        # from worker threads.
+        # hashing is the only work that runs off the main thread; ALL bookkeeping below
+        # runs on the main thread in the original order using these results
         precomputed = self._precompute_all_verify_hashes(dl_file_items)
         total_items = len(dl_file_items)
 
@@ -597,21 +504,14 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
             final_path = Path(file_item.download_path)
             temp_path = temp_path_for_download_item(file_item)
             final_path_matches, temp_is_file, file_checksum = precomputed[file_index]
-            # NOTE: the verify loop intentionally writes NO per-file resume
-            # sidecar. Resume bookkeeping — source metadata (etag/last-modified/
-            # signed-url) plus partial-temp detection — is a download-phase
-            # concern, and resume_decision_for_download_item never reads the
-            # verify-time transfer_state. Writing VERIFYING/VERIFIED/ALREADY_VALID
-            # sidecars here was therefore pure I/O (a JSON read-back + an atomic
-            # write, ~2 writes/file, ~7ms each) with no consumer — it dominated
-            # the verify pass (~340s of a ~344s loop over 24k files). Recovery
-            # after an interrupted verify is driven by the on-disk checksum check
-            # in mark_need_download, not by these sidecars.
+            # the verify loop deliberately writes NO resume sidecar: nothing reads a
+            # verify-time transfer_state, and the ~2 atomic writes per file dominated the
+            # pass (~340s of a ~344s loop over 24k files). Recovery after an interrupted
+            # verify comes from mark_need_download's on-disk checksum check
 
             if final_path_matches:
-                # Cache hit: final file already valid. No bytes transferred this
-                # session, so do not contribute to throughput. Recording as
-                # SUCCESS would make warm-cache runs look fast for the wrong reason.
+                # already valid: no bytes transferred this session, so recording an
+                # outcome here would make warm-cache runs look fast
                 remove_stale_temp_for_download_item(file_item)
                 continue
 
@@ -660,9 +560,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 )
             if self.max_bad_files_to_redownload is not None and self.num_bad_files > self.max_bad_files_to_redownload:
                 if self._count_all_bad_files():
-                    # Recovery-cliff removal: keep counting so EVERY bad file
-                    # gets a recovery chance; max_bad_files_to_redownload is
-                    # only a warn threshold now (warn once at the crossing).
+                    # keep counting so every bad file gets a recovery chance, warn once
                     if not self._bad_files_threshold_warned:
                         self._bad_files_threshold_warned = True
                         threshold_msg = (f"more than {self.max_bad_files_to_redownload} bad or missing files found; "
@@ -674,20 +572,15 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                                                           prog_msg=f"stopping checksum check too many bad or missing files found")
                     break
 
-        # Final verify tick (force past the throttle) so the phase bar reaches
-        # its full planned bytes when verification finishes.
+        # force past the throttle so the phase bar reaches its full planned bytes
         self._emit_verify_progress(verify_done_bytes, verify_planned_bytes, force=True)
 
         if not self.is_checksum_ok():
             if self._count_all_bad_files():
-                # Recovery is ALWAYS attempted when the redownload pass is
-                # enabled, no matter how many files are bad — the pause-aware
-                # per-file loop plus the byte/time budgets replace the old
-                # count cliff that used to fail the install with zero recovery
-                # attempts at cap+1 bad files.
+                # recovery is attempted however many files are bad, the budget bounds it
                 attempt_recovery = self._redownload_pass_enabled()
             else:
-                # Legacy count-cliff behavior (kill switch off).
+                # legacy count-cliff behavior (kill switch off)
                 attempt_recovery = (self.max_bad_files_to_redownload is not None
                                     and self.num_bad_files <= self.max_bad_files_to_redownload)
             if attempt_recovery:
@@ -696,9 +589,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                     self.break_file_callback)
                 self.re_download_bad_files()
 
-        # The ValueError below is raised only AFTER recovery had its chance;
-        # Central's error parser regexes on /Bad checksum/i, so the message
-        # format must not change.
+        # Central's error parser regexes on /Bad checksum/i, so do not change the format
         if not self.is_checksum_ok():  # some files still not OK after re_download_bad_files
             if self.raise_on_bad_checksum:
                 exception_message = "\n".join(
@@ -707,20 +598,11 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 raise ValueError(exception_message)
 
     def re_download_bad_files(self):
-        # Phase 7 control channel + Phase 3 retry policy: each bad file gets its
-        # own bounded retry-with-backoff loop. A file is never split across
-        # iterations, so blocking between attempts preserves the atomicity
-        # invariants (D-001/D-009/D-010): no temp ``.part`` is promoted while
-        # paused. A terminal failure on one file no longer aborts the whole
-        # redownload pass — the remaining bad files still get their chance.
-        #
-        # With DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES on, the pass is bounded by a
-        # byte/time budget (_RedownloadBudget) instead of the legacy count
-        # cliff: the budget is checked BETWEEN files (a file in flight is
-        # never abandoned) and only the files beyond an exhausted budget are
-        # left unrecovered — they stay counted as bad so the caller raises the
-        # existing 'Bad checksum ...' error after the pass. Time spent paused
-        # does not burn the budget (_PauseTrackingChannel).
+        # each bad file gets its own bounded retry-with-backoff loop. A file is never
+        # split across iterations, so blocking between attempts keeps the atomicity
+        # invariant: no temp .part is promoted while paused. A terminal failure on one
+        # file does not abort the pass; files left unrecovered stay counted as bad, so
+        # the caller still raises 'Bad checksum ...' afterwards
         control_channel = get_global_channel()
         retry_enabled = config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
         budget = None
@@ -746,8 +628,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                     if budget is not None:
                         budget.spend_bytes(getattr(file_item, "size", 0) or 0)
                 except Exception as ex:
-                    # Terminal for this file (retries exhausted or non-retryable).
-                    # Leave it counted as bad so the caller raises after the pass.
+                    # terminal for this file: retries exhausted or non-retryable
                     download_path = getattr(file_item, "download_path", "unknown")
                     log.error(f"""giving up redownloading {download_path}, {ex}""")
                     super().increment_and_output_progress(
@@ -755,16 +636,11 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                         prog_msg=f"""failed to redownload {download_path}, {ex}""")
 
     def _redownload_one_file(self, dler, file_item, control_channel, retry_enabled):
-        """Download a single bad file, retrying with control-channel-aware backoff.
-
-        D-021 (offline auto-pause): ``wait_if_paused`` holds at the top of each
-        attempt without consuming a retry, so a network outage (Central pauses
-        the engine on ``offline``) waits rather than burning the retry budget.
-        D-019 (try_now): the inter-attempt backoff uses ``sleep_backoff`` so a
-        ``{"cmd":"try_now"}`` from Central short-circuits the wait. Raises when
-        the file is terminally unrecoverable (retries exhausted / non-retryable
-        class / retry policy disabled).
-        """
+        """Download a single bad file, retrying with control-channel-aware backoff, and
+        raise when it is terminally unrecoverable. wait_if_paused holds at the top of
+        each attempt WITHOUT consuming a retry, so a network outage (Central pauses the
+        engine on offline) waits instead of burning the retry budget. The backoff goes
+        through sleep_backoff, so a try_now from Central short-circuits the wait."""
         attempt = 0
         while True:
             control_channel.wait_if_paused()
@@ -790,8 +666,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
                 attempt += 1
                 log.info(f"""retry {attempt} for {download_path} after {decision.failure_class.value}, waiting {decision.delay_seconds:.1f}s""")
-                # try_now wakes this early; offline pause is re-checked at the
-                # top of the next iteration.
+                # try_now wakes this early; pause is re-checked on the next iteration
                 sleep_backoff(decision.delay_seconds, channel=control_channel)
                 continue
 
@@ -857,11 +732,9 @@ class PrepareDownloadTempFiles(DBManager, PythonBatchCommandBase):
 
 
 def _download_event_context():
-    """Session id + rollout flags for a download event, applying the telemetry kill switch.
-
-    Each instl invocation is its own process, so a later `copy` must re-read the flag
-    that the `sync` before it honored.
-    """
+    """Session id + rollout flags for a download event, applying the telemetry kill
+    switch. Each instl invocation is its own process, so a later `copy` must re-read the
+    flag that the `sync` before it honored."""
     rollout_flags = _cohort_active_flags_from_config(config_vars)
     telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
     _events_set_telemetry_enabled(telemetry_enabled)
@@ -869,18 +742,9 @@ def _download_event_context():
 
 
 def _emit_download_started(files_planned, bytes_planned):
-    """Emit the capability + ``downloading`` session_state at the start of the
-    curl download phase (P5/P7).
-
-    Central's structured download UX (state pill, pause/resume controls, meta
-    line / ETA) is driven by these events. They were previously emitted only
-    during the post-download checksum phase (``instlMisc.do_check_checksum``),
-    so the dialog had no backend data *during* the download. Emitting here —
-    from a batch command that runs inside ``run-process``, which Central
-    watches — gives the UX backend-driven state for the download phase too.
-
-    Best-effort: instrumentation must never break a sync run.
-    """
+    """Emit the capability + ``downloading`` session_state at the start of the curl
+    download phase. Must run from a batch command inside ``run-process`` - that is the
+    output Central watches."""
     try:
         session_id, rollout_flags, telemetry_enabled = _download_event_context()
         concurrency_planned = config_var_int("PARALLEL_SYNC", 0) or None
@@ -915,10 +779,8 @@ def _emit_download_started(files_planned, bytes_planned):
 
 
 class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
-    """Emit capability + ``downloading`` session_state at the start of the curl
-    download phase, so Central's structured UX has backend data during the
-    download (not only during the checksum phase). Carries the planned file /
-    byte counts so the meta line can show totals immediately."""
+    """Emit capability + ``downloading`` session_state at the start of the curl download
+    phase, with the planned file / byte counts so Central can show the totals."""
 
     def __init__(self, files_planned=0, bytes_planned=0, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -937,19 +799,8 @@ class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call_
 
 
 def _emit_download_state(state, reason=None, files_planned=None, bytes_planned=None):
-    """Emit a post-download ``session_state`` transition.
-
-    Without these, Central's structured UX has no backend state once the curl
-    transfer finishes, so its progress bar freezes near 99% while checksum
-    verification and copy/unwtar run -- often for minutes on large bundles.
-    Emitting the transition lets Central show "Verifying" / "Installing" (its
-    state pill already maps these states) instead of an apparently-stuck bar.
-
-    Telemetry gating mirrors ``_emit_download_started`` so a fresh ``copy``
-    invocation honors the same rollout flag as the ``sync`` that preceded it
-    (each instl invocation is a separate process; the kill switch is per
-    process). Best-effort: instrumentation must never break a sync/copy run.
-    """
+    """Emit a post-download ``session_state`` transition, so Central knows which phase is
+    running once curl is done - checksum verify, then copy/unwtar, can take minutes."""
     try:
         session_id, _rollout_flags, _telemetry_enabled = _download_event_context()
         _events_emit_session_state(
@@ -964,22 +815,16 @@ def _emit_download_state(state, reason=None, files_planned=None, bytes_planned=N
 
 
 class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
-    """Emit a post-download ``session_state`` transition so Central's structured
-    UX shows the right phase (Verifying / Installing) instead of freezing near
-    99% while checksum-verify and copy/unwtar run.
-
-    Carries no byte/file counts (those phases aren't byte-weighted yet -- see
-    a later change); it only moves the state machine. ``own_progress_count=0`` /
-    ``report_own_progress=False`` so it never perturbs the progress total."""
+    """Emit a post-download ``session_state`` transition (Verifying / Installing). Only
+    moves the state machine: ``own_progress_count=0`` / ``report_own_progress=False``
+    so it never perturbs the progress total."""
 
     def __init__(self, state, reason=None, phase_bytes_planned=None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.state = state
         self.reason = reason
-        # When set on a "copying" transition, arms the copy-phase byte-progress
-        # accumulator so copy/unwtar commands can report
-        # into it. May be assigned after construction (once bytes_to_copy is
-        # known) but before the script is serialized.
+        # arms the copy-phase byte accumulator; may be assigned after construction, but
+        # must be set before the script is serialized
         self.phase_bytes_planned = phase_bytes_planned
 
     def repr_own_args(self, all_args: List[str]) -> None:
@@ -992,8 +837,6 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
 
     def __call__(self, *args, **kwargs) -> None:
         _emit_download_state(self.state, reason=self.reason)
-        # Arm the copy-phase accumulator at the start of the copy phase so the
-        # copy/unwtar commands that follow report determinate byte progress.
         if self.state == "copying" and self.phase_bytes_planned is not None:
             try:
                 from pybatch.copyPhaseProgress import begin_copy_phase
@@ -1052,10 +895,8 @@ class CreateSyncFolders(DBManager, PythonBatchCommandBase):
             # direct_sync items have absolute path in member dl_dir.download_path
             # cached items have relative path in member dl_dir.path
             path_to_create = dl_dir.download_path if dl_dir.download_path else dl_dir.path
-            # Throttle the per-folder log line: creating the sync-cache tree means
-            # thousands of MakeDir calls, and a "create sync folder X" line for each
-            # was a large chunk of the pre-download time (the counter still advances
-            # per folder so the running total stays exact).
+            # creating the sync-cache tree means thousands of MakeDir calls, and a log
+            # line for each was a large chunk of the pre-download time
             _emit_throttled_progress(self, f"create sync folder {path_to_create}", 1,
                                      dir_index, total_dirs, "_sync_folder_last_log")
             self.doing = f"""creating sync folder '{path_to_create}'"""
