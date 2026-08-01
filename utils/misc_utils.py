@@ -322,7 +322,7 @@ def check_file_checksum(file_path, expected_checksum):
                     sha1ner.update(chunk)
             retVal = compare_checksums(sha1ner.hexdigest(), expected_checksum)
         except:
-            log.debug("check_file_checksum failed for %s", file_path, exc_info=True)
+            log.debug("check_file_checksum failed for %s", file_path)
     return retVal
 
 
