@@ -31,6 +31,7 @@ try:
     from pybatch.info_mapBatchCommands import CheckDownloadFolderChecksum, PrepareDownloadTempFiles
     from pybatch.reportingBatchCommands import AnonymousAccum
     from pybatch.subprocessBatchCommands import ParallelRun
+    import pyinstl.downloadVerify as downloadVerify
 except ImportError as ex:
     FULL_STACK_IMPORT_ERROR = ex
 
@@ -77,6 +78,10 @@ class _RecordingControlChannel:
 
     def try_now_requested(self):
         return False
+
+
+def _ignore_progress(increment_by=0, prog_msg=None):
+    """Stands in for the command's bound increment_and_output_progress."""
 
 
 if FULL_STACK_IMPORT_ERROR is None:
@@ -477,10 +482,6 @@ class TestDownloadPromotion(unittest.TestCase):
         item = self.make_item("Products/Foo.pkg", payload)
         Path(item.download_path).parent.mkdir(parents=True, exist_ok=True)
 
-        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
-        command.info_map_table = FakeInfoMapTable([item])
-        command.num_bad_files = 1
-
         attempts = {"n": 0}
 
         def fake_dler(path, url, checksum, temp_path):
@@ -490,10 +491,11 @@ class TestDownloadPromotion(unittest.TestCase):
             Path(path).write_bytes(payload)
 
         channel = _RecordingControlChannel()
-        command._redownload_one_file(fake_dler, item, channel, retry_enabled=True)
+        # returning without raising is the "recovered" signal the pass counts on
+        downloadVerify.redownload_one_file(fake_dler, item, FakeInfoMapTable([item]),
+                                           channel, True, _ignore_progress)
 
         self.assertEqual(attempts["n"], 3)              # 2 failed attempts + 1 success
-        self.assertEqual(command.num_bad_files, 0)      # decremented only on success
         self.assertEqual(Path(item.download_path).read_bytes(), payload)
         self.assertEqual(len(channel.sleep_calls), 2)   # backoff before each retry
         # Pause is checked at the top of every attempt (offline auto-pause hook).
@@ -505,18 +507,14 @@ class TestDownloadPromotion(unittest.TestCase):
         payload = b"never arrives"
         item = self.make_item("Products/Foo.pkg", payload)
 
-        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
-        command.info_map_table = FakeInfoMapTable([item])
-        command.num_bad_files = 1
-
         def always_fail(path, url, checksum, temp_path):
             raise urllib.error.URLError("connection refused")
 
         channel = _RecordingControlChannel()
-        with self.assertRaises(Exception):
-            command._redownload_one_file(always_fail, item, channel, retry_enabled=True)
+        with self.assertRaises(Exception):  # raising is the "never recovered" signal
+            downloadVerify.redownload_one_file(always_fail, item, FakeInfoMapTable([item]),
+                                               channel, True, _ignore_progress)
 
-        self.assertEqual(command.num_bad_files, 1)          # never recovered
         self.assertGreaterEqual(len(channel.sleep_calls), 1)  # backed off before giving up
 
     def test_re_download_no_retry_when_policy_disabled(self):
@@ -524,10 +522,6 @@ class TestDownloadPromotion(unittest.TestCase):
         config_vars["DOWNLOAD_RETRY_POLICY_ENABLED"] = "no"
         payload = b"x"
         item = self.make_item("Products/Foo.pkg", payload)
-
-        command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
-        command.info_map_table = FakeInfoMapTable([item])
-        command.num_bad_files = 1
 
         calls = {"n": 0}
 
@@ -537,11 +531,11 @@ class TestDownloadPromotion(unittest.TestCase):
 
         channel = _RecordingControlChannel()
         with self.assertRaises(Exception):
-            command._redownload_one_file(fail_once, item, channel, retry_enabled=False)
+            downloadVerify.redownload_one_file(fail_once, item, FakeInfoMapTable([item]),
+                                               channel, False, _ignore_progress)
 
         self.assertEqual(calls["n"], 1)                 # no retry attempted
         self.assertEqual(len(channel.sleep_calls), 0)   # no backoff
-        self.assertEqual(command.num_bad_files, 1)
 
     def _make_curl_helper_with(self, **add_url_kwargs):
         config_vars["PARALLEL_DOWNLOAD_METHOD"] = "external"
@@ -599,7 +593,6 @@ class TestDownloadPromotion(unittest.TestCase):
         # the verify pass emits verifying_downloads
         # session_state ticks carrying per-phase byte progress so Central can
         # drive a determinate bar through the checksum tail.
-        import pybatch.info_mapBatchCommands as imbc
         payload = b"verified payload"
         item = self.make_item("Products/Foo.pkg", payload)
         final_path = Path(item.download_path)
@@ -609,7 +602,7 @@ class TestDownloadPromotion(unittest.TestCase):
         command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
         command.info_map_table = FakeInfoMapTable([item])
 
-        with mock.patch.object(imbc, "_events_emit_session_state") as emit:
+        with mock.patch.object(downloadVerify, "_events_emit_session_state") as emit:
             command()
 
         # The mock captures the emitter's Python kwargs (phase_bytes_done/planned),
@@ -623,11 +616,10 @@ class TestDownloadPromotion(unittest.TestCase):
 
     def test_verify_progress_never_raises(self):
         # Instrumentation must never break verification.
-        import pybatch.info_mapBatchCommands as imbc
         command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
-        with mock.patch.object(imbc, "_events_emit_session_state",
+        with mock.patch.object(downloadVerify, "_events_emit_session_state",
                                side_effect=RuntimeError("emit failed")):
-            command._emit_verify_progress(10, 100, force=True)  # must not raise
+            downloadVerify.emit_verify_progress(command, 10, 100, force=True)  # must not raise
 
     def test_copy_phase_progress_gated_and_capped(self):
         # report_copy_bytes is a no-op until a copy phase
@@ -652,8 +644,7 @@ class TestDownloadPromotion(unittest.TestCase):
     def test_report_download_state_copying_arms_copy_phase(self):
         from pybatch import ReportDownloadState
         import pybatch.copyPhaseProgress as cpp
-        import pybatch.info_mapBatchCommands as imbc
-        with mock.patch.object(imbc, "_events_emit_session_state"), \
+        with mock.patch.object(downloadVerify, "_events_emit_session_state"), \
                 mock.patch.object(cpp, "begin_copy_phase") as begin:
             ReportDownloadState("copying", reason="copy_started", phase_bytes_planned=5000,
                                 own_progress_count=0, report_own_progress=False)()
@@ -698,8 +689,7 @@ class TestDownloadPromotion(unittest.TestCase):
         # the command must emit a session_state event carrying the
         # requested state so Central can show "Verifying"/"Installing".
         from pybatch import ReportDownloadState
-        import pybatch.info_mapBatchCommands as imbc
-        with mock.patch.object(imbc, "_events_emit_session_state") as emit:
+        with mock.patch.object(downloadVerify, "_events_emit_session_state") as emit:
             ReportDownloadState("copying", reason="copy_started",
                                 own_progress_count=0, report_own_progress=False)()
         emit.assert_called_once()
@@ -709,8 +699,7 @@ class TestDownloadPromotion(unittest.TestCase):
     def test_report_download_state_never_raises(self):
         # Instrumentation must never break a sync/copy run.
         from pybatch import ReportDownloadState
-        import pybatch.info_mapBatchCommands as imbc
-        with mock.patch.object(imbc, "_events_emit_session_state",
+        with mock.patch.object(downloadVerify, "_events_emit_session_state",
                                side_effect=RuntimeError("emit failed")):
             ReportDownloadState("completed", own_progress_count=0,
                                 report_own_progress=False)()  # must not raise

@@ -40,7 +40,7 @@ if FULL_STACK_IMPORT_ERROR is None:
         file_id_for_download_item,
         temp_path_for_download_item,
     )
-    import pybatch.info_mapBatchCommands as imbc
+    import pyinstl.downloadVerify as downloadVerify
 
 
 @unittest.skipIf(FULL_STACK_IMPORT_ERROR is not None,
@@ -208,7 +208,7 @@ class TestParallelVerify(unittest.TestCase):
         command = FakeCheckDownloadFolderChecksum(
             raise_on_bad_checksum=False, report_own_progress=False)
         command.info_map_table = FakeInfoMapTable(items)
-        with mock.patch.object(imbc, "_events_emit_session_state") as emit:
+        with mock.patch.object(downloadVerify, "_events_emit_session_state") as emit:
             command()
         verify_calls = [c.kwargs for c in emit.call_args_list
                         if c.kwargs.get("state") == "verifying_downloads"]
@@ -223,7 +223,7 @@ class TestParallelVerify(unittest.TestCase):
         # serial comprehension. Assert no ThreadPoolExecutor is created and the
         # outcome is still correct.
         items = self._build_mixed_scenario()
-        with mock.patch.object(imbc, "ThreadPoolExecutor") as pool_ctor:
+        with mock.patch.object(downloadVerify, "ThreadPoolExecutor") as pool_ctor:
             self._run_verify(items, parallel=False)
         pool_ctor.assert_not_called()
         snap = self._snapshot_outcome(items)
@@ -245,7 +245,7 @@ class TestParallelVerify(unittest.TestCase):
         config_vars["DOWNLOAD_PARALLEL_WORKERS"] = "8"
         command = FakeCheckDownloadFolderChecksum(report_own_progress=False)
         command.info_map_table = FakeInfoMapTable([item])
-        with mock.patch.object(imbc, "ThreadPoolExecutor") as pool_ctor:
+        with mock.patch.object(downloadVerify, "ThreadPoolExecutor") as pool_ctor:
             command()
         pool_ctor.assert_not_called()
         self.assertEqual(Path(item.download_path).read_bytes(), payload)
@@ -258,7 +258,7 @@ class TestParallelVerify(unittest.TestCase):
         command = FakeCheckDownloadFolderChecksum(
             raise_on_bad_checksum=False, report_own_progress=False)
         command.info_map_table = FakeInfoMapTable(items)
-        with mock.patch.object(imbc, "ThreadPoolExecutor",
+        with mock.patch.object(downloadVerify, "ThreadPoolExecutor",
                                side_effect=RuntimeError("no threads for you")):
             command()  # must not raise; falls back to serial
         snap = self._snapshot_outcome(items)
@@ -279,9 +279,9 @@ class TestParallelVerify(unittest.TestCase):
         PythonBatchCommandBase.total_progress = 100000
         PythonBatchCommandBase.ignore_progress = False
         n = 200
-        with mock.patch.object(imbc.log, "info") as log_info:
+        with mock.patch.object(downloadVerify.log, "info") as log_info:
             for i in range(n):
-                cmd._verify_progress_log(f"check checksum for file {i}", 1, i, n)
+                downloadVerify.verify_progress_log(cmd, f"check checksum for file {i}", 1, i, n)
         # Counter advanced exactly once per file.
         self.assertEqual(PythonBatchCommandBase.running_progress, n)
         # Logging was throttled to far fewer than one line per file (the loop runs
@@ -290,19 +290,18 @@ class TestParallelVerify(unittest.TestCase):
         self.assertGreaterEqual(log_info.call_count, 1)
 
     def test_resolve_workers_respects_flags(self):
-        cmd = FakeCheckDownloadFolderChecksum(report_own_progress=False)
         config_vars["DOWNLOAD_PARALLEL_VERIFY"] = "no"
-        self.assertEqual(cmd._resolve_verify_workers(10), 1)
+        self.assertEqual(downloadVerify.resolve_verify_workers(10), 1)
         config_vars["DOWNLOAD_PARALLEL_VERIFY"] = "yes"
         config_vars["DOWNLOAD_PARALLEL_WORKERS"] = "3"
-        self.assertEqual(cmd._resolve_verify_workers(10), 3)
+        self.assertEqual(downloadVerify.resolve_verify_workers(10), 3)
         # capped to number of items
-        self.assertEqual(cmd._resolve_verify_workers(2), 2)
+        self.assertEqual(downloadVerify.resolve_verify_workers(2), 2)
         # single item -> serial
-        self.assertEqual(cmd._resolve_verify_workers(1), 1)
+        self.assertEqual(downloadVerify.resolve_verify_workers(1), 1)
         # auto (0) -> cpu_count, still >= 1
         config_vars["DOWNLOAD_PARALLEL_WORKERS"] = "0"
-        self.assertGreaterEqual(cmd._resolve_verify_workers(100), 1)
+        self.assertGreaterEqual(downloadVerify.resolve_verify_workers(100), 1)
 
 
 if __name__ == "__main__":

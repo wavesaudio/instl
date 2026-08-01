@@ -8,7 +8,7 @@ next run.
 
 Aggregation runs in-process during a single ``instl`` invocation; callers feed
 it normalized outcomes from the existing ``CheckDownloadFolderChecksum`` and
-``_emit_retry_decision`` choke points. The summary is persisted as a small
+``downloadVerify.emit_retry_decision`` choke points. The summary is persisted as a small
 JSON sidecar next to ``session.json`` under
 ``$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state`` — client-owned local state
 whose only consumer is the controller.

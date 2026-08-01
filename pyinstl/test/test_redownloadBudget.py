@@ -41,12 +41,13 @@ if FULL_STACK_IMPORT_ERROR is None:
         FakeDownloadItem,
     )
     import pybatch.info_mapBatchCommands as imbc
+    import pyinstl.downloadVerify as downloadVerify
 
 
 class _FakeDler:
     """Stands in for the DownloadManager's callable: 'downloads' a file by
     writing its expected payload straight to the final path (matching the
-    contract _redownload_one_file relies on: on return the download_path
+    contract redownload_one_file relies on: on return the download_path
     exists with the verified bytes). Records every call so tests can assert
     exactly which files got a recovery attempt."""
 
@@ -170,7 +171,7 @@ class TestRedownloadBudget(unittest.TestCase):
         self.assertFalse(Path(items[2].download_path).exists())
 
     def test_zero_budgets_mean_unlimited(self):
-        budget = imbc._RedownloadBudget(max_total_bytes=0, max_seconds=0)
+        budget = downloadVerify.RedownloadBudget(max_total_bytes=0, max_seconds=0)
         budget.spend_bytes(10 ** 12)
         budget.started_at -= 10 ** 6
         self.assertIsNone(budget.exhausted_reason())
@@ -178,7 +179,7 @@ class TestRedownloadBudget(unittest.TestCase):
     def test_seconds_budget_excludes_pause_time(self):
         # An offline hold / user pause must never burn the recovery budget —
         # that would recreate the very failure the budget replaces.
-        budget = imbc._RedownloadBudget(max_total_bytes=0, max_seconds=10)
+        budget = downloadVerify.RedownloadBudget(max_total_bytes=0, max_seconds=10)
         budget.started_at -= 15  # pretend 15s wall time elapsed
         self.assertIsNotNone(budget.exhausted_reason())
         self.assertIsNone(budget.exhausted_reason(paused_seconds=10))
@@ -196,7 +197,7 @@ class TestRedownloadBudget(unittest.TestCase):
                 return True
 
         inner = _SleepyChannel()
-        wrapper = imbc._PauseTrackingChannel(inner)
+        wrapper = downloadVerify.PauseTrackingChannel(inner)
         wrapper.wait_if_paused()
         self.assertEqual(inner.wait_calls, 1)
         self.assertGreater(wrapper.paused_seconds, 0.0)
