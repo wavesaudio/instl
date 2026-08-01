@@ -8,6 +8,13 @@ CURL_RETRIES: 12          # If a transient error is returned when curl tries to 
 CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
 
 DOWNLOAD_RESUME_ENABLED: yes
+# Deliberately `no`, relaxing the strict default in
+# downloadState.resume_decision_for_download_item: CloudFront does not always
+# return an ETag/Last-Modified, and refusing to resume without one would throw
+# away every validated partial on those responses. The identity checks above the
+# gate (size/etag when present, signed-URL TTL) still run, and the manifest SHA1
+# in the checksum phase is the final authority either way -- a corrupt resume
+# fails there and is redownloaded. Set to `yes` to require a validator.
 DOWNLOAD_RESUME_REQUIRE_CONDITIONAL: no
 DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS: 300
 # Left empty by default; the resume-capability check derives the host from

@@ -1060,7 +1060,7 @@ These flags are the only runtime source of the download enhancement's behavior: 
 | `DOWNLOAD_TELEMETRY_ENABLED` | `yes` | default-on by design |
 | `DOWNLOAD_RETRY_POLICY_ENABLED` | `yes` | default-on by design |
 | `DOWNLOAD_CENTRAL_UX_ENABLED` | `yes` | rollback hatch for the Central recovery-action UI |
-| `DOWNLOAD_RESUME_REQUIRE_CONDITIONAL` | `no` | — |
+| `DOWNLOAD_RESUME_REQUIRE_CONDITIONAL` | `no` | deliberately relaxes the strict default in `resume_decision_for_download_item` (CloudFront does not always return a validator); the manifest SHA1 remains the final authority |
 | `DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS` | `300` | — |
 | `DOWNLOAD_RESUME_VALIDATED_HOSTS` | `[]` (empty → host derived from `BASE_LINKS_URL`) | resume host-gate; `DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES` defaults to `/$(REPO_NAME)/` |
 | curl tunables | `CURL_CONNECT_TIMEOUT 64`, `CURL_MAX_TIME 600`, `CURL_RETRIES 12`, `CURL_RETRY_DELAY 12` | — |
