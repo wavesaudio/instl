@@ -17,3 +17,7 @@ build/
 dist/
 *.local.spec
 build_instl/temp_build_dir/
+build_instl/build-instl.py
+build_instl/build-instl.timings.py
+defaults/compile-info.yaml
+defaults/pip-freeze.txt

@@ -198,6 +198,9 @@ def _make_copy_client():
         "__INSTL_EXE_PATH__": REPO_ROOT / "instl",
         "__ARGV__": [os.fspath(REPO_ROOT / "instl")],
         "__MAIN_DB_FILE__": ":memory:",
+        # instl_main sets this from sys.frozen during a real boot; this test
+        # constructs the client directly, so it must declare it itself
+        "__INSTL_COMPILED__": "False",
         "__CURRENT_OS__": "Win",
         "__CURRENT_OS_SECOND_NAME__": "Win64",
         "__CURRENT_OS_NAMES__": ["Win", "Win64"],
