@@ -72,9 +72,10 @@ Event types
 
 ``download.capability``
     One-shot snapshot of the backend feature flags Central uses for UX
-    gating. Fields: ``resumeEnabled``, ``adaptiveConcurrencyEnabled``,
-    ``validatedHosts`` (list, bare hosts only), ``retryMatrixVersion``
-    (int), ``stateSchemaVersion`` (int), ``eventSchemaVersion`` (int).
+    gating. Fields: ``resumeEnabled``, ``validatedHosts`` (list, bare hosts
+    only), ``retryMatrixVersion`` (int), ``stateSchemaVersion`` (int),
+    ``eventSchemaVersion`` (int), ``featureFlags`` (map), ``centralUxEnabled``,
+    ``telemetryEnabled``, ``retryPolicyEnabled``.
 
 ``download.session_summary``
     The aggregated session totals ``downloadObservability`` writes as
@@ -122,6 +123,51 @@ class DownloadEventType(str, Enum):
     RETRY_DECISION = "download.retry_decision"
     CAPABILITY = "download.capability"
     SESSION_SUMMARY = "download.session_summary"
+
+
+# The kill switches reported on the capability event, so a failed install's log
+# says which recovery layers were active. Defaults match defaults/InstlClient.yaml
+# and only apply when the key is undefined (an older client yaml); once loaded,
+# the yaml wins.
+_REPORTED_FLAGS: tuple[tuple[str, bool], ...] = (
+    ("DOWNLOAD_TELEMETRY_ENABLED", True),
+    ("DOWNLOAD_RESUME_ENABLED", True),
+    ("DOWNLOAD_RETRY_POLICY_ENABLED", True),
+    ("DOWNLOAD_CENTRAL_UX_ENABLED", True),
+    ("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True),
+    ("DOWNLOAD_OFFLINE_HOLD_ENABLED", True),
+    ("DOWNLOAD_CURL_STALL_DETECTION", True),
+    ("DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES", True),
+    # set to true only by a NEW Central, which treats backend-hold evidence as
+    # informational and never auto-pauses on it; default FALSE so an old
+    # Central sees only the legacy event stream while the engine still recovers
+    ("DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD", False),
+)
+
+
+def active_flags_from_config(config_vars: Any) -> dict[str, bool]:
+    """Read :data:`_REPORTED_FLAGS` for the capability event's ``featureFlags``."""
+    return {name: _read_flag(config_vars, name, default) for name, default in _REPORTED_FLAGS}
+
+
+def _read_flag(config_vars: Any, name: str, default: bool) -> bool:
+    try:
+        if config_vars is None:
+            return default
+        # `config_vars` is the instl ConfigVarStack: `__getitem__` returns a
+        # variable with `.bool()`. Mapping-style access is for tests.
+        if hasattr(config_vars, "__contains__") and name not in config_vars:
+            return default
+        var = config_vars[name]
+        if hasattr(var, "bool"):
+            return bool(var.bool())
+        if isinstance(var, bool):
+            return var
+        if isinstance(var, (int, float)):
+            return bool(var)
+        return str(var).strip().lower() in ("yes", "true", "1", "on")
+    except Exception:
+        return default
 
 
 # Dropped by the formatter rather than emit auth/header/local-path material.
@@ -304,11 +350,9 @@ def make_file_state_event(*,
 def make_capability_event(*,
                           session_id: str | None,
                           resume_enabled: bool,
-                          adaptive_concurrency_enabled: bool,
                           validated_hosts: Iterable[str] | None = None,
                           retry_matrix_version: int = 1,
                           state_schema_version: int = 1,
-                          cohort: str | None = None,
                           feature_flags: Mapping[str, Any] | None = None,
                           central_ux_enabled: bool | None = None,
                           telemetry_enabled: bool | None = None,
@@ -323,13 +367,6 @@ def make_capability_event(*,
             if not host or "/" in host or "?" in host or "#" in host:
                 continue  # only bare host strings
             safe_hosts.append(host)
-    # cohort + flag map let Central and telemetry compare control/treatment
-    # without parsing text; the real normalization happens at the call site
-    # (downloadCohort.resolve_cohort_from_config)
-    try:
-        from .downloadCohort import normalize_cohort  # local import: avoid cycle
-    except ImportError:  # tests import without the pyinstl package context
-        from downloadCohort import normalize_cohort  # type: ignore[no-redef]
     safe_flags: dict[str, bool] = {}
     if feature_flags:
         for key, value in feature_flags.items():
@@ -338,12 +375,10 @@ def make_capability_event(*,
             safe_flags[key] = bool(value)
     payload.update({
         "resumeEnabled": bool(resume_enabled),
-        "adaptiveConcurrencyEnabled": bool(adaptive_concurrency_enabled),
         "validatedHosts": sorted(set(safe_hosts)),
         "retryMatrixVersion": int(retry_matrix_version),
         "stateSchemaVersion": int(state_schema_version),
         "eventSchemaVersion": DOWNLOAD_EVENT_SCHEMA_VERSION,
-        "cohort": normalize_cohort(cohort),
         "featureFlags": safe_flags,
         "centralUxEnabled": bool(central_ux_enabled) if central_ux_enabled is not None else False,
         "telemetryEnabled": bool(telemetry_enabled) if telemetry_enabled is not None else True,
@@ -430,6 +465,7 @@ __all__ = [
     "DOWNLOAD_EVENT_LOG_PREFIX",
     "DOWNLOAD_EVENT_SCHEMA_VERSION",
     "DownloadEventType",
+    "active_flags_from_config",
     "emit_capability",
     "emit_event",
     "emit_file_state",

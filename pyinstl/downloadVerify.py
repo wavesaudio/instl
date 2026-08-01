@@ -58,10 +58,7 @@ from pyinstl.downloadEvents import (
     emit_capability as _events_emit_capability,
     emit_session_state as _events_emit_session_state,
     set_telemetry_enabled as _events_set_telemetry_enabled,
-)
-from pyinstl.downloadCohort import (
-    active_flags_from_config as _cohort_active_flags_from_config,
-    resolve_cohort_from_config as _cohort_resolve_cohort_from_config,
+    active_flags_from_config as _events_active_flags_from_config,
 )
 
 log = logging.getLogger(__name__)
@@ -561,7 +558,7 @@ def _download_event_context():
     """Session id + rollout flags for a download event, applying the telemetry kill
     switch. Each instl invocation is its own process, so a later `copy` must re-read the
     flag that the `sync` before it honored."""
-    rollout_flags = _cohort_active_flags_from_config(config_vars)
+    rollout_flags = _events_active_flags_from_config(config_vars)
     telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
     _events_set_telemetry_enabled(telemetry_enabled)
     return config_var_str("__INVOCATION_RANDOM_ID__", "unknown"), rollout_flags, telemetry_enabled
@@ -583,9 +580,7 @@ def emit_download_started(files_planned, bytes_planned):
         _events_emit_capability(
             session_id=session_id,
             resume_enabled=config_var_bool("DOWNLOAD_RESUME_ENABLED", False),
-            adaptive_concurrency_enabled=config_var_bool("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False),
             validated_hosts=validated_hosts,
-            cohort=_cohort_resolve_cohort_from_config(config_vars),
             feature_flags=rollout_flags,
             central_ux_enabled=bool(rollout_flags.get("DOWNLOAD_CENTRAL_UX_ENABLED", False)),
             telemetry_enabled=telemetry_enabled,

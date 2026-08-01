@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
 
-"""Tests for Phase 5 structured event channel (``P5-001``).
+"""Tests for the structured DOWNLOAD_EVENT channel.
 
 These tests exercise ``downloadEvents`` without any ``instl`` runtime
 dependency. They cover the JSON-line envelope, redaction denylist,
@@ -20,6 +20,7 @@ from downloadEvents import (
     DOWNLOAD_EVENT_LOG_PREFIX,
     DOWNLOAD_EVENT_SCHEMA_VERSION,
     DownloadEventType,
+    active_flags_from_config,
     emit_event,
     format_event_line,
     make_capability_event,
@@ -87,7 +88,6 @@ class TestRedaction(unittest.TestCase):
         event = make_capability_event(
             session_id="s1",
             resume_enabled=True,
-            adaptive_concurrency_enabled=False,
             validated_hosts=[
                 "cdn.example.com",
                 "evil.example.com/path",   # rejected: path
@@ -242,41 +242,34 @@ class TestCapabilityEvent(unittest.TestCase):
         event = make_capability_event(
             session_id="s1",
             resume_enabled=True,
-            adaptive_concurrency_enabled=False,
             validated_hosts=["cdn.example.com"],
             retry_matrix_version=1,
             state_schema_version=1,
             timestamp="2026-05-17T10:00:00Z",
         )
         self.assertTrue(event["resumeEnabled"])
-        self.assertFalse(event["adaptiveConcurrencyEnabled"])
         self.assertEqual(event["validatedHosts"], ["cdn.example.com"])
         self.assertEqual(event["retryMatrixVersion"], 1)
         self.assertEqual(event["stateSchemaVersion"], 1)
         self.assertEqual(event["eventSchemaVersion"], DOWNLOAD_EVENT_SCHEMA_VERSION)
 
-    def test_capability_event_phase6_fields_default_when_omitted(self):
-        # Phase 6 P6-001/P6-003: when the caller omits the new fields the
-        # builder still emits sensible defaults so older callers do not
-        # break and Central always sees a complete envelope.
+    def test_capability_event_optional_fields_default_when_omitted(self):
+        # when the caller omits the optional fields the builder still emits
+        # sensible defaults so Central always sees a complete envelope
         event = make_capability_event(
             session_id="s1",
             resume_enabled=False,
-            adaptive_concurrency_enabled=False,
             timestamp="2026-05-17T10:00:00Z",
         )
-        self.assertEqual(event["cohort"], "control")
         self.assertEqual(event["featureFlags"], {})
         self.assertFalse(event["centralUxEnabled"])
         self.assertTrue(event["telemetryEnabled"])
         self.assertTrue(event["retryPolicyEnabled"])
 
-    def test_capability_event_normalizes_cohort_and_redacts_feature_flag_keys(self):
+    def test_capability_event_redacts_feature_flag_keys(self):
         event = make_capability_event(
             session_id="s1",
             resume_enabled=True,
-            adaptive_concurrency_enabled=True,
-            cohort="UnknownCohortLabel",  # falls back to control
             feature_flags={
                 "DOWNLOAD_RESUME_ENABLED": True,
                 "DOWNLOAD_TELEMETRY_ENABLED": "yes",  # coerced bool
@@ -287,7 +280,6 @@ class TestCapabilityEvent(unittest.TestCase):
             retry_policy_enabled=False,
             timestamp="2026-05-17T10:00:00Z",
         )
-        self.assertEqual(event["cohort"], "control")
         self.assertEqual(event["featureFlags"], {
             "DOWNLOAD_RESUME_ENABLED": True,
             "DOWNLOAD_TELEMETRY_ENABLED": True,
@@ -296,16 +288,94 @@ class TestCapabilityEvent(unittest.TestCase):
         self.assertFalse(event["telemetryEnabled"])
         self.assertFalse(event["retryPolicyEnabled"])
 
-    def test_capability_event_accepts_documented_cohort_labels(self):
-        for cohort in ("control", "atomicity", "resume", "retry", "adaptive", "ux"):
-            event = make_capability_event(
-                session_id="s1",
-                resume_enabled=False,
-                adaptive_concurrency_enabled=False,
-                cohort=cohort,
-                timestamp="2026-05-17T10:00:00Z",
-            )
-            self.assertEqual(event["cohort"], cohort, f"cohort={cohort}")
+
+class _FakeVar:
+    def __init__(self, value):
+        self._value = value
+
+    def bool(self):
+        if isinstance(self._value, bool):
+            return self._value
+        return str(self._value).strip().lower() in ("yes", "true", "1", "on")
+
+
+class _FakeConfig:
+    """Stands in for the instl ConfigVarStack: __getitem__ yields a var with .bool()."""
+
+    def __init__(self, values=None):
+        self._values = dict(values or {})
+
+    def __contains__(self, name):
+        return name in self._values
+
+    def __getitem__(self, name):
+        return _FakeVar(self._values[name])
+
+
+class TestActiveFlagsFromConfig(unittest.TestCase):
+    """The featureFlags map reported on the capability event."""
+
+    def test_defaults_match_shipping_yaml_defaults(self):
+        # An undefined key falls back to the declared default, which must agree
+        # with defaults/InstlClient.yaml -- the two used to disagree.
+        flags = active_flags_from_config(_FakeConfig())
+        self.assertEqual(flags, {
+            "DOWNLOAD_TELEMETRY_ENABLED": True,
+            "DOWNLOAD_RESUME_ENABLED": True,
+            "DOWNLOAD_RETRY_POLICY_ENABLED": True,
+            "DOWNLOAD_CENTRAL_UX_ENABLED": True,
+            "DOWNLOAD_RECONCILE_MISSING_OUTPUTS": True,
+            "DOWNLOAD_OFFLINE_HOLD_ENABLED": True,
+            "DOWNLOAD_CURL_STALL_DETECTION": True,
+            "DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES": True,
+            # only a NEW Central that handles backend-hold events without
+            # auto-pausing declares this one
+            "DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD": False,
+        })
+
+    def test_reads_yes_no_from_config(self):
+        cfg = _FakeConfig({
+            "DOWNLOAD_TELEMETRY_ENABLED": "no",
+            "DOWNLOAD_RETRY_POLICY_ENABLED": "no",
+            "DOWNLOAD_CENTRAL_UX_ENABLED": "yes",
+            "DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD": "yes",
+        })
+        flags = active_flags_from_config(cfg)
+        self.assertFalse(flags["DOWNLOAD_TELEMETRY_ENABLED"])
+        self.assertFalse(flags["DOWNLOAD_RETRY_POLICY_ENABLED"])
+        self.assertTrue(flags["DOWNLOAD_CENTRAL_UX_ENABLED"])
+        self.assertTrue(flags["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"])
+        # untouched keys still fall back
+        self.assertTrue(flags["DOWNLOAD_OFFLINE_HOLD_ENABLED"])
+
+    def test_unreadable_config_falls_back_to_defaults(self):
+        class Exploding:
+            def __contains__(self, name):
+                raise RuntimeError("config unavailable")
+
+        flags = active_flags_from_config(Exploding())
+        self.assertTrue(flags["DOWNLOAD_TELEMETRY_ENABLED"])
+        self.assertFalse(flags["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"])
+        self.assertIsNone(active_flags_from_config(None).get("missing"))
+
+    def test_flags_flow_onto_the_capability_event(self):
+        flags = active_flags_from_config(_FakeConfig({"DOWNLOAD_TELEMETRY_ENABLED": "no"}))
+        event = make_capability_event(
+            session_id="smoke",
+            resume_enabled=flags["DOWNLOAD_RESUME_ENABLED"],
+            validated_hosts=["cdn.example.com"],
+            feature_flags=flags,
+            central_ux_enabled=flags["DOWNLOAD_CENTRAL_UX_ENABLED"],
+            telemetry_enabled=flags["DOWNLOAD_TELEMETRY_ENABLED"],
+            retry_policy_enabled=flags["DOWNLOAD_RETRY_POLICY_ENABLED"],
+            timestamp="2026-05-17T10:00:00Z",
+        )
+        self.assertFalse(event["featureFlags"]["DOWNLOAD_TELEMETRY_ENABLED"])
+        self.assertFalse(event["telemetryEnabled"])
+        self.assertTrue(event["resumeEnabled"])
+        self.assertEqual(event["validatedHosts"], ["cdn.example.com"])
+        # the line must still serialize after the flag map is attached
+        self.assertIn(DOWNLOAD_EVENT_LOG_PREFIX, format_event_line(event))
 
 
 class TestRetryDecisionEvent(unittest.TestCase):

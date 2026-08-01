@@ -87,14 +87,11 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         info_map_file = main_input_file_str()
-        # Phase 4 P4-001: scope the throughput/error sampler to this
-        # in-process check-checksum invocation. CheckDownloadFolderChecksum
-        # and its re_download_bad_files retry loop both record outcomes
-        # against the active session; the next instl invocation reads the
-        # persisted summary to drive adaptive concurrency.
+        # scope the throughput/error sampler to this in-process check-checksum
+        # invocation: CheckDownloadFolderChecksum and its re_download_bad_files
+        # retry loop both record outcomes against the active session
         from . import downloadObservability  # local import to keep startup cheap
-        from . import downloadEvents  # Phase 5 P5-001 structured event channel
-        from . import downloadCohort  # Phase 6 P6-001/P6-003 rollout flags + cohort
+        from . import downloadEvents
         try:
             session_id = str(config_vars.get("__INVOCATION_RANDOM_ID__", "unknown"))
         except Exception:
@@ -107,17 +104,13 @@ class InstlMisc(InstlInstanceBase):
             session_id=session_id,
             concurrency_planned=concurrency_planned,
         )
-        # Phase 5 P5-001: announce the backend capability snapshot so
-        # Central can gate pause/resume/retry-failed UI per D-004 without
-        # parsing text. Errors here must not break the sync run.
+        # announce the backend capability snapshot so Central can gate
+        # pause/resume/retry-failed UI without parsing text. Errors here must
+        # not break the sync run.
         try:
             resume_enabled = bool(config_vars.get("DOWNLOAD_RESUME_ENABLED", False))
         except Exception:
             resume_enabled = False
-        try:
-            adaptive_enabled = bool(config_vars.get("DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED", False))
-        except Exception:
-            adaptive_enabled = False
         try:
             from .downloadState import resolve_validated_hosts
             validated_hosts_var = config_vars.get("DOWNLOAD_RESUME_VALIDATED_HOSTS", []).list()
@@ -128,23 +121,19 @@ class InstlMisc(InstlInstanceBase):
             )
         except Exception:
             validated_hosts = []
-        # Phase 6 P6-002: read the rollout flag map once and apply the
-        # process-level kill switches before any emitter fires for this
-        # session. ``DOWNLOAD_TELEMETRY_ENABLED=no`` disables the
-        # structured event channel; the legacy text log is unaffected.
-        rollout_flags = downloadCohort.active_flags_from_config(config_vars)
+        # read the kill-switch map once and apply the process-level switches
+        # before any emitter fires for this session. ``DOWNLOAD_TELEMETRY_ENABLED=no``
+        # disables the structured event channel; the legacy text log is unaffected.
+        rollout_flags = downloadEvents.active_flags_from_config(config_vars)
         telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
         retry_policy_enabled = bool(rollout_flags.get("DOWNLOAD_RETRY_POLICY_ENABLED", True))
         central_ux_enabled = bool(rollout_flags.get("DOWNLOAD_CENTRAL_UX_ENABLED", False))
         downloadEvents.set_telemetry_enabled(telemetry_enabled)
-        cohort = downloadCohort.resolve_cohort_from_config(config_vars)
         try:
             downloadEvents.emit_capability(
                 session_id=session_id,
                 resume_enabled=resume_enabled,
-                adaptive_concurrency_enabled=adaptive_enabled,
                 validated_hosts=validated_hosts,
-                cohort=cohort,
                 feature_flags=rollout_flags,
                 central_ux_enabled=central_ux_enabled,
                 telemetry_enabled=telemetry_enabled,

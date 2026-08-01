@@ -142,14 +142,14 @@ distinguishes the two emitters:
 ### 3.4 `download.capability`
 
 One-shot backend feature snapshot Central uses for UX gating. Keys:
-`resumeEnabled`, `adaptiveConcurrencyEnabled`, `validatedHosts` (bare hosts),
-`retryMatrixVersion`, `stateSchemaVersion`, `eventSchemaVersion`, `cohort`,
+`resumeEnabled`, `validatedHosts` (bare hosts),
+`retryMatrixVersion`, `stateSchemaVersion`, `eventSchemaVersion`,
 `featureFlags` (map of bool), `centralUxEnabled`, `telemetryEnabled`,
 `retryPolicyEnabled`. **`centralUxEnabled` is the master gate** for the new
 structured UX.
 
 `featureFlags` now also surfaces the connectivity-loss self-sufficiency gates
-(`downloadCohort._TRACKED_FLAGS`): `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`,
+(`downloadEvents._REPORTED_FLAGS`): `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`,
 `DOWNLOAD_OFFLINE_HOLD_ENABLED`, `DOWNLOAD_CURL_STALL_DETECTION`,
 `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (all default **true**) and
 `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (default **false**), so Central and

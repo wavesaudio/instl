@@ -99,8 +99,8 @@ references. The themes are abbreviated below as **T1**–**T6**:
 ### Constraints from the download subsystem
 
 > **The `download*` family is actively developed on this branch** — `downloadState`,
-> `downloadRetry`, `downloadObservability`, `downloadConcurrency`, `downloadEvents`,
-> `downloadCohort`, `downloadFailures`, `downloadControlChannel`, `downloadTransfer`,
+> `downloadRetry`, `downloadObservability`, `downloadEvents`,
+> `downloadFailures`, `downloadControlChannel`, `downloadTransfer`,
 > `downloadVerify`. Its wire contract is co-designed with Waves Central (see
 > `docs/download-events.md` and `Central/download-system-enhancement/`), so the contract is a
 > constraint, not a suggestion. Any workstream that edits these modules (**W2**, **W3**, **W7**)
@@ -125,10 +125,8 @@ references. The themes are abbreviated below as **T1**–**T6**:
 >   still edits every active `download*` module.
 >
 > **Flag-state caveat (do not "fix" as a bug).** `defaults/InstlClient.yaml` ships
-> `DOWNLOAD_CENTRAL_UX_ENABLED: yes` and `DOWNLOAD_RESUME_ENABLED: yes`, against the default-off
-> convention the other `DOWNLOAD_*` behaviors follow (`DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED: no`,
-> `DOWNLOAD_CONCURRENCY_START: 8` vs legacy `PARALLEL_SYNC: 50`). Whether to re-gate them is a
-> release decision — none of W0/W1 should silently "correct" them.
+> `DOWNLOAD_CENTRAL_UX_ENABLED: yes` and `DOWNLOAD_RESUME_ENABLED: yes` — both on by default.
+> Whether to re-gate them is a release decision — none of W0/W1 should silently "correct" them.
 
 ---
 

@@ -16,7 +16,7 @@ are described here — implementation details belong in the LLD.
 2. **Instance Base** — the abstract command-object root (config loading, batch generation, dependency queries) plus the interactive REPL.
 3. **Client Commands** — the end-user install/copy/remove/uninstall/report workflow, plus the `doit` runner and the `misc` utility commands.
 4. **Sync Backends & Connections** — selecting and driving how a client fetches files from a remote repo; URL/SVN/P4/boto backends and the connection/URL-translation layer.
-5. **Download Subsystem** — the curl-based bulk download engine: config-file generation, failure classification, retry/backoff, pause/resume control, resume state, observability, adaptive concurrency, telemetry, and cohorts.
+5. **Download Subsystem** — the curl-based bulk download engine: config-file generation, failure classification, retry/backoff, pause/resume control, resume state, observability, and telemetry.
 6. **Admin Tooling** — the admin-side command monolith used to build and maintain the deployment repository (SVN maintenance, verification, up2s3/activate, the Redis daemon).
 7. **GUI** — the Tk/ttk desktop front-end that builds command lines and spawns instl as a subprocess.
 8. **PyBatch Command Objects** — the dual-identity object model (execute + serialize-to-Python-source) for every deployment action, plus the accumulator that renders the batch script.
@@ -204,7 +204,7 @@ the only fully-maintained path.
 | Component | Responsibility |
 |---|---|
 | `InstlInstanceSync` | Abstract base for all sync backends; owns the shared info-map read/mark pipeline used by download-style backends. |
-| `InstlInstanceSync_url` | Primary backend; generates curl download instructions with resume, adaptive concurrency, pause/resume control, and redundant-file cleanup. |
+| `InstlInstanceSync_url` | Primary backend; generates curl download instructions with resume, pause/resume control, and redundant-file cleanup. |
 | `InstlInstanceSync_svn` / `InstlInstanceSync_p4` | Emit `svn co` / `p4 sync` command strings per source (unmaintained). |
 | `InstlInstanceSync_boto` | S3/boto stub; sets the local sync dir only, no instructions. |
 | `ConnectionBase` / `ConnectionHTTP` / `ConnectionS3` | Abstract connection holding the global singleton; HTTP per-netloc session cache with permissive SSL; S3 signed-URL generation (currently disabled). |
@@ -243,9 +243,9 @@ and write command strings directly.
 ### Responsibility
 Drive instl's bulk file download: build curl config files and parallel-run plans, classify and retry
 transfer failures, support cooperative pause/resume/try-now via a stdin control channel, persist
-per-session and per-file download state plus resume sidecars, sample throughput/errors, recommend
-between-session concurrency, emit a structured JSON-line event channel to Central, and tag installs
-into rollout cohorts. The curl driver itself lives in PyBatch; this subsystem provides the planning
+per-session and per-file download state plus resume sidecars, sample throughput/errors, and emit a
+structured JSON-line event channel to Central. The curl driver itself lives in PyBatch; this
+subsystem provides the planning
 and the side-channel machinery consumed at two choke points: URL sync planning and checksum-verify
 redownload.
 
@@ -257,10 +257,8 @@ redownload.
 | `downloadFailures` | Normalize curl exit codes, HTTP statuses, and exceptions into one failure taxonomy with retryability and Retry-After. |
 | `downloadRetry` | Data-driven per-class retry policy, exponential+jitter backoff honoring Retry-After, and a try-now-aware sleeper. |
 | `downloadState` | On-disk download state: session and per-file records, `.part` temp naming/promotion, and the resume-eligibility decision. |
-| `DownloadObservability` | In-process per-session aggregator; persists a session summary read by the concurrency controller next run. |
-| `downloadConcurrency` | Between-session adaptive parallelism recommendation from the previous session summary. |
-| `downloadEvents` | Single source of truth for the structured telemetry channel (with a privacy denylist and kill switch). |
-| `downloadCohort` | Normalize/downgrade a rollout cohort label to match the active feature-flag set. |
+| `DownloadObservability` | In-process per-session aggregator; persists a session summary and emits it as the `download.session_summary` event. |
+| `downloadEvents` | Single source of truth for the structured telemetry channel (privacy denylist, kill switch, and the reported feature-flag map). |
 | `downloadVerify` | The checksum-verify and redownload machinery the `CheckDownloadFolderChecksum` command drives: per-file resume decision and sidecar writes, retry/progress/state event emission, parallel verify-hash precompute, and the budget-bounded redownload pass (`RedownloadBudget`, `PauseTrackingChannel`). |
 | `ParallelRun` (in PyBatch) / `CurlTransfer` (`downloadTransfer`, driven by the thin PyBatch command `CurlWithInternalParallel`) | The actual curl execution engine: pause/offline-hold loop, network-error backoff, and exit-33 fresh-restart fallback. `CurlTransfer` (the shipped path) additionally probes connectivity and holds through outages (`DOWNLOAD_OFFLINE_HOLD_ENABLED`), reconciles missing outputs after curl exit 0 (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`), and backstops silent stalls (`DOWNLOAD_CURL_STALL_DETECTION` + watchdog) — new-event emission gated on the client's `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` declaration. |
 
@@ -269,17 +267,17 @@ redownload.
 - `downloadState.resume_decision_for_download_item(...) -> DownloadResumeDecision`; `promote_verified_temp_file(...)`; `update_session_state(...)`.
 - `downloadFailures.classify_*(...) -> DownloadFailureInfo`; `downloadRetry.decide_retry(...) -> RetryDecision`; `downloadRetry.sleep_backoff(delay, channel=)`.
 - `downloadControlChannel.get_global_channel()` and channel `wait_if_paused()` / `sleep_or_wake()` / `is_paused()` / `try_now_requested()` plus pause/resume callbacks.
-- `downloadObservability` session/record/load functions; `downloadConcurrency.resolve_concurrency_from_config(...)`; `downloadEvents.emit_*(...)` / `set_telemetry_enabled(...)`; `downloadCohort.resolve_cohort_from_config(...)`.
+- `downloadObservability` session/record functions; `downloadEvents.emit_*(...)` / `set_telemetry_enabled(...)` / `active_flags_from_config(...)`.
 
 ### Owned state & persistence
 On disk under the bookkeeping download-state folder: `session.json`, per-file sidecars, `.part` temp
-artifacts, and `session-summary.json`. The session summary is the cross-run channel — written at
-session end, read next run to recommend parallelism. In-memory: the control-channel pause/try-now
+artifacts, and `session-summary.json`. The session summary is written at session end and emitted as
+the `download.session_summary` event. In-memory: the control-channel pause/try-now
 events (singleton), the active observability session (singleton), the curl-internal-parallel-support
 cache, and the telemetry-enabled flag.
 
 ### Dependencies
-- **Out:** ConfigVar System; connection layer (URL translation); PyBatch (curl drivers and emitted commands); its own internal modules (failures → retry/observability, state → planning, control channel → retry + drivers, observability → concurrency, cohort → events).
+- **Out:** ConfigVar System; connection layer (URL translation); PyBatch (curl drivers and emitted commands); its own internal modules (failures → retry/observability, state → planning, control channel → retry + drivers).
 - **In:** URL sync planning; the PyBatch checksum-verify redownload command; the PyBatch curl drivers (control-channel singleton); Central (external consumer of events / producer of control commands).
 
 ### Design notes & constraints
@@ -289,7 +287,7 @@ cache, and the telemetry-enabled flag.
 - Most modules are pure, side-effect-light, dependency-injected helpers; the design intent is that the two choke points wire them together.
 - Control/observability is contracted with Waves Central (the consumer). The stdin control channel reads one-line JSON envelopes `{"cmd":"pause"|"resume"|"try_now","sessionId":...}` written by Central into instl's stdin (Central's `ILiveProcess.sendCommand`); pause is **cooperative between curl batches** (in-flight curl invocations finish naturally and `.part` artifacts are preserved), so pause latency is bounded by the current batch — it is **not** a process kill. The separate cancel path remains process-kill via the `run-process --abort-file` mechanism. `downloadEvents` emits `DOWNLOAD_EVENT <compact-json>` lines (schemaVersion 1; events `download.session_state`/`file_state`/`retry_decision`/`capability`/`session_summary`) that Central parses before the legacy `DOWNLOAD_RETRY_DECISION <json>` line, which is kept for backward compatibility.
 - The control channel is only started for the URL-sync commands (`sync`, `synccopy`, `check-checksum`) — `_CONTROL_CHANNEL_COMMANDS` in `pyinstl/instl_main.py`.
-- Feature-flag defaults live in instl's bundled `defaults/InstlClient.yaml`, **not** on the consumer side (Waves Central does not set these flags). On this branch the shipped values are: `DOWNLOAD_TELEMETRY_ENABLED`=yes, `DOWNLOAD_RETRY_POLICY_ENABLED`=yes, `DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED`=no, `DOWNLOAD_COHORT`=control, `DOWNLOAD_RESUME_ENABLED`=**yes**, and `DOWNLOAD_CENTRAL_UX_ENABLED`=**yes**. NOTE: those last two run against the default-off convention the other `DOWNLOAD_*` flags follow, so any claim that resume or the structured UX is capability-gated is false as shipped. `downloadCohort._TRACKED_FLAGS` lists `False` for both, but that default applies only when the key is undefined — once `defaults/InstlClient.yaml` loads, the YAML value wins. Resume is additionally gated to validated CloudFront hosts/paths plus a signed-URL TTL window (`DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS`, default 300); a 200 response to a range request, an identity change, or a near-expiry signed URL forces a safe restart-from-zero. Adaptive concurrency is **between-session only** (reads the previous run's `session-summary.json`); its start value (`DOWNLOAD_CONCURRENCY_START`, default 8) differs from the legacy non-adaptive `PARALLEL_SYNC` default of 50. The connectivity-loss self-sufficiency gates also live there and default **on**: `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, `DOWNLOAD_OFFLINE_HOLD_ENABLED` (with probe/hold tunables), `DOWNLOAD_CURL_STALL_DETECTION` (+ watchdog), and `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (+ opt-in redownload budgets, default unlimited) — each an independent kill switch surfaced on `download.capability.featureFlags`; only `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (the handshake by which a new Central opts into the backend-hold event stream) defaults **off**, so an old Central sees exactly the legacy events while the engine recovers silently (see `docs/download-events.md` §3.6 and `docs/LLD.md` for the full table).
+- Feature-flag defaults live in instl's bundled `defaults/InstlClient.yaml`, **not** on the consumer side (Waves Central sets only `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` and `PARALLEL_SYNC`). The shipped values are: `DOWNLOAD_TELEMETRY_ENABLED`=yes, `DOWNLOAD_RETRY_POLICY_ENABLED`=yes, `DOWNLOAD_RESUME_ENABLED`=yes, `DOWNLOAD_CENTRAL_UX_ENABLED`=yes. `downloadEvents._REPORTED_FLAGS` carries matching defaults, which apply only when a key is undefined — once `defaults/InstlClient.yaml` loads, the YAML value wins. Resume is additionally gated to validated CloudFront hosts/paths plus a signed-URL TTL window (`DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS`, default 300); a 200 response to a range request, an identity change, or a near-expiry signed URL forces a safe restart-from-zero. Download concurrency is fixed for the run: `PARALLEL_SYNC` config files are written at plan time, so the pool cannot adapt mid-session. The connectivity-loss self-sufficiency gates also live there and default **on**: `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, `DOWNLOAD_OFFLINE_HOLD_ENABLED` (with probe/hold tunables), `DOWNLOAD_CURL_STALL_DETECTION` (+ watchdog), and `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (+ opt-in redownload budgets, default unlimited) — each an independent kill switch surfaced on `download.capability.featureFlags`; only `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (the handshake by which a new Central opts into the backend-hold event stream) defaults **off**, so an old Central sees exactly the legacy events while the engine recovers silently (see `docs/download-events.md` §3.6 and `docs/LLD.md` for the full table).
 
 ---
 

@@ -15,8 +15,6 @@ from .downloadState import (
     temp_path_for_download_item,
     update_session_state,
 )
-from .downloadConcurrency import AdaptiveAction, resolve_concurrency_from_config
-from .downloadObservability import load_session_summary
 from .downloadControlChannel import get_global_channel
 from . import downloadEvents
 from pybatch import *
@@ -176,36 +174,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
             actual_num_config_files: actual number of curl config files created. Might be smaller
             than num_config_files, or might be 0 if downloading is not required.
         """
-        # must happen before curl config generation. PARALLEL_SYNC is adapted
-        # between sessions, from the previous invocation's session-summary.json
-        self._apply_adaptive_concurrency()
         dl_commands = AnonymousAccum()
         self.instlObj.dl_tool.create_download_instructions(dl_commands)
         return dl_commands
-
-    def _apply_adaptive_concurrency(self):
-        try:
-            decision = resolve_concurrency_from_config(
-                config_vars,
-                summary_loader=load_session_summary,
-            )
-        except Exception as ex:  # pragma: no cover - controller must never break sync
-            _log.debug(f"adaptive concurrency controller failed; keeping configured PARALLEL_SYNC: {ex}")
-            return
-        if decision.action == AdaptiveAction.OVERRIDE:
-            config_vars["PARALLEL_SYNC"] = str(decision.recommended)
-        elif decision.action == AdaptiveAction.DISABLED:
-            if "PARALLEL_SYNC" not in config_vars:
-                config_vars["PARALLEL_SYNC"] = str(decision.recommended)
-        else:
-            config_vars["PARALLEL_SYNC"] = str(decision.recommended)
-        _log.info(
-            "DOWNLOAD_ADAPTIVE_CONCURRENCY action=%s recommended=%d previous=%s reason=%s",
-            decision.action.value,
-            decision.recommended,
-            decision.previous,
-            decision.reason,
-        )
 
     def create_check_checksum_instructions(self, num_files):
         check_checksum_instructions_accum = AnonymousAccum()

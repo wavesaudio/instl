@@ -56,15 +56,15 @@ REQUIRED_KEYS = {
         "retryAfterSeconds", "httpStatus", "curlExitCode",
     },
     "download.capability": ENVELOPE_KEYS | {
-        "resumeEnabled", "adaptiveConcurrencyEnabled", "validatedHosts",
+        "resumeEnabled", "validatedHosts",
         "retryMatrixVersion", "stateSchemaVersion", "eventSchemaVersion",
-        "cohort", "featureFlags", "centralUxEnabled", "telemetryEnabled",
+        "featureFlags", "centralUxEnabled", "telemetryEnabled",
         "retryPolicyEnabled",
     },
     "download.session_summary": ENVELOPE_KEYS | {"summary"},
 }
 
-# The W1 live-progress fields are additive and only on in-flight download ticks.
+# The live-progress fields are additive and only on in-flight download ticks.
 SESSION_STATE_LIVE_FIELDS = {
     "bytesReceived", "filesCompleted", "observedThroughputBytesPerSecond",
 }
@@ -88,8 +88,7 @@ class TestEventContract(unittest.TestCase):
             "download.retry_decision": make_retry_decision_event(
                 retry, session_id="s1"),
             "download.capability": make_capability_event(
-                session_id="s1", resume_enabled=True,
-                adaptive_concurrency_enabled=False),
+                session_id="s1", resume_enabled=True),
             "download.session_summary": make_session_summary_event(
                 session_id="s1", summary={"wallMs": 10, "totals": {}}),
         }

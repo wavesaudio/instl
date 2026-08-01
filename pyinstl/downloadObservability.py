@@ -2,16 +2,12 @@
 
 """Throughput and error sampling for the bulk download engine.
 
-The adaptive concurrency controller in ``downloadConcurrency.py`` consumes the
-per-session summary written by this module to choose ``PARALLEL_SYNC`` for the
-next run.
-
 Aggregation runs in-process during a single ``instl`` invocation; callers feed
 it normalized outcomes from the existing ``CheckDownloadFolderChecksum`` and
 ``downloadVerify.emit_retry_decision`` choke points. The summary is persisted as a small
 JSON sidecar next to ``session.json`` under
-``$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state`` — client-owned local state
-whose only consumer is the controller.
+``$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state`` — client-owned local state,
+and emitted as the ``download.session_summary`` event Central renders from.
 
 Hosts are stored as bare hostnames (no path, query, or fragment); no URLs,
 cookies, headers, signed-URL material, or local user paths flow through this
@@ -355,32 +351,6 @@ def set_plan(files_planned: int | None, bytes_planned: int | None) -> None:
     _active_observability.set_plan(files_planned, bytes_planned)
 
 
-# -- Summary load (read-side, for the controller) ---------------------------
-
-
-def load_session_summary(bookkeeping_dir: str | Path | None) -> dict[str, Any] | None:
-    """Read the previous session-summary.json, or ``None`` if absent.
-
-    Returns the raw dict, not a typed object, so the controller tolerates
-    fields added between versions without a migration.
-    """
-    if not bookkeeping_dir:
-        return None
-    target = Path(bookkeeping_dir).joinpath(STATE_DIR_NAME, SESSION_SUMMARY_FILE_NAME)
-    if not target.is_file():
-        return None
-    try:
-        with open(target, "r", encoding="utf-8", errors="backslashreplace") as rfd:
-            data = json.load(rfd)
-        if not isinstance(data, dict):
-            return None
-        if int(data.get("schemaVersion", 0)) != DOWNLOAD_OBSERVABILITY_SCHEMA_VERSION:
-            return None  # unknown schema reads as "no data"
-        return data
-    except (OSError, ValueError):
-        return None
-
-
 # -- Internal helpers -------------------------------------------------------
 
 
@@ -430,7 +400,6 @@ __all__ = [
     "active",
     "end_session",
     "host_from_url",
-    "load_session_summary",
     "record_outcome",
     "record_retry_decision",
     "set_plan",

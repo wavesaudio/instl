@@ -361,7 +361,7 @@ The client command class that drives the whole sync. Subclasses `InstlClient`.
 
 #### `InstlInstanceSync_url` — `pyinstl/instlInstanceSync_url.py`
 
-The primary maintained backend. Generates curl-config-based download instructions with resume, adaptive concurrency, and a pause/resume control channel.
+The primary maintained backend. Generates curl-config-based download instructions with resume and a pause/resume control channel.
 
 Module-level typed config helpers (used only here): `_config_var_bool(name, default=False)`, `_config_var_int(name, default=0)`, `_config_var_list(name)` (the last also splits a single comma-joined value).
 
@@ -373,8 +373,7 @@ Module-level typed config helpers (used only here): `_config_var_bool(name, defa
   - Resolves `SYNC_BASE_URL`, fetches cookie, reads resume config (`DOWNLOAD_RESUME_ENABLED`, `DOWNLOAD_RESUME_VALIDATED_HOSTS`, `..._VALIDATED_PATH_PREFIXES`, `..._REQUIRE_CONDITIONAL` default True, `..._MIN_SIGNED_URL_TTL_SECONDS` default 300) and `resolve_validated_hosts(...)`.
   - Binds the control channel (`_bind_control_channel`), then per file: `control_channel.wait_if_paused()` (cooperative pause between files; never interrupts an in-flight curl), gets `source_url` via `info_map_table.get_sync_url_for_file_item(file_item)`, computes a `resume_decision_for_download_item(...)`, and calls `instlObj.dl_tool.add_download_url(source_url, file_item.download_path, verbatim=source_url==['url'], size=..., download_last=source_url.endswith('Info.xml'), output_path=temp_path_for_download_item(file_item), resume_from_byte=resume_decision.resume_from_byte, conditional_headers=resume_decision.conditional_headers)`.
 - `_bind_control_channel(bookkeeping_dir)` — gets the singleton via `get_global_channel()`, sets `session_id` from `__INVOCATION_RANDOM_ID__`, and installs `on_pause_event`/`on_resume_event` callbacks that (best-effort) `update_session_state(...)` to `PAUSED`/`DOWNLOADING` on disk and `downloadEvents.emit_session_state(...)`. Returns the channel.
-- `create_curl_download_instructions()` — calls `_apply_adaptive_concurrency()`, then `dl_tool.create_download_instructions(dl_commands)` into a fresh `AnonymousAccum`.
-- `_apply_adaptive_concurrency()` — calls `resolve_concurrency_from_config(config_vars, summary_loader=load_session_summary)`; on `OVERRIDE` sets `PARALLEL_SYNC` verbatim, on `DISABLED` sets it only if unset, otherwise sets the recommended value. Any exception is swallowed (controller must never break sync).
+- `create_curl_download_instructions()` — calls `dl_tool.create_download_instructions(dl_commands)` into a fresh `AnonymousAccum`.
 - `create_check_checksum_instructions(num_files)` — emits `Progress` + `CheckDownloadFolderChecksum(own_progress_count=num_files, max_bad_files_to_redownload=MAX_BAD_FILES_TO_REDOWNLOAD default 16)`.
 - `create_instructions_to_remove_redundant_files_in_sync_folder()` — `os.scandir`/`os.walk` the sync dir (skipping `bookkeeping` and `.DS_Store`), builds partial paths, asks `info_map_table.get_files_that_should_be_removed_from_sync_folder(...)`, and emits `RmFile(f)` per redundant file plus a trailing `RemoveEmptyFolders(...)`.
 - `create_download_instructions()` — computes already-synced vs to-download counts/bytes, sets `__NUM_FILES_TO_DOWNLOAD__`/`__NUM_BYTES_TO_DOWNLOAD__`, short-circuits when 0 files. Otherwise assembles: `create_sync_folders()` → `PrepareDownloadTempFiles(own_progress_count=0, report_own_progress=False)` → `ReportDownloadStarted(files_planned=..., bytes_planned=..., own_progress_count=0, report_own_progress=False)` → `create_sync_urls(file_list)` → `create_curl_download_instructions()` → `create_sync_folder_manifest_command("after-sync", back_ground=True)` → `create_check_checksum_instructions(...)`.
@@ -382,7 +381,7 @@ Module-level typed config helpers (used only here): `_config_var_bool(name, defa
 - `chown_for_synced_folders()` — **Mac-only** (`__CURRENT_OS__ == "Mac"`): for each `info_map_table.get_download_roots()` emits `ChmodAndChown(path=dr, mode="a+rwX", user_id=ACTING_UID, group_id=ACTING_GID, recursive=True, ignore_all_errors=True)`.
 - Module function `total_sizes_by_mount_point(file_list)` — sums sizes per `utils.find_mount_point(...)` (only referenced inside a dead `if False:` block).
 
-Collaborators: `instlObj.dl_tool` (CUrlHelper), `info_map_table`, the `downloadState`/`downloadConcurrency`/`downloadObservability`/`downloadControlChannel`/`downloadEvents` modules, and `pybatch` command objects.
+Collaborators: `instlObj.dl_tool` (CUrlHelper), `info_map_table`, the `downloadState`/`downloadObservability`/`downloadControlChannel`/`downloadEvents` modules, and `pybatch` command objects.
 
 #### `InstlInstanceSync_svn` — `pyinstl/instlInstanceSync_svn.py`
 
@@ -418,7 +417,7 @@ Stub. Only `init_sync_vars()` sets `self.local_sync_dir = os.fspath(config_vars[
 1. `prepare_list_of_sync_items()`: download remote `info_map.txt` (+ per-iid info_maps) into the SQLite-backed `info_map_table`, write `NEW_HAVE_INFO_MAP_PATH`; mark required items → `REQUIRED_INFO_MAP_PATH`; mark download items → `TO_SYNC_INFO_MAP_PATH`.
 2. `MakeDir` sync root, `Cd` into it.
 3. Remove redundant files (disk walk vs DB).
-4. `create_download_instructions`: tally counts, create sync folders, prep temp files, announce session, build curl URLs (per-file resume decisions + pause gating), apply adaptive concurrency, emit curl config + manifest + checksum check.
+4. `create_download_instructions`: tally counts, create sync folders, prep temp files, announce session, build curl URLs (per-file resume decisions + pause gating), emit curl config + manifest + checksum check.
 5. `post_sync`: Mac chown, then copy `NEW_HAVE_INFO_MAP_PATH` → `HAVE_INFO_MAP_PATH` (the persisted record of what is on disk).
 
 **Per-file resume decision (`create_sync_urls`):** resume only when `DOWNLOAD_RESUME_ENABLED` and the host/path-prefix is validated; `resume_decision_for_download_item` returns `resume_from_byte` (from the existing `.part` temp file at `temp_path_for_download_item(file_item)`) and `conditional_headers` (e.g. validators), honoring `require_conditional` and a minimum signed-URL TTL.
@@ -436,7 +435,7 @@ This subsystem does not define its own SQLite schema (that belongs to the info_m
 - curl `.part` temp files (`temp_path_for_download_item`).
 - `DownloadSessionState` persisted into `bookkeeping_dir` by `_bind_control_channel`'s callbacks.
 
-In-memory: `ConnectionHTTP.sessions` (netloc → `requests.Session`) and the process-global `ConnectionBase.repo_connection` singleton; plus config-var state `COOKIE_FOR_SYNC_URLS`, `__NUM_FILES_TO_DOWNLOAD__`, `__NUM_BYTES_TO_DOWNLOAD__`, and `PARALLEL_SYNC` (mutated by adaptive concurrency).
+In-memory: `ConnectionHTTP.sessions` (netloc → `requests.Session`) and the process-global `ConnectionBase.repo_connection` singleton; plus config-var state `COOKIE_FOR_SYNC_URLS`, `__NUM_FILES_TO_DOWNLOAD__`, `__NUM_BYTES_TO_DOWNLOAD__`.
 
 ### Invariants, edge cases, error handling, platform branches
 
@@ -445,7 +444,7 @@ In-memory: `ConnectionHTTP.sessions` (netloc → `requests.Session`) and the pro
 - `read_remote_info_map` wraps everything and re-raises on failure, logging the offending URL.
 - `create_download_instructions` short-circuits (no curl/checksum work) when `to_sync_num_files == 0`.
 - **Platform branches:** `import win32api` only on `win32` (and is unused in the file); `chown_for_synced_folders` runs only on Mac.
-- Adaptive-concurrency and control-channel callbacks are fully exception-guarded so they can never break a sync.
+- Control-channel callbacks are fully exception-guarded so they can never break a sync.
 - `verbatim=source_url==['url']` compares a string to a list literal — always `False` (see below).
 
 ### Targeted refactoring notes (this subsystem)
@@ -584,7 +583,7 @@ Separate `do_something` mode (extends `InstlInstanceBase`). `do_command()` sets 
 Subcommands mostly wrap a single pybatch command: `do_wtar`/`do_unwtar`/`do_wzip`, `do_checksum` (recursive checksums, formatted table), `do_ls` (per `__LIMIT_COMMAND_TO__`), `do_resolve` (`ResolveConfigVarsInFile` or `...InYamlFile`), `do_exec` (`Exec`, optionally reads `__CONFIG_FILE__` first), `do_translate_url`, `do_parallel_run` (`ParallelRun`), `do_version`/`do_help`/`do_fail`/`do_test_import`.
 - **`do_run_process()`** — parses an input file or `RUN_PROCESS_ARGUMENTS` into `RunProcessInfo` namedtuples, handling `>`/`>>` redirects and `2>&1`; runs each via `Subprocess` (or stdout for `echo`). Calls `setup_abort_file_monitoring()`.
 - **`setup_abort_file_monitoring()`** — if `ABORT_FILE` set, spawns a daemon `psutil` watchdog thread that, when the abort file disappears, kills all child processes and `os._exit`s.
-- **`do_check_checksum()`** — the heavy one: wires the download observability/events/cohort telemetry around `CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()`. It starts an observability session (`downloadObservability.start_session`), reads rollout flags (`downloadCohort.active_flags_from_config`, kill switches `DOWNLOAD_TELEMETRY_ENABLED`/`DOWNLOAD_RETRY_POLICY_ENABLED`/`DOWNLOAD_CENTRAL_UX_ENABLED`), resolves validated hosts and cohort, emits capability/session-state events, runs the check inside `try/finally`, and on finish marks/ends the session, persists a summary snapshot to `LOCAL_REPO_BOOKKEEPING_DIR`, and emits `completed`/summary events. Many nested `try/except: pass` blocks deliberately swallow telemetry errors so they cannot break the sync run.
+- **`do_check_checksum()`** — the heavy one: wires the download observability/events telemetry around `CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()`. It starts an observability session (`downloadObservability.start_session`), reads the kill-switch map (`downloadEvents.active_flags_from_config`: `DOWNLOAD_TELEMETRY_ENABLED`/`DOWNLOAD_RETRY_POLICY_ENABLED`/`DOWNLOAD_CENTRAL_UX_ENABLED`), resolves validated hosts, emits capability/session-state events, runs the check inside `try/finally`, and on finish marks/ends the session, persists a summary snapshot to `LOCAL_REPO_BOOKKEEPING_DIR`, and emits `completed`/summary events. Many nested `try/except: pass` blocks deliberately swallow telemetry errors so they cannot break the sync run.
 
 ### `installItemGraph` (`pyinstl/installItemGraph.py`)
 
@@ -619,7 +618,7 @@ Thin `networkx` wrapper, used for cycle/needed-by analysis (by `instlInstanceBas
 3. **Near-duplicate target-OS/sync-url init** (`instlClient.py` vs `instlDoIt.py`). The `SYNC_BASE_URL_MAIN_ITEM` + `TARGET_OS_*` block is copy-pasted; pull it up into `instlInstanceBase`.
 4. **Implicit data flow via config_vars + in-place row mutation** (`instlClient.py`; `instlClientUninstall.py`). Calculation results round-trip through `__*__` config keys and uninstall mutates `req_trans['status']`. Return explicit structures from calculation methods.
 5. **Scattered platform branching + dead comment block** (`instlClientCopy.py, 184-191, 243-258` and dead block). Isolate per-platform post-copy steps behind a strategy object and delete the commented-out `_for_dir_extended` body.
-6. **`do_check_checksum` telemetry sprawl** (`instlMisc.py`). A misc utility now owns cross-subsystem session/event/cohort wiring with many silent `try/except: pass`. Move setup/teardown into a context manager in the `download*` package so `do_check_checksum` just enters it.
+6. **`do_check_checksum` telemetry sprawl** (`instlMisc.py`). A misc utility now owns cross-subsystem session/event wiring with many silent `try/except: pass`. Move setup/teardown into a context manager in the `download*` package so `do_check_checksum` just enters it.
 7. **Fragile `super().__thisclass__.__name__` idiom** (`instlClient.py`; `instlClientCopy.py`; `instlClientRemove.py`; `instlClientUninstall.py`; `instlClientReport.py`). Replace with `type(self).__name__` or an explicit class attribute for the defaults-file key.
 8. **Buggy/dead `find_leaves`** (`installItemGraph.py`). `neighbors()` iterator is always truthy. Remove, or fix to `graph.out_degree(node) == 0`.
 9. **Inline `InstlClientSyncCopy`** (`instlClient.py`). Defines a new type per `synccopy` invocation, hiding the Sync+Copy MRO. Promote to a real module/class for parity with the other subclasses.
@@ -955,9 +954,9 @@ I have all the detail I need. Here is the LLD section.
 
 ## Download Subsystem
 
-This subsystem drives `instl`'s bulk file download. It builds `curl` config files and parallel-run plans, classifies and retries transfer failures, supports cooperative pause/resume/`try_now` via a stdin control channel, persists per-session and per-file download state plus resume sidecars, samples throughput/errors, recommends between-session concurrency, emits a structured JSON-line event channel to Central, and tags installs into rollout cohorts. The `curl` drivers are the `pybatch` commands `ParallelRun` and `CurlWithInternalParallel`, the latter a thin command whose orchestration lives in `CurlTransfer` (`pyinstl/downloadTransfer.py`); the `curlHelper`-generated commands invoke them. Most modules are pure, dependency-injected helpers consumed at two choke points: `pyinstl/instlInstanceSync_url.py` (planning) and `pybatch/info_mapBatchCommands.py` `CheckDownloadFolderChecksum` (in-process redownload/verify).
+This subsystem drives `instl`'s bulk file download. It builds `curl` config files and parallel-run plans, classifies and retries transfer failures, supports cooperative pause/resume/`try_now` via a stdin control channel, persists per-session and per-file download state plus resume sidecars, samples throughput/errors, and emits a structured JSON-line event channel to Central. The `curl` drivers are the `pybatch` commands `ParallelRun` and `CurlWithInternalParallel`, the latter a thin command whose orchestration lives in `CurlTransfer` (`pyinstl/downloadTransfer.py`); the `curlHelper`-generated commands invoke them. Most modules are pure, dependency-injected helpers consumed at two choke points: `pyinstl/instlInstanceSync_url.py` (planning) and `pybatch/info_mapBatchCommands.py` `CheckDownloadFolderChecksum` (in-process redownload/verify).
 
-> **Cross-checked against Waves Central's download-system-enhancement design docs** (`Central/download-system-enhancement/`). The contracts this section documents match those docs: the `DownloadSessionState`/`DownloadFileState` enums equal Central's canonical session/per-file state model (`state-model.md`); `DownloadFailureClass` is a superset of Central's failure taxonomy and its retryable set / curl-exit-code map align with `failure-corpus.md`; the `session.json` / `files/<fileId>.json` schema, `fileId = sha256(revision, repo_path, checksum, size)`, `<final>.instl-<fileId[0:16]>.part` temp name, and same-dir-temp + `os.replace` discipline match Central's persisted-state contract; the stdin `{cmd:pause|resume|try_now, sessionId?}` envelope, the `DOWNLOAD_EVENT <json>`/legacy `DOWNLOAD_RETRY_DECISION <json>` lines (schemaVersion 1), and the redaction denylist match as well. Central consumes these via `ShellInstlProcessProgressHandler`/`downloadEventParser.tsx`. Two nuances bound this engine: **offline detection is not client-side-only** — the engine detects an outage itself (connectivity probe + offline-hold in `CurlTransfer`) and, when the driving client declares `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`, emits `paused, reason="offline_no_network"` session_states plus network-class per-probe `retry_decision`s (with the capability absent — the shipped default — the hold recovers silently and only the legacy event stream is produced, so Central's client-side `onlineDetector.tsx` heuristic keeps working unchanged); and **adaptive concurrency is between-session only** — within-session control is not implemented.
+> **Cross-checked against Waves Central's download-system-enhancement design docs** (`Central/download-system-enhancement/`). The contracts this section documents match those docs: the `DownloadSessionState`/`DownloadFileState` enums equal Central's canonical session/per-file state model (`state-model.md`); `DownloadFailureClass` is a superset of Central's failure taxonomy and its retryable set / curl-exit-code map align with `failure-corpus.md`; the `session.json` / `files/<fileId>.json` schema, `fileId = sha256(revision, repo_path, checksum, size)`, `<final>.instl-<fileId[0:16]>.part` temp name, and same-dir-temp + `os.replace` discipline match Central's persisted-state contract; the stdin `{cmd:pause|resume|try_now, sessionId?}` envelope, the `DOWNLOAD_EVENT <json>`/legacy `DOWNLOAD_RETRY_DECISION <json>` lines (schemaVersion 1), and the redaction denylist match as well. Central consumes these via `ShellInstlProcessProgressHandler`/`downloadEventParser.tsx`. Two nuances bound this engine: **offline detection is not client-side-only** — the engine detects an outage itself (connectivity probe + offline-hold in `CurlTransfer`) and, when the driving client declares `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`, emits `paused, reason="offline_no_network"` session_states plus network-class per-probe `retry_decision`s (with the capability absent — the shipped default — the hold recovers silently and only the legacy event stream is produced, so Central's client-side `onlineDetector.tsx` heuristic keeps working unchanged); and **download concurrency is fixed for the run** — `instl` writes N curl config files at plan time and hands them to `ParallelRun`, so the process pool cannot adapt mid-session.
 
 ### Component breakdown
 
@@ -1039,30 +1038,16 @@ In-process per-session aggregator; persists `session-summary.json`.
 - `_HostCounters` (dataclass): totals plus per-host attempts/successes/failures/restarts/bytes/transfer-time/failure-classes.
 - `DownloadOutcome` (string subclass): `SUCCESS`/`FAILED_RETRYABLE`/`FAILED_TERMINAL`/`RESTART_FORCED`.
 - `DownloadObservability` methods: `set_plan(files, bytes)`, `record_outcome(*, outcome, url=None, host=None, failure_class=None, bytes_received=None, transfer_time_seconds=None)` (consumes only the host of `url`), `record_retry_decision(decision, ...)` (maps action→outcome), `mark_finished()`, `snapshot()` (computes `observedThroughputBytesPerSecond`, `errorRate`, `retryableErrorRate`), `save(bookkeeping_dir)`. All `record_*` calls swallow exceptions.
-- Module singleton: `start_session()`, `active()`, `end_session(bookkeeping_dir)`, `record_outcome`/`record_retry_decision`/`set_plan` (no-ops when no active session), and `load_session_summary(bookkeeping_dir)` (read-side for the controller; returns `None` on schema mismatch).
-
-#### `downloadConcurrency` (`pyinstl/downloadConcurrency.py`)
-
-Between-session adaptive `PARALLEL_SYNC` controller.
-- `ConcurrencyBounds` (frozen dataclass): `min/max/start` concurrency, `increase_step`/`decrease_step`, error-rate thresholds; `__post_init__` normalizes via `object.__setattr__`; `clamp(value)`. Defaults: min 2, max 50, start 8, +2/−4, backoff 0.15, grow 0.02.
-- `AdaptiveAction` (Enum) and `ConcurrencyDecision` (frozen dataclass).
-- `decide_next_concurrency(previous_summary, *, bounds=None, adaptive_enabled=True, user_override=None, configured_default=None)`: the decision matrix (see Algorithms).
-- `resolve_concurrency_from_config(config_vars, summary_loader=None)`: reads bounds + flags + `LOCAL_REPO_BOOKKEEPING_DIR`, loads the previous summary, runs the controller. Called by `instlInstanceSync_url.py`. Private forgiving accessors `_bool_var`/`_str_var`/`_optional_positive_int`/`_optional_positive_float`.
+- Module singleton: `start_session()`, `active()`, `end_session(bookkeeping_dir)`, `record_outcome`/`record_retry_decision`/`set_plan` (no-ops when no active session).
 
 #### `downloadEvents` (`pyinstl/downloadEvents.py`)
 
 Single source of truth for the `DOWNLOAD_EVENT <json>` channel.
 - `DownloadEventType` (Enum): `session_state`/`file_state`/`retry_decision`/`capability`/`session_summary`.
 - `make_envelope(...)`: `event`/`schemaVersion`/`sessionId`/`timestamp`. `_DISALLOWED_EVENT_FIELDS` + `_drop_disallowed`.
-- Builders `make_session_state_event` / `make_file_state_event` / `make_capability_event` / `make_session_summary_event` / `make_retry_decision_event`, with matching `emit_*` convenience wrappers. `make_capability_event` calls `downloadCohort.normalize_cohort`, filters `validated_hosts` to bare hosts, and forwards the flag map.
+- Builders `make_session_state_event` / `make_file_state_event` / `make_capability_event` / `make_session_summary_event` / `make_retry_decision_event`, with matching `emit_*` convenience wrappers. `make_capability_event` filters `validated_hosts` to bare hosts and forwards the flag map.
 - `emit_event(event)`: honors the `_telemetry_enabled` kill switch and swallows all errors. `set_telemetry_enabled(bool)` / `is_telemetry_enabled()`.
-
-#### `downloadCohort` (`pyinstl/downloadCohort.py`)
-
-Normalizes the rollout cohort label and keeps it honest against the active flag set.
-- `COHORTS`: ordered `control → atomicity → resume → retry → adaptive → ux`. `_REQUIRED_FLAGS_BY_COHORT` maps each cohort to the flags that must be on.
-- `normalize_cohort(raw)` (unknown → `control`), `resolve_cohort_from_config(config_vars)` (reads `DOWNLOAD_COHORT`, then downgrades), `downgrade_cohort_to_active_flags(cohort, active_flags)` (walks down `COHORTS` until all required flags are satisfied).
-- `_TRACKED_FLAGS` with defaults; `active_flags_from_config(config_vars)`, `tracked_flag_names()`. Consumed by `info_mapBatchCommands.py/659`. Now also tracks the connectivity-loss self-sufficiency gates (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, `DOWNLOAD_OFFLINE_HOLD_ENABLED`, `DOWNLOAD_CURL_STALL_DETECTION`, `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` — default True) and the `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` capability handshake (default False), so they surface on `download.capability.featureFlags`.
+- `_REPORTED_FLAGS` with defaults matching `defaults/InstlClient.yaml`; `active_flags_from_config(config_vars)` reads them for the capability event's `featureFlags`, so an operator can see which recovery layers were active on a failed install.
 
 #### Feature-flag defaults — the runtime contract (`defaults/InstlClient.yaml`)
 
@@ -1070,13 +1055,11 @@ These flags are the only runtime source of the download enhancement's behavior: 
 
 | flag | shipped default | rollout-plan / Central "default-off" contract |
 |---|---|---|
-| `PARALLEL_SYNC` | `50` | legacy non-adaptive default (adaptive `DOWNLOAD_CONCURRENCY_START` is `8`) |
-| `DOWNLOAD_RESUME_ENABLED` | **`yes`** | contract default-off |
-| `DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED` | `no` | default-off (matches contract) |
+| `PARALLEL_SYNC` | `50` | Waves Central injects `8`, or `4` when the user's "use fewer download processes" setting is on |
+| `DOWNLOAD_RESUME_ENABLED` | `yes` | kill switch |
 | `DOWNLOAD_TELEMETRY_ENABLED` | `yes` | default-on by design |
 | `DOWNLOAD_RETRY_POLICY_ENABLED` | `yes` | default-on by design |
-| `DOWNLOAD_CENTRAL_UX_ENABLED` | **`yes`** | contract default-off |
-| `DOWNLOAD_COHORT` | `control` | baseline cohort |
+| `DOWNLOAD_CENTRAL_UX_ENABLED` | `yes` | rollback hatch for the Central recovery-action UI |
 | `DOWNLOAD_RESUME_REQUIRE_CONDITIONAL` | `no` | — |
 | `DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS` | `300` | — |
 | `DOWNLOAD_RESUME_VALIDATED_HOSTS` | `[]` (empty → host derived from `BASE_LINKS_URL`) | resume host-gate; `DOWNLOAD_RESUME_VALIDATED_PATH_PREFIXES` defaults to `/$(REPO_NAME)/` |
@@ -1089,7 +1072,7 @@ These flags are the only runtime source of the download enhancement's behavior: 
 | `DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES` / `DOWNLOAD_REDOWNLOAD_MAX_SECONDS` | `0` / `0` (unlimited) | opt-in budgets for the redownload pass; checked between files, paused time excluded from the seconds budget |
 | `MAX_BAD_FILES_TO_REDOWNLOAD` (`InstlClientSync.yaml`) | `16` | with `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` on: a **warn threshold** (None/0 still means "verify only"); with it off: the legacy hard cap |
 
-> **Two flags ship on, against the default-off rollout convention.** `DOWNLOAD_RESUME_ENABLED` and `DOWNLOAD_CENTRAL_UX_ENABLED` are both `yes` in `defaults/InstlClient.yaml`, while the rollout convention for the other `DOWNLOAD_*` behaviors is default-off and capability/cohort-gated. So any statement that resume or the structured UX is capability-gated is **false as shipped here** — they are on unless a config overrides them. Note the two sources disagree: `downloadCohort._TRACKED_FLAGS` carries `False` defaults for both, but that default only applies when the key is undefined; once `defaults/InstlClient.yaml` is loaded the YAML value wins, so the YAML is authoritative at runtime.
+> **Resume and the structured UX ship on.** `DOWNLOAD_RESUME_ENABLED` and `DOWNLOAD_CENTRAL_UX_ENABLED` are both `yes` in `defaults/InstlClient.yaml`, so any statement that they are capability-gated is **false as shipped** — they are on unless a config overrides them. `downloadEvents._REPORTED_FLAGS` carries matching defaults, but those apply only when the key is undefined; once the YAML loads it is authoritative at runtime.
 
 #### `ParallelRun` (`pybatch/subprocessBatchCommands.py`) / `CurlTransfer` (`pyinstl/downloadTransfer.py`) curl drivers
 
@@ -1123,7 +1106,6 @@ The actual curl execution engine invoked by the `curlHelper`-generated commands.
 
 **4. Retry decision** (`decide_retry`): `next_attempt = previous_retry_count + 1`; `FAIL_TERMINAL` if the class is terminal/non-retryable or attempts exhausted; else compute backoff; action is `RESTART` if `restart_required`, `RESUME` if `resume_eligible`, otherwise `RESTART`.
 
-**5. Adaptive concurrency** (`decide_next_concurrency`), in order: `user_override`→OVERRIDE (clamped); `adaptive` off→DISABLED (configured default or start); no prior summary→FRESH_START (start); zero attempts→KEEP; terminal failures or `restarts >= max(1, attempts//5)`→DECREASE; `retryableErrorRate >= backoff_threshold`→DECREASE; healthy (`errorRate <= grow_threshold` and `successes >= max(4, attempts//2)`) with headroom→INCREASE; else KEEP. Every move is `clamp`-bounded to `[min, max]`.
 
 **6. Curl run loop** (`ParallelRun._run_with_pause_and_offline_hold`): run curl in parallel with `pause_check=channel.is_paused`; on `SystemExit`: code 0→return; `PAUSED_EXIT_CODE`→`wait_if_paused()`, reset `network_attempt`, retry (resumes from `.part`); fallback-eligible code→run exit-33 fresh-restart fallback; network-class curl error→`wait_if_paused()` then, while `network_retry_budget > 0`, decrement and back off `min(2*network_attempt, 10)` seconds via `channel.sleep_or_wake` (`try_now`/resume cuts it short) and retry; on budget exhaustion or non-network curl error raise `Exception(utils.get_curl_err_msg(code))`. *This describes the external-parallel driver; `CurlTransfer` (the shipped internal-parallel path) has since diverged — its loop additionally probes/holds offline, reconciles missing outputs, and emits capability-gated events (see the driver bullet list above and pybatch §3.2).*
 
@@ -1154,7 +1136,6 @@ Wire formats: `DOWNLOAD_EVENT <compact-json-sorted-keys>` and the legacy `DOWNLO
 
 1. **Duplicated (now diverging) curl run loop.** Both loops now live in `downloadTransfer`, but they are still two loops: `ParallelRunTransfer.run` and `CurlTransfer._run_config_with_recovery` each repeat the pause check and the bounded network-backoff skeleton. The channel lookup and the `is_network_error`/`can_run_fallback` predicates are already shared as module-level functions there. The two have **drifted by design**: the internal-parallel driver has offline-hold, output reconciliation, and stall detection that the external driver intentionally lacks — it drives many curl processes and only sees an aggregate exit code, so sharing is non-trivial and the checksum phase remains its completeness gate (stated in `ParallelRunTransfer`'s own docstring). Extract a shared run-controller parameterized by the run-callable; have both delegate. Note the `_run_fallback_after_curl_range_failure` pair on `ParallelRun`/`CurlTransfer` is out of scope — it is deliberately not shared. *(High impact — behavior drifts between the two drivers.)*
 2. **Duplicated privacy denylist.** `downloadEvents._DISALLOWED_EVENT_FIELDS` and `downloadRetry._DISALLOWED_EVENT_FIELDS` are near-identical (the events copy adds `localPath`/`downloadPath`). Define once in `downloadEvents` and import into `downloadRetry` to prevent silent divergence/leaks.
-3. **Duplicated config-var accessors.** `downloadConcurrency` (`_bool_var`/`_str_var`/`_optional_positive_int`/`_optional_positive_float`) vs `downloadCohort` (`_coerce_bool`/`_read_flag`/`_read_str`) re-implement forgiving `config_vars` reading. Provide one shared adapter.
 4. **Repeated ISO-UTC timestamp helper.** `downloadEvents._utc_now_iso`, `downloadObservability._utc_now_iso`, `downloadState.utc_now_iso`, and inline in `downloadRetry.RetryDecision.to_event` all do `isoformat(timespec="seconds").replace("+00:00","Z")`. Centralize one helper.
 5. **Duplicated atomic-JSON writers.** `downloadState.write_json_atomic` (indent=2/sort_keys, uuid temp name) vs `downloadObservability._atomic_write_json` (`tempfile.mkstemp`, compact). Unify into one utility parameterized by indent/sort.
 6. **Long methods mixing config-format and orchestration.** `_create_config_files_for_entries` and `create_download_instructions` each own header policy, retry-line policy, file cycling, isolated sections, the last-file `wait` barrier, and parallel-vs-internal branching. Split per-entry config writing from plan orchestration for unit-testability.
@@ -1163,7 +1144,7 @@ Wire formats: `DOWNLOAD_EVENT <compact-json-sorted-keys>` and the legacy `DOWNLO
 9. **Module-level mutable singletons.** `_GLOBAL_CHANNEL`, `_active_observability`, `_telemetry_enabled`, and `CUrlHelper.cached_internal_parallel` are process-wide mutable state requiring `reset_*` test hooks and making concurrent/test isolation fragile. Where feasible thread an explicit context object through the two choke points, keeping the singleton as a thin default.
 
 Relevant files (all absolute):
-`pyinstl/curlHelper.py`, `downloadFailures.py`, `downloadRetry.py`, `downloadControlChannel.py`, `downloadState.py`, `downloadObservability.py`, `downloadConcurrency.py`, `downloadEvents.py`, `downloadCohort.py`, `downloadTransfer.py` (same directory), and `pybatch/subprocessBatchCommands.py`.
+`pyinstl/curlHelper.py`, `downloadFailures.py`, `downloadRetry.py`, `downloadControlChannel.py`, `downloadState.py`, `downloadObservability.py`, `downloadEvents.py`, `downloadTransfer.py` (same directory), and `pybatch/subprocessBatchCommands.py`.
 
 ---
 
@@ -1257,7 +1238,7 @@ Runs the bulk download as a single `curl --config <file>` using curl's internal 
 - **Recovery-cliff removal (`DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES`, default on):** `max_bad_files_to_redownload` is reinterpreted as a **warn threshold** — the verify loop counts ALL bad/missing files (warning once at the crossing; `_bad_file_progress` throttles per-file bad lines past the threshold so a mass failure doesn't flood the log, while bookkeeping and per-file retry_decision events stay unthrottled) and the redownload pass ALWAYS runs when enabled (`None`/0 still means "verify only" — the in-process `check-checksum` command and old generated scripts rely on that). With the kill switch off, the legacy count cliff is restored exactly: the verify loop breaks at cap+1 and skips redownload entirely (which used to fail e.g. 33 missing files with zero recovery attempts at a cap of 32). The final `Bad checksum for N files / Missing M files` `ValueError` format is unchanged — Central regexes on it.
 - `re_download_bad_files` / `_redownload_one_file` — pause-aware per-file bounded retry via `downloadControlChannel` and `downloadRetry`. With the flag on, the pass is bounded by `_RedownloadBudget` (`DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES` / `DOWNLOAD_REDOWNLOAD_MAX_SECONDS`, both default 0 = unlimited — the legacy pass always completed every attempted file, so a non-zero default would abandon slow-network recoveries that used to succeed) instead of a count cliff: the budget is checked **between** files (a file in flight is never abandoned), files beyond an exhausted budget stay counted as bad, and the seconds budget measures **active** time only — `_PauseTrackingChannel` (a delegating wrapper around the control channel) measures time blocked in `wait_if_paused` so an outage hold never burns the recovery budget. Tests: `pyinstl/test/test_redownloadBudget.py`.
 
-This class imports ~8 `pyinstl.download*` modules (downloadState/downloadFailures/downloadRetry/downloadObservability/downloadEvents/downloadCohort/downloadControlChannel), making it the de-facto download orchestrator (see refactor notes).
+This class imports several `pyinstl.download*` modules (downloadState/downloadFailures/downloadRetry/downloadObservability/downloadEvents/downloadControlChannel), making it the de-facto download orchestrator (see refactor notes).
 
 #### 2.6 Conditionals (`pybatch/conditionalBatchCommands.py`)
 

@@ -5,7 +5,7 @@
 These tests run without ``instl`` runtime dependencies. They exercise
 the per-session in-memory aggregator, the privacy rules around URL
 ingestion, the JSON snapshot shape consumed by the controller, and
-``load_session_summary`` round-trip.
+atomic summary persistence.
 """
 
 import json
@@ -24,13 +24,19 @@ from downloadObservability import (
     DownloadOutcome,
     end_session,
     host_from_url,
-    load_session_summary,
     record_outcome,
     record_retry_decision,
     set_plan,
     start_session,
 )
 from downloadRetry import RetryAction, RetryDecision
+
+
+def _read_summary(bookkeeping_dir):
+    """Read back the persisted session-summary.json to assert on its content."""
+    target = Path(bookkeeping_dir).joinpath("download-state", "session-summary.json")
+    with open(target, "r", encoding="utf-8") as rfd:
+        return json.load(rfd)
 
 
 class _FrozenClock:
@@ -205,26 +211,12 @@ class TestObservabilityPersistence(unittest.TestCase):
             expected = bookkeeping.joinpath("download-state", "session-summary.json")
             self.assertEqual(target, expected)
 
-            loaded = load_session_summary(bookkeeping)
-            self.assertIsNotNone(loaded)
+            loaded = _read_summary(bookkeeping)
             self.assertEqual(loaded["sessionId"], "round-trip")
             self.assertEqual(loaded["filesPlanned"], 42)
             self.assertEqual(loaded["bytesPlanned"], 1024 * 1024)
             self.assertEqual(loaded["totals"]["successes"], 1)
             self.assertEqual(loaded["hosts"]["cdn.example.com"]["bytesReceived"], 1024)
-
-    def test_load_returns_none_when_missing(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self.assertIsNone(load_session_summary(Path(tmpdir).joinpath("bookkeeping")))
-
-    def test_load_rejects_unknown_schema_version(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            bookkeeping = Path(tmpdir).joinpath("bookkeeping")
-            state_dir = bookkeeping.joinpath("download-state")
-            state_dir.mkdir(parents=True)
-            with open(state_dir.joinpath("session-summary.json"), "w", encoding="utf-8") as wfd:
-                json.dump({"schemaVersion": 9999, "sessionId": "future"}, wfd)
-            self.assertIsNone(load_session_summary(bookkeeping))
 
 
 class TestModuleSingleton(unittest.TestCase):
@@ -260,8 +252,7 @@ class TestModuleSingleton(unittest.TestCase):
             )
             target = end_session(bookkeeping)
             self.assertIsNotNone(target)
-            loaded = load_session_summary(bookkeeping)
-            self.assertIsNotNone(loaded)
+            loaded = _read_summary(bookkeeping)
             self.assertEqual(loaded["sessionId"], "mod")
             self.assertEqual(loaded["concurrencyPlanned"], 4)
             self.assertEqual(loaded["totals"]["attempts"], 2)
