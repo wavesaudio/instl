@@ -1,7 +1,9 @@
 #!/usr/bin/env python3.12
 
-"""Bulk curl download orchestration for the internal-parallel transfer, driven by
-the ``pybatch.subprocessBatchCommands.CurlWithInternalParallel`` batch command.
+"""Bulk curl download orchestration for both drivers in
+``pybatch.subprocessBatchCommands``: :class:`CurlTransfer` for the internal-parallel
+transfer (``CurlWithInternalParallel``, one curl with ``--parallel``, what ships) and
+:class:`ParallelRunTransfer` for the legacy ``ParallelRun`` (many curl processes).
 
 ``pybatch`` must NOT be imported here -- it resolves this module lazily at call
 time because ``pyinstl/__init__`` pulls ``pybatch`` in through
@@ -14,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shlex
 import socket
 import subprocess
 import time
@@ -67,6 +70,24 @@ def can_run_fallback(fallback_config_file, exit_code, fallback_exit_codes):
         fallback_config_file
         and int(exit_code) in {int(code) for code in fallback_exit_codes}
     )
+
+
+def is_curl_command(commands):
+    """True when a parallel-run batch is a curl batch. Only such a batch gets a
+    control channel wired, so a pause can never stall e.g. a copy."""
+    return bool(commands) and Path(commands[0][0]).name.lower().startswith("curl")
+
+
+def read_parallel_run_config_file(resolved_config_file):
+    """Parse a parallel-run config file into one argv list per non-comment line."""
+    commands = list()
+    with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
+        for line in rfd:
+            line = line.strip()
+            if line and line[0] != "#":
+                args = shlex.split(line)
+                commands.append(args)
+    return commands
 
 
 # converts a number of bytes to human-readable string
@@ -863,3 +884,74 @@ class CurlTransfer:
         if fallback_process.stderr:
             log.info(fallback_process.stderr)
         fallback_process.check_returncode()
+
+
+class ParallelRunTransfer:
+    """Drives one parallel-run batch through ``utils.run_processes_in_parallel``:
+    pause/resume and a bounded backoff for network-class curl exits.
+
+    This runner spawns many curl processes and only sees an aggregate exit code, so
+    it has none of :class:`CurlTransfer`'s reconciliation / offline-hold / stall
+    watchdog: the checksum phase remains its completeness gate.
+    """
+
+    def __init__(self, commands, shell, action_name, channel=None,
+                 fallback_config_file=None, fallback_exit_codes=()):
+        self.commands = commands
+        self.shell = shell
+        self.action_name = action_name
+        self.channel = channel  # None for a non-curl batch, which is never paused
+        self.fallback_config_file = fallback_config_file
+        self.fallback_exit_codes = fallback_exit_codes
+
+    def run(self):
+        """Run the batch, honoring pause and surviving a brief offline.
+
+        On pause the runner terminates curl and returns PAUSED_EXIT_CODE; we
+        wait_if_paused() and re-run, which resumes from the .part files via
+        continue-at. A network-class curl exit without a pause gets a bounded
+        backoff instead, so a short blip recovers rather than failing the session.
+
+        Returns the exit code the CALLER must answer with its range-failure
+        fallback, or None when the batch is done: that fallback stays on the
+        ParallelRun command, which owns the config path and the `doing` it reports
+        through.
+        """
+        is_curl = is_curl_command(self.commands)
+        channel = self.channel
+        pause_check = channel.is_paused if channel is not None else None
+        network_retry_budget = 12
+        network_attempt = 0
+        while True:
+            try:
+                utils.run_processes_in_parallel(self.commands, self.shell, pause_check=pause_check)
+                return None  # run_processes_in_parallel always sys.exits; here for safety
+            except SystemExit as sys_exit:
+                code = sys_exit.code
+                if code == 0:
+                    return None
+                if code == utils.PAUSED_EXIT_CODE:
+                    log.info(f"{self.action_name} paused; holding until resume")
+                    if channel is not None:
+                        channel.wait_if_paused()
+                    network_attempt = 0
+                    continue
+                if can_run_fallback(self.fallback_config_file, code, self.fallback_exit_codes):
+                    return code
+                if is_curl and is_network_error(code):
+                    if channel is not None:
+                        channel.wait_if_paused()
+                    if network_retry_budget > 0:
+                        network_retry_budget -= 1
+                        network_attempt += 1
+                        backoff = min(2 * network_attempt, 10)
+                        log.info(f"{self.action_name} network error (curl {code}); retry in {backoff}s ({network_retry_budget} left)")
+                        if channel is not None:
+                            channel.sleep_or_wake(backoff)  # try_now/resume cuts this short
+                        else:
+                            time.sleep(backoff)
+                        continue
+                    raise Exception(utils.get_curl_err_msg(code))
+                if is_curl:
+                    raise Exception(utils.get_curl_err_msg(code))
+                raise

@@ -309,7 +309,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
         PythonBatchCommandBase.__call__(self, *args, **kwargs)
         resolved_config_file = utils.ExpandAndResolvePath(self.config_file)
         self.doing = f"""{self.get_action_name()} reading config file '{resolved_config_file}'"""
-        commands = self._read_parallel_run_config_file(resolved_config_file)
+        commands = _download_transfer().read_parallel_run_config_file(resolved_config_file)
         try:
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
             self._run_with_pause_and_offline_hold(commands)
@@ -325,77 +325,27 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
             return None
 
     def _run_with_pause_and_offline_hold(self, commands):
-        """Run the parallel batch, honoring pause and surviving a brief offline.
-
-        On pause the runner terminates curl and returns PAUSED_EXIT_CODE; we
-        wait_if_paused() and re-run, which resumes from the .part files via
-        continue-at. A network-class curl exit without a pause gets a bounded
-        backoff instead, so a short blip recovers rather than failing the session.
-
-        This runner drives many curl processes through run_processes_in_parallel and
-        only sees an aggregate exit code, so it has none of CurlTransfer's
-        reconciliation / offline-hold / stall watchdog: the checksum phase remains
-        its completeness gate.
-        """
+        """Hand the batch to pyinstl.downloadTransfer.ParallelRunTransfer, which owns
+        the pause/offline/retry run loop. The channel is wired only for a curl batch,
+        so a pause cannot stall e.g. a copy; the range-failure fallback comes back
+        here because it reports through self.doing."""
         download_transfer = _download_transfer()
-        is_curl = self._is_curl_command(commands)
-        channel = self._control_channel() if is_curl else None
-        pause_check = channel.is_paused if channel is not None else None
-        network_retry_budget = 12
-        network_attempt = 0
-        while True:
-            try:
-                utils.run_processes_in_parallel(commands, self.shell, pause_check=pause_check)
-                return  # run_processes_in_parallel always sys.exits; here for safety
-            except SystemExit as sys_exit:
-                code = sys_exit.code
-                if code == 0:
-                    return
-                if code == utils.PAUSED_EXIT_CODE:
-                    log.info(f"{self.get_action_name()} paused; holding until resume")
-                    if channel is not None:
-                        channel.wait_if_paused()
-                    network_attempt = 0
-                    continue
-                if download_transfer.can_run_fallback(self.fallback_config_file, code,
-                                                     self.fallback_exit_codes):
-                    self._run_fallback_after_curl_range_failure(code)
-                    return
-                if is_curl and download_transfer.is_network_error(code):
-                    if channel is not None:
-                        channel.wait_if_paused()
-                    if network_retry_budget > 0:
-                        network_retry_budget -= 1
-                        network_attempt += 1
-                        backoff = min(2 * network_attempt, 10)
-                        log.info(f"{self.get_action_name()} network error (curl {code}); retry in {backoff}s ({network_retry_budget} left)")
-                        if channel is not None:
-                            channel.sleep_or_wake(backoff)  # try_now/resume cuts this short
-                        else:
-                            time.sleep(backoff)
-                        continue
-                    raise Exception(utils.get_curl_err_msg(code))
-                if is_curl:
-                    raise Exception(utils.get_curl_err_msg(code))
-                raise
-
-    def _read_parallel_run_config_file(self, resolved_config_file):
-        commands = list()
-        with utils.utf8_open_for_read(resolved_config_file, "r") as rfd:
-            for line in rfd:
-                line = line.strip()
-                if line and line[0] != "#":
-                    args = shlex.split(line)
-                    commands.append(args)
-        return commands
-
-    def _is_curl_command(self, commands):
-        return bool(commands) and Path(commands[0][0]).name.lower().startswith("curl")
+        channel = self._control_channel() if download_transfer.is_curl_command(commands) else None
+        transfer = download_transfer.ParallelRunTransfer(
+            commands=commands, shell=self.shell, action_name=self.get_action_name(),
+            channel=channel, fallback_config_file=self.fallback_config_file,
+            fallback_exit_codes=self.fallback_exit_codes)
+        fallback_exit_code = transfer.run()
+        if fallback_exit_code is not None:
+            self._run_fallback_after_curl_range_failure(fallback_exit_code)
 
     def _run_fallback_after_curl_range_failure(self, exit_code):
-        """Re-run the batch from zero using the fallback parallel-run config."""
+        """Re-run the batch from zero using the fallback parallel-run config. Not
+        shared with CurlTransfer's namesake: that one hands curl one --config file,
+        this one re-reads a command-per-line file and re-drives the parallel runner."""
+        download_transfer = _download_transfer()
         resolved_fallback_config_file = utils.ExpandAndResolvePath(self.fallback_config_file)
-        fallback_commands = self._read_parallel_run_config_file(resolved_fallback_config_file)
+        fallback_commands = download_transfer.read_parallel_run_config_file(resolved_fallback_config_file)
         self.doing = (
             f"{self.get_action_name()} curl resume failed with exit code {exit_code}; "
             f"retrying from zero with fallback config '{resolved_fallback_config_file}'"
@@ -405,7 +355,7 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={
             utils.run_processes_in_parallel(fallback_commands, self.shell)
         except SystemExit as fallback_exit:
             if fallback_exit.code != 0:
-                if self._is_curl_command(fallback_commands):
+                if download_transfer.is_curl_command(fallback_commands):
                     err_msg = utils.get_curl_err_msg(fallback_exit.code)
                     raise Exception(err_msg)
                 raise
