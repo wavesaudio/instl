@@ -164,5 +164,82 @@ class TestCurlDownloadTweaks(unittest.TestCase):
         )
 
 
+class TestCurlParallelMeterRegex(unittest.TestCase):
+    """The `curl --parallel` progress-meter parser in CurlTransfer._run_curl_once.
+
+    Lines below are captured verbatim from real runs: curl 8.7.1 (macOS) and
+    curl 8.21.0 (the system curl Waves Central invokes on Windows). Up to 8.19 an
+    unknown time column printed "--:--:--"; 8.20+ leaves it blank, which used to
+    make every Windows meter line fail to parse.
+    """
+
+    # curl 8.7.1 -- placeholder time columns
+    METER_LINES_8_7 = [
+        ("--  --      0     0     6     6  --:--:-- --:--:-- --:--:--     0      ", "0", "6", "6", "0"),
+        ("--  --  26847     0     6     6  --:--:--  0:00:01 --:--:-- 23447      ", "26847", "6", "6", "23447"),
+        ("--  --   403k     0     6     6  --:--:--  0:00:01 --:--:--  244k      ", "403k", "6", "6", "244k"),
+        ("100 --   600k     0     6     0   0:00:01  0:00:01 --:--:--  333k      ", "600k", "6", "0", "333k"),
+    ]
+
+    # curl 8.21.0 -- blank time columns
+    METER_LINES_8_21 = [
+        ("--  --      0     0     6     1                                 0      ", "0", "6", "1", "0"),
+        ("--  --   100k     0     6     5           00:00:01          52111      ", "100k", "6", "5", "52111"),
+        ("--  --   482k     0     6     2           00:00:03           156k      ", "482k", "6", "2", "156k"),
+        (" 90 --   540k     0     6     1  00:00:04 00:00:03           146k      ", "540k", "6", "1", "146k"),
+        ("100 --   600k     0     6     0  00:00:03 00:00:03           150k     ", "600k", "6", "0", "150k"),
+    ]
+
+    @staticmethod
+    def _meter_regex():
+        """The regex as it appears in CurlTransfer._run_curl_once."""
+        return re.compile(r"""^\s*
+           (?P<DL_percent>[\d.-]+)\s+
+           (?P<UL_percent>[\d.-]+)\s+
+           (?P<Dled>[\d.a-z]+)\s+
+           (?P<Uled>[\d.a-z]+)\s+
+           (?P<Xfers>[\d]+)\s+
+           (?P<Live>[\d]+)\s+
+           (?P<Queue>[\d]+)?\s*?
+           (?P<Total>[\d:-]+)?\s+
+           (?P<Current>[\d:-]+)?\s+
+           (?P<Left>[\d:-]+)?\s+
+           (?P<Speed>[\d.a-z]+)
+           (?P<the_rest>.*)?$""", re.IGNORECASE | re.VERBOSE)
+
+    def _assert_parses(self, lines, label):
+        reg = self._meter_regex()
+        for line, dled, xfers, live, speed in lines:
+            with self.subTest(curl=label, line=line.strip()):
+                match = reg.match(line)
+                self.assertIsNotNone(match, f"{label} meter line did not parse: {line!r}")
+                self.assertEqual(match.group("Dled"), dled)
+                self.assertEqual(match.group("Xfers"), xfers)
+                self.assertEqual(match.group("Live"), live)
+                self.assertEqual(match.group("Speed"), speed)
+
+    def test_parses_curl_8_7_placeholder_time_columns(self):
+        self._assert_parses(self.METER_LINES_8_7, "curl 8.7.1")
+
+    def test_parses_curl_8_21_blank_time_columns(self):
+        # This is the regression: requiring Total/Current/Left matched none of these.
+        self._assert_parses(self.METER_LINES_8_21, "curl 8.21.0")
+
+    def test_source_regex_keeps_the_time_columns_optional(self):
+        # Guard the actual source, not just the copy above, so tightening the
+        # regex back up fails here instead of silently in the field.
+        source = Path(__file__).parent.parent.joinpath("downloadTransfer.py").read_text(encoding="utf-8")
+        for group in ("Total", "Current", "Left"):
+            self.assertIn(f"(?P<{group}>[\\d:-]+)?", source,
+                          f"{group} must stay optional: curl 8.20+ leaves it blank")
+
+    def test_ignores_non_meter_output(self):
+        reg = self._meter_regex()
+        for line in ("DL% UL%  Dled  Uled  Xfers  Live Total     Current  Left    Speed",
+                     "curl: (28) Operation timed out",
+                     ""):
+            self.assertIsNone(reg.match(line), f"should not parse as a meter line: {line!r}")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=3)

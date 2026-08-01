@@ -770,6 +770,12 @@ class CurlTransfer:
                                    start_new_session=True,
                                    bufsize=1,
                                    cwd=working_dir)
+        # Total/Current/Left are OPTIONAL: up to curl 8.19 an unknown time column
+        # printed the placeholder "--:--:--", but 8.20+ leaves it literally blank.
+        # Requiring them meant not one meter line matched under the system curl on
+        # Windows (8.21), so Dled/Xfers/Speed were never parsed there and the legacy
+        # progress line below was never emitted at all. Only Dled/Xfers/Live/Speed
+        # are consumed, and those parse identically either way.
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+
            (?P<UL_percent>[\d.-]+)\s+
@@ -778,9 +784,9 @@ class CurlTransfer:
            (?P<Xfers>[\d]+)\s+
            (?P<Live>[\d]+)\s+
            (?P<Queue>[\d]+)?\s*?
-           (?P<Total>[\d:-]+)\s+
-           (?P<Current>[\d:-]+)\s+
-           (?P<Left>[\d:-]+)\s+
+           (?P<Total>[\d:-]+)?\s+
+           (?P<Current>[\d:-]+)?\s+
+           (?P<Left>[\d:-]+)?\s+
            (?P<Speed>[\d.a-z]+)
            (?P<the_rest>.*)?$""",
            re.IGNORECASE | re.VERBOSE)
@@ -840,8 +846,9 @@ class CurlTransfer:
                         cumulative_bytes = min(self._bytes_high_water, self.total_bytes_to_download)
                         downloaded_bytes_str = bytes_to_string(cumulative_bytes)
 
-                        # legacy line, also feeding Central's older text-based
-                        # liveDownload parser where curl's meter works, e.g. Mac
+                        # legacy line, also feeding Central's text-based liveDownload
+                        # parser -- which is still the sole driver of Central's
+                        # progress-bar percentage, so this must keep being emitted
                         message = f"Progress ... of ...; " \
                                   f"Downloaded {downloaded_files} of {self.total_files_to_download} files, " \
                                   f"Downloaded {downloaded_bytes_str} of {bytes_to_download_str}, " \
