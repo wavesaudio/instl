@@ -37,7 +37,7 @@ instl.spec             PyInstaller build spec (universal2, console app)
 create_venv.sh         venv bootstrap (mac-only reqs first, then base)
 requirements*.txt      Dependency sets: base / admin / mac_only / win_only
 defaults/              Seed config YAML (main.yaml, Instl*.yaml) + SQLite DDL (*.ddl)
-docs/                  ARCHITECTURE.md, HLD.md, LLD.md, DOMAIN.md, TESTING.md, REFACTORING.md, download-*.md, CORROBORATION.md
+docs/                  ARCHITECTURE.md, HLD.md, LLD.md, DOMAIN.md, TESTING.md, REFACTORING.md, download-events.md
 manual/                User-facing manual (markdown)
 
 pyinstl/               CLI entry, command objects, sync backends, the download* subsystem
@@ -181,7 +181,6 @@ refactor", branch names as state, and internal process labels (workstream number
 ticket ids). Those mean nothing to a reader six months out. `REFACTORING.md` is the one document
 that legitimately carries status — and it must distinguish **done / not started / attempted and
 reverted** truthfully, including *why* a reverted approach failed, so nobody retries it blindly.
-`CORROBORATION.md` is a dated historical record; do not update it as if it were current.
 
 ### 9.5 Do not assert what you did not check
 
