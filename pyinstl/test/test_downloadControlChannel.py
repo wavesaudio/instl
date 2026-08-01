@@ -11,7 +11,6 @@ Covers:
 * The ``sleep_backoff`` helper in ``downloadRetry`` returns early on try_now.
 """
 
-import io
 import os
 import sys
 import threading

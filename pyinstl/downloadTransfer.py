@@ -255,7 +255,7 @@ class CurlTransfer:
     def _probe_host_and_port(self):
         """BASE_LINKS_URL's host when available, else the host of the first url
         entry in the curl config. Cached; (None, 443) when undeterminable."""
-        cached = getattr(self, "_probe_host_port_cache", None)
+        cached = self._probe_host_port_cache
         if cached is not None:
             return cached
         host, port = None, 443
@@ -358,7 +358,7 @@ class CurlTransfer:
         probe_interval = max(1, config_var_int("DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS", 5))
         hold_timeout = max(0, config_var_int("DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS", 1800))
         event_interval = max(probe_interval, config_var_int("DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS", 30))
-        already_used = getattr(self, "_hold_seconds_used", 0.0)
+        already_used = self._hold_seconds_used
         hold_start = time.monotonic()
         paused_seconds = 0.0
         log.info(f"{self.label} offline detected; holding until connectivity returns "
@@ -384,7 +384,7 @@ class CurlTransfer:
                          f"{int(time.monotonic() - hold_start)}s offline hold; resuming download")
                 self._emit_hold_session_state("downloading", "resuming_after_offline", previous_state="paused")
                 return True
-            self._offline_probe_attempt = getattr(self, "_offline_probe_attempt", 0) + 1
+            self._offline_probe_attempt += 1
             self._emit_network_retry_decision(
                 attempt=self._offline_probe_attempt,
                 reason="offline_hold_probe_failed",
@@ -420,7 +420,7 @@ class CurlTransfer:
                 reason=reason,
                 curl_exit_code=int(curl_exit_code) if curl_exit_code is not None else None,
             )
-            emit_retry_decision(decision, session_id=getattr(self, "_session_id", "unknown"))
+            emit_retry_decision(decision, session_id=self._session_id)
         except Exception as ex:  # pragma: no cover - instrumentation must never break a download
             log.debug(f"could not emit bulk retry decision event: {ex}")
 
@@ -438,7 +438,7 @@ class CurlTransfer:
             except Exception:
                 cumulative_bytes, files_est = 0, 0
             emit_session_state(
-                session_id=getattr(self, "_session_id", "unknown"),
+                session_id=self._session_id,
                 state=state,
                 previous_state=previous_state,
                 reason=reason,
@@ -595,7 +595,7 @@ class CurlTransfer:
         ``_run_curl_once``) so a paused gap is not divided into a bogus low speed."""
         try:
             now = time.monotonic()
-            last = getattr(self, "_last_emit_monotonic", None)
+            last = self._last_emit_monotonic
             if last is None:
                 # baseline only, but the carried-over EMA still rides along
                 self._last_emit_monotonic = now
@@ -618,7 +618,7 @@ class CurlTransfer:
             except Exception:
                 return  # structured channel unavailable; legacy text line still flows
             emit_session_state(
-                session_id=getattr(self, "_session_id", "unknown"),
+                session_id=self._session_id,
                 state="downloading",
                 bytes_received=int(cumulative_bytes),
                 files_completed=int(downloaded_files),
@@ -637,7 +637,7 @@ class CurlTransfer:
         ``output = "<final>.instl-<id>.part"``, so these are exactly the files curl
         grows on disk; summing their sizes gives true cumulative received bytes,
         independent of curl's console meter, which has no in-flight rows on Windows."""
-        cached = getattr(self, "_part_output_paths_cache", None)
+        cached = self._part_output_paths_cache
         if cached is not None:
             return cached
         paths = []
@@ -674,7 +674,7 @@ class CurlTransfer:
             files_est = int(self.total_files_to_download * min(1.0, total / planned_bytes))
         else:
             files_est = 0
-        prev_high = getattr(self, "_poll_files_high_water", 0)
+        prev_high = self._poll_files_high_water
         if files_est < prev_high:
             files_est = prev_high
         else:

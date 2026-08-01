@@ -21,7 +21,7 @@ import json
 import logging
 import sys
 import threading
-from typing import Any, Callable, Optional, TextIO
+from typing import Callable, Optional, TextIO
 
 _log = logging.getLogger(__name__)
 
