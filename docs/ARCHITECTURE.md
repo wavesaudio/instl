@@ -1,15 +1,5 @@
 # instl Architecture
 
-> **Modernization status (branch `instl-modernization`).** This document describes instl's
-> architecture; some of the god-objects it names have since been **decomposed into packages
-> behind thin backwards-compatible shims** (see `docs/REFACTORING.md` → "Modernization status").
-> Specifically `pyinstl/instlAdmin.py`, `pyinstl/instlClient.py`, and `pyinstl/instlGui.py` are now
-> re-export shims for the `pyinstl/admin/`, `pyinstl/client/`, and `pyinstl/gui/` packages
-> (behavior-identical mixin extracts). Public import paths and emitted output are unchanged, so the
-> flows and contracts below still hold; only the file layout changed. A typed `config_vars` seam
-> (`configVar/accessors.py`) now fronts the hottest OS-identity / input-file keys (Theme 2). These
-> deltas are flagged inline below.
-
 ## 1. Overview & Purpose
 
 **instl** is a YAML-driven, cross-platform software-deployment / installer engine by Waves Audio. It turns a central, version-controlled description of "what should be installed" (an *index* of install-items plus an *info-map* of every file in the repository) into an ordered, executable plan that downloads, unpacks, copies, permissions, and registers files on an end-user machine — and into the admin tooling that builds and publishes those repositories in the first place.
@@ -28,7 +18,7 @@ There is also a **doit** mode (`InstlDoIt`, a dependency-ordered generic action 
 
 instl's primary (and, in production, only) consumer is **Waves Central**, the Electron desktop app that installs/repairs/updates/removes Waves plug-ins and apps. From Central's vantage point instl is the **embedded install engine**: Central never reimplements install logic — it shells out to the bundled `instl` binary as a black-box CLI. (Confirmed by Central's own docs: "*Instl* - in-house solution for install/repair/update/remove plugins and apps", `Central project structure.md`.)
 
-- **How it ships.** The "latest" engine is built from this instl repo (currently branch `download-enhancements`) by running instl on itself — `instl doit --in Build-index.yaml --out build-instl.py --run --no-system-log` — which drives PyInstaller via `instl.spec` to produce an **onedir `instl.bundle`** (Central `build_instl/build_instl.sh`, `build_instl.py`). On Mac the bundle is signed with `codesign` (hardened runtime, timestamp, entitlements) per-file then bundle-wide, and on universal builds is re-signed/injected *after* the app is signed (`sign_instl.py`, `tasks/afterSign.js`). At runtime the bundle lives at `…/Waves Central.app/Contents/Resources/res/external/bin/instl.bundle/Contents/MacOS/instl` (Windows: `…/Win64/instl.exe`). Two checked-in **legacy** engines `instl-V9` / `instl-V10` ship alongside it under `…/bin/`; Central picks the engine per-repository (latest vs legacy V9) and forbids online actions on non-latest engines (`src/services/instl/behaviours/shell/common.tsx`).
+- **How it ships.** The "latest" engine is built from this instl repo (currently branch `download-enhancements-cont`) by running instl on itself — `instl doit --in Build-index.yaml --out build-instl.py --run --no-system-log` — which drives PyInstaller via `instl.spec` to produce an **onedir `instl.bundle`** (Central `build_instl/build_instl.sh`, `build_instl.py`). On Mac the bundle is signed with `codesign` (hardened runtime, timestamp, entitlements) per-file then bundle-wide, and on universal builds is re-signed/injected *after* the app is signed (`sign_instl.py`, `tasks/afterSign.js`). At runtime the bundle lives at `…/Waves Central.app/Contents/Resources/res/external/bin/instl.bundle/Contents/MacOS/instl` (Windows: `…/Win64/instl.exe`). Two checked-in **legacy** engines `instl-V9` / `instl-V10` ship alongside it under `…/bin/`; Central picks the engine per-repository (latest vs legacy V9) and forbids online actions on non-latest engines (`src/services/instl/behaviours/shell/common.tsx`).
 - **How it is invoked.** Central's `ShellInstl` behaviour (the Strategy-pattern wrapper behind `instlWrapper`) builds command lines of the form `"<instl>" <command> --in "<in>.yaml" --out "<out>.py" --log "<buffer>" --run`, mapping Central operations to instl subcommands: `onlineInstall → synccopy`, `createInstallerSync → sync`, `createInstallerCopy`/`offlineInstall → copy`, `uninstall → uninstall`, `reportVersions → report-versions`, and version-organizer/permission-fixer/cleanup/etc. → `doit` (or `exec --config-file` for the version organizer). Note two deviations from the generic form, confirmed in Central source: **`report-versions` does NOT take `--run`** (it emits JSON directly — see flow note below), and **`exec --config-file <locations.yaml>`** runs an in-process pybatch script (`organizer.py`, `reportVersions.py`) without `--run`.
 - **Online access params.** For online actions Central injects access params into the input YAML: `BASE_LINKS_URL`, `COOKIE_JAR` (CloudFront key-pair/policy/signature), and `REPO_REV_EXT` (`src/services/instl/.../instlYaml.tsx`).
 - **Elevation & cancellation.** Elevation is owned by **Central**, not by an instl "admin persona": admin/live runs wrap the emitted command in an `.irl` run-list and call `"<instl>" run-process --abort-file "<.abort>" --in "<.irl>"`; cancellation deletes the `.abort` file (which instl watches), and on Catalina+ Mac elevation uses the `InstlHelperApplication` helper rather than `sudo`. The new download UX additionally drives **pause/resume/try-now** over instl `run-process` **stdin** as one-line JSON `{cmd, sessionId}` (matches the control channel in flow (c)).
@@ -63,7 +53,7 @@ These layers emit work into `batch_accum` rather than performing it.
 - **ConfigVar system** — the `config_vars` global `ConfigVarStack`: multi-valued, lazily-resolved variables with a `$(NAME<params>[index])` resolution mini-language, scoped dict stack, and a YAML reader (`ConfigVarYamlReader`).
 - **aYaml & utils** — augmented-YAML reading/writing on top of PyYAML, plus the shared toolkit (file/URL I/O with checksum caching, OS/arch detection, checksums, parallel subprocess execution, multi-file streaming for split wtars, ls, logging, email).
 - **Data tables (db + svnTree)** — the single shared SQLite database modeling the install: `svn_item_t` (info-map / file table), `index_item_t` + `index_item_detail_t` (install-items with resolved inheritance), and auxiliary tables. `DBManager` exposes the shared singletons.
-- **Download subsystem** — the curl-based bulk download engine: config-file generation (`CUrlHelper`), failure classification and retry (`downloadFailures` / `downloadRetry`), cooperative pause/resume/try-now control channel (`downloadControlChannel`), persisted per-session/per-file state and resume sidecars (`downloadState`), throughput/error sampling (`downloadObservability`), between-session concurrency recommendation (`downloadConcurrency`), structured event telemetry (`downloadEvents`), and rollout cohorts (`downloadCohort`).
+- **Download subsystem** — the curl-based bulk download engine: config-file generation (`CUrlHelper`), transfer orchestration for both curl runners (`downloadTransfer`: `CurlTransfer`, `ParallelRunTransfer`), checksum-verify and redownload helpers (`downloadVerify`), failure classification and retry (`downloadFailures` / `downloadRetry`), cooperative pause/resume/try-now control channel (`downloadControlChannel`), persisted per-session/per-file state and resume sidecars (`downloadState`), throughput/error sampling (`downloadObservability`), between-session concurrency recommendation (`downloadConcurrency`), structured event telemetry (`downloadEvents`), and rollout cohorts (`downloadCohort`).
 
 ---
 
@@ -139,7 +129,7 @@ graph TD
 
 A few relationships are intentionally bidirectional/cyclic in the maps and worth calling out:
 - **Sync ↔ Client**: `InstlClientSync` is itself a client subclass, while the sync backends call back into the `InstlClient` instance (`instlObj`) for sync-location computation and the shared `batch_accum`.
-- **PyBatch ↔ Download**: `CheckDownloadFolderChecksum` (a pybatch command) is the de-facto in-process redownload/retry orchestrator and imports the entire `download*` family; the download subsystem in turn emits pybatch curl commands.
+- **PyBatch ↔ Download**: `CheckDownloadFolderChecksum` (a pybatch command) drives the in-process verify/redownload pass, delegating to `pyinstl/downloadVerify.py`, which imports the rest of the `download*` family; the download subsystem in turn emits pybatch curl commands. The cycle is real enough that `pyinstl/curlHelper.py` must qualify its uses as `pybatch.Progress(...)` rather than rely on names bound by its `from pybatch import *`.
 
 ---
 
@@ -240,11 +230,11 @@ The per-subsystem reviews converge on a small number of recurring, high-impact t
 ### Theme 1 — God-objects / mixed concerns (highest impact)
 The largest, most-coupled classes each bundle many unrelated responsibilities:
 - `InstlInstanceBase` — config loading, YAML tag reading, DB lifecycle, cache/sync paths, batch-file generation *and* execution, dependency-graph queries, serialization. It is the root of all five command subclasses, so every concern is forced onto every command.
-- `InstlClient` (~660 lines) — pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require.yaml I/O, binary-version scanning, YAML representation. *(Now extracted into the `pyinstl/client/` mixin package behind a shim; the deeper collaborator split — `InstallPlan` etc. — is still pending.)*
-- `InstlAdmin` (~1480 lines) — ~10 distinct command clusters (svn-fix, stage-sync, wtar, verify, up2s3, activate, redis-daemon, manifests, misc) in one class with `getattr`-based dispatch. *(Now extracted into the `pyinstl/admin/` mixin package behind a shim; the named command-cluster collaborators are still pending.)*
+- `InstlClient` (660 lines) — pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require.yaml I/O, binary-version scanning, YAML representation.
+- `InstlAdmin` (1481 lines) — ~10 distinct command clusters (svn-fix, stage-sync, wtar, verify, up2s3, activate, redis-daemon, manifests, misc) in one class with `getattr`-based dispatch.
 - `PythonBatchCommandBase` — execution + serialization + progress + stage stack + timing + error-report + tree-building + hashing.
-- `SVNTable` (~1600 lines) and `IndexItemsTable` — parsing + bulk insert + dozens of query helpers + mutation + URL policy + reporting.
-- `ConfigVarStack` and `FrameController` similarly mix container/resolver/serializer and UI/process/error-parsing concerns. *(`FrameController` and the GUI now live in the `pyinstl/gui/` package — `gui/_frame_base.py` — behind a shim; `ConfigVarStack` is unchanged.)*
+- `SVNTable` (1620 lines) and `IndexItemsTable` — parsing + bulk insert + dozens of query helpers + mutation + URL policy + reporting.
+- `ConfigVarStack` and `FrameController` (in `pyinstl/instlGui.py`, 984 lines) similarly mix container/resolver/serializer and UI/process/error-parsing concerns.
 
 **Direction:** extract cohesive collaborators (e.g. PathResolver, BatchFileWriter, DependencyAnalyzer; SVNReader/Query/Mutator; IndexYamlReader/InheritanceResolver/Query; serialize vs execute mixins) and keep the base classes thin shells.
 
@@ -253,11 +243,12 @@ Process-wide mutable state is everywhere: `config_vars` (mutated by ~50 modules 
 
 **Direction:** thread explicit context/session objects through the choke points and inject dependencies (config stack, DB, connection) rather than reaching for globals; keep singletons as thin defaults.
 
-> *Modernization delta:* a first containment increment landed — `configVar/accessors.py` provides
-> typed, documented accessors (`current_os`, `target_os`, `main_input_file_path/str`, `run_batch`,
-> `repo_rev`, …) over the hottest read keys, each taking an optional `cv` parameter so a future
-> injected stack can be threaded in without touching call sites. The global singleton itself is
-> unchanged; DB/connection/download-context injection remains future work (download half POC-gated).
+> One containment seam exists today: `configVar/accessors.py` provides typed accessors
+> (`current_os`, `target_os`, `main_input_file_path`/`main_input_file_str`, `run_batch`, `repo_rev`,
+> `target_repo_rev`, `instl_version`, plus the generic `config_var_str`/`_bool`/`_int`/`_list`) over
+> the hottest read keys, each taking an optional `cv` parameter so an injected stack can be threaded
+> in without touching call sites. The global singleton itself is unchanged, and DB / connection /
+> download-context injection is not done.
 
 ### Theme 3 — `eval`/`exec` on supplied input & repr→eval serialization (high impact)
 The plan is shipped as Python source and `eval`'d (`EvalShellCommand`, `If.__call__`, `batch_accum.__repr__`); config `__if__` conditions are `eval`'d (`eval_conditional`, with `os`/`sys` imported solely for reachability); `do_python` is an unguarded `eval`; `run_batch_file` can `exec` into the host globals; `send_email_from_template_file` `eval`s a template. This couples every command's `__init__`/`__repr__`, is hard to sandbox/test, and is a security surface.
@@ -270,18 +261,26 @@ The plan is shipped as Python source and `eval`'d (`EvalShellCommand`, `If.__cal
 **Direction:** centralize OS/runtime detection in one place (a `RuntimeLayout`/platform-policy object) and use per-OS strategy objects (PermissionBackend, FlagBackend) injected by platform.
 
 ### Theme 5 — Duplicated logic & near-duplicate code paths (medium impact)
-Repeated implementations create divergence risk: the pause/network-retry/exit-33-fallback loop is still duplicated across `ParallelRun` and `CurlTransfer`; the `_DISALLOWED_EVENT_FIELDS` denylist and config-var accessor helpers are duplicated across download modules; `up2s3_repo_rev` vs `up_short_index_repo_rev` share upload scaffolding; uninstall has two reference-counting algorithms (one dead); the `get_*details*` query family repeats SELECT boilerplate ~10 times; atomic-JSON-write and UTC-timestamp helpers are reimplemented several times; `read_*_config_files`, subprocess-spawn, and copy logic (`CopyDirToDirEx` vs `RsyncClone`) are duplicated.
+Repeated implementations create divergence risk: the `_DISALLOWED_EVENT_FIELDS` denylist is defined twice (`pyinstl/downloadEvents.py` and `pyinstl/downloadRetry.py`, with a comment at the first asking that they stay compatible); `up2s3_repo_rev` vs `up_short_index_repo_rev` share upload scaffolding; uninstall has two reference-counting algorithms (one dead); the `get_*details*` query family repeats SELECT boilerplate ~10 times; atomic-JSON-write and UTC-timestamp helpers are reimplemented several times; `read_*_config_files`, subprocess-spawn, and copy logic (`CopyDirToDirEx` vs `RsyncClone`) are duplicated.
 
-**Direction:** extract shared helpers/context-managers (a CurlRunLoop, a single denylist, a parametrized detail-query builder, one atomic-write/timestamp utility, a common `run_instl_subprocess`).
+**Direction:** extract shared helpers/context-managers (a single denylist, a parametrized detail-query builder, one atomic-write/timestamp utility, a common `run_instl_subprocess`).
 
-> ⚠️ Sequencing caveat: the curl-loop, download-module denylist, and atomic-JSON-write duplications listed above sit inside the `download*` subsystem that the **active Download System Enhancement POC** is currently building (Central branch driving instl `download-enhancements`). Consolidating them now would collide with in-flight POC work and the telemetry kill-switch / dual emission paths (`DOWNLOAD_EVENT` + legacy `DOWNLOAD_RETRY_DECISION`, whose separate redaction is intentional). These consolidations should be sequenced **after** the POC stabilizes/merges — see `docs/REFACTORING.md` (W2/W3/W7). Human decision required on timing.
+> Two previously-listed duplications in this family are resolved: the curl pause/offline-hold loop now
+> lives once per runner in `pyinstl/downloadTransfer.py` (`CurlTransfer`, `ParallelRunTransfer`), and the
+> per-module typed config-var readers are consolidated into `configVar/accessors.py`. What remains is the
+> `_run_fallback_after_curl_range_failure` pair on `ParallelRun` and `CurlTransfer`, which is
+> **deliberately** not shared — they take different input formats and drive different runners; a comment
+> at each site records that decision. Do not file it as duplication to consolidate.
 
 ### Theme 6 — Dead code, swallowed exceptions, and latent bugs (medium impact)
-Pervasive `if False:` blocks, no-op stubs (`text_with_color`, `teardown_file_logging` unreachable body), dead helpers (`find_leaves`, `can_skip_unwtar`, `_option_1`), always-false debug flags, and commented-out blocks add noise. Broad `except: pass` swallowing hides failures in `should_wtar`, `do_translate_guids`, `extract_info`, the heartbeat thread, and GUI activate/upload. Concrete latent bugs flagged: `verbatim=source_url==['url']` (always False), the P4 command-string quoting, `SVNRow.__eq__` omitting a column and a broken `__repr__` f-string, `RmGlob` `log.wanging` typo, a missing-`f` f-string in `baseClasses`, `IsSymlink` defining `repr_own_args` instead of `__repr__`, broken hand-rolled transaction nesting in `DBMaster` (swallowing `OperationalError`), `get_disk_free_space` referencing an unimported `win32file`, and the vendored `dockutil` using `plistlib` APIs removed in Python 3.9+.
+Pervasive `if False:` blocks, no-op stubs (`text_with_color`, `teardown_file_logging` unreachable body), dead helpers (`find_leaves`, `can_skip_unwtar`, `_option_1`), always-false debug flags, and commented-out blocks add noise. Broad `except: pass` swallowing hides failures in `should_wtar`, `do_translate_guids`, `extract_info`, the heartbeat thread, and GUI activate/upload.
+
+Concrete latent bugs still present in the code:
+- `verbatim=source_url==['url']` (always False) in `pyinstl/instlInstanceSync_url.py`.
+- `SVNRow.__eq__` omits the last column (`needed_for_iid`, tuple index 21) from its tuple comparison, and `SVNRow.__repr__` f-prefixes only its first continuation line, so `{self.revision}`, `{self.checksum}`, `{self.url}` and the rest render literally. Both in `svnTree/svnTable.py`.
+- `IsSymlink` defines `repr_own_args` instead of `__repr__` (`pybatch/conditionalBatchCommands.py`).
+- Broken hand-rolled transaction nesting in `DBMaster` (swallows `OperationalError`).
+- The P4 command-string quoting.
+- The vendored `dockutil` using `plistlib` APIs removed in Python 3.9+.
 
 **Direction:** delete dead code, narrow exception handling and log instead of `pass`, and fix the enumerated bugs (each is small but several are correctness-affecting).
-
-> *Modernization delta:* the dead-code / narrowed-`except` hygiene pass has **landed** across the
-> pybatch, configVar/aYaml, utils, db/svnTree, and pyinstl-core packages, and the latent bugs
-> surfaced by the new characterization goldens (e.g. `SVNRow.__eq__`/`__repr__`) are fixed. The
-> remaining off-happy-path items fold into their structural workstreams (see `docs/REFACTORING.md`).

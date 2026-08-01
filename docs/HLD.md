@@ -182,7 +182,7 @@ the out-file instead.
 - **In:** the CLI dispatcher; admin; interactive.
 
 ### Design notes & constraints
-- `InstlClient` is a god-class bundling pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require-file I/O, and name resolution; subclasses inherit all of it. *(Modernization: now composed from the `pyinstl/client/` mixin package — `_core`/`_install_items`/`_require`/`_actions`/`_binaries`/`_sync_locations`/`_remove_sources`/`_naming` — behind a `pyinstl/instlClient.py` shim; behavior identical. The deeper collaborator extraction remains pending.)*
+- `InstlClient` is a god-class bundling pipeline orchestration, DB status mutation, target-folder bookkeeping, sync-location computation, require-file I/O, and name resolution; subclasses inherit all of it.
 - Calculation results are passed between methods implicitly through config-var keys, making data flow order-dependent.
 - Mac/Win platform handling is interleaved through the copy logic.
 - The misc check-checksum command has grown into a cross-subsystem download-telemetry orchestrator.
@@ -261,6 +261,7 @@ redownload.
 | `downloadConcurrency` | Between-session adaptive parallelism recommendation from the previous session summary. |
 | `downloadEvents` | Single source of truth for the structured telemetry channel (with a privacy denylist and kill switch). |
 | `downloadCohort` | Normalize/downgrade a rollout cohort label to match the active feature-flag set. |
+| `downloadVerify` | The checksum-verify and redownload machinery the `CheckDownloadFolderChecksum` command drives: per-file resume decision and sidecar writes, retry/progress/state event emission, parallel verify-hash precompute, and the budget-bounded redownload pass (`RedownloadBudget`, `PauseTrackingChannel`). |
 | `ParallelRun` (in PyBatch) / `CurlTransfer` (`downloadTransfer`, driven by the thin PyBatch command `CurlWithInternalParallel`) | The actual curl execution engine: pause/offline-hold loop, network-error backoff, and exit-33 fresh-restart fallback. `CurlTransfer` (the shipped path) additionally probes connectivity and holds through outages (`DOWNLOAD_OFFLINE_HOLD_ENABLED`), reconciles missing outputs after curl exit 0 (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`), and backstops silent stalls (`DOWNLOAD_CURL_STALL_DETECTION` + watchdog) — new-event emission gated on the client's `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` declaration. |
 
 ### Public interface
@@ -288,7 +289,7 @@ cache, and the telemetry-enabled flag.
 - Most modules are pure, side-effect-light, dependency-injected helpers; the design intent is that the two choke points wire them together.
 - Control/observability is contracted with Waves Central (the consumer). The stdin control channel reads one-line JSON envelopes `{"cmd":"pause"|"resume"|"try_now","sessionId":...}` written by Central into instl's stdin (Central's `ILiveProcess.sendCommand`); pause is **cooperative between curl batches** (in-flight curl invocations finish naturally and `.part` artifacts are preserved), so pause latency is bounded by the current batch — it is **not** a process kill. The separate cancel path remains process-kill via the `run-process --abort-file` mechanism. `downloadEvents` emits `DOWNLOAD_EVENT <compact-json>` lines (schemaVersion 1; events `download.session_state`/`file_state`/`retry_decision`/`capability`/`session_summary`) that Central parses before the legacy `DOWNLOAD_RETRY_DECISION <json>` line, which is kept for backward compatibility.
 - The control channel is only started for the URL-sync commands (`sync`, `synccopy`, `check-checksum`) — `_CONTROL_CHANNEL_COMMANDS` in `pyinstl/instl_main.py`.
-- Feature-flag defaults live in instl's bundled `defaults/InstlClient.yaml`, **not** on the consumer side (Waves Central does not set these flags). On this branch the shipped values are: `DOWNLOAD_TELEMETRY_ENABLED`=yes, `DOWNLOAD_RETRY_POLICY_ENABLED`=yes, `DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED`=no, `DOWNLOAD_COHORT`=control, `DOWNLOAD_RESUME_ENABLED`=**yes**, and `DOWNLOAD_CENTRAL_UX_ENABLED`=**yes**. NOTE: per the POC decision log (D-004/D-005/D-018) the intended/merge-target defaults for `DOWNLOAD_RESUME_ENABLED` and `DOWNLOAD_CENTRAL_UX_ENABLED` are `no`; D-022 records that the POC branch intentionally ships Central UX (and resume) on-by-default and that these flags MUST be flipped back to default-off before merge to main. The on-branch `yes` values are deliberate POC state, not the steady-state contract. Resume is additionally gated to validated CloudFront hosts/paths plus a signed-URL TTL window (`DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS`, default 300); a 200 response to a range request, an identity change, or a near-expiry signed URL forces a safe restart-from-zero. Adaptive concurrency is **between-session only** (reads the previous run's `session-summary.json`); its start value (`DOWNLOAD_CONCURRENCY_START`, default 8) differs from the legacy non-adaptive `PARALLEL_SYNC` default of 50. The connectivity-loss self-sufficiency gates also live there and default **on**: `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, `DOWNLOAD_OFFLINE_HOLD_ENABLED` (with probe/hold tunables), `DOWNLOAD_CURL_STALL_DETECTION` (+ watchdog), and `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (+ opt-in redownload budgets, default unlimited) — each an independent kill switch surfaced on `download.capability.featureFlags`; only `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (the handshake by which a new Central opts into the backend-hold event stream) defaults **off**, so an old Central sees exactly the legacy events while the engine recovers silently (see `docs/download-events.md` §3.6 and `docs/LLD.md` for the full table).
+- Feature-flag defaults live in instl's bundled `defaults/InstlClient.yaml`, **not** on the consumer side (Waves Central does not set these flags). On this branch the shipped values are: `DOWNLOAD_TELEMETRY_ENABLED`=yes, `DOWNLOAD_RETRY_POLICY_ENABLED`=yes, `DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED`=no, `DOWNLOAD_COHORT`=control, `DOWNLOAD_RESUME_ENABLED`=**yes**, and `DOWNLOAD_CENTRAL_UX_ENABLED`=**yes**. NOTE: those last two run against the default-off convention the other `DOWNLOAD_*` flags follow, so any claim that resume or the structured UX is capability-gated is false as shipped. `downloadCohort._TRACKED_FLAGS` lists `False` for both, but that default applies only when the key is undefined — once `defaults/InstlClient.yaml` loads, the YAML value wins. Resume is additionally gated to validated CloudFront hosts/paths plus a signed-URL TTL window (`DOWNLOAD_RESUME_MIN_SIGNED_URL_TTL_SECONDS`, default 300); a 200 response to a range request, an identity change, or a near-expiry signed URL forces a safe restart-from-zero. Adaptive concurrency is **between-session only** (reads the previous run's `session-summary.json`); its start value (`DOWNLOAD_CONCURRENCY_START`, default 8) differs from the legacy non-adaptive `PARALLEL_SYNC` default of 50. The connectivity-loss self-sufficiency gates also live there and default **on**: `DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, `DOWNLOAD_OFFLINE_HOLD_ENABLED` (with probe/hold tunables), `DOWNLOAD_CURL_STALL_DETECTION` (+ watchdog), and `DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES` (+ opt-in redownload budgets, default unlimited) — each an independent kill switch surfaced on `download.capability.featureFlags`; only `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (the handshake by which a new Central opts into the backend-hold event stream) defaults **off**, so an old Central sees exactly the legacy events while the engine recovers silently (see `docs/download-events.md` §3.6 and `docs/LLD.md` for the full table).
 
 ---
 
@@ -336,7 +337,7 @@ config vars). The wait daemon spawns a separate instl process per trigger.
 - **In:** the entry point (admin/interactive families, Mac/Linux only); interactive (receives an admin instance); CI/operators (lpush triggers to the daemon).
 
 ### Design notes & constraints
-- Historically a single ~1500-line god-class spanning ~10 command clusters sharing mutable instance state. *(Modernization: `InstlAdmin` is now composed from the `pyinstl/admin/` mixin package — `_core`/`_repo`/`_wtar`/`_verify`/`_info`/`_publish` plus `_helpers` — behind a `pyinstl/instlAdmin.py` shim. Behavior, command dispatch, and emitted output are identical; the named command-cluster collaborators are still future work.)*
+- A single 1481-line god-class spanning ~10 command clusters sharing mutable instance state.
 - `up2s3` and `up-short-index` share near-identical threshold/assert/Redis/email scaffolding kept in sync by hand.
 - Config vars double as a status/inter-step messaging channel (status/exception keys feeding the email template).
 - External clients (Redis, boto3) are constructed inline in multiple methods; some filesystem commands perform direct side effects (immediate unlink) rather than emitting batch ops; several silent except-pass blocks hide failures.
@@ -352,11 +353,8 @@ as an external subprocess. The GUI is itself an instl instance (subclasses Insta
 base-class config resolution, YAML read/write, version string, and history persistence. The Activate
 tab additionally talks directly to Redis to display/activate/upload repo-revs.
 
-> *Modernization:* the GUI was decomposed from one `pyinstl/instlGui.py` file into the
-> `pyinstl/gui/` package (`_globals`/`_tkvars`/`_tooltip`/`_frame_base`/`_client_frame`/`_admin_frame`/
-> `_activate_frame` + `__init__`) behind a `pyinstl/instlGui.py` shim. The components below are
-> unchanged in behavior; the single Tk root still lives at module import time (now in
-> `gui/_globals.py`, not yet lazy).
+> The GUI is one 984-line module, `pyinstl/instlGui.py`, holding `FrameController` and its three
+> subclasses plus `InstlGui` and `ToolTip`. The single Tk root is created at module import time.
 
 ### Key components
 | Component | Responsibility |
@@ -532,7 +530,7 @@ Cross-table SQL joins the svn table against the index tables in single transacti
 - **In:** Instance Base (the reader mixin inherits `DBManager`) and the whole instl command hierarchy; the sync backends; PyBatch svn/info-map commands.
 
 ### Design notes & constraints
-- Both `SVNTable` and `IndexItemsTable` are god-objects (~1600 / large) mixing parsing, bulk insert, many query helpers, mutation, and reporting; the two "separate" tables are coupled because the info-map layer reaches directly into the index tables in raw SQL.
+- Both `SVNTable` and `IndexItemsTable` are god-objects (1620 lines / large) mixing parsing, bulk insert, many query helpers, mutation, and reporting; the two "separate" tables are coupled because the info-map layer reaches directly into the index tables in raw SQL.
 - The DB is an app-wide implicit global via the class-level descriptors (`reset_db()` exists precisely to fight this); it should ideally be an injected dependency.
 - Transaction nesting is hand-rolled and fragile (and swallows operational errors); query-builder boilerplate and IN-list quoting are duplicated and inconsistent.
 - `SVNRow` unpacks columns positionally, coupling it to `SELECT *` order.

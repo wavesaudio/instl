@@ -3,15 +3,13 @@
 Status: **Authoritative contract** · Last updated: 2026-07-30
 
 This document is the contract of record for the structured download-telemetry
-channel that instl emits and Waves Central consumes. It is the "harden the
-contract" deliverable (Workstream 4) of `download-ux-eta-design.md`.
+channel that instl emits and Waves Central consumes.
 
 **Source of truth:** the emitters in `pyinstl/downloadEvents.py` and the enums in
 `pyinstl/downloadState.py` / `pyinstl/downloadFailures.py`. The consumer types
 live in Central `…/shell/progress/downloadEventTypes.tsx`. When code and this doc
-disagree, the code wins — fix the doc. Both the instl contract test
-(`pyinstl/test/test_downloadEventsContract.py`) and the Central contract test
-(`…/shell/progress/downloadEventContract.test.tsx`) pin this contract.
+disagree, the code wins — fix the doc. On the instl side
+`pyinstl/test/test_downloadEventsContract.py` pins this contract.
 
 ---
 
@@ -46,10 +44,12 @@ flag). When off, no lines are emitted.
 | `sessionId` | string | opaque per-invocation id (`__INVOCATION_RANDOM_ID__`), `"unknown"` if absent |
 | `timestamp` | string | ISO-8601 UTC, seconds resolution, `Z` suffix; computed at format time |
 
-**Privacy (D-014/D-016/NFR-005):** a fixed denylist is dropped before
-serialization — `url`, `urlRedacted`, `headers`, `cookie(s)`, `authorization`,
-`policy`, `signature`, `signedUrl`, `tempPath`, `finalPath`, `localPath`,
-`downloadPath`. Hosts may pass as bare host strings; full URLs/paths must not.
+**Privacy:** a fixed denylist (`_DISALLOWED_EVENT_FIELDS`) is dropped before
+serialization — `url`, `URL`, `urlRedacted`, `headers`, `cookie`, `cookies`,
+`authorization`, `Authorization`, `policy`, `signature`, `Signed-URL`,
+`signedUrl`, `tempPath`, `finalPath`, `localPath`, `downloadPath`. Matching is
+exact-key, not case-insensitive. Hosts may pass as bare host strings; full
+URLs/paths must not.
 
 ---
 
@@ -74,7 +74,7 @@ Session lifecycle transitions, plus in-flight download progress ticks.
 | `repositoryRevision` | int\|null | |
 | `reason` | string\|null | short literal (e.g. `download_started`, `checksum_verify`) |
 
-**Optional live-progress fields (Workstream 1)** — present *only* on in-flight
+**Optional live-progress fields** — present *only* on in-flight
 `downloading` progress ticks, absent on lifecycle transitions:
 
 | key | type | notes |
@@ -86,7 +86,7 @@ Session lifecycle transitions, plus in-flight download progress ticks.
 Central uses these for the live ETA and meta line (`downloadMetaLine.tsx`); it
 falls back to `download.session_summary` totals when they are absent.
 
-**Phase transitions emitted (Workstream 2):** `verifying_downloads` before the
+**Phase transitions emitted:** `verifying_downloads` before the
 checksum pass, `copying` at copy start, `completed` after the require-file write.
 Central maps these to the "Verifying" / "Installing" / terminal UX states.
 
@@ -122,7 +122,7 @@ Wrapped form of the legacy `DOWNLOAD_RETRY_DECISION` line. Keys: `fileId`,
 `repoPath`, `failureClass` (§4.3), `attempt`, `decision`
 (`resume`|`restart`|`fail_terminal`), `delayMs`, `restartRequired`, `reason`,
 `receivedBytes`, `concurrency`, `retryAfterSeconds`, `httpStatus`,
-`curlExitCode`. The legacy text line is still emitted unchanged (D-016).
+`curlExitCode`. The legacy text line is still emitted unchanged.
 
 **Bulk-download network events — gated on
 `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` (§3.6):** the bulk curl loop, which
@@ -141,7 +141,7 @@ distinguishes the two emitters:
 
 ### 3.4 `download.capability`
 
-One-shot backend feature snapshot Central uses for UX gating (D-004). Keys:
+One-shot backend feature snapshot Central uses for UX gating. Keys:
 `resumeEnabled`, `adaptiveConcurrencyEnabled`, `validatedHosts` (bare hosts),
 `retryMatrixVersion`, `stateSchemaVersion`, `eventSchemaVersion`, `cohort`,
 `featureFlags` (map of bool), `centralUxEnabled`, `telemetryEnabled`,
@@ -198,12 +198,13 @@ so an old Central sees exactly today's events. The flag is surfaced on
 
 ### 4.3 Failure classes (`DownloadFailureClass`)
 `dns_resolution`, `tcp_connect`, `tls`, `timeout_before_first_byte`,
-`timeout_during_transfer`, `http_auth_policy`, `http_error`, `disk_write`,
-`disk_space`, `permission_denied`, `checksum_mismatch`, `partial_transfer`,
-`process_terminated`, `cancelled`, `missing_after_transfer`, `malformed_url`,
-`network_send_error`, `network_receive_error`, `unknown_download_error`.
+`timeout_during_transfer`, `http_429`, `http_5xx`, `http_auth_policy`,
+`http_4xx`, `http_error`, `disk_write`, `disk_space`, `permission_denied`,
+`checksum_mismatch`, `partial_transfer`, `process_terminated`, `cancelled`,
+`missing_after_transfer`, `malformed_url`, `network_send_error`,
+`network_receive_error`, `unknown_download_error`.
 
-Consumers **must** treat unknown enum values as forward-compatible (D-007): map to
+Consumers **must** treat unknown enum values as forward-compatible: map to
 a safe default, don't crash.
 
 ---
@@ -211,15 +212,15 @@ a safe default, don't crash.
 ## 5. Versioning & evolution rules
 
 * **Additive fields do NOT bump `schemaVersion`.** Adding an optional field to an
-  existing event (as Workstream 1 did with the live-progress fields) keeps
+  existing event (as the live-progress fields of §3.1 are) keeps
   `schemaVersion = 1`. Consumers read new fields with a fallback and ignore
   unknown ones.
 * **Breaking changes DO bump `schemaVersion`** (renaming/removing/retyping a
   field, changing semantics). Central rejects any event whose `schemaVersion`
   exceeds the version it knows (`downloadEventParser` gates on
   `schemaVersion <= DOWNLOAD_EVENT_SCHEMA_VERSION`) and treats it as "no data".
-* **Never remove or rename a field without a version bump.** The contract tests in
-  both repos fail if a documented field disappears.
+* **Never remove or rename a field without a version bump.** The instl contract
+  test fails if a documented field disappears.
 * New `event` types and new enum values are additive: emit freely; consumers must
   ignore unknown ones rather than crash.
 
@@ -235,10 +236,10 @@ a safe default, don't crash.
   `retry_decision`, `file_state` via `downloadStateBus`.
 * **Progress bar percentage**: **still computed from the legacy text progress
   line**, not from structured events (`shellInstlProcessProgressHandler.tsx`). The
-  download portion is byte-true (Workstream 3) but is parsed from the legacy
+  download portion is byte-true but is parsed from the legacy
   `Downloaded A of B` line. Driving the bar % entirely from the structured channel
   (so the legacy regex can be demoted to an old-engine fallback) is **future
-  work**, tied to the deferred install-phase byte budget (W3 option b). Until then
+  work**, tied to a deferred install-phase byte budget. Until then
   the legacy progress line **must** keep being emitted.
 
 ---
@@ -248,6 +249,6 @@ a safe default, don't crash.
 * instl: `pyinstl/test/test_downloadEvents.py` (builder shapes) +
   `pyinstl/test/test_downloadEventsContract.py` (documented key sets, schema
   version, additive-field invariants, denylist).
-* Central: `…/shell/progress/downloadEventParser.test.tsx` (parse/forward-compat) +
-  `…/shell/progress/downloadEventContract.test.tsx` (canonical lines from this doc
-  parse into the documented typed fields, incl. the W1 live fields).
+* Central: `…/shell/progress/downloadEventParser.test.tsx` (parse/forward-compat).
+  There is no Central-side test that pins this document's canonical lines; the
+  instl contract test is the only automated check of the documented key sets.

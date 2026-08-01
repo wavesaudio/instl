@@ -1,32 +1,43 @@
 # instl — Refactoring Roadmap
 
-> ## Modernization status (branch `instl-modernization`, 2026-06)
+> ## Status (branch `download-enhancements-cont`)
 >
-> This roadmap is **partially executed**. The de-risking waves (bug fixes, dead-code
-> hygiene, py3.12 modernization), the characterization net, the three god-object
-> **package splits** (`instlAdmin`/`instlClient`/`instlGui` → `pyinstl/admin/`,
-> `pyinstl/client/`, `pyinstl/gui/` behind thin re-export shims), client-path error
-> hardening, the pybatch-serialization hardening pass (W8 §8, comments/docs only), and
-> several `config_vars` containment increments (the typed `configVar/accessors.py` seam)
-> have **landed on branch `instl-modernization`**. Per-workstream status is marked
-> **DONE / PARTIAL / DEFERRED** inline in §3 below, with commit refs.
+> This roadmap is **mostly not executed**. What has actually landed:
 >
-> **What is *not* done:** the deep god-object *class* decompositions into named
-> collaborators (W9–W13 as separately-extracted classes — the splits done so far are
-> module-extracts into mixins, not the `PathResolver`/`InstallPlan`/`InstallPlanner`
-> seams), the full W6 explicit-data-flow change, the W8 structured-IR migration, lazy
-> `Tk()` (W14), the `ConfigVarStack` split (W15), per-OS strategy backends (W4/W5), and
-> the `download*` POC-gated work (W3, the download half of W7). These remain as written.
+> - **Dead-code / swallowed-exception hygiene** across pybatch, configVar/aYaml, utils,
+>   db+svnTree and pyinstl-core (W1).
+> - **A characterization net** under `tests/characterization/` — pybatch serialization,
+>   configVar resolution, and InstlClient copy/graph-resolution goldens.
+> - **A typed `config_vars` accessor seam**, `configVar/accessors.py`, used from
+>   `instlDoIt`, `instlInstanceBase` and `instlMisc`, plus the consolidation of three
+>   duplicate sets of private typed readers into it (part of W7).
+> - **Documentation-only hardening** of the pybatch serialization backbone (W8 §8);
+>   emitted output is byte-identical.
+> - **Download-subsystem extractions** driven by this branch's own work rather than by
+>   this roadmap: curl orchestration out of the pybatch commands into
+>   `pyinstl/downloadTransfer.py`, and verify/redownload machinery out of
+>   `pybatch/info_mapBatchCommands.py` into `pyinstl/downloadVerify.py`.
 >
-> **Verification setup.** All work is gated by the test suite under the repo's
-> Python 3.12 venv:
-> `./.venv/bin/python -m pytest -q -p no:cacheprovider`. The current baseline on this
-> branch is **382 passed, 31 skipped, 5 xfailed, 106 subtests passed** (357+); the tree
-> is kept GREEN at every commit. (`test_run_process_abort` is occasionally flaky under
-> the full run due to a thread calling `sys.exit`; it passes in isolation.) The
-> characterization goldens under `tests/characterization/` and the `configVar`/`pybatch`
-> tests pin behavior and must keep passing; the `download*` POC and `DOWNLOAD_*` flags in
-> `defaults/InstlClient.yaml` are deliberately untouched (decision **D-022**).
+> **Attempted and reverted.** The three god-object *package splits*
+> (`instlAdmin`/`instlClient`/`instlGui` → `pyinstl/admin/`, `pyinstl/client/`,
+> `pyinstl/gui/`, each composed from 7–8 private mixins behind a re-export shim) landed
+> and were then reverted in full. The three modules are byte-identical to master again
+> and the packages no longer exist. The stated reason: the mixins all shared one `self`,
+> so nothing became isolatable or independently testable — the runtime object stayed a
+> god object spread across eight files — and the seams were not real (`sort_all_items_by_target_folder`
+> had to stay in the composed class because `self.__all_iids_by_target_folder` name-mangles).
+> **Any future attempt at W11/W12/W14 should extract named collaborators with real
+> boundaries, not mixins over a shared `self`.**
+>
+> **Not started:** W2, W3, W4, W5, W6, W9, W10, W13, W15, W16, the structured-IR half of
+> W8, and the DB/connection/download-context half of W7.
+>
+> **Verification setup.** Tests are stdlib `unittest` (pytest is not used and not a
+> requirement). Run from the repo root under the Python 3.12 venv:
+> `venv/Scripts/python.exe -m unittest discover -s . -p "test_*.py" -t .`. The
+> characterization goldens and the `configVar`/`pybatch` suites pin behavior and must
+> keep passing. The `DOWNLOAD_*` flags in `defaults/InstlClient.yaml` are deliberately
+> untouched by roadmap work.
 
 A sequenced, dependency-aware plan that turns the six themes in
 [`ARCHITECTURE.md` §6](./ARCHITECTURE.md) into concrete, ordered workstreams.
@@ -85,46 +96,39 @@ references. The themes are abbreviated below as **T1**–**T6**:
 - **Admin/S3/Redis pipeline output.** `up2s3` / `up-short-index` / `activate-repo-rev`
   must produce identical S3 layouts, repo-rev files, and Redis keys.
 
-### Alignment with the in-flight Download System Enhancement
+### Constraints from the download subsystem
 
-> **This roadmap must defer to an active POC.** The entire `download*` family
-> (`downloadState`, `downloadRetry`, `downloadObservability`, `downloadConcurrency`,
-> `downloadEvents`, `downloadCohort`, `downloadFailures`, `downloadControlChannel`) is the
-> live implementation of the **Download System Enhancement** — an in-flight Central+instl POC
-> on the instl branch `download-enhancements` (Central branch `feature/V17.0.10---POC-Download-Enhancements`).
-> Phases 1–7 are already implemented (atomicity, resume sidecar, classified retry, observability,
-> structured `DOWNLOAD_EVENT` channel, and the stdin pause/resume/try_now control channel). The
-> instl download-subsystem contract is **co-designed with Central** and pinned by its
-> decision-log; treat those decisions as constraints, not suggestions.
+> **The `download*` family is actively developed on this branch** — `downloadState`,
+> `downloadRetry`, `downloadObservability`, `downloadConcurrency`, `downloadEvents`,
+> `downloadCohort`, `downloadFailures`, `downloadControlChannel`, `downloadTransfer`,
+> `downloadVerify`. Its wire contract is co-designed with Waves Central (see
+> `docs/download-events.md` and `Central/download-system-enhancement/`), so the contract is a
+> constraint, not a suggestion. Any workstream that edits these modules (**W2**, **W3**, **W7**)
+> carries the specific hazards below.
 >
-> **Sequencing rule:** any workstream that edits `download*` modules (**W2**, **W3**, **W7**)
-> must be coordinated with — and in the case of W3/W7 **sequenced after** — the POC stabilizes
-> and merges to main. Refactoring these globals/curl paths mid-POC will collide with open
-> commits. Specific conflicts are flagged inline in §3 and summarized here:
+> - **W7.** The singletons W7 would wrap in a `DownloadContext` — `_GLOBAL_CHANNEL` /
+>   `get_global_channel()` in `downloadControlChannel.py`, `_active_observability` in
+>   `downloadObservability.py`, `_telemetry_enabled` / `set_telemetry_enabled` in
+>   `downloadEvents.py`, `CUrlHelper.cached_internal_parallel` — are load-bearing for rollout.
+>   `set_telemetry_enabled()` in particular is the telemetry kill switch driven by
+>   `DOWNLOAD_TELEMETRY_ENABLED`; rewiring it removes the rollout hatch.
+> - **W3.** The "single privacy denylist" must preserve **both** redaction paths. The denylist is
+>   deliberately built independently at each source — `downloadEvents._DISALLOWED_EVENT_FIELDS`
+>   and `downloadRetry.format_retry_decision_log_line` — and the legacy `DOWNLOAD_RETRY_DECISION`
+>   line is intentionally kept separate from `DOWNLOAD_EVENT` for backward compatibility. A
+>   careless merge risks a telemetry leak. (The two sets differ only in that the events copy also
+>   drops `localPath`/`downloadPath`.) Merging the two curl run loops additionally churns the
+>   per-entry range-resume / byte-zero-fallback curl configs the resume path depends on. Note the
+>   `_run_fallback_after_curl_range_failure` pair is **out of scope** — it is deliberately not
+>   shared, and a comment at each site records that.
+> - **W2.** The shared atomic-JSON-write / UTC-ISO-timestamp helper is behavior-preserving but
+>   still edits every active `download*` module.
 >
-> - **W7 → ACTIVE CONFLICT.** The `download*` singletons W7 wants to wrap in a `DownloadContext`
->   (`get_global_channel()`/`_GLOBAL_CHANNEL` in `downloadControlChannel.py`, `_active_observability`
->   in `downloadObservability.py`, `_telemetry_enabled`/`set_telemetry_enabled` in `downloadEvents.py`,
->   `CUrlHelper.cached_internal_parallel`) are exactly the surfaces Phases 4–7 are building. In
->   particular `set_telemetry_enabled()` is the **D-018 telemetry kill switch**; rewiring it now
->   would break the rollout hatch. **Do W7 after the POC merges.**
-> - **W3 → ACTIVE CONFLICT.** The "single privacy denylist" must preserve **both** redaction paths:
->   D-007/D-016 deliberately build the denylist independently at the source in
->   `downloadEvents.py` (`_DENYLIST`, ~line 129) **and** in `downloadRetry.format_retry_decision_log_line`,
->   and intentionally keep the legacy `DOWNLOAD_RETRY_DECISION` line separate from `DOWNLOAD_EVENT`
->   for backward compatibility. A careless merge risks a telemetry leak. The CurlRunLoop
->   unification also churns the per-entry range-resume / byte-zero-fallback curl configs the resume
->   work depends on.
-> - **W2 → OVERLAP (lower risk).** The shared atomic-JSON-write / UTC-ISO-timestamp helper is
->   behavior-preserving but still edits every active `download*` module; coordinate timing so it
->   does not conflict with open enhancement commits.
->
-> **Branch-state caveat (do not "fix" as a bug).** On this POC branch
-> `defaults/InstlClient.yaml` intentionally ships `DOWNLOAD_CENTRAL_UX_ENABLED: yes` and
-> `DOWNLOAD_RESUME_ENABLED: yes` even though their canonical/main default is `no`
-> (decision **D-022**, with `DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED: no`,
-> `DOWNLOAD_CONCURRENCY_START: 8` vs legacy `PARALLEL_SYNC: 50`). These must be **re-gated before
-> merge to main**, but they are deliberate POC state — none of W0/W1 should "correct" them.
+> **Flag-state caveat (do not "fix" as a bug).** `defaults/InstlClient.yaml` ships
+> `DOWNLOAD_CENTRAL_UX_ENABLED: yes` and `DOWNLOAD_RESUME_ENABLED: yes`, against the default-off
+> convention the other `DOWNLOAD_*` behaviors follow (`DOWNLOAD_ADAPTIVE_CONCURRENCY_ENABLED: no`,
+> `DOWNLOAD_CONCURRENCY_START: 8` vs legacy `PARALLEL_SYNC: 50`). Whether to re-gate them is a
+> release decision — none of W0/W1 should silently "correct" them.
 
 ---
 
@@ -163,36 +167,35 @@ references. The themes are abbreviated below as **T1**–**T6**:
 ## 3. Refactoring Backlog (prioritized)
 
 Effort: S ≈ ≤1 day, M ≈ 2–4 days, L ≈ 1–2 weeks. Payoff and Risk are relative.
-**Status** reflects branch `instl-modernization` (✅ DONE / 🟡 PARTIAL / ⏸ DEFERRED).
+**Status** reflects branch `download-enhancements-cont` (✅ DONE / 🟡 PARTIAL / ⏸ NOT STARTED / ↩ REVERTED).
 
 | ID | Title | Theme | Status | Risk | Effort | Payoff |
 |----|-------|-------|--------|------|--------|--------|
-| **W0** | Fix enumerated latent bugs (`needs` set/append, missing-`f`, `log.wanging`, `IsSymlink.repr_own_args`, `SVNRow.__repr__`/`__eq__`, boto `import os`, `verbatim` always-False, `win32file`, `hmset`, swallowed `OperationalError`) | T6 | 🟡 **PARTIAL** — real bugs surfaced by the goldens fixed in `8b4a9e17`; collection/import repairs in `c421340e`. Remaining off-happy-path bugs fold into their structural workstreams. | Low | S–M | High |
+| **W0** | Fix enumerated latent bugs | T6 | 🟡 **PARTIAL** — fixed: `log.wanging` typo, `get_disk_free_space`'s unimported `win32file`. Still present: `needs` set/append, the missing-`f` f-string in `baseClasses.log_result`, `IsSymlink.repr_own_args`, `SVNRow.__repr__` (only its first line is f-prefixed) and `SVNRow.__eq__` (omits `needed_for_iid`), boto's unimported `os`, `verbatim=source_url==['url']` always-False, deprecated Redis `hmset`, swallowed `OperationalError`. | Low | S–M | High |
 | **W1** | Delete dead code & narrow `except: pass` | T6 | ✅ **DONE** — per-package hygiene sweeps: pybatch `3bc5462e`, configVar/aYaml `e52dcc36`, utils `ac30de3c`, db/svnTree `6e59eacc`, pyinstl-core `e712c3f4`. | Low | M | Med–High |
-| **W2** ⚠️POC | Shared util consolidation (atomic-JSON write, UTC-ISO timestamp, config-var coercion, `run_instl_subprocess`, detail-query builder) | T5 | ⏸ **DEFERRED** — touches active `download*` POC; not started. | Low | M | High |
-| **W3** ⚠️POC | Single privacy denylist + one CurlRunLoop | T5 | ⏸ **DEFERRED** — hard-blocked on POC merge (D-007/D-016 dual redaction paths). | Med | M | High |
-| **W4** | `RuntimeLayout`: centralize OS/frozen detection | T4 | ⏸ **DEFERRED** — not started; OS-identity reads now routed through `configVar/accessors.py` (`current_os`/`target_os`, see W7 increments) as a precursor. | Med | M | Med–High |
-| **W5** | Per-OS strategy backends (Permission/Flag) | T4 | ⏸ **DEFERRED** — not started (depends on W4). | Med | M–L | Med |
-| **W6** | Explicit data flow out of `config_vars` in client pipeline | T2/T1 | ⏸ **DEFERRED** — the `InstallPlan` dataclass return change is not done; the typed-accessor seam (W7) is the landed precursor. | Med | M | High |
-| **W7** ⚠️POC | Inject DB / connection / download context; typed `config_vars` accessors | T2 | 🟡 **PARTIAL** — `configVar/accessors.py` typed-accessor + injection seam added and call sites routed through it (`2831cf12`, `685f4376`, `579bf3c9`, `cdc3f74a`, `5ee31105`); remaining hotspot documented `9d59cf39`. DB/connection injection and the **download-context** step remain (download half POC-gated). | High | L | High |
+| **W2** | Shared util consolidation (atomic-JSON write, UTC-ISO timestamp, `run_instl_subprocess`, detail-query builder) | T5 | ⏸ **NOT STARTED** — the config-var coercion part of this is done (`configVar/accessors.py`); the rest is untouched. | Low | M | High |
+| **W3** | Single privacy denylist + one curl run loop | T5 | ⏸ **NOT STARTED** — the denylist is still defined twice (`downloadEvents` / `downloadRetry`); the two run loops now sit side by side in `downloadTransfer` but are not merged. See the constraint note below before merging either. | Med | M | High |
+| **W4** | `RuntimeLayout`: centralize OS/frozen detection | T4 | ⏸ **NOT STARTED** — OS-identity reads are routed through `configVar/accessors.py` (`current_os`/`target_os`) as a precursor. | Med | M | Med–High |
+| **W5** | Per-OS strategy backends (Permission/Flag) | T4 | ⏸ **NOT STARTED** (depends on W4). | Med | M–L | Med |
+| **W6** | Explicit data flow out of `config_vars` in client pipeline | T2/T1 | ⏸ **NOT STARTED** — the `InstallPlan` dataclass return change is not done; the typed-accessor seam (W7) is the landed precursor. | Med | M | High |
+| **W7** | Inject DB / connection / download context; typed `config_vars` accessors | T2 | 🟡 **PARTIAL** — `configVar/accessors.py` added, call sites in `instlDoIt`/`instlInstanceBase`/`instlMisc` routed through it, and three duplicate sets of private typed readers folded into its `config_var_str`/`_bool`/`_int`/`_list`. DB / connection / download-context injection remains. | High | L | High |
 | **W8** | Structured pybatch IR + registry deserializer; sandbox `eval` | T3 | 🟡 **PARTIAL** — serialization backbone *hardened and documented* (invariants in-code, sharp edges + migration path in §8), **output byte-identical** (`c9a036a6`). The IR migration / eval-sandboxing itself remains deferred. | High | L | High |
-| **W9** | Split `SVNTable` & `IndexItemsTable`; add `InstallPlanner` coordinator | T1/T2 | ⏸ **DEFERRED** — not started (`svnTree/svnTable.py` ~1623 LOC, cross-table joins intact). | High | L | High |
-| **W10** | Decompose `InstlInstanceBase` into collaborators | T1 | ⏸ **DEFERRED** — `PathResolver`/`BatchFileWriter`/`DependencyAnalyzer` not extracted. | High | L | High |
-| **W11** | Decompose `InstlClient` | T1 | 🟡 **PARTIAL** — split into the `pyinstl/client/` package of mixins behind a shim (`86bbad64`, polish `6d995fc7`); the *named-collaborator* extraction (calculation/sync-location/require-file classes, `InstallPlan`) remains. | High | L | Med–High |
-| **W12** | Decompose `InstlAdmin` into command clusters | T1 | 🟡 **PARTIAL** — split into the `pyinstl/admin/` package of mixins behind a shim (`ea119df9`); the named `RepoMaintenance`/`StageSync`/`Wtar`/… collaborators + `_repo_rev_upload_session` CM remain. | High | L | High |
-| **W13** | Split `PythonBatchCommandBase` (serialize vs execute) | T1/T2 | ⏸ **DEFERRED** — backbone documented in W8 §8; the serialize/execute mixin split itself not done. | High | L | Med–High |
-| **W14** | Decompose GUI `FrameController`; lazy `Tk()` | T1/T4 | 🟡 **PARTIAL** — `instlGui` decomposed into the `pyinstl/gui/` package of focused modules behind a shim (`41c9f491`); the Tk root is **still created at import time** (now in `gui/_globals.py`) so the lazy-`Tk()` half remains. | Med | M | Med |
-| **W15** | Split `ConfigVarStack` (container / resolver / dumper / OS-rewrite) | T1/T2 | ⏸ **DEFERRED** — not started. | High | L | Med |
-| **W16** | Retire/quarantine unmaintained backends (SVN/P4/BOTO, `dockutil`) | T5/T6 | ⏸ **DEFERRED** — not started. | Low | S–M | Med |
+| **W9** | Split `SVNTable` & `IndexItemsTable`; add `InstallPlanner` coordinator | T1/T2 | ⏸ **NOT STARTED** (`svnTree/svnTable.py` is 1620 lines, cross-table joins intact). | High | L | High |
+| **W10** | Decompose `InstlInstanceBase` into collaborators | T1 | ⏸ **NOT STARTED** — `PathResolver`/`BatchFileWriter`/`DependencyAnalyzer` not extracted. | High | L | High |
+| **W11** | Decompose `InstlClient` | T1 | ↩ **REVERTED** — a `pyinstl/client/` mixin package landed and was reverted; `instlClient.py` is byte-identical to master (660 lines). Named collaborators (calculation / sync-location / require-file, `InstallPlan`) remain unstarted. | High | L | Med–High |
+| **W12** | Decompose `InstlAdmin` into command clusters | T1 | ↩ **REVERTED** — a `pyinstl/admin/` mixin package landed and was reverted; `instlAdmin.py` is byte-identical to master (1481 lines). Named `RepoMaintenance`/`StageSync`/`Wtar`/… collaborators remain unstarted. | High | L | High |
+| **W13** | Split `PythonBatchCommandBase` (serialize vs execute) | T1/T2 | ⏸ **NOT STARTED** — backbone documented in W8 §8; the mixin split itself is not done. | High | L | Med–High |
+| **W14** | Decompose GUI `FrameController`; lazy `Tk()` | T1/T4 | ↩ **REVERTED** — a `pyinstl/gui/` package landed and was reverted; `instlGui.py` is byte-identical to master (984 lines) and the Tk root is still created at import time. | Med | M | Med |
+| **W15** | Split `ConfigVarStack` (container / resolver / dumper / OS-rewrite) | T1/T2 | ⏸ **NOT STARTED**. | High | L | Med |
+| **W16** | Retire/quarantine unmaintained backends (SVN/P4/BOTO, `dockutil`) | T5/T6 | ⏸ **NOT STARTED**. | Low | S–M | Med |
 
 > Additional landed work not enumerated above: **modernization** — `pipes`→`shlex` and
 > other safe py3.13-compat / idiom wins (`ebfb23d3`); **client error hardening** — clearer,
 > actionable install-path error/failure messaging (`9378cef6`); and the
 > **characterization net** itself (see W-TEST below).
 >
-> ⚠️POC = touches the active Download System Enhancement (`download*` / curl paths). W3 and W7's
-> download-context step are **hard-blocked until the POC merges to main**; W2 is a coordinate-timing
-> overlap. See "Alignment with the in-flight Download System Enhancement" in §1.
+> W2, W3 and W7's download-context step touch the actively-developed `download*` / curl paths;
+> see "Constraints from the download subsystem" in §1 before starting any of them.
 
 ---
 
@@ -291,36 +294,35 @@ graph TD
 Solid edges are hard prerequisites; the dotted edge (W15→W8) is a convenience, not a
 blocker. W16 has no incoming edges beyond W0/W1 and is omitted from the chains.
 
-### Suggested waves — and what actually landed on `instl-modernization`
+### Suggested waves — and what actually landed
 
 - **Wave A (de-risk, no prerequisites):** W0, W1, W16, and stand up **W-TEST**.
   → **Largely DONE.** W-TEST stood up first (`c9c17223`, then the instlClient copy/graph
-  goldens `d8efde3e`); W1 hygiene completed across all packages; W0 fixed the real bugs the
-  goldens surfaced (`8b4a9e17`). W16 not done.
+  goldens `d8efde3e`); W1 hygiene completed across all packages; W0 fixed some of the enumerated
+  bugs (see its row in §3 for what is still open). W16 not done.
 - **Wave B (foundations):** W2, W3, W4, W5, W6, W7.
   → **PARTIAL.** The non-download, non-DB half of W7 landed as the typed `config_vars`
-  accessor seam (`configVar/accessors.py`). W2/W3 held (POC). W4/W5/W6 not started.
+  accessor seam (`configVar/accessors.py`). W2/W3/W4/W5/W6 not started.
 - **Wave C (structural cuts):** W9, W10, W13, W15.
-  → **NOT DONE** (these are the deep class-level decompositions). The *module-extract* form of
-  the god-object splits happened opportunistically instead (see Wave D note).
+  → **NOT DONE** (these are the deep class-level decompositions).
 - **Wave D (depends on C):** W11, W12, W14, W8.
-  → **PARTIAL, done out of order.** Rather than waiting on Wave C, the three god-objects were
-  decomposed as **package/module extracts behind thin shims** (`pyinstl/admin/`,
-  `pyinstl/client/`, `pyinstl/gui/`) — a lower-risk, output-preserving first cut that leaves the
-  deeper named-collaborator extraction (W9/W10/W13) for later. W8's serialization backbone was
-  *hardened and documented* (§8) without changing output.
+  → **REVERTED / PARTIAL.** W11/W12/W14 were attempted out of order as mixin packages behind
+  re-export shims and then reverted in full (see the status block at the top). W8's serialization
+  backbone was *hardened and documented* (§8) without changing output.
 
-> **What changed vs the plan.** The originally-planned hard edge "you must finish Wave C
-> (collaborator extraction) before Wave D (god-object decomposition)" was relaxed: splitting each
-> god-object into a **package of mixins behind a re-export shim** is behavior-identical and
-> testable against the goldens, so it shipped first and de-risked the file. The class-level
-> collaborator seams (`PathResolver`, `InstallPlan`, `InstallPlanner`, serialize/execute mixins)
-> are still gated on Wave C and remain future work.
+> **What the reverted attempt showed.** The plan's hard edge — finish Wave C (collaborator
+> extraction) before Wave D (god-object decomposition) — was relaxed on the theory that splitting a
+> god-object into a package of mixins behind a shim is behavior-identical, testable against the
+> goldens, and de-risks the file. It was behavior-identical, but it did not decompose anything: the
+> mixins shared one `self`, so no part became independently testable, and one method had to stay in
+> the composed class because a name-mangled private attribute could not be reached from a
+> differently-named mixin. **The original ordering stands** — extract the class-level collaborator
+> seams (`PathResolver`, `InstallPlan`, `InstallPlanner`, serialize/execute) first; a file-layout
+> split on its own buys nothing.
 
-> **POC gate (still in force).** W3 and the `download*` portion of W7 remain blocked until the
-> Download System Enhancement POC merges to main (see §1). The remaining non-download Wave B parts
-> (W4, W5, W6, the DB/connection half of W7) are open. W2 must be timed against open enhancement
-> commits.
+> **Download-subsystem gate.** W3 and the `download*` portion of W7 carry the hazards listed in
+> §1 ("Constraints from the download subsystem"). The remaining non-download Wave B parts
+> (W4, W5, W6, the DB/connection half of W7) are open.
 
 ---
 
@@ -332,16 +334,17 @@ concrete steps, verification, and rollback.
 ### W0 — Fix enumerated latent bugs (T6)
 
 **Current state.** Several small but correctness-affecting bugs documented in the
-LLD: `InstlInstanceBase.needs` calls `.append` on a `set` (`instlInstanceBase.py:500`,
-raises `AttributeError` on a missing dependency); `baseClasses.py:429` emits literal
-`{...}` braces (missing `f`); `removeBatchCommands.py:241` `log.wanging` raises instead
-of warning; `IsSymlink` defines `repr_own_args` instead of `__repr__`, breaking
-`repr(If(IsSymlink(...)))` (`conditionalBatchCommands.py:116`); `SVNRow.__eq__` omits
-`needed_for_iid` and `__repr__` is a broken f-string (`svnTable.py:92,200-222`);
-`instlInstanceSync_boto.py:17` uses `os.fspath` without `import os`;
-`instlInstanceSync_url.py:143` `verbatim=source_url==['url']` is always False;
-`files.py:526` references unimported `win32file`; `instlAdmin.py:1090` uses removed
-`hmset`; `dbMaster.py:168-233` swallows `OperationalError` as success.
+LLD. Still open: `InstlInstanceBase.needs` calls `.append` on a `set` (raises
+`AttributeError` on a missing dependency); `baseClasses.log_result` emits literal
+`{...}` braces (missing `f`); `IsSymlink` defines `repr_own_args` instead of
+`__repr__`, breaking `repr(If(IsSymlink(...)))` (`conditionalBatchCommands.py`);
+`SVNRow.__eq__` omits `needed_for_iid` and `SVNRow.__repr__` f-prefixes only its
+first line so the rest renders literally (`svnTable.py`);
+`instlInstanceSync_boto.py` uses `os.fspath` without `import os`;
+`instlInstanceSync_url.py` `verbatim=source_url==['url']` is always False;
+`instlAdmin.py` uses removed `hmset`; `dbMaster.py` swallows `OperationalError` as
+success. Already fixed on this branch: `removeBatchCommands.py`'s `log.wanging`
+typo and `files.py`'s unimported `win32file`.
 
 **Target state.** Each bug fixed with a focused regression test; no behavior change
 elsewhere.
@@ -364,7 +367,7 @@ should not move — if they do, investigate).
 `teardown_file_logging` unreachable body), dead helpers (`find_leaves`,
 `can_skip_unwtar`, `_option_1` ~60 dup lines in uninstall), always-false debug flags
 (`skip_some_actions`, `total_redundant_wtar_files`), duplicated imports
-(`baseClasses.py:1-15`), and broad `except: pass` in `should_wtar`,
+(`baseClasses.py`), and broad `except: pass` in `should_wtar`,
 `do_translate_guids`, `extract_info`, the Redis heartbeat thread, and GUI
 activate/upload.
 
@@ -387,9 +390,9 @@ inherently reversible via git.
 ### W6 — Explicit client data flow out of `config_vars` (T2/T1)
 
 **Current state.** `InstlClient.calculate_install_items` and friends round-trip
-results through `__*__` config keys (`instlClient.py:200-253`), and
+results through `__*__` config keys (`instlClient.py`), and
 `InstlClientUninstall` mutates `req_trans['status']` in place
-(`instlClientUninstall.py:138-194`). Downstream `do_copy`/`do_remove` read those keys
+(`instlClientUninstall.py`). Downstream `do_copy`/`do_remove` read those keys
 back. Data flow is order-dependent and invisible (HLD client note: "Calculation
 results are passed between methods implicitly through config-var keys").
 
@@ -421,7 +424,7 @@ nature (LLD DB note 10). `ConnectionBase.repo_connection` is a process-wide,
 non-resettable singleton (sync note 6). The `download*` family keeps `_GLOBAL_CHANNEL`,
 `_active_observability`, `_telemetry_enabled`, and `CUrlHelper.cached_internal_parallel`
 as module globals needing `reset_*` hooks (download note 9). pybatch holds run-scoped
-progress/stage state at class level (`baseClasses.py:47-57`), breaking `RunInThread`
+progress/stage state at class level (`baseClasses.py`), breaking `RunInThread`
 reentrancy.
 
 **Target state.** A per-run **session/context object** owns the DB handle, the
@@ -429,13 +432,13 @@ connection, and the download context, and is threaded through the choke points. 
 existing globals remain as thin defaults delegating to the current session, so callers
 migrate incrementally.
 
-> ⚠️ **POC conflict — sequence the `download*` part LAST.** The download singletons named here
+> ⚠️ **Sequence the `download*` part LAST.** The download singletons named here
 > (`get_global_channel()`/`_GLOBAL_CHANNEL`, `_active_observability`,
 > `_telemetry_enabled`/`set_telemetry_enabled`, `CUrlHelper.cached_internal_parallel`) are the
-> exact surfaces the **Download System Enhancement** is actively building (Phases 4–7). In
-> particular `set_telemetry_enabled()` is the D-018 telemetry kill switch. Do **not** wrap these
-> in a `DownloadContext` until that POC has merged to main. The DB/connection injection (steps 1–3,
-> 5 below) is safe to start independently; **step 4 is blocked**.
+> exact surfaces the download work is still building on. `set_telemetry_enabled()` in particular
+> is the telemetry kill switch driven by `DOWNLOAD_TELEMETRY_ENABLED`, so wrapping it in a
+> `DownloadContext` removes the rollout hatch. The DB/connection injection (steps 1–3,
+> 5 below) is safe to start independently; **step 4 should come last**.
 
 **Concrete steps.** (1) Define `RunContext` (or reuse `InstlInstanceBase` as the
 owner) holding `db`, `connection`, `download_ctx`. (2) Convert `DBManager` descriptors
@@ -456,11 +459,11 @@ revert any single subsystem's injection while the others keep using the context.
 
 ### W9 — Split `SVNTable` / `IndexItemsTable`; add `InstallPlanner` (T1/T2)
 
-**Current state.** `svnTree/svnTable.py` is 1623 lines mixing parsing, bulk insert,
+**Current state.** `svnTree/svnTable.py` is 1620 lines mixing parsing, bulk insert,
 query helpers, `mark_*`/`ignore_*`, sync-folder diffing, URL policy, and serialization.
 `IndexItemsTable` is similarly broad. The two "separate" tables are coupled: SVNTable
-methods (`mark_required_files_for_active_items:1317`, `populate_IIDToSVNItem:1434`,
-`set_info_map_file:1453`, `get_files_that_should_be_removed_from_sync_folder:761`) join
+methods (`mark_required_files_for_active_items`, `populate_IIDToSVNItem`,
+`set_info_map_file`, `get_files_that_should_be_removed_from_sync_folder`) join
 `index_item_detail_t`/`iid_to_svn_item_t` directly, so a schema change to the index
 tables silently breaks SVNTable (DB notes 2–4).
 
@@ -491,25 +494,14 @@ untouched; revert an extraction without touching callers.
 
 ## 6. Target Module / Package Layout (before → after)
 
-> **Status note.** The package splits below have **landed** on `instl-modernization`, but as a
-> first, lower-risk cut: each god-object is now a **package of focused mixin submodules behind a
-> thin re-export shim** (`pyinstl/instlAdmin.py`, `pyinstl/instlClient.py`, `pyinstl/instlGui.py`
-> are now shims). The *actual* submodule names differ from the idealized "after" sketches here
-> (which name domain collaborators like `repo_maintenance.py`, `install_plan.py`,
-> `command_runner.py`): the landed layout uses underscore-prefixed mixin modules
-> (`admin/_repo.py`, `admin/_wtar.py`, `admin/_verify.py`, …; `client/_install_items.py`,
-> `client/_require.py`, …; `gui/_client_frame.py`, `gui/_admin_frame.py`, …). The sketches below
-> remain the **target** for the deeper W9–W14 extraction; the parenthetical "(landed:)" lines
-> record what exists today.
+> **Status note.** Nothing in this section has landed. Each of the three god-objects is a single
+> module, byte-identical to master: `pyinstl/instlAdmin.py` (1481 lines), `pyinstl/instlClient.py`
+> (660), `pyinstl/instlGui.py` (984). A mixin-package split of all three landed earlier on this
+> branch and was reverted in full (see the status block at the top); the layouts below were **not**
+> what it produced, and remain the target for the deeper W9–W14 extraction — domain collaborators
+> with real boundaries, not mixins sharing one `self`.
 
 ### `pyinstl/instlAdmin.py` (~1481 lines) — worst god-object
-
-> ✅ **Landed (`ea119df9`):** `pyinstl/instlAdmin.py` is now a shim re-exporting from
-> `pyinstl/admin/`: `__init__.py` (composes `InstlAdmin` from the mixins), `_helpers.py`
-> (`start_redis_heartbeat_thread`/`smart_merge_dicts`/`dict_in_canonical_order`), `_core.py`,
-> `_repo.py`, `_wtar.py`, `_verify.py`, `_info.py`, `_publish.py`. The named-collaborator
-> decomposition (`s3_upload.py` + `_repo_rev_upload_session` CM, `redis_daemon.py`, lazy service
-> clients) below is **still W12 future work**.
 
 **Before**
 ```
@@ -546,14 +538,6 @@ pyinstl/admin/
 
 ### `pyinstl/instlGui.py` (~984 lines)
 
-> ✅ **Landed (`41c9f491`):** `pyinstl/instlGui.py` is now a shim re-exporting from
-> `pyinstl/gui/`: `_globals.py` (the single Tk root + `default_font_size`), `_tkvars.py`
-> (`CreateTkConfigClass` + `TkConfigVar*`), `_tooltip.py` (`ToolTip`), `_frame_base.py`
-> (`FrameController`), `_client_frame.py`, `_admin_frame.py` (+ `admin_command_template_variables`),
-> `_activate_frame.py`, and `__init__.py` (`InstlGui`). **Caveat:** the Tk root is still created at
-> **import time** (moved into `gui/_globals.py`, not yet lazy) and the spawn/`run_instl_subprocess`
-> consolidation has not happened — both remain W14/W2 future work.
-
 **Before**
 ```
 pyinstl/instlGui.py
@@ -580,14 +564,6 @@ pyinstl/gui/
 ```
 
 ### `pyinstl/instlClient.py` (~660 lines) + `pyinstl/instlInstanceBase.py` (~565 lines)
-
-> ✅ **Landed for `instlClient` (`86bbad64`):** `pyinstl/instlClient.py` is now a shim
-> re-exporting `InstlClient`/`InstlClientFactory` from `pyinstl/client/`: `__init__.py` (composes
-> `InstlClient` from the mixins + keeps the inline `InstlClientSyncCopy` factory), `_core.py`,
-> `_install_items.py`, `_require.py`, `_actions.py`, `_binaries.py`, `_sync_locations.py`,
-> `_remove_sources.py`, `_naming.py`. ⏸ **Not done:** `instlInstanceBase.py` is **unchanged** (no
-> `instance/` package yet — W10), and the explicit `InstallPlan` dataclass / `synccopy.py` module
-> (W6/W11) are still future work.
 
 **Before**
 ```
@@ -628,7 +604,7 @@ and is consumed by `InstlClient`.)
 ### Quick wins (low risk / high payoff, no structural prerequisites)
 
 These can land immediately and in parallel; ship them first to de-risk the rest.
-(Status as landed on `instl-modernization` is annotated below.)
+(Status is annotated below.)
 
 - **W0** — fix the enumerated latent bugs (each a small, isolated commit + test). 🟡 the
   golden-surfaced ones are fixed (`8b4a9e17`).

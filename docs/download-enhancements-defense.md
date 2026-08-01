@@ -1,7 +1,7 @@
-# Download Enhancements POC — Change Defense
+# Download Enhancements — Change Defense
 
 **Audience:** Shai Shasag (instl author) · Vitaly (Central maintainer)
-**Branches:** instl `instl-modernization` (base `afef589a`) · Central `feature/V17.0.10---POC-Download-Enhancements` (base `1a2291c4`, off `main`)
+**Branches:** instl `download-enhancements-cont` (compared against `origin/master` = `0070bfad`) · Central `poc-de/V17.0.11---POC-Download-Enhancements-WIN`
 **Date:** 2026-06
 
 ## How to read this / honesty statement
@@ -13,8 +13,8 @@ Verification truth-in-advertising:
 - **Windows:** **reasoned from code, not yet run.** Where a Windows behavior is only argued from the source, it says so. A Windows smoke-test checklist is in §E — nothing here claims "tested on Windows."
 
 Scope completeness (verified against git history):
-- **instl:** covers the **entire** POC from the first commit `95709186` "Resuming Dowload" (2026-05-18) — master contains no `download*` modules, so the whole feature is on-branch and captured — plus the modernization refactor.
-- **Central:** covers the **entire** POC from the first commit `4502a25`/`c2919ec` (2026-05-27/28) through HEAD — all ~20 POC commits and ~50 files, audited subsystem-by-subsystem against the pre-POC baseline `6e67472f`. (An earlier draft of this doc only covered the last 4 commits; this version is complete.)
+- **instl:** covers the **entire** feature from the first commit `95709186` "Resuming Dowload" (2026-05-18) — master contains no `download*` modules, so the whole feature is on-branch and captured.
+- **Central:** covers the **entire** feature from the first commit `4502a25`/`c2919ec` (2026-05-27/28) through HEAD — ~20 commits and ~50 files, audited subsystem-by-subsystem against the pre-feature baseline `6e67472f`.
 
 I also **proactively concede** a short list of real caveats in §D. None is a known break; they are the honest edges, raised so they don't get "found."
 
@@ -33,7 +33,7 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 | Adaptive concurrency | **off** | No (provably inert) | Yes | Safe |
 | Cohort | control | No (telemetry label only) | Yes | Safe |
 | Structured events | telemetry **on** | Additive log lines only | Yes (all swallowed) | Safe |
-| Modernization (decomp/hygiene/accessors) | n/a | Behavior-identical (+3 bug fixes) | n/a | Safe; nothing Win dropped |
+| Hygiene / accessors (decomposition reverted, see A10) | n/a | Behavior-identical (+3 bug fixes) | n/a | Safe; nothing Win dropped |
 | Central event ingestion | — | **Additive, front-gated**; legacy regex intact | Yes (parse fails → null) | CRLF handled; **split-line drop untested** |
 | Central control channel (stdin) | inert w/o Central | New `sendCommand` — **all 7 implementors updated** | Yes (best-effort) | Safe (LF + instl `.strip()`) |
 | Central offline detect + hold | hold gated on capability | Legacy keeps fail-on-offline | Yes | Safe; **no max-hold ceiling** |
@@ -48,7 +48,7 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 
 - **What:** `CheckDownloadFolderChecksum.__call__` no longer writes a resume sidecar (VERIFYING / VERIFIED / ALREADY_VALID) per file.
 - **Why:** Timing instrumentation localized **337.8s of a 343.8s verify loop (98%)** to `_save_resume_sidecar` — each verified file did a JSON read-back + atomic fsync write, ~2 calls/file (~49k filesystem ops over 24k files). Live verify dropped **~4m49s → ~12s** (~24×); residual is just SHA-1 hashing.
-- **Why it's safe (the crux):** the verify-time `transfer_state` is **written but never read**. The only consumer, `resume_decision_for_download_item` (`downloadState.py:774-823`), reads only `record.source` (etag/last-modified/signed-url) and on-disk **partial-temp existence** — confirmed line-by-line, no read of `record.transfer.state` anywhere. Recovery after an interrupted verify is driven by `mark_need_download` → `need_to_download_file` (on-disk checksum/size truth, `misc_utils.py:366`), independent of any sidecar. Bad/missing files **still** get a sidecar via the retry path (`_emit_retry_decision` → `_save_resume_sidecar_with_retry_count`).
+- **Why it's safe (the crux):** the verify-time `transfer_state` is **written but never read**. The only consumer, `resume_decision_for_download_item` (`downloadState.py`), reads only `record.source` (etag/last-modified/signed-url) and on-disk **partial-temp existence** — confirmed line-by-line, no read of `record.transfer.state` anywhere. Recovery after an interrupted verify is driven by `mark_need_download` → `need_to_download_file` (on-disk checksum/size truth, `misc_utils.py`), independent of any sidecar. Bad/missing files **still** get a sidecar via the retry path (`_emit_retry_decision` → `_save_resume_sidecar_with_retry_count`).
 - **macOS/Windows:** identical on both — this only removes I/O. No platform surface.
 - **Verified:** live macOS install (12s); 4 tests updated to the corrected contract; full `pyinstl`+`pybatch` suites green (394 passed).
 
@@ -114,26 +114,25 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 - **Why it's safe:** runs **alongside** the legacy free-text progress (does not replace it); `emit_event` swallows all format/log errors; a privacy denylist drops auth/URL/local-path keys even if a caller forgets to redact; timestamps are UTC ISO. Kill switch suppresses all of it and the sync still completes.
 - **macOS/Windows:** no filesystem/OS assumptions; JSON is deterministic (`sort_keys`). One thing the consumer must tolerate: Windows text-mode logging can introduce `\r` — Central handles it (see B1).
 
-## A10. Modernization — god-object decomposition (admin/, client/, gui/)
+## A10. God-object decomposition — attempted, then reverted (not in this diff)
 
-- **What:** `instlAdmin`→`pyinstl/admin/`, `instlClient`→`pyinstl/client/`, `instlGui`→`pyinstl/gui/` packages.
-- **Why:** the god-objects (1000–1600+ lines) were the stated top refactoring pain point.
-- **Why it's safe — behavior-identical:** old modules kept as **backward-compat shims** that re-export from the new packages; dispatch and sibling mixins import through the shims (no dangling imports, AST-verified). **All 21 admin `do_*` methods present** (exact set match); GUI moved verbatim (zero line-multiset diff). Platform-specific code survived intact: per-OS manifest handling (`!index_Win`), Chmod exec-bit logic, the Redis upload daemon, the Tk root + all three GUI tabs.
-- **macOS/Windows:** Windows branches preserved (token counts of `Win`/`Chmod`/`win` match old↔new exactly). Admin/GUI are source-only and excluded from the frozen client build, so this can't affect the shipped client anyway.
+- **What:** a split of `instlAdmin`→`pyinstl/admin/`, `instlClient`→`pyinstl/client/`, `instlGui`→`pyinstl/gui/` (each a package of 7–8 private mixins behind a re-export shim) landed on this branch and was later **reverted in full**.
+- **Current state:** `pyinstl/instlAdmin.py` (1481 lines), `pyinstl/instlClient.py` (660) and `pyinstl/instlGui.py` (984) are **byte-identical to master** — `git diff 0070bfad -- <those three>` is empty — and the three packages do not exist. **There is nothing to review here.**
+- **Why it was reverted:** the mixins all shared one `self`, so no part became isolatable or independently testable; the runtime object stayed a god object spread over eight files. One method had to remain in the composed class because a name-mangled private attribute (`self.__all_iids_by_target_folder`) is unreachable from a differently-named mixin. Nothing in the download work depended on it, so it was pure review cost.
 
-## A11. Modernization — hygiene (+ 3 latent bug fixes)
+## A11. Codebase hygiene (+ 3 latent bug fixes)
 
 - **What:** dead-code removal, unused-import pruning, narrowing `except: pass` to logged/typed excepts — across pybatch, configVar/aYaml, utils, db/svnTree, pyinstl-core.
 - **Why it's safe:** every dead-code removal verified unreachable (`if False:`, no-op wrappers, post-`return` code, a duplicate `def quoteme_raw_string`); every narrowed except **still swallows** (now logs) — no control-flow change. **No Windows import was removed** (`grep` for removed `win32*/winreg/pywin32` across all hygiene commits is empty).
 - **Disclosed improvements riding along (not byte-identical):** (1) `log.wanging`→`log.warning` (a branch that used to raise `AttributeError`); (2) `get_disk_free_space` now imports `win32file` **inside** the existing `'Win'` guard — a **Windows-only fix** for a prior `NameError`; (3) `Unwzip` now `MakeDir(target)` not `.parent` (platform-agnostic). All are fixes on already-broken paths; Windows posture is **unchanged or better**.
 
-## A12. Modernization — config_vars containment
+## A12. config_vars containment
 
 - **What:** new `configVar/accessors.py` typed accessors + `(cv=None)` injection seams.
 - **Why it's safe:** accessors are **literal transcriptions** of the old idioms (`.str()`, `.list()`, `bool()`, `.Path()`); no default, coercion, truthiness, or key changed. OS identity returns the **identical** string on Windows (`"Win"`). No caller passes `cv`, so the global singleton path is unchanged. Migration is incremental but consistent (remaining direct reads resolve identically).
 - **macOS/Windows:** no semantic change on either.
 
-## A13. Modernization — `pipes`→`shlex` (py3.13 compat)
+## A13. `pipes`→`shlex` (py3.13 compat)
 
 - **What:** one 2-line change in `utils/dockutil.py`.
 - **Why it's safe:** `pipes.quote` was a CPython alias of `shlex.quote` — byte-identical output. `dockutil` imports `pwd` (Unix-only) at module top, so it **cannot even import on Windows** — the change is vacuous there and POSIX-appropriate on macOS.
@@ -148,7 +147,7 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 
 # Part B — Central (for Vitaly)
 
-> Covers the full Central POC (~20 commits, ~50 files) across five subsystems, audited against pre-POC baseline `6e67472f`. The two load-bearing safety facts, established by tracing the code:
+> Covers the full Central change (~20 commits, ~50 files) across five subsystems, audited against baseline `6e67472f`. The two load-bearing safety facts, established by tracing the code:
 > 1. **Engine selection:** the live `run-process` path runs only the **latest** engine; legacy V9/V10 installs never reach the new code. On **Windows**, online installs run elevated and so use the line-oriented **buffer-file** output path (not raw stdout) — which incidentally mitigates the chunk-split risk below.
 > 2. **Everything new is additive with a legacy fallback or a kill switch** — with two honest exceptions called out in B5/B6 (and §D).
 
@@ -184,7 +183,7 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 - **Two weaknesses found here — now FIXED (see §D-7/8):**
   - ✅ **The dialog recovery buttons are now gated on the UX rollout flag.** `getFailureRecoveryActions` returns `null` unless `CENTRAL_DOWNLOAD_UX_ENABLED_PROP_NAME === true`, so a legacy engine (flag absent) falls back to the legacy Copy-error/OK footer. Regression-tested.
   - ✅ **"Try again" is now suppressed on `retryable:false` failures** (e.g. terminal TLS) — the action map drops `tryAgain` when not retryable. Regression-tested.
-- **macOS/Windows:** the curl/instl **string-prose** patterns are **English-locale-dependent** (pre-existing, but the POC widens the surface 4→13 patterns); the **curl-exit-code** patterns (`curl error code: NN`) are locale-independent and robust. No multiline/`^$` anchors → line-ending-safe. One Windows note: a curl-23 "write error" now routes to a permission-fixer button that does little on Windows.
+- **macOS/Windows:** the curl/instl **string-prose** patterns are **English-locale-dependent** (pre-existing, but this branch widens the surface 4→13 patterns); the **curl-exit-code** patterns (`curl error code: NN`) are locale-independent and robust. No multiline/`^$` anchors → line-ending-safe. One Windows note: a curl-23 "write error" now routes to a permission-fixer button that does little on Windows.
 
 ## B5. Progress dialog + shared controls + i18n + telemetry
 
@@ -199,7 +198,7 @@ I also **proactively concede** a short list of real caveats in §D. None is a kn
 
 ## B6. Tests
 
-Substantial jest coverage added and green (`tsc --noEmit` clean): `downloadEventParser` (19), `downloadEventContract` (6, pins the cross-repo contract + additive-field tolerance), `downloadStateBus`, `downloadControlBus` (5), `onlineDetector` (5), `downloadFailureCategory`, `downloadRecoveryActions`, `failureRecoveryActions`, `errorParsers` (legacy parsers + new, regression-guarded), `downloadVisibleState` (11), `downloadMetaLine` (8), `downloadControls` (7), `progressBar` (variant + no-variant lock), `shellInstlProcessProgressHandler` (incl. byte-bar, phase-byte tail, **explicit old-engine inertness**, retained legacy paths). **Notable gaps to disclose:** no split-line/CRLF ingestion test; no offline-hold wiring test; no "legacy engine shows generic footer (not new buttons)" test; no `retryable:false`→no-"Try again" test; command-string mapping untested.
+Substantial jest coverage added and green (`tsc --noEmit` clean): `downloadEventParser`, `downloadEventContract` (6, pins the cross-repo contract + additive-field tolerance), `downloadStateBus`, `downloadControlBus` (5), `onlineDetector` (5), `downloadFailureCategory`, `downloadRecoveryActions`, `failureRecoveryActions`, `errorParsers` (legacy parsers + new, regression-guarded), `downloadVisibleState`, `downloadMetaLine` (8), `downloadControls` (7), `progressBar` (variant + no-variant lock), `shellInstlProcessProgressHandler` (incl. byte-bar, phase-byte tail, **explicit old-engine inertness**, retained legacy paths). **Notable gaps to disclose:** no split-line/CRLF ingestion test; no offline-hold wiring test; no "legacy engine shows generic footer (not new buttons)" test; no `retryable:false`→no-"Try again" test; command-string mapping untested.
 
 ---
 
@@ -211,7 +210,7 @@ Substantial jest coverage added and green (`tsc --noEmit` clean): `downloadEvent
 - curl args go into a **config file**, not a shell line → the `shlex`-is-POSIX concern doesn't apply; Windows 8.3 shortname path handling untouched.
 - temp→final promotion uses `os.replace` (atomic-replace on Windows) on a **same-volume** temp by construction.
 - `requests` import is guarded → client-only frozen build unaffected.
-- Modernization dropped **no** Windows import / admin subcommand / platform branch; added a Windows-only `win32file` fix.
+- The hygiene pass dropped **no** Windows import / admin subcommand / platform branch; it added a Windows-only `win32file` fix.
 - Central: the new `sendCommand` is implemented/stubbed in **all 7** `ILiveProcess` sites (`tsc` clean); stdin write is a single `\n` that instl's `.strip()`ing reader handles; **Windows online installs use the line-oriented buffer-file path**, so the worst-case raw-stdout chunk-split is a macOS concern, not Windows.
 - Central: shared `ProgressBar` change is an **optional** prop (non-download call sites byte-identical, test-locked); offline-hold and the inline-message recovery tokens are **capability-gated off** for legacy engines.
 
@@ -283,20 +282,20 @@ These are the honest edges. None is a known break; raising them first is what ke
 
 A later change set on the continuation branch makes the engine survive a lost connection **without Central's help** (elevated runs never get a Central pause), and removes the checksum-phase recovery cliff. Every behavior is an independent kill switch, default ON, following the same rollout pattern as Part A; the gates ride on `download.capability.featureFlags`. Doc of record for the event side: `docs/download-events.md` (§3.1/§3.3/§3.6); internals: `docs/LLD.md` (Download Subsystem + pybatch §2.4/§2.5/§3.2).
 
-## F1. Workstream A — post-run output reconciliation (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, default yes)
+## F1. Post-run output reconciliation (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`, default yes)
 
 - **What:** `curl --parallel` can exit 0 while individual transfers failed permanently (their internal retries were exhausted while offline), leaving expected outputs with no `.part` at all. After curl exit 0, `CurlTransfer._reconcile_missing_outputs` (`pyinstl/downloadTransfer.py`) checks every `output` path from the config against the disk and re-runs curl with a `.reconcile-NN` config containing only the missing entries, up to `DOWNLOAD_RECONCILE_MAX_ROUNDS` (3) rounds through the same pause/offline-hold loop.
 - **Why it's safe:** entries are rewritten as **fresh-start** — `continue-at = N` (N>0) is rewritten to `continue-at = -` and stale `If-*` conditional headers are dropped (replaying a byte offset against a nonexistent output writes the ranged body at offset 0: a silently corrupt file). Config parsing is best-effort (any read problem → no-op). The checksum phase remains the final gate. Kill switch restores trust-exit-0 exactly.
 - **Verified:** unit tests in `pybatch/test/test_subprocessBatchCommands.py` (parser, missing-only retry config, bounded rounds, kill switch, fresh-start rewrite).
 
-## F2. Workstream B — engine-side offline-hold (`DOWNLOAD_OFFLINE_HOLD_ENABLED`, default yes)
+## F2. Engine-side offline-hold (`DOWNLOAD_OFFLINE_HOLD_ENABLED`, default yes)
 
-- **What:** on a network-class curl exit the engine probes connectivity itself (TCP connect to the `BASE_LINKS_URL` host — or to the **proxy** when proxy env vars are set, since curl's transfers go through it) instead of blindly burning the bounded 12-attempt backoff budget. While genuinely offline it holds, probing every `DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS` (5), until connectivity returns or the cumulative `DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS` (1800) budget is spent — then the old retries-exhausted path applies. Central pause/resume/try_now still interrupt the hold; time spent client-paused does not burn the hold budget.
+- **What:** on a network-class curl exit the engine probes connectivity itself (TCP connect to the `BASE_LINKS_URL` host — or to the **proxy** when proxy env vars are set, since curl's transfers go through it) instead of blindly burning the bounded 12-attempt backoff budget. While genuinely offline it holds, probing every `DOWNLOAD_OFFLINE_PROBE_INTERVAL_SECONDS` (5), until connectivity returns or the cumulative `DOWNLOAD_OFFLINE_HOLD_TIMEOUT_SECONDS` budget is spent — then the old retries-exhausted path applies. Central pause/resume/try_now still interrupt the hold; time spent client-paused does not burn the hold budget.
 - **Why it's safe:** the probe **fails open** — no determinable host, or a proxy configured but unparsable, reports "online" and degrades to the legacy bounded backoff (never a false 30-minute hold on a healthy network). Terminal behavior unchanged: after hold timeout the checksum phase still recovers. Kill switch restores the legacy backoff-only loop.
 - **Events (capability-gated, see F5):** throttled `paused/offline_no_network` session_states + one network-class `retry_decision` per failed probe (`reason="offline_hold_probe_failed"`), a `downloading/resuming_after_offline` on reconnect, and `retry_decision(reason="bulk_curl_network_error")` per network-class curl exit — the bulk loop previously emitted only free-text log lines, so Central's online detector never saw it.
 - **Verified:** unit tests (hold-emits-events-and-resumes, overall timeout, retry_decision-then-hold, kill switch, probe host resolution, proxy probe target, fail-open on unparsable proxy, paused-time exclusion).
 
-## F3. Workstream C — stall detection (`DOWNLOAD_CURL_STALL_DETECTION`, default yes)
+## F3. Stall detection (`DOWNLOAD_CURL_STALL_DETECTION`, default yes)
 
 - **What:** two halves. *Enforcement:* curlHelper adds `speed-limit = 1` / `speed-time = 30` to generated configs so a silent TCP stall (dropped VPN, NAT timeout) exits 28 — network-class, feeding the offline-hold loop — instead of hanging forever; `retry-max-time` is bumped to ≥3× `speed-time` (never lowering a larger explicit value) so the promised in-place retry of a stall abort is actually possible. *Observability backstop:* the `.part`-size poller logs and emits a `downloading/stalled_no_progress` session_state when total bytes haven't grown for `DOWNLOAD_STALL_WATCHDOG_SECONDS` (180; 0 disables) while curl is alive — it never kills curl.
 - **Why it's safe:** kill switch restores the previous (macOS-validated) config format byte-for-byte (test-locked). Exit 28 is already transient for plain `retry`, orthogonal to the `retry-all-errors`/resume exclusion.
