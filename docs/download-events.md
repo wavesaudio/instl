@@ -101,7 +101,7 @@ narrates that recovery with additional `session_state` transitions:
 | `paused` | `offline_no_network` | connectivity probe failed; engine is holding (re-emitted, throttled to `DOWNLOAD_OFFLINE_HOLD_EVENT_INTERVAL_SECONDS`). Raised by the recovery loop after a network-class curl exit, AND by the `.part`-size poller after `DOWNLOAD_STALL_PROBE_SECONDS` of zero byte growth with a failed probe (fast path: a mid-transfer link drop only stalls curl's sockets, so no exit code fires until `speed-time`) |
 | `downloading` | `resuming_after_offline` | connectivity returned; curl is re-run (`continue-at` resumes `.part` files). The poller's fast-path hold announces this only when bytes actually grow again — probe success alone keeps the hold visible (a wedged curl gets speed-time-aborted and re-run first). While a poller hold is active, plain flat-byte progress ticks are suppressed so the client's backend-hold flag is not churned |
 | `downloading` | `stalled_no_progress` | stall-watchdog backstop: on-disk bytes have not grown for `DOWNLOAD_STALL_WATCHDOG_SECONDS` while curl is alive (suppressed while a poller offline-hold is active) |
-| `retrying` | `reconcile_missing_outputs` | curl exited 0 but expected outputs are missing; a reconciliation round re-downloads only the missing entries |
+| `retrying` | `reconcile_missing_outputs` | curl exited (any code) and expected outputs are missing; a reconciliation round re-downloads only the missing entries |
 
 These carry the current on-disk byte progress (`bytesReceived`,
 `filesCompleted`, `phaseBytesDone`, `phaseBytesPlanned`) so Central's bar keeps

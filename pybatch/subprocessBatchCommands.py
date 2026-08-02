@@ -632,5 +632,11 @@ class CurlWithInternalParallel(PythonBatchCommandBase, kwargs_defaults={
             fallback_exit_codes=self.fallback_exit_codes,
             label=self.progress_msg_self(),
         )
-        transfer.run()
+        return_code = transfer.run()
+        if return_code != 0:
+            # not raised: the checksum phase is the completeness gate and can still
+            # recover this chunk, so failing here would kill a recoverable install
+            log.error(f"CurlInternalParallel '{self.config_file_path}' finished with "
+                      f"curl code {return_code} after reconciliation; any outputs still "
+                      f"missing are left to the checksum phase to redownload")
         self.increment_progress()

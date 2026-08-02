@@ -150,6 +150,28 @@ class TestRedownloadBudget(unittest.TestCase):
         self.assertEqual(len(command.lists_of_files["missing_files"]), 5)
         self.assertEqual(len(dler.calls), 5)
 
+    def test_redownload_progress_message_carries_its_position(self):
+        # The pass reports with increment_by=0, because recovery was never in the
+        # progress plan; without a position in the text Central shows one frozen
+        # "Progress N of M" for the whole pass.
+        items, payloads = self._make_missing_items(4)
+        dler = _FakeDler(payloads)
+        messages = []
+
+        def report_progress(increment_by=None, prog_counter_msg=None, prog_msg=None):
+            if prog_msg:
+                messages.append(prog_msg)
+
+        recovered = downloadVerify.redownload_bad_files(
+            dler, FakeInfoMapTable(items), items, report_progress)
+
+        self.assertEqual(4, recovered)
+        redownloaded = [m for m in messages if m.startswith("redownloaded ")]
+        self.assertEqual(4, len(redownloaded))
+        for position, message in enumerate(redownloaded, start=1):
+            self.assertTrue(message.startswith(f"redownloaded {position} of 4: "),
+                            f"missing position in redownload progress message: {message!r}")
+
     # --- budgets bound the pass instead of a count cliff --------------------
 
     def test_bytes_budget_exhaustion_leaves_clear_error(self):

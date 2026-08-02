@@ -484,7 +484,8 @@ def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progr
                 break
         try:
             redownload_one_file(dler, file_item, info_map_table, control_channel,
-                                retry_enabled, report_progress)
+                                retry_enabled, report_progress,
+                                position=(file_index + 1, len(files_to_redownload)))
             num_recovered += 1
             if budget is not None:
                 budget.spend_bytes(getattr(file_item, "size", 0) or 0)
@@ -497,7 +498,8 @@ def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progr
     return num_recovered
 
 
-def redownload_one_file(dler, file_item, info_map_table, control_channel, retry_enabled, report_progress):
+def redownload_one_file(dler, file_item, info_map_table, control_channel, retry_enabled,
+                        report_progress, position=None):
     """Download a single bad file, retrying with control-channel-aware backoff; raises
     when terminally unrecoverable, so returning means recovered. wait_if_paused holds at
     the top of each attempt WITHOUT consuming a retry, so a network outage waits instead
@@ -546,8 +548,14 @@ def redownload_one_file(dler, file_item, info_map_table, control_channel, retry_
             )
         except Exception as obs_ex:  # pragma: no cover
             log.debug(f"observability record_outcome failed: {obs_ex}")
-        report_progress(increment_by=0,
-                        prog_msg=f"redownloaded {file_item.download_path}")
+        # increment_by=0: recovery was never in the progress plan, so counting it
+        # would overshoot the total. The position goes in the text instead, or a
+        # long pass shows one frozen "Progress N of M" throughout.
+        if position is not None:
+            prog_msg = f"redownloaded {position[0]} of {position[1]}: {file_item.download_path}"
+        else:
+            prog_msg = f"redownloaded {file_item.download_path}"
+        report_progress(increment_by=0, prog_msg=prog_msg)
         return
 
 

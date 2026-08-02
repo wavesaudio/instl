@@ -142,6 +142,13 @@ class CurlTransfer:
     passes that takes, so all the cross-pass bookkeeping lives on the instance.
     """
 
+    # what the chunks run so far in this process actually put on disk; they are
+    # separate pybatch commands, so a running total has nowhere else to live.
+    # Never cleared: one instl invocation runs one download phase, so the class
+    # outlives every chunk of it and nothing else. A second phase in the same
+    # process would have to reset this first, or inherit the first phase's base.
+    files_delivered_so_far = None  # None means nothing measured yet
+
     def __init__(self, curl_path, config_file_path, total_files_to_download,
                  previously_downloaded_files, total_bytes_to_download,
                  fallback_config_file_path=None, fallback_exit_codes=(),
@@ -193,13 +200,25 @@ class CurlTransfer:
             import win32api
             config_file_path_fixed = win32api.GetShortPathName(config_file_path_fixed)
 
+        # curlHelper seeds previously_downloaded_files with the preceding chunks'
+        # PLANNED url count, overstating by the unfetched tail of any that died early
+        if CurlTransfer.files_delivered_so_far is not None:
+            self.previously_downloaded_files = CurlTransfer.files_delivered_so_far
+
         channel = get_control_channel()
         pause_check = channel.is_paused if channel is not None else None
 
-        return_code = self._run_config_with_recovery(config_file_path_fixed, pause_check, channel)
-        if return_code == 0:
-            # in --parallel mode curl can exit 0 while transfers failed permanently
-            return_code = self._reconcile_missing_outputs(pause_check, channel)
+        try:
+            curl_return_code = self._run_config_with_recovery(config_file_path_fixed, pause_check, channel)
+        finally:
+            self._publish_delivered()
+        # every exit code, not just 0: a pause landing just before a resume terminates
+        # curl mid-chunk and the re-run exits 23 with the chunk's tail unfetched
+        try:
+            return_code = self._reconcile_missing_outputs(
+                pause_check, channel, curl_return_code=curl_return_code)
+        finally:
+            self._publish_delivered()
 
         print(f"Curl ended {return_code}")
         if can_run_fallback(self.fallback_config_file_path, return_code, self.fallback_exit_codes):
@@ -248,7 +267,20 @@ class CurlTransfer:
                         time.sleep(backoff)
                     continue
                 log.info(f"{self.label} network error (curl {return_code}); retries exhausted, continuing")
+            elif return_code != 0:
+                log.warning(f"{self.label} curl exited {return_code} "
+                            f"({self._curl_exit_meaning(return_code)}); not a network code, "
+                            f"so no retry here -- reconciliation will re-run the missing outputs")
             return return_code
+
+    @staticmethod
+    def _curl_exit_meaning(exit_code):
+        """Failure-class name for a curl exit code, for log messages only."""
+        try:
+            from pyinstl.downloadFailures import classify_curl_exit_code
+            return classify_curl_exit_code(exit_code).failure_class.value
+        except Exception:
+            return "unclassified"
 
     # -- offline-hold with structured events --------------------
 
@@ -546,14 +578,17 @@ class CurlTransfer:
                     wfd.write(entry["url_line"] + "\n")
                 wfd.write(entry["output_line"] + "\n\n")
 
-    def _reconcile_missing_outputs(self, pause_check, channel):
-        """Verify every expected output exists after curl exit 0 and re-download only
-        the missing ones; returns the final curl return code. curl --parallel masks
-        per-transfer failures: transfers whose internal retries were exhausted are
-        simply dropped, yet the final exit code can still be 0. The config's
-        ``output`` entries ARE the ``.part`` paths curl writes, so a missing output
-        means the transfer never produced a byte."""
-        return_code = 0
+    def _reconcile_missing_outputs(self, pause_check, channel, curl_return_code=0):
+        """Verify every expected output exists after curl exits -- on any exit code --
+        and re-download only the missing ones; returns the final return code. curl
+        --parallel masks per-transfer failures: transfers whose internal retries were
+        exhausted are simply dropped, yet the final exit code can still be 0. The
+        config's ``output`` entries ARE the ``.part`` paths curl writes, so a missing
+        output means the transfer never produced a byte.
+
+        ``curl_return_code`` is the verdict kept when nothing needed fixing; a
+        reconciliation that recovers every output clears it to 0."""
+        return_code = curl_return_code
         if not config_var_bool("DOWNLOAD_RECONCILE_MISSING_OUTPUTS", True):
             return return_code
         max_rounds = max(0, config_var_int("DOWNLOAD_RECONCILE_MAX_ROUNDS", 3))
@@ -562,6 +597,10 @@ class CurlTransfer:
         header_lines, entries, uses_isolated_sections = \
             self._parse_curl_config_for_reconcile(self.config_file_path)
         if not entries:
+            # otherwise an unreadable config looks exactly like nothing to reconcile
+            log.warning(f"{self.label} no download entries parsed from "
+                        f"'{self.config_file_path}'; completeness cannot be verified here, "
+                        f"leaving it to the checksum phase")
             return return_code
         missing = []
         for round_i in range(1, max_rounds + 1):
@@ -570,9 +609,11 @@ class CurlTransfer:
             if not missing:
                 if round_i > 1:
                     log.info(f"{self.label} reconciliation recovered all missing outputs")
+                    return 0  # the chunk IS complete now, whatever curl said earlier
                 return return_code
-            log.info(f"{self.label} curl exited 0 but {len(missing)} of {len(entries)} "
-                     f"expected outputs are missing; reconciliation round {round_i} of {max_rounds}")
+            log.info(f"{self.label} curl exited {curl_return_code} and {len(missing)} of "
+                     f"{len(entries)} expected outputs are missing; "
+                     f"reconciliation round {round_i} of {max_rounds}")
             self._emit_hold_session_state("retrying", "reconcile_missing_outputs")
             retry_config_path = Path(f"{os.fspath(self.config_file_path)}.reconcile-{round_i:02}")
             self._write_reconcile_config(retry_config_path, header_lines, missing, uses_isolated_sections)
@@ -585,7 +626,30 @@ class CurlTransfer:
         if still_missing:
             log.warning(f"{self.label} {len(still_missing)} outputs still missing after "
                         f"{max_rounds} reconciliation rounds; leaving recovery to the checksum phase")
+        elif return_code == 0:
+            log.info(f"{self.label} reconciliation recovered all missing outputs")
         return return_code
+
+    def files_actually_downloaded(self):
+        """How many of this chunk's ``output`` paths exist on disk. ``None`` when the
+        config could not be read, so callers fall back rather than report a confident
+        zero. In-flight ``.part`` files count as delivered, overstating by at most the
+        parallel-max in flight when curl stops."""
+        paths = self._download_part_output_paths()
+        if not paths:
+            return None
+        return sum(1 for p in paths if os.path.exists(p))
+
+    def _publish_delivered(self):
+        """Record base + this chunk's completions as the running total, leaving the
+        next chunk on its planned base when this one cannot measure itself. Never
+        raises: progress accounting must not be able to fail a download."""
+        try:
+            delivered = self.files_actually_downloaded()
+            if delivered is not None:
+                CurlTransfer.files_delivered_so_far = self.previously_downloaded_files + delivered
+        except Exception as ex:  # pragma: no cover - accounting must never break sync
+            log.debug(f"could not publish delivered-file count: {ex}")
 
     def _maybe_emit_progress_tick(self, cumulative_bytes, downloaded_files):
         """Emit a throttled, EMA-smoothed ``session_state`` progress tick, giving

@@ -74,11 +74,15 @@ DOWNLOAD_CENTRAL_UX_ENABLED: yes
 # - DOWNLOAD_RECONCILE_MISSING_OUTPUTS: `curl --parallel` can exit 0 while
 #   individual transfers failed permanently (their internal retries were
 #   exhausted while offline), leaving files with no .part at all. When on,
-#   after curl exits 0 the engine checks every expected output on disk and
-#   re-runs curl with a config containing only the missing entries
-#   (preserving each entry's original url/output/continue-at/header lines),
-#   up to DOWNLOAD_RECONCILE_MAX_ROUNDS rounds. The checksum phase remains
-#   the final gate.
+#   after curl exits -- whatever code it exits WITH -- the engine checks every
+#   expected output on disk and re-runs curl with a config containing only the
+#   missing entries (preserving each entry's original
+#   url/output/continue-at/header lines), up to DOWNLOAD_RECONCILE_MAX_ROUNDS
+#   rounds. The checksum phase remains the final gate.
+#   This check used to run only after exit 0, which left the worst case
+#   unchecked: a pause landing just after a resume SIGTERMs curl mid-chunk, and
+#   if the re-run then exits non-zero and non-network the whole remaining chunk
+#   was abandoned with no reconciliation and no log line.
 # - DOWNLOAD_OFFLINE_HOLD_ENABLED: on a network-class curl exit the engine
 #   probes connectivity itself (TCP connect to the BASE_LINKS_URL host --
 #   or, when proxy env vars are set, to the proxy, since curl transfers go
@@ -165,9 +169,14 @@ DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: no
 #   beyond an exhausted budget are left unrecovered and reported by the
 #   existing 'Bad checksum for N files / Missing M files' error that Central
 #   already parses.
+# - DOWNLOAD_SESSION_POOL_SIZE: connection-pool size for DownloadManager, the
+#   requests.Session the redownload pass downloads through. The pass reuses one
+#   pooled session for every file, so this is mostly headroom for a concurrent
+#   caller; it is NOT a concurrency setting, the pass is still serial.
 DOWNLOAD_REDOWNLOAD_ALL_BAD_FILES: yes
 DOWNLOAD_REDOWNLOAD_MAX_TOTAL_BYTES: 0
 DOWNLOAD_REDOWNLOAD_MAX_SECONDS: 0
+DOWNLOAD_SESSION_POOL_SIZE: 16
 
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)
 LOCAL_REPO_SYNC_DIR: $(LOCAL_SYNC_DIR)/$(REPO_NAME)
