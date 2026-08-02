@@ -6,6 +6,7 @@ import os
 import unittest
 import io as StringIO
 
+
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 import yaml
 from augmentedYaml import *
@@ -119,8 +120,9 @@ C:
             self.assertFalse("D" in a_node)
 
             # iterate with key/value pair
+            # MappingNode.__iter__ now yields keys only; use .items() for pairs
             list_of_scalars1 = list()
-            for name, a_seq in a_node:
+            for name, a_seq in a_node.items():
                 self.assertIsInstance(name, str)
                 self.assertIsInstance(a_seq, yaml.nodes.Node)
                 num_map_items += 1
@@ -128,9 +130,9 @@ C:
                     list_of_scalars1.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(["a", "aa", "aaa", "b", "c"]))
 
-            # iterate with iterkeys
+            # iterate with keys: MappingNode.__iter__ now yields keys only
             list_of_scalars2 = list()
-            for name in a_node.keys():
+            for name in a_node:
                 for something in a_node[name]:
                     list_of_scalars2.append(something.value)
             self.assertEqual(sorted(list_of_scalars1), sorted(list_of_scalars2))

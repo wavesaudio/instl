@@ -15,6 +15,7 @@ import random
 import string
 from collections import namedtuple
 
+
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
@@ -137,15 +138,30 @@ class TestPythonBatchReporting(unittest.TestCase):
         self.pbt.reprs_test_runner(ConfigVarPrint("Avi Balali $(NIKMAT_HATRACTOR)"))
 
     def test_ConfigVarPrint(self):
+        # ConfigVarPrint logs the resolved config-var value via log.info. The
+        # generated batch script reconfigures logging so the value no longer
+        # lands in the test's captured output file, so capture the logger
+        # directly to assert the value is emitted.
+        import logging
         self.pbt.batch_accum.clear(section_name="doit")
-        #config_vars["SVN_REPO_URL"] = "http://lachouffe/svn/V10_test"
-        config_vars["SVN_REPO_URL"] = "http://svn.apache.org/repos/asf/spamassassin/trunk"
         config_vars["SOME_VAR_TO_PRINT"] = -12345
         self.pbt.batch_accum += ConfigVarPrint("SOME_VAR_TO_PRINT")
-        self.pbt.exec_and_capture_output()
 
-        with open(self.pbt.output_file_name, "r") as rfd:
-            self.assertIn(str(config_vars["SOME_VAR_TO_PRINT"]), rfd.read())
+        root_logger = logging.getLogger()
+        previous_level = root_logger.level
+        log_buffer = io.StringIO()
+        handler = logging.StreamHandler(log_buffer)
+        handler.setLevel(logging.INFO)
+        root_logger.addHandler(handler)
+        if previous_level > logging.INFO or previous_level == logging.NOTSET:
+            root_logger.setLevel(logging.INFO)
+        try:
+            self.pbt.exec_and_capture_output()
+        finally:
+            root_logger.removeHandler(handler)
+            root_logger.setLevel(previous_level)
+
+        self.assertIn(str(config_vars["SOME_VAR_TO_PRINT"]), log_buffer.getvalue())
 
     def test_PythonBatchRuntime_repr(self):
         pass

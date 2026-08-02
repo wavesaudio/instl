@@ -16,6 +16,7 @@ import string
 from collections import namedtuple
 import unittest
 
+
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
@@ -75,6 +76,8 @@ class TestPythonBatchMac(unittest.TestCase):
         self.pbt.batch_accum += MacDock(None, label_for_item="Cubase 10.5", remove=True, restart_the_doc=True, username="orenc")
         self.pbt.exec_and_capture_output("test_MacDoc_remove_from_and_restart_dock")
 
+    # MacDock runs "sudo -u <user> defaults write com.apple.dock ..."
+    @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "requires root/sudo")
     def test_MacDoc_add_to_and_restart_dock_separately(self):
         """ it's hard to define an automatic assert to result of MacDock operations
             so this test should be run manually
@@ -306,6 +309,12 @@ class TestPythonBatchMac(unittest.TestCase):
         self.assertFalse(a_file_symlink.exists())
 
     def test_CSL(self):
+        # references hard-coded production paths (a Waves plug-ins install and a
+        # specific user home) that only exist on a configured deployment machine.
+        symlink_target = Path("/Applications/Waves/Plug-Ins V14")
+        symlink_parent = Path("/Users/shai/Library/Preferences/Waves Preferences")
+        if not symlink_target.exists() or not symlink_parent.is_dir():
+            self.skipTest(f"deployment-specific paths not present: {symlink_target} / {symlink_parent}")
         with CreateSymlink(r"/Users/shai/Library/Preferences/Waves Preferences/Waves Plugins V14",
                            r"/Applications/Waves/Plug-Ins V14", prog_num=1019) as create_symlink_152_1019:
             create_symlink_152_1019()

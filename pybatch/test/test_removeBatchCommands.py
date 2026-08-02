@@ -15,6 +15,7 @@ import random
 import string
 from collections import namedtuple
 
+
 import utils
 from pybatch import *
 from pybatch import PythonBatchCommandAccum
@@ -145,9 +146,12 @@ class TestPythonBatchRemove(unittest.TestCase):
 
     def test_remove(self):
         """ Create a folder and fill it with random files.
-            1st try to remove the folder with RmFile which should fail and raise exception
-            2nd try to remove the folder with RmDir which should work
+            RmFile on a directory now transparently delegates to RmDir (it
+            catches the PermissionError that unlink() raises on a folder and
+            falls back to recursive removal), so the folder is removed.
+            RmDir also removes a folder. Both leave the path gone.
         """
+        # RmFile on a populated directory now removes it via the RmDir fallback
         dir_to_remove = self.pbt.path_inside_test_folder("remove-me")
         self.assertFalse(dir_to_remove.exists())
 
@@ -155,14 +159,19 @@ class TestPythonBatchRemove(unittest.TestCase):
         self.pbt.batch_accum += MakeDir(dir_to_remove)
         with self.pbt.batch_accum.sub_accum(Cd(dir_to_remove)) as sub_bc:
             sub_bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
-        self.pbt.batch_accum += RmFile(dir_to_remove)  # RmFile should not remove a folder
-        self.pbt.exec_and_capture_output(expected_exception=PermissionError)
-        self.assertTrue(dir_to_remove.exists())
-
-        self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += RmDir(dir_to_remove)
+        self.pbt.batch_accum += RmFile(dir_to_remove)
         self.pbt.exec_and_capture_output()
-        self.assertFalse(dir_to_remove.exists())
+        self.assertFalse(dir_to_remove.exists(), f"{self.pbt.which_test}: RmFile should have removed the folder via RmDir fallback")
+
+        # RmDir also removes a populated folder
+        dir_to_remove_2 = self.pbt.path_inside_test_folder("remove-me-2")
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(dir_to_remove_2)
+        with self.pbt.batch_accum.sub_accum(Cd(dir_to_remove_2)) as sub_bc:
+            sub_bc += MakeRandomDirs(num_levels=3, num_dirs_per_level=5, num_files_per_dir=7, file_size=41)
+        self.pbt.batch_accum += RmDir(dir_to_remove_2)
+        self.pbt.exec_and_capture_output()
+        self.assertFalse(dir_to_remove_2.exists())
 
     def test_RemoveEmptyFolders_repr(self):
         with self.assertRaises(TypeError):

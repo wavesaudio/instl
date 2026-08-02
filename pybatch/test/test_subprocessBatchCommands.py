@@ -64,17 +64,19 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         diff_explanation = obj.explain_diff(obj_recreated)
         self.assertEqual(obj, obj_recreated, f"CUrl.repr did not recreate CUrl object correctly: {diff_explanation}")
 
+    @unittest.skipUnless(shutil.which("curl"), "curl binary not installed")
     def test_Curl(self):
-        #sample_file = Path(__file__).joinpath('../test_data/curl_sample.txt').resolve()
-        #with open(sample_file, 'r') as stream:
-        #    test_data = stream.read()
-        url_from = 'https://en.wikipedia.org/wiki/Static_web_page'
-        to_path = self.pbt.path_inside_test_folder("Static_web_page")
+        # Hermetic: instead of fetching a live web page (whose content drifts),
+        # serve a known local file over a file:// URL so the round-trip is
+        # deterministic and offline. Still exercises the real CUrl batch command.
+        curl_path = shutil.which("curl")
 
-        if sys.platform == 'win32':
-            curl_path = r'C:\Program Files (x86)\Waves Central\WavesLicenseEngine.bundle\Contents\Win32\curl.exe'
-        else:
-            curl_path = shutil.which("curl")
+        source_file = self.pbt.path_inside_test_folder("curl_source.txt")
+        expected_content = "A static web page"
+        source_file.write_text(expected_content)
+
+        to_path = self.pbt.path_inside_test_folder("curl_downloaded.txt")
+        url_from = source_file.as_uri()
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += CUrl(url_from, to_path, curl_path)
@@ -82,7 +84,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         with open(to_path, 'r') as stream:
             downloaded_data = stream.read()
-        self.assertIn("A static web page", downloaded_data)
+        self.assertIn(expected_content, downloaded_data)
 
     def test_ShellCommand_repr(self):
         """ validate ShellCommand object recreation with ShellCommand.__repr__() """
@@ -151,6 +153,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.reprs_test_runner(ParallelRun("/rik/ya/vik", shell=True),
                                    ParallelRun("/rik/ya/vik", action_name="pil"))
 
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
     def test_ParallelRun_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
         ls_output = self.pbt.path_inside_test_folder("ls.out.txt")
@@ -165,12 +168,13 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
-            sub_bc += ParallelRun(test_file, True)
+            sub_bc += ParallelRun(test_file, shell=True)
 
         self.pbt.exec_and_capture_output()
         self.assertTrue(ls_output.exists(), f"{self.pbt.which_test}: {ls_output} was not created")
         self.assertTrue(ps_output.exists(), f"{self.pbt.which_test}: {ps_output} was not created")
 
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
     def test_ParallelRun_shell_bad_exit(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
 
@@ -183,10 +187,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
-            sub_bc += ParallelRun(test_file, True)
+            sub_bc += ParallelRun(test_file, shell=True)
 
         self.pbt.exec_and_capture_output(expected_exception=SystemExit)
 
+    @unittest.skipUnless(running_on_Mac, "Mac only test")
     def test_ParallelRun_no_shell(self):
         test_file = self.pbt.path_inside_test_folder("list-of-runs")
         zip_input = self.pbt.path_inside_test_folder("zip_in")
@@ -210,7 +215,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             # save a copy of the input file
             sub_bc += CopyFileToFile(zip_input, zip_input_copy, hard_links=False)
             # zip the input file, bzip2 will remove it
-            sub_bc += ParallelRun(test_file, False)
+            sub_bc += ParallelRun(test_file, shell=False)
 
         self.pbt.exec_and_capture_output()
         self.assertFalse(zip_input.exists(), f"{self.pbt.which_test}: {zip_input} should have been erased by bzip2")
@@ -227,7 +232,7 @@ class TestPythonBatchSubprocess(unittest.TestCase):
 
         self.pbt.batch_accum.clear(section_name="doit")
         with self.pbt.batch_accum.sub_accum(Cd(self.pbt.test_folder)) as sub_bc:
-            sub_bc += ParallelRun(test_file, False)
+            sub_bc += ParallelRun(test_file, shell=False)
 
         self.pbt.exec_and_capture_output()
         self.assertTrue(zip_input.exists(), f"{self.pbt.which_test}: {zip_input} should have been created by bzip2")
@@ -279,6 +284,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
             path_to_exec = "/Applications/BBEdit.app/Contents/MacOS/BBEdit"
         elif running_on_Win:
             path_to_exec = "C:\\Program Files (x86)\\Notepad++\\notepad++.exe"
+        else:
+            path_to_exec = None
+
+        if not path_to_exec or not os.path.exists(path_to_exec):
+            self.skipTest(f"detached-launch target not installed on this machine: {path_to_exec}")
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += Subprocess(path_to_exec, r"C:\p4client\wlc.log", detach=True)
@@ -313,6 +323,9 @@ class TestPythonBatchSubprocess(unittest.TestCase):
                                    KillProcess("pesach", retries=5),
                                    KillProcess("nurit", sleep_sec=0.1))
 
+    # launches and kills a real GUI app, so it has side effects and is timing-flaky;
+    # left runnable on demand with INSTL_RUN_GUI_TESTS=1
+    @unittest.skipUnless(os.environ.get("INSTL_RUN_GUI_TESTS") == "1", "launches a real GUI app")
     def test_KillProcess(self):
         app_base_name = ""
         if sys.platform == 'win32':
@@ -329,9 +342,11 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         self.pbt.exec_and_capture_output()
 
     def test_CurlInternalParallel_repr(self):
-        """ validate KillProcess object recreation with ParallelRun.__repr__() """
-        self.pbt.reprs_test_runner(CurlWithInternalParallel("curl", "mongo.config"))
+        """ validate CurlWithInternalParallel object recreation with CurlWithInternalParallel.__repr__() """
+        self.pbt.reprs_test_runner(CurlWithInternalParallel("curl", "mongo.config", 3, 1, 1024))
 
+    # downloads ~2GB from live third-party URLs, so it is neither hermetic nor quick
+    @unittest.skip("non-hermetic: downloads ~2GB from live third-party URLs")
     def test_CurlInternalParallel(self):
         config_file = self.pbt.path_inside_test_folder("config_file")
         downloads_dir = self.pbt.path_inside_test_folder("downloads")

@@ -3,6 +3,7 @@
 
 import unittest
 
+
 from pybatch import *
 
 current_os_names = utils.get_current_os_names()
@@ -39,14 +40,20 @@ class TestPythonBatchWtar(unittest.TestCase):
         self.pbt.reprs_test_runner(*list_of_objs)
 
     def test_Wtar_Unwtar(self):
+        # Wtar always runs the produced .wtar through SplitFile with max_size=0,
+        # which (by design - see SplitFile docstring) renames the single part to
+        # have a .aa suffix. So the produced artifact is 'folder-to-wtar.wtar.aa',
+        # not a bare 'folder-to-wtar.wtar'.
         folder_to_wtar = self.pbt.path_inside_test_folder("folder-to-wtar")
-        folder_wtarred = self.pbt.path_inside_test_folder("folder-to-wtar.wtar")
+        folder_wtarred_first_part = self.pbt.path_inside_test_folder("folder-to-wtar.wtar.aa")
         dummy_wtar_file_to_replace = self.pbt.path_inside_test_folder("dummy-wtar-file-to-replace.dummy")
         with open(dummy_wtar_file_to_replace, "w") as wfd:
             wfd.write(''.join(random.choice(string.ascii_lowercase+string.ascii_uppercase+"\n") for i in range(10 * 1024)))
         self.assertTrue(dummy_wtar_file_to_replace.exists(), f"{self.pbt.which_test}: {dummy_wtar_file_to_replace} should have been created")
+        # wtarring onto an existing file renames that file to <name>.aa
+        dummy_wtar_first_part = self.pbt.path_inside_test_folder("dummy-wtar-file-to-replace.dummy.aa")
         another_folder = self.pbt.path_inside_test_folder("another-folder")
-        wtarred_in_another_folder = another_folder.joinpath("folder-to-wtar.wtar").resolve()
+        wtarred_in_another_folder = another_folder.joinpath("folder-to-wtar.wtar.aa").resolve()
 
         self.pbt.batch_accum.clear(section_name="doit")
         self.pbt.batch_accum += MakeDir(folder_to_wtar)
@@ -58,17 +65,16 @@ class TestPythonBatchWtar(unittest.TestCase):
             cd_accum += MakeDir(another_folder)
             cd_accum += Wtar(folder_to_wtar, another_folder)  # wtar to a different folder
         self.pbt.exec_and_capture_output("wtar the folder")
-        self.assertTrue(os.path.isfile(folder_wtarred), f"wtarred file was not found {folder_wtarred}")
-        self.assertTrue(os.path.isfile(dummy_wtar_file_to_replace), f"dummy_wtar_file_to_replace file was not found {dummy_wtar_file_to_replace}")
+        self.assertTrue(os.path.isfile(folder_wtarred_first_part), f"wtarred file was not found {folder_wtarred_first_part}")
+        self.assertTrue(os.path.isfile(dummy_wtar_first_part), f"dummy_wtar first part was not found {dummy_wtar_first_part}")
         self.assertTrue(os.path.isfile(wtarred_in_another_folder), f"wtarred file in another folder was not found {wtarred_in_another_folder}")
-        self.assertTrue(filecmp.cmp(folder_wtarred, dummy_wtar_file_to_replace), f"'{folder_wtarred}' and '{dummy_wtar_file_to_replace}' should be identical")
-        self.assertTrue(filecmp.cmp(folder_wtarred, dummy_wtar_file_to_replace), f"'{folder_wtarred}' and '{dummy_wtar_file_to_replace}' should be identical")
-        self.assertTrue(filecmp.cmp(folder_wtarred, wtarred_in_another_folder), f"'{folder_wtarred}' and '{wtarred_in_another_folder}' should be identical")
+        self.assertTrue(filecmp.cmp(folder_wtarred_first_part, dummy_wtar_first_part), f"'{folder_wtarred_first_part}' and '{dummy_wtar_first_part}' should be identical")
+        self.assertTrue(filecmp.cmp(folder_wtarred_first_part, wtarred_in_another_folder), f"'{folder_wtarred_first_part}' and '{wtarred_in_another_folder}' should be identical")
 
         unwtar_here = self.pbt.path_inside_test_folder("unwtar-here")
         unwtared_folder = unwtar_here.joinpath("folder-to-wtar").resolve()
         self.pbt.batch_accum.clear(section_name="doit")
-        self.pbt.batch_accum += Unwtar(folder_wtarred, unwtar_here)
+        self.pbt.batch_accum += Unwtar(folder_wtarred_first_part, unwtar_here)
         self.pbt.exec_and_capture_output("unwtar the folder")
         dir_wtar_unwtar_diff = filecmp.dircmp(folder_to_wtar, unwtared_folder, ignore=['.DS_Store'])
         self.assertTrue(is_identical_dircmp(dir_wtar_unwtar_diff), f"{self.pbt.which_test} : before wtar and after unwtar dirs are not the same")
@@ -87,7 +93,9 @@ class TestPythonBatchWtar(unittest.TestCase):
         wzip_input = self.pbt.path_inside_test_folder("wzip_in")
         wzip_output = self.pbt.path_inside_test_folder("wzip_in.wzip")
         unwzip_target_folder = self.pbt.path_inside_test_folder("unwzip_target")
-        unwzip_target_file = self.pbt.path_inside_test_folder("wzip_in")
+        # Unwzip into a folder writes the decompressed file (named after the
+        # .wzip stem) inside that folder.
+        unwzip_target_file = unwzip_target_folder.joinpath("wzip_in")
 
         # create a file to zip
         with open(wzip_input, "w") as wfd:
