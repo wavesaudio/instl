@@ -7,9 +7,12 @@ import subprocess
 import xml.etree.ElementTree as ET
 import codecs
 import re
+import logging
 from pathlib import Path
 
 import utils
+
+log = logging.getLogger()
 
 if sys.platform == 'win32':
     import win32api
@@ -130,7 +133,7 @@ def Mac_bundle(in_os, in_path):
                 if version or guid:
                     retVal = (in_path, version, guid)
     except Exception as ex:
-        pass
+        log.debug(f"failed to extract info from {in_path}: {ex}")
     return retVal
 
 

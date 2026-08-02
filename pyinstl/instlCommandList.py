@@ -1,5 +1,4 @@
 import os
-import sys
 import shlex
 
 from pyinstl.instlMisc import InstlMisc
@@ -27,7 +26,7 @@ class CommandListRunner(object):
                 self.do_forked_command(argv)
 
             for child_pid in self.child_pids:
-                wait_val = os.waitpid(child_pid, 0)
+                os.waitpid(child_pid, 0)
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands in parallel done")
         else:
             self.instance.batch_accum += self.instance.platform_helper.echo(f"Running {len(command_list)} commands one by one from {command_list_leaf}")
@@ -56,32 +55,12 @@ class CommandListRunner(object):
             self.instance.do_command()
 
     def do_forked_command(self, argv):
-        #rpipe, wpipe = os.pipe()
         new_pid = os.fork()
         if 0 == new_pid:
-            #os.close(rpipe)
-            #os.dup2(wpipe, sys.stdout.fileno())
-            #os.dup2(wpipe, sys.stderr.fileno())
-            #os.close(wpipe)
             self.run_one_command(argv)
             exit(0)
         else:
             self.child_pids.append(new_pid)
-"""
-rpipe, wpipe = os.pipe()
-
-pid = os.fork()
-if pid == -1:
-    raise TestError("Failed to fork() in prepare_test_dir")
-
-if pid == 0:
-    # Child -- do the copy, print log to pipe and exit
-    try:
-        os.close(rpipe)
-        os.dup2(wpipe, sys.stdout.fileno())
-        os.dup2(wpipe, sys.stderr.fileno())
-        os.close(wpipe)
-"""
 
 
 def run_commands_from_file(initial_vars, options):

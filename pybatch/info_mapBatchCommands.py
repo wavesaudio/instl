@@ -1,16 +1,9 @@
-from http.cookies import SimpleCookie
-from requests.cookies import cookiejar_from_dict
-from typing import List, Any
+from typing import List
 import os
 import sys
-import stat
-import zlib
 from collections import defaultdict
 from pathlib import Path
 import logging
-import requests
-import time
-import datetime
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +18,6 @@ from .fileSystemBatchCommands import Chmod
 from .wtarBatchCommands import Wzip
 from .copyBatchCommands import CopyFileToFile
 from .downloadBatchCommands import DownloadFileAndCheckChecksum, DownloadManager
-from svnTree.svnTable import SVNTable
 
 from db import DBManager
 

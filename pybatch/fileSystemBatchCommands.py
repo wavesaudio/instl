@@ -343,8 +343,8 @@ class ChFlags(RunProcessBase):
                         dir_listing = utils.single_disk_item_listing(_error, output_format="json")
                         list_of_listings.append(dir_listing)
                     self._error_dict["ls of problem files"] = list_of_listings
-        except:  # populating the error dict should continue, even if error_dict_self failed
-            pass
+        except Exception as ex:  # populating the error dict should continue, even if error_dict_self failed
+            log.debug(f"error_dict_self failed: {ex}")
 
     def __call__(self, *args, **kwargs):
         if sys.platform in self.flags_dict:  # avoid linux for the time being
@@ -465,8 +465,8 @@ class Chown(RunProcessBase, call__call__=True):
             else:
                 dir_listing = utils.single_disk_item_listing(self.path, output_format="json")
                 self._error_dict["ls of problem file"] = dir_listing
-        except:  # populating the error dict should continue, even if error_dict_self failed
-            pass
+        except Exception as ex:  # populating the error dict should continue, even if error_dict_self failed
+            log.debug(f"error_dict_self failed: {ex}")
 
 
 class Chmod(RunProcessBase):
@@ -671,8 +671,8 @@ class Chmod(RunProcessBase):
                 dir_listing = utils.single_disk_item_listing(self.path, output_format="json")
                 self._error_dict["ls of problem file"] = dir_listing
 
-        except:  # populating the error dict should continue, even if error_dict_self failed
-            pass
+        except Exception as ex:  # populating the error dict should continue, even if error_dict_self failed
+            log.debug(f"error_dict_self failed: {ex}")
 
 
 class ChmodAndChown(PythonBatchCommandBase):

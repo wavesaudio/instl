@@ -4,7 +4,6 @@
 import os
 import re
 import logging
-from pathlib import Path
 
 log = logging.getLogger()
 
@@ -393,7 +392,7 @@ class SVNTable(object):
 
                     row_data.extend((0, 0, ""))  # required, need_download, extra_props
                     return row_data
-                except KeyError as unused_ke:
+                except KeyError:
                     log.error(f"""SVNTable.read_from_svn_info Error: line: {line_num}  record: {record}""")
                     raise
 
@@ -822,12 +821,12 @@ class SVNTable(object):
             #    The Unicode max code point (0x10FFFF) creates a tight upper bound for prefix matching,
             #    allowing the B-tree index to efficiently find all paths starting with the prefix
 
-            update_paths_exact_q = f"""
+            update_paths_exact_q = """
                     UPDATE cache_folder_file_paths_t AS c
                     SET remove = 0
                     WHERE EXISTS (SELECT 1 FROM do_not_remove_file_paths_exact_t d WHERE d.path = c.path);
                     """
-            update_paths_prefix_q = f"""
+            update_paths_prefix_q = """
                     UPDATE cache_folder_file_paths_t AS c
                     SET remove = 0
                     WHERE EXISTS (
@@ -877,8 +876,6 @@ class SVNTable(object):
         if what not in ("any", "file", "dir"):
             raise ValueError(f"{what} not a valid filter for get_item")
 
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
             curs.execute(f"""
@@ -900,8 +897,6 @@ class SVNTable(object):
         if what not in ("any", "file", "dir"):
             raise ValueError(f"{what} not a valid filter for get_item")
 
-        want_file = what in ("any", "file")
-        want_dir = what in ("any", "dir")
         extra_condition = {"file": "AND fileFlag == 1", "dir": "AND fileFlag == 0"}.get(what, "")
         with self.db.selection() as curs:
             curs.execute(f"""
@@ -1611,7 +1606,7 @@ class SVNTable(object):
                              range(0, len(zero_pad_repo_rev), self.num_digits_per_folder_repo_rev_hierarchy)]
                 retVal = "/".join(by_groups)
         except Exception as ex:
-            pass
+            log.debug("repo_rev_to_folder_hierarchy(%r) failed, using flat value: %s", repo_rev, ex)
         return retVal
 
     def get_sync_url_for_file_item(self, file_item: SVNRow):
