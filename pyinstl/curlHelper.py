@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.12
 
+import abc
 import subprocess
 from pathlib import Path, PurePath
 import sys
@@ -17,6 +18,11 @@ import utils
 from configVar import config_vars  # √
 from . import connectionBase
 from pybatch import *
+# pybatch imports this module while it is still initializing, so the star import above
+# can bind an incomplete namespace: which names arrive depends on who imported whom
+# first. Reach the batch commands through the module instead - resolved when called,
+# so it holds whatever the import order was (same reason conditionalBatchCommands does it).
+import pybatch
 
 @dataclass
 class CurlConfigFile:
@@ -260,7 +266,7 @@ parallel-max = {max_parallel_downloads}
 
         main_outfile = config_vars["__MAIN_OUT_FILE__"].Path()
         curl_config_folder = main_outfile.parent.joinpath(main_outfile.name+"_curl")
-        MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
+        pybatch.MakeDir(curl_config_folder, chowner=True, own_progress_count=0, report_own_progress=False)()
 
         num_config_files = int(config_vars["PARALLEL_SYNC"])
         # TODO: Move class someplace else
@@ -272,16 +278,16 @@ parallel-max = {max_parallel_downloads}
                 dl_start_message = f"Downloading with {num_config_files} processes in parallel"
             else:
                 dl_start_message = "Downloading with 1 process"
-            dl_commands += Progress(dl_start_message)
+            dl_commands += pybatch.Progress(dl_start_message)
 
             total_files_to_download = int(config_vars["__NUM_FILES_TO_DOWNLOAD__"])
             total_bytes_to_download = int(config_vars["__NUM_BYTES_TO_DOWNLOAD__"])
 
             if self.use_internal_parallel():
-                dl_commands += Progress(f"Downloading with curl parallel")
+                dl_commands += pybatch.Progress(f"Downloading with curl parallel")
                 previously_downloaded_files = 0
                 for config_file in config_file_list:
-                    dl_commands += CurlWithInternalParallel(
+                    dl_commands += pybatch.CurlWithInternalParallel(
                                         curl_path=f"$(DOWNLOAD_TOOL_PATH)",
                                         config_file_path=config_file.path,
                                         total_files_to_download = total_files_to_download,
@@ -296,11 +302,11 @@ parallel-max = {max_parallel_downloads}
                     dl_start_message = f"Downloading with {num_config_files} processes in parallel"
                 else:
                     dl_start_message = "Downloading with 1 process"
-                dl_commands += Progress(dl_start_message)
+                dl_commands += pybatch.Progress(dl_start_message)
                 parallel_run_config_file_path = curl_config_folder.joinpath(
                     config_vars.resolve_str("$(CURL_CONFIG_FILE_NAME).parallel-run"))
                 self.create_parallel_run_config_file(parallel_run_config_file_path, config_file_list)
-                dl_commands += ParallelRun(parallel_run_config_file_path, shell=False,
+                dl_commands += pybatch.ParallelRun(parallel_run_config_file_path, shell=False,
                                            action_name="Downloading",
                                            own_progress_count=total_files_to_download,
                                            report_own_progress=False)
@@ -310,7 +316,7 @@ parallel-max = {max_parallel_downloads}
             else:
                 dl_end_message = "Downloading 1 file done"
 
-            dl_commands += Progress(dl_end_message)
+            dl_commands += pybatch.Progress(dl_end_message)
 
             return dl_commands
 

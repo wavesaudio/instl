@@ -267,8 +267,10 @@ class PythonBatchCommandBase(abc.ABC):
     def sub_accum(self, context):
         assert not self.in_sub_accum, "PythonBatchCommandAccum.sub_accum: should not be called while another sub_accum is in context"
         self.in_sub_accum = True
-        yield context
-        self.in_sub_accum = False
+        try:
+            yield context
+        finally:
+            self.in_sub_accum = False  # or the assert above rejects every later sub_accum
         is_ess = context.is_essential()
         if is_ess:
             self.add(context)
@@ -463,8 +465,10 @@ class PythonBatchCommandBase(abc.ABC):
         """ some pybatch commands that do not support __enter__ and __exit__ can use this function to measure timing
         """
         self.enter_timing_measure()
-        yield
-        self.exit_timing_measure()
+        try:
+            yield
+        finally:
+            self.exit_timing_measure()  # a raising body would otherwise never be timed out
 
     def ExpandAndResolvePath(self, the_path):
         """ convenient function to save passing resolve_path=self.resolve_path

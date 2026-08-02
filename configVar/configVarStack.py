@@ -354,8 +354,10 @@ class ConfigVarStack:
     @contextmanager
     def push_scope_context(self, use_cache=True):
         self.push_scope()
-        yield self
-        self.pop_scope()
+        try:
+            yield self
+        finally:
+            self.pop_scope()  # or a raising body leaves the scope on the stack for good
 
     def read_environment(self, vars_to_read_from_environ=None):
         """ Get values from environment. Get all values if regex is None.
@@ -436,8 +438,12 @@ class ConfigVarStack:
     def push_resolve_indicator(self, resolve_indicator):
         previous_resolve_indicator = self.resolve_indicator
         self.resolve_indicator = resolve_indicator
-        yield self
-        self.resolve_indicator = previous_resolve_indicator
+        try:
+            yield self
+        finally:
+            # restore even if the body raised: resolve_indicator is global, leaving it
+            # on '@' silently stops every following $(...) in the process from resolving
+            self.resolve_indicator = previous_resolve_indicator
 
     def does_config_var_name_means_path(self, config_var_name):
         for ending in self.get("CONFIG_VAR_NAME_ENDING_DENOTING_PATH", []).list():

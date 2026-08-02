@@ -115,7 +115,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                 exception_message = "\n".join(
                     (f'Bad checksum for {len(self.lists_of_files["bad_checksum"])} files',
                      f'Missing {len(self.lists_of_files["missing_files"])} files'))
-            raise ValueError(exception_message)
+                raise ValueError(exception_message)
 
     def re_download_bad_files(self):
         try:
