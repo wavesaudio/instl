@@ -78,7 +78,9 @@ class TestChunkAbandonment(unittest.TestCase):
         config_vars["DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD"] = "no"
         config_vars["DOWNLOAD_OFFLINE_HOLD_ENABLED"] = "no"
         CurlTransfer.files_delivered_so_far = None
+        CurlTransfer.bytes_delivered_so_far = None
         self.addCleanup(setattr, CurlTransfer, "files_delivered_so_far", None)
+        self.addCleanup(setattr, CurlTransfer, "bytes_delivered_so_far", None)
         self.addCleanup(self.temp_dir.cleanup)
 
     def _write_config(self, name, count, start=0):
@@ -210,6 +212,33 @@ class TestChunkAbandonment(unittest.TestCase):
         self.assertEqual(77, transfer.previously_downloaded_files)
         self.assertIsNone(CurlTransfer.files_delivered_so_far,
                           "an unmeasurable chunk must not publish a running total")
+
+    # -- bytes must not restart at every chunk boundary ---------------------
+
+    def test_byte_progress_carries_across_chunks(self):
+        """Both channels report against the GLOBAL planned bytes, so a per-chunk byte
+        count made the bar collapse to ~0% at every boundary - including the
+        download_last chunk that ends every install."""
+        config_00 = self._write_config("dl-00", 20)
+        self._transfer(config_00, _StubCurl([0], [20]), total_files=30).run()
+        first_chunk_bytes = CurlTransfer.bytes_delivered_so_far
+        self.assertEqual(20 * len(b"data"), first_chunk_bytes)
+
+        config_01 = self._write_config("dl-01", 10, start=20)
+        transfer_01 = self._transfer(config_01, _StubCurl([0], [10]), total_files=30)
+        self.assertEqual(first_chunk_bytes, CurlTransfer.bytes_delivered_so_far)
+        transfer_01.run()
+
+        self.assertEqual(first_chunk_bytes, transfer_01.previously_downloaded_bytes)
+        self.assertEqual(30 * len(b"data"), CurlTransfer.bytes_delivered_so_far)
+        self.assertEqual(30 * len(b"data"), transfer_01._sum_downloaded_part_bytes()[0])
+
+    def test_unmeasurable_chunk_does_not_publish_zero_bytes(self):
+        CurlTransfer.bytes_delivered_so_far = 4096
+        unreadable = self.root / "dl-unreadable"
+        unreadable.write_text(CONFIG_HEADER, encoding="utf-8")
+        self._transfer(unreadable, _StubCurl([0], [0]), total_files=100).run()
+        self.assertEqual(4096, CurlTransfer.bytes_delivered_so_far)
 
     def test_files_actually_downloaded_counts_outputs_on_disk(self):
         config = self._write_config("dl-00", 12)

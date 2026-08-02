@@ -86,9 +86,23 @@ Session lifecycle transitions, plus in-flight download progress ticks.
 Central uses these for the live ETA and meta line (`downloadMetaLine.tsx`); it
 falls back to `download.session_summary` totals when they are absent.
 
-**Phase transitions emitted:** `verifying_downloads` before the
-checksum pass, `copying` at copy start, `completed` after the require-file write.
-Central maps these to the "Verifying" / "Installing" / terminal UX states.
+**Optional per-phase byte fields** — carried by the post-download phases, whose
+denominator is that phase's own planned bytes, not the download's:
+
+| key | type | notes |
+|---|---|---|
+| `phaseBytesDone` | int | monotonic within the phase |
+| `phaseBytesPlanned` | int | the phase's total |
+
+They appear on `verifying_downloads` ticks (bytes hashed, emitted from the hashing
+pass itself so the phase reports while it works), on `retrying` ticks during the
+recovery redownload (bytes to recover), and on `copying` ticks (source bytes the
+copy will process — the same unit the copy and unwtar commands report back, so an
+archive counts its compressed size on both sides). Each phase reaches its full
+planned total exactly once, at its end: the verify phase only after any recovery
+pass has finished, and the copy phase on the terminal `completed`.
+
+**Phase transitions emitted:** see the emitter table in §4.1.
 
 **Backend-hold session states (offline-hold / stall / reconcile) — gated on
 `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD`:** the bulk-download engine
@@ -188,8 +202,26 @@ so an old Central sees exactly today's events. The flag is surfaced on
 
 ### 4.1 Session states (`DownloadSessionState`)
 `preparing`, `verifying_existing_files`, `downloading`, `retrying`, `paused`,
-`verifying_downloads`, `ready_to_copy`, `copying`, `completed`, `failed`,
-`cancelled`.
+`verifying_downloads`, `ready_to_copy`, `copying`, `completed`, `failed`.
+
+Every one of them has an emitter:
+
+| State | Emitted from |
+|---|---|
+| `preparing` | `InstlClient.do_command`, before the yaml/info-map read, for `sync` / `copy` / `synccopy` |
+| `verifying_existing_files` | `instlMisc.do_check_checksum` |
+| `downloading` | `downloadVerify.emit_download_started`, plus `CurlTransfer`'s progress ticks and its resume-after-offline announcement |
+| `retrying` | `downloadVerify.redownload_bad_files` (the recovery pass, with its own `phaseBytesPlanned`) and `CurlTransfer._reconcile_missing_outputs` |
+| `paused` | the control channel's pause callback in `InstlInstanceSync_url._bind_control_channel`, and `CurlTransfer`'s offline hold |
+| `verifying_downloads` | `InstlInstanceSync_url.create_download_instructions`, then `downloadVerify.emit_verify_progress` per tick |
+| `ready_to_copy` | end of `InstlInstanceSync_url.create_sync_instructions` (a sync-only run's terminal state) and the end of `instlMisc.do_check_checksum` |
+| `copying` | `InstlClientCopy.create_copy_instructions`, then `copyPhaseProgress.report_copy_bytes` per tick |
+| `completed` | end of `InstlClientCopy.create_copy_instructions` |
+| `failed` | `PythonBatchRuntime.log_error`, with the exception's class name as `reason` |
+
+There is no `cancelled` state. It was declared but had no emitter and no code path
+that could reach one, so no consumer can ever have received it; removing it is not
+a wire change and `schemaVersion` stays at 1.
 
 ### 4.2 File states (`DownloadFileState`)
 `planned`, `already_valid`, `queued`, `downloading`, `paused`, `interrupted`,

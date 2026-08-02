@@ -333,6 +333,19 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
             error_dict = self.error_dict(exc_type, exc_val, exc_tb)
         error_json = json.dumps(error_dict, separators=(',', ':'), indent=4, sort_keys=True, default=utils.extra_json_serializer)
         log.error(f"---\n{error_json}\n...\n")
+        self.emit_failed_session_state(exc_type)
+
+    @staticmethod
+    def emit_failed_session_state(exc_type):
+        """Move the structured state machine to its failure terminal. Without it a failed
+        install leaves the last phase reported as still running, which a consumer cannot
+        tell apart from a hang. Lazy import: pybatch is imported while pyinstl is still
+        initializing."""
+        try:
+            from pyinstl.downloadVerify import emit_download_state
+            emit_download_state("failed", reason=exc_type.__name__ if exc_type else "unknown_error")
+        except Exception as ex:  # pragma: no cover - instrumentation must never break the error path
+            log.debug(f"could not emit failed session state: {ex}")
 
     def repr_own_args(self, all_args: List[str]) -> None:
         all_args.append(self.unnamed__init__param(self.name))

@@ -164,9 +164,13 @@ class InstlMisc(InstlInstanceBase):
                 summary_snapshot = None
             downloadObservability.end_session(bookkeeping_dir)
             try:
+                # ready_to_copy, not completed: check-checksum verifies an already
+                # downloaded tree, so its own end is not the end of an install. A
+                # terminal completed here would move a caller's state machine past
+                # every phase that still has to run
                 downloadEvents.emit_session_state(
                     session_id=session_id,
-                    state="completed",
+                    state="ready_to_copy",
                     concurrency_planned=concurrency_planned,
                     reason="check_checksum_finished",
                 )

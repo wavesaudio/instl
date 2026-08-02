@@ -17,6 +17,23 @@
 >   this roadmap: curl orchestration out of the pybatch commands into
 >   `pyinstl/downloadTransfer.py`, and verify/redownload machinery out of
 >   `pybatch/info_mapBatchCommands.py` into `pyinstl/downloadVerify.py`.
+> - **Installation-lifecycle reporting.** The phases that ran silently now report while
+>   they work: the verify pass reports from the hashing itself rather than after every
+>   byte is hashed, `PrepareDownloadTempFiles` reports across its walk of every download
+>   item, and the recovery redownload is a `retrying` phase of its own instead of running
+>   under a verify bar already forced to full. The state machine gained its entry
+>   (`preparing`, from `InstlClient.do_command`) and its failure exit (`failed`, from
+>   `PythonBatchRuntime.log_error`); `ready_to_copy` now terminates a sync-only run; the
+>   emitterless `cancelled` state was deleted. Byte accounting was made honest in both
+>   directions: download bytes carry across chunk boundaries
+>   (`CurlTransfer.bytes_delivered_so_far`) in the legacy text line and the structured
+>   channel alike, and the copy phase plans in the same unit it reports
+>   (`InstlClientCopy.size_of_source_items`; the now-unread `WTAR_RATIO` config var was
+>   removed with it).
+> - **Two measured performance fixes** (numbers in §7, measured on one Windows dev
+>   machine): the per-file resume sidecars became one append-only journal
+>   (`DownloadStateStore`), and `Unwtar._partition_independent` stopped being quadratic
+>   in the job count.
 >
 > **Attempted and reverted.** The three god-object *package splits*
 > (`instlAdmin`/`instlClient`/`instlGui` → `pyinstl/admin/`, `pyinstl/client/`,
@@ -618,6 +635,42 @@ These can land immediately and in parallel; ship them first to de-risk the rest.
   (`test_pybatch_serialization_golden.py`, `test_configvar_resolution_golden.py`,
   `test_instlclient_copy_golden.py`); initial set `c9c17223`, client copy/graph goldens
   `d8efde3e`. These pin behavior for every structural change below and must keep passing.
+
+### Performance work that landed, with what was measured
+
+Both numbers below come from one session on one Windows dev machine
+(`python3.12`, the repo venv) using throwaway scripts, not from a real install. Re-run
+them before quoting them anywhere else; the absolute values are machine- and
+antivirus-sensitive, the ratios much less so.
+
+- **Resume sidecars → one journal.** Over 24,000 synthetic records: writing one
+  `files/{file_id}.json` per record took **40.3 s** and reading them back **227.3 s**;
+  the `files-journal.jsonl` equivalent took **0.38 s** to write and **0.47 s** to read
+  (a 24.8 MB journal). That write is the whole of `PrepareDownloadTempFiles`, which runs
+  before a single byte is transferred; the read is what
+  `downloadVerify._existing_source_metadata` and `resume_decision_for_download_item`
+  drive on a re-install. **Batched, never skipped** — nothing writes a sidecar during the
+  curl transfer, so this pass is what makes resume-after-interrupt work at all.
+- **`Unwtar._partition_independent` → sorted neighbours.** The all-pairs version it
+  replaced took **0.93 s at 100 jobs, 6.1 s at 250, 23.7 s at 500 and 95.8 s at 1000**,
+  purely to decide which extractions may run concurrently, before extracting anything.
+  The sorted-neighbour version took 0.017/0.031/0.076/0.147 s for the same inputs and is
+  pinned against the all-pairs definition by
+  `test_partition_independent_matches_comparing_every_pair`. **The job count on a real
+  Waves install was not measured** — it is the number of first-wtar files under one
+  `Unwtar` target, and the cost only applies with `DOWNLOAD_PARALLEL_UNWTAR` on
+  (the default).
+
+Measured and **not** acted on:
+
+- `get_download_items(what="file")` costs ~0.017 s per call over 4,000 rows, so caching its
+  four call sites would save well under a second — the candidate is closed, not deferred.
+- The **18-minute silent stall** recorded on a 35,632-file V17 install, whose py-spy stack
+  was `PythonBatchCommandAccum.__repr__` → `resolve_str` → `var_parse_imp`, is **still not
+  explained**. `resolve_str` measures cleanly linear at ~6 MB/s up to a 15 MB body, so raw
+  throughput does not account for it. Reproducing it needs the real V17 index and config;
+  treat the stall as open. `preparing` (see the lifecycle work above) is what makes a
+  recurrence catchable in the field at all.
 
 ### Long-haul (structural; behind characterization tests, sequenced)
 

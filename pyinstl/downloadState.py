@@ -2,7 +2,9 @@
 
 import hashlib
 import json
+import logging
 import os
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -15,6 +17,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 DOWNLOAD_STATE_SCHEMA_VERSION = 1
 TEMP_ARTIFACT_FILE_ID_LENGTH = 16
+DOWNLOAD_STATE_JOURNAL_FILE_NAME = "files-journal.jsonl"
+
+log = logging.getLogger(__name__)
 
 
 class DownloadStateSchemaError(ValueError):
@@ -32,7 +37,6 @@ class DownloadSessionState(str, Enum):
     COPYING = "copying"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class DownloadFileState(str, Enum):
@@ -130,11 +134,26 @@ def checksum_matches(path: str | Path, expected_checksum: str) -> bool:
     return get_file_sha1(path).lower() == expected_checksum.lower()
 
 
+# A .part the verify pass has just finished hashing can still be held for a moment by a
+# virus scanner or the search indexer, and Windows answers os.replace with a sharing
+# violation (WinError 32) rather than waiting. The handle is released within moments, so
+# these retries turn what was a failed install into a pause of well under a second. Only
+# a failure sleeps, so a healthy run pays nothing.
+PROMOTE_RETRY_DELAYS_SEC = (0.05, 0.15, 0.4, 1.0, 2.0)
+
+
 def promote_temp_file(temp_path: str | Path, final_path: str | Path) -> None:
     final_path = Path(final_path)
     temp_path = Path(temp_path)
     final_path.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(temp_path, final_path)
+    for retry_delay in PROMOTE_RETRY_DELAYS_SEC:
+        try:
+            os.replace(temp_path, final_path)
+            return
+        except PermissionError as ex:
+            log.debug(f"'{final_path}' is held by another process ({ex}); retrying in {retry_delay}s")
+            time.sleep(retry_delay)
+    os.replace(temp_path, final_path)  # out of retries: let the error reach the caller
 
 
 def promote_verified_temp_file(
@@ -452,9 +471,19 @@ def read_json(path: str | Path) -> dict[str, Any]:
 
 
 class DownloadStateStore:
+    """Per-file download state, kept in one append-only journal of JSON lines.
+
+    One file per download item cost a write + flush + fsync + atomic replace each, and
+    the pre-download pass writes one per item: minutes on a large sync, before a single
+    byte is transferred. The journal takes one fsync for the whole pass, is read back
+    once per process, and survives a kill mid-append - a torn last line costs that one
+    record, not the file.
+    """
+
     def __init__(self, state_dir: str | Path) -> None:
         self.state_dir = Path(state_dir)
         self.files_dir = self.state_dir.joinpath("files")
+        self._records_by_file_id = None  # lazily read from the journal
 
     @classmethod
     def from_bookkeeping_dir(cls, bookkeeping_dir: str | Path):
@@ -463,7 +492,12 @@ class DownloadStateStore:
     def session_path(self) -> Path:
         return self.state_dir.joinpath("session.json")
 
+    def journal_path(self) -> Path:
+        return self.state_dir.joinpath(DOWNLOAD_STATE_JOURNAL_FILE_NAME)
+
     def file_path(self, file_id: str) -> Path:
+        """Where an instl before the journal wrote this record. Still read as a
+        fallback, so an interrupted install stays resumable across the upgrade."""
         if "/" in file_id or "\\" in file_id:
             raise ValueError(f"invalid download state file id {file_id!r}")
         return self.files_dir.joinpath(f"{file_id}.json")
@@ -477,14 +511,89 @@ class DownloadStateStore:
     def save_session(self, record: DownloadSessionRecord) -> None:
         write_json_atomic(self.session_path(), record.to_dict())
 
-    def load_file(self, file_id: str) -> DownloadFileRecord | None:
-        path = self.file_path(file_id)
+    def _journal_records(self) -> dict[str, dict[str, Any]]:
+        """fileId -> record dict, the last entry for an id winning."""
+        if self._records_by_file_id is not None:
+            return self._records_by_file_id
+        self._records_by_file_id = {}
+        path = self.journal_path()
         if not path.is_file():
-            return None
-        return DownloadFileRecord.from_dict(read_json(path))
+            return self._records_by_file_id
+        try:
+            with open(path, "r", encoding="utf-8", errors="backslashreplace") as rfd:
+                for line in rfd:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record_data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue  # a kill can cut the last append in half
+                    file_id = record_data.get("fileId") if isinstance(record_data, dict) else None
+                    if file_id:
+                        self._records_by_file_id[file_id] = record_data
+        except OSError as ex:
+            # an unreadable journal reads as "no resume state", which costs a download
+            # from zero, never a corrupt resume
+            log.warning(f"could not read download state journal '{path}': {ex}")
+            self._records_by_file_id = {}
+        return self._records_by_file_id
+
+    def load_file(self, file_id: str) -> DownloadFileRecord | None:
+        record_data = self._journal_records().get(file_id)
+        if record_data is None:
+            path = self.file_path(file_id)
+            if not path.is_file():
+                return None
+            record_data = read_json(path)
+        return DownloadFileRecord.from_dict(record_data)
 
     def save_file(self, record: DownloadFileRecord) -> None:
-        write_json_atomic(self.file_path(record.file_id), record.to_dict())
+        self.save_files((record,))
+
+    def save_files(self, records, replace: bool = False) -> None:
+        """Write ``records`` to the journal with a single fsync. ``replace`` rewrites it
+        from scratch: the pre-download pass enumerates every item of the session, so it
+        both defines the whole set and is where the journal gets compacted."""
+        records = list(records)
+        if not records and not replace:
+            return
+        journal = self._journal_records()
+        if replace:
+            journal.clear()
+        path = self.journal_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w" if replace else "a", encoding="utf-8", errors="backslashreplace") as wfd:
+            for record in records:
+                record_data = record.to_dict()
+                journal[record.file_id] = record_data
+                wfd.write(json.dumps(record_data, sort_keys=True))
+                wfd.write("\n")
+            wfd.flush()
+            try:
+                os.fsync(wfd.fileno())
+            except OSError:
+                pass
+
+
+# One store per bookkeeping dir per process: the journal is read once and answered from
+# memory, so the per-file read that cost a stat + open + parse is now a dict lookup.
+_stores_by_state_dir: dict[str, DownloadStateStore] = {}
+
+
+def store_for_bookkeeping_dir(bookkeeping_dir: str | Path) -> DownloadStateStore:
+    key = os.fspath(Path(bookkeeping_dir))
+    store = _stores_by_state_dir.get(key)
+    if store is None:
+        store = DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir)
+        _stores_by_state_dir[key] = store
+    return store
+
+
+def reset_store_cache() -> None:
+    """Drop the cached in-memory journals. For tests, which reuse a bookkeeping dir
+    path across cases."""
+    _stores_by_state_dir.clear()
 
 
 def update_session_state(
@@ -548,12 +657,11 @@ def existing_file_size(path: str | Path) -> int:
 
 
 def resume_sidecar_path_for_download_item(file_item, bookkeeping_dir: str | Path) -> Path:
-    store = DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir)
-    return store.file_path(file_id_for_download_item(file_item))
+    return store_for_bookkeeping_dir(bookkeeping_dir).journal_path()
 
 
 def load_resume_sidecar_for_download_item(file_item, bookkeeping_dir: str | Path) -> DownloadFileRecord | None:
-    store = DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir)
+    store = store_for_bookkeeping_dir(bookkeeping_dir)
     return store.load_file(file_id_for_download_item(file_item))
 
 
@@ -635,15 +743,18 @@ def save_resume_sidecar_for_download_item(
         source_url: str | None,
         bookkeeping_dir: str | Path,
         **kwargs) -> DownloadFileRecord:
-    store = DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir)
     record = build_resume_sidecar_record_for_download_item(
         file_item,
         source_url,
         bookkeeping_dir=bookkeeping_dir,
         **kwargs,
     )
-    store.save_file(record)
+    store_for_bookkeeping_dir(bookkeeping_dir).save_file(record)
     return record
+
+
+def save_resume_sidecar_records(records, bookkeeping_dir: str | Path, replace: bool = False) -> None:
+    store_for_bookkeeping_dir(bookkeeping_dir).save_files(records, replace=replace)
 
 
 def _safe_http_header_value(value: str | None) -> str | None:

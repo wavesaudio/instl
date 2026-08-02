@@ -184,7 +184,7 @@ class TestDownloadState(unittest.TestCase):
             self.assertEqual(record.source.version_id, "version-1")
             self.assertEqual(record.target.final_path, item.download_path)
             self.assertEqual(record.target.temp_path, os.fspath(temp_path))
-            self.assertEqual(record.target.sidecar_path, os.fspath(DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir).file_path(record.file_id)))
+            self.assertEqual(record.target.sidecar_path, os.fspath(DownloadStateStore.from_bookkeeping_dir(bookkeeping_dir).journal_path()))
             self.assertEqual(record.expected.size, 100)
             self.assertEqual(record.expected.checksum, "abc123")
             self.assertEqual(record.transfer.state, DownloadFileState.INTERRUPTED)
@@ -484,8 +484,8 @@ class TestDownloadState(unittest.TestCase):
             self.assertEqual(store.load_session().session_id, "session-1")
             self.assertEqual(store.load_file(file_record.file_id).repo_path, "Products/Foo.pkg")
 
-            with open(store.file_path(file_record.file_id), encoding="utf-8") as rfd:
-                raw_json = json.load(rfd)
+            with open(store.journal_path(), encoding="utf-8") as rfd:
+                raw_json = json.loads(rfd.readline())
             self.assertEqual(raw_json["source"]["urlRedacted"], "https://cdn.example.com/Products/Foo.pkg")
 
     def test_missing_records_return_none(self):

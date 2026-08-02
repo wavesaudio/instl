@@ -184,6 +184,48 @@ class TestParallelUnwtar(unittest.TestCase):
         self.assertIn(os.fspath(a), serial_dests)
         self.assertIn(os.fspath(nested), serial_dests)
 
+    def test_partition_independent_matches_comparing_every_pair(self):
+        """ The partition compares sorted neighbours rather than every pair. Pin it
+            against the all-pairs definition it replaced, over shapes that mix
+            siblings, duplicates, deep nesting and unrelated roots. """
+        def overlaps(a: Path, b: Path) -> bool:
+            if a == b:
+                return True
+            for first, second in ((a, b), (b, a)):
+                try:
+                    first.relative_to(second)
+                    return True
+                except ValueError:
+                    pass
+            return False
+
+        def all_pairs_partition(jobs):
+            resolved = [Path(destination) for _, destination in jobs]
+            parallel, serial = [], []
+            for i, job in enumerate(jobs):
+                collides = any(overlaps(resolved[i], resolved[j])
+                               for j in range(len(jobs)) if j != i)
+                (serial if collides else parallel).append(job)
+            return parallel, serial
+
+        root = self.tmp.joinpath("cmp")
+        shapes = [
+            ["a", "b", "c"],                                  # all independent
+            ["a", "a/inner", "b"],                            # one nesting
+            ["a", "a", "b"],                                  # duplicates
+            ["a/b/c", "a", "z", "a/b", "y/x"],                # deep chain, out of order
+            ["p/q", "p/qq", "p/q/r"],                         # prefix that is NOT an ancestor
+            ["solo"],
+            [],
+        ]
+        for shape in shapes:
+            jobs = [(root.joinpath(f"{i}.wtar.aa"), root.joinpath(name))
+                    for i, name in enumerate(shape)]
+            expected_parallel, expected_serial = all_pairs_partition(jobs)
+            actual_parallel, actual_serial = Unwtar._partition_independent(jobs)
+            self.assertEqual(expected_parallel, actual_parallel, f"parallel differs for {shape}")
+            self.assertEqual(expected_serial, actual_serial, f"serial differs for {shape}")
+
 
 if __name__ == "__main__":
     unittest.main()

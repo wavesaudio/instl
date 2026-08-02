@@ -149,6 +149,12 @@ class CurlTransfer:
     # process would have to reset this first, or inherit the first phase's base.
     files_delivered_so_far = None  # None means nothing measured yet
 
+    # the same, in bytes. Both channels report against the GLOBAL
+    # __NUM_BYTES_TO_DOWNLOAD__, so without a running base each chunk restarted its
+    # byte count at zero and the bar collapsed at every chunk boundary - including the
+    # download_last / Info.xml chunk that ends every install.
+    bytes_delivered_so_far = None
+
     def __init__(self, curl_path, config_file_path, total_files_to_download,
                  previously_downloaded_files, total_bytes_to_download,
                  fallback_config_file_path=None, fallback_exit_codes=(),
@@ -167,6 +173,8 @@ class CurlTransfer:
         self._files_high_water = 0
         self._bytes_baseline = 0
         self._bytes_high_water = 0
+        # what the preceding chunks delivered, seeded from the class attribute in run()
+        self.previously_downloaded_bytes = 0
 
         # the EMA persists ACROSS re-runs so the ETA stays stable through
         # pause/resume; the sample baseline is re-seeded per pass in _run_curl_once
@@ -204,6 +212,8 @@ class CurlTransfer:
         # PLANNED url count, overstating by the unfetched tail of any that died early
         if CurlTransfer.files_delivered_so_far is not None:
             self.previously_downloaded_files = CurlTransfer.files_delivered_so_far
+        if CurlTransfer.bytes_delivered_so_far is not None:
+            self.previously_downloaded_bytes = CurlTransfer.bytes_delivered_so_far
 
         channel = get_control_channel()
         pause_check = channel.is_paused if channel is not None else None
@@ -648,6 +658,9 @@ class CurlTransfer:
             delivered = self.files_actually_downloaded()
             if delivered is not None:
                 CurlTransfer.files_delivered_so_far = self.previously_downloaded_files + delivered
+            delivered_bytes = self._sum_this_chunk_part_bytes()
+            if delivered_bytes is not None:
+                CurlTransfer.bytes_delivered_so_far = self.previously_downloaded_bytes + delivered_bytes
         except Exception as ex:  # pragma: no cover - accounting must never break sync
             log.debug(f"could not publish delivered-file count: {ex}")
 
@@ -722,17 +735,29 @@ class CurlTransfer:
         self._part_output_paths_cache = paths
         return paths
 
-    def _sum_downloaded_part_bytes(self):
-        """Sum on-disk sizes of the ``.part`` outputs; returns ``(cumulative_bytes,
-        files_estimate)``. instl renames the parts only after the whole batch, so a
-        true per-file completion count is not observable here: files_estimate is a
-        monotonic, byte-proportional approximation. Bytes drive the bar and ETA."""
+    def _sum_this_chunk_part_bytes(self):
+        """Sum the on-disk sizes of THIS chunk's ``.part`` outputs. ``None`` when the
+        config could not be read, so callers keep the running base rather than publish
+        a confident zero."""
+        paths = self._download_part_output_paths()
+        if not paths:
+            return None
         total = 0
-        for p in self._download_part_output_paths():
+        for p in paths:
             try:
                 total += os.path.getsize(p)
             except OSError:
                 pass  # not created yet / locked / vanished -- skip this sample
+        return total
+
+    def _sum_downloaded_part_bytes(self):
+        """Cumulative received bytes across the whole download phase - the preceding
+        chunks' published total plus this chunk's ``.part`` sizes - and a files estimate;
+        returns ``(cumulative_bytes, files_estimate)``. instl renames the parts only
+        after the whole batch, so a true per-file completion count is not observable
+        here: files_estimate is a monotonic, byte-proportional approximation. Bytes
+        drive the bar and ETA."""
+        total = self.previously_downloaded_bytes + (self._sum_this_chunk_part_bytes() or 0)
         planned_bytes = self.total_bytes_to_download or 0
         if planned_bytes > 0:
             files_est = int(self.total_files_to_download * min(1.0, total / planned_bytes))
@@ -901,10 +926,13 @@ class CurlTransfer:
                         downloaded_files = min(self._files_high_water, self.total_files_to_download)
 
                         # BYTES: this run's Dled counts only new bytes (curl
-                        # resumes via continue-at), so add the prior runs' baseline
+                        # resumes via continue-at), so add the prior runs' baseline,
+                        # and the preceding chunks' delivered total on top of that -
+                        # this line reports against the whole download, not the chunk
                         current_dled_bytes = string_to_bytes(match.group('Dled'))
                         last_run_dled_bytes = current_dled_bytes
-                        cumulative_bytes = self._bytes_baseline + current_dled_bytes
+                        cumulative_bytes = (self.previously_downloaded_bytes
+                                            + self._bytes_baseline + current_dled_bytes)
                         if cumulative_bytes > self._bytes_high_water:
                             self._bytes_high_water = cumulative_bytes
                         cumulative_bytes = min(self._bytes_high_water, self.total_bytes_to_download)

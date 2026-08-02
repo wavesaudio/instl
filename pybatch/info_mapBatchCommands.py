@@ -88,7 +88,16 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
         # total bytes this pass will process, so the ticks carry a determinate fraction
         verify_planned_bytes = sum(
             int(fi.size) for fi in dl_file_items if getattr(fi, "size", None) and fi.size > 0)
-        verify_done_bytes = 0
+        verify_hashed_bytes = 0
+
+        def report_hashed(file_item):
+            # the phase bar follows the hashing, which is all of the phase's real work;
+            # a fallback to serial hashing can re-report an item, hence the clamp
+            nonlocal verify_hashed_bytes
+            if getattr(file_item, "size", None) and file_item.size > 0:
+                verify_hashed_bytes += int(file_item.size)
+            downloadVerify.emit_verify_progress(
+                self, min(verify_hashed_bytes, verify_planned_bytes), verify_planned_bytes)
 
         utils.wait_for_break_file_to_be_removed(
             config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_CHECKSUM"),
@@ -96,15 +105,13 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
 
         # hashing is the only work that runs off the main thread; ALL bookkeeping below
         # runs on the main thread in the original order using these results
-        precomputed = downloadVerify.precompute_all_verify_hashes(dl_file_items)
+        precomputed = downloadVerify.precompute_all_verify_hashes(dl_file_items,
+                                                                  on_item_hashed=report_hashed)
         total_items = len(dl_file_items)
 
         for file_index, file_item in enumerate(dl_file_items):
             self.doing = f"""check checksum for '{file_item.download_path}'"""
             downloadVerify.verify_progress_log(self, self.doing, 1, file_index, total_items)
-            if getattr(file_item, "size", None) and file_item.size > 0:
-                verify_done_bytes += int(file_item.size)
-            downloadVerify.emit_verify_progress(self, verify_done_bytes, verify_planned_bytes)
 
             final_path = Path(file_item.download_path)
             temp_path = temp_path_for_download_item(file_item)
@@ -173,9 +180,6 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                                     prog_msg=f"stopping checksum check too many bad or missing files found")
                     break
 
-        # force past the throttle so the phase bar reaches its full planned bytes
-        downloadVerify.emit_verify_progress(self, verify_done_bytes, verify_planned_bytes, force=True)
-
         if not self.is_checksum_ok():
             if downloadVerify.count_all_bad_files():
                 # recovery is attempted however many files are bad, the budget bounds it
@@ -189,6 +193,11 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                     config_vars['LOCAL_SYNC_DIR'].Path(resolve=True).joinpath("BREAK_BEFORE_REDOWNLOAD"),
                     self.break_file_callback)
                 self.re_download_bad_files()
+
+        # forced past the throttle only here, AFTER any recovery: driving the bar to full
+        # before a redownload pass that can run for an hour is what made the phase look done
+        # while it was still working
+        downloadVerify.emit_verify_progress(self, verify_planned_bytes, verify_planned_bytes, force=True)
 
         # Central's error parser regexes on /Bad checksum/i, so do not change the format
         if not self.is_checksum_ok():  # some files still not OK after re_download_bad_files
@@ -205,7 +214,7 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
                              report_own_progress=False) as dler:  # should get the cookie from the config vars
             self.num_bad_files -= downloadVerify.redownload_bad_files(
                 dler, self.info_map_table, self.lists_of_files["to redownload"],
-                super().increment_and_output_progress)
+                super().increment_and_output_progress, cmd=self)
 
     def is_checksum_ok(self) -> bool:
         retVal = self.num_bad_files == 0
@@ -229,23 +238,37 @@ class PrepareDownloadTempFiles(DBManager, PythonBatchCommandBase):
 
     def __call__(self, *args, **kwargs) -> None:
         super().__call__(*args, **kwargs)
-        for file_item in self.info_map_table.get_download_items(what="file"):
+        dl_file_items = self.info_map_table.get_download_items(what="file")
+        total_items = len(dl_file_items)
+        # every item's record, written in one batch below. Nothing writes a sidecar
+        # during the curl transfer, so this pass is what makes resume-after-interrupt
+        # work at all - it may be batched, never skipped
+        sidecar_records = []
+        for item_index, file_item in enumerate(dl_file_items):
             temp_path = temp_path_for_download_item(file_item)
+            self.doing = f"""prepare temp download {item_index + 1} of {total_items} '{temp_path}'"""
+            # increment_by=0: this command carries own_progress_count=0, so the position
+            # goes in the text or a pass over every download item shows nothing at all
+            downloadVerify.emit_throttled_progress(self, self.doing, 0, item_index, total_items,
+                                                   "_prepare_temp_last_log")
             resume_decision = downloadVerify.resume_decision_for_file_item(self.info_map_table, file_item)
             if resume_decision.can_resume:
-                downloadVerify.save_resume_sidecar(
+                sidecar_records.append(downloadVerify.build_resume_sidecar(
                     self.info_map_table,
                     file_item,
                     DownloadFileState.QUEUED,
                     received_bytes=resume_decision.resume_from_byte,
                     source_metadata=downloadVerify.source_metadata_from_record(resume_decision.record),
-                )
+                ))
                 continue
             transfer_state = DownloadFileState.INTERRUPTED if temp_path.is_file() else DownloadFileState.QUEUED
-            downloadVerify.save_resume_sidecar(self.info_map_table, file_item, transfer_state)
-            self.doing = f"""remove stale temp download '{temp_path}'"""
-            if remove_stale_temp_for_download_item(file_item):
-                super().increment_and_output_progress(increment_by=1, prog_msg=self.doing)
+            # built before the temp is removed: the record's receivedBytes comes from it
+            sidecar_records.append(downloadVerify.build_resume_sidecar(
+                self.info_map_table, file_item, transfer_state))
+            remove_stale_temp_for_download_item(file_item)
+        # replace: this pass enumerates the whole session, so it also compacts away
+        # whatever a previous session left behind
+        downloadVerify.save_resume_sidecars(sidecar_records, replace=True)
 
 
 class ReportDownloadStarted(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
@@ -298,6 +321,12 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
                                  config_var_str("__INVOCATION_RANDOM_ID__", "unknown"))
             except Exception as ex:  # pragma: no cover - instrumentation must never break copy
                 log.debug(f"could not begin copy phase: {ex}")
+        elif self.state == "completed":
+            try:
+                from pybatch.copyPhaseProgress import end_copy_phase
+                end_copy_phase()
+            except Exception as ex:  # pragma: no cover - instrumentation must never break copy
+                log.debug(f"could not end copy phase: {ex}")
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):

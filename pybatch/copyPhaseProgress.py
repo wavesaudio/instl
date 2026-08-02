@@ -46,6 +46,17 @@ def begin_copy_phase(planned_bytes, session_id: str = "unknown") -> None:
     _last_emit = None
 
 
+def end_copy_phase() -> None:
+    """Final tick at the full planned total, past the throttle. The phase is over
+    whatever the accounting reached, and without this the bar stops wherever the last
+    throttled tick happened to land."""
+    global _done
+    if _planned <= 0:
+        return
+    _done = _planned
+    report_copy_bytes(0, force=True)
+
+
 def report_copy_bytes(num_bytes, force: bool = False) -> None:
     """ throttled to one emit per _EMIT_MIN_INTERVAL_SEC, force bypasses the
         throttle - for the final tick of a phase

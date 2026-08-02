@@ -321,7 +321,11 @@ class Unwtar(PythonBatchCommandBase):
             two groups: those whose destination_folder is clearly independent of
             every other job's destination (no equal/nested/overlapping destination
             subtree) - safe to run concurrently - and the rest, which must run
-            serially. When in doubt a job is treated as NOT independent. """
+            serially. When in doubt a job is treated as NOT independent.
+
+            Sorting by path components puts every descendant of a folder directly
+            after it, so comparing neighbours finds the same overlaps an all-pairs
+            comparison would, without being quadratic in the job count. """
         # resolve destination folders once for comparison
         resolved = []
         for wtar_file_path, destination_folder in jobs:
@@ -330,38 +334,16 @@ class Unwtar(PythonBatchCommandBase):
             except OSError:
                 resolved.append(Path(destination_folder))
 
-        def overlaps(a: Path, b: Path) -> bool:
-            # a and b overlap if equal or one is an ancestor of the other
-            if a == b:
-                return True
-            try:
-                a.relative_to(b)
-                return True
-            except ValueError:
-                pass
-            try:
-                b.relative_to(a)
-                return True
-            except ValueError:
-                pass
-            return False
+        parts = [path.parts for path in resolved]
+        order = sorted(range(len(jobs)), key=lambda job_index: parts[job_index])
+        collides = [False] * len(jobs)
+        for earlier, later in zip(order, order[1:]):
+            # equal, or the earlier is an ancestor of the later
+            if parts[later][:len(parts[earlier])] == parts[earlier]:
+                collides[earlier] = collides[later] = True
 
-        independent_idx = []
-        serial_idx = []
-        for i in range(len(jobs)):
-            collides = False
-            for j in range(len(jobs)):
-                if i == j:
-                    continue
-                if overlaps(resolved[i], resolved[j]):
-                    collides = True
-                    break
-            if collides:
-                serial_idx.append(i)
-            else:
-                independent_idx.append(i)
-        parallel_jobs = [jobs[i] for i in independent_idx]
-        serial_jobs = [jobs[i] for i in serial_idx]
+        parallel_jobs = [job for job_index, job in enumerate(jobs) if not collides[job_index]]
+        serial_jobs = [job for job_index, job in enumerate(jobs) if collides[job_index]]
         return parallel_jobs, serial_jobs
 
     def _unwtar_jobs_parallel(self, jobs, ignore_files):

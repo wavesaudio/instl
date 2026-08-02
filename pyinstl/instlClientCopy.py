@@ -38,9 +38,12 @@ class InstlClientCopy(InstlClient):
                                                 'post_copy': "post-install step",
                                                 'pre_copy_to_folder': "pre-copy step",
                                                 'post_copy_to_folder': "post-copy step"})
+        # source bytes the copy phase will process. The same unit the copy commands
+        # report back: RsyncClone.copy_file_to_file reports a copied file's size and
+        # Unwtar._report_archive_bytes reports an archive's COMPRESSED size, so scaling
+        # wtar items by an expansion ratio here would leave an all-wtar install topping
+        # out at 1/ratio of its own bar
         self.bytes_to_copy = 0
-        # ratio between wtar file and it's uncompressed contents
-        self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = is_current_os('Mac') and 'Mac' in list(config_vars["TARGET_OS"])
@@ -104,7 +107,6 @@ class InstlClientCopy(InstlClient):
         # final planned total).
         copying_state_command = ReportDownloadState("copying", reason="copy_started",
                                                     own_progress_count=0, report_own_progress=False)
-        self.batch_accum += copying_state_command
 
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
@@ -116,6 +118,13 @@ class InstlClientCopy(InstlClient):
 
         if self.mac_current_and_target:
             self.pre_copy_mac_handling()
+
+        # appended only here: folder creation and the pre_copy actions above contribute
+        # no bytes, so announcing copying before them left the phase bar at 0 through
+        # thousands of MakeDirs. The per-target-folder removal of a previous install is
+        # interleaved with the copies below and cannot be lifted out of the phase without
+        # restructuring the loop, so it stays inside it
+        self.batch_accum += copying_state_command
 
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
         for target_folder_path in sorted_target_folder_list:
@@ -161,13 +170,10 @@ class InstlClientCopy(InstlClient):
         self.progress("create copy instructions done")
         self.progress("")
 
-    def calc_size_of_file_item(self, a_file_item: svnTree.SVNRow) -> int:
-        """ for use with builtin function reduce to calculate the unwtarred size of a file """
-        if a_file_item.is_wtar_file():
-            item_size = int(float(a_file_item.size) * self.wtar_ratio)
-        else:
-            item_size = a_file_item.size
-        return item_size
+    @staticmethod
+    def size_of_source_items(source_items: List[svnTree.SVNRow]) -> int:
+        """ source bytes the copy phase will process, see bytes_to_copy """
+        return sum(item.size for item in source_items)
 
     def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         retVal = AnonymousAccum()
@@ -194,12 +200,12 @@ class InstlClientCopy(InstlClient):
                 if not source_file.path.endswith(".symlink"):
                     retVal += ChmodAndChown(path=source_file.name(), mode=source_file.chmod_spec(), user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=False)
 
-            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            self.bytes_to_copy += source_file.size
         else:  # one or more wtar files
             # do not increment retVal - unwtar_instructions will add its own instructions
             first_wtar_item = None
             for source_wtar in source_files:
-                self.bytes_to_copy += self.calc_size_of_file_item(source_wtar)
+                self.bytes_to_copy += source_wtar.size
                 if source_wtar.is_first_wtar_file():
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
@@ -215,13 +221,16 @@ class InstlClientCopy(InstlClient):
         no_wtar_items = [source_item for source_item in source_items if not source_item.wtarFlag]
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
+        # outside the no_wtar_items branch: a directory holding only wtar items still
+        # emits an Unwtar, which reports its bytes, so accumulating only under the
+        # branch left that work done-without-planned
+        self.bytes_to_copy += self.size_of_source_items(source_items)
+
         if no_wtar_items:
             retVal += CopyDirContentsToDir(source_path_abs,
                                             os.curdir,
                                             hard_links=use_hard_links,
                                             preserve_dest_files=True)  # preserve files already in destination
-
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             if self.mac_current_and_target:
                 for source_item in source_items:
@@ -243,7 +252,7 @@ class InstlClientCopy(InstlClient):
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             has_wtars = any(source_item.wtarFlag for source_item in source_items)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+            self.bytes_to_copy += self.size_of_source_items(source_items)
 
             source_path_dir, source_path_name = os.path.split(source_path)
 
@@ -278,7 +287,7 @@ class InstlClientCopy(InstlClient):
                                    os.curdir,
                                    hard_links=use_hard_links,
                                    delete_extraneous_files=True)
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+            self.bytes_to_copy += self.size_of_source_items(source_items)
 
             source_path_dir, source_path_name = os.path.split(source_path)
 

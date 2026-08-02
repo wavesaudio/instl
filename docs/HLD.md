@@ -243,7 +243,8 @@ and write command strings directly.
 ### Responsibility
 Drive instl's bulk file download: build curl config files and parallel-run plans, classify and retry
 transfer failures, support cooperative pause/resume/try-now via a stdin control channel, persist
-per-session and per-file download state plus resume sidecars, sample throughput/errors, and emit a
+per-session and per-file download state plus a batched resume-sidecar journal, sample
+throughput/errors, and emit a
 structured JSON-line event channel to Central. The curl driver itself lives in PyBatch; this
 subsystem provides the planning
 and the side-channel machinery consumed at two choke points: URL sync planning and checksum-verify
@@ -259,7 +260,7 @@ redownload.
 | `downloadState` | On-disk download state: session and per-file records, `.part` temp naming/promotion, and the resume-eligibility decision. |
 | `DownloadObservability` | In-process per-session aggregator; persists a session summary and emits it as the `download.session_summary` event. |
 | `downloadEvents` | Single source of truth for the structured telemetry channel (privacy denylist, kill switch, and the reported feature-flag map). |
-| `downloadVerify` | The checksum-verify and redownload machinery the `CheckDownloadFolderChecksum` command drives: per-file resume decision and sidecar writes, retry/progress/state event emission, parallel verify-hash precompute, and the budget-bounded redownload pass (`RedownloadBudget`, `PauseTrackingChannel`). |
+| `downloadVerify` | The checksum-verify and redownload machinery the `CheckDownloadFolderChecksum` command drives: per-file resume decision and batched sidecar writes, retry/progress/state event emission, parallel verify-hash precompute (which reports each item as it finishes, because that pass is where the phase spends its minutes), and the budget-bounded redownload pass (`RedownloadBudget`, `PauseTrackingChannel`) reported as a `retrying` phase of its own. |
 | `ParallelRun` (in PyBatch) / `CurlTransfer` (`downloadTransfer`, driven by the thin PyBatch command `CurlWithInternalParallel`) | The actual curl execution engine: pause/offline-hold loop, network-error backoff, and exit-33 fresh-restart fallback. `CurlTransfer` (the shipped path) additionally probes connectivity and holds through outages (`DOWNLOAD_OFFLINE_HOLD_ENABLED`), reconciles missing outputs after curl exits on any exit code (`DOWNLOAD_RECONCILE_MISSING_OUTPUTS`), and backstops silent stalls (`DOWNLOAD_CURL_STALL_DETECTION` + watchdog) — new-event emission gated on the client's `DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD` declaration. |
 
 ### Public interface
@@ -270,7 +271,8 @@ redownload.
 - `downloadObservability` session/record functions; `downloadEvents.emit_*(...)` / `set_telemetry_enabled(...)` / `active_flags_from_config(...)`.
 
 ### Owned state & persistence
-On disk under the bookkeeping download-state folder: `session.json`, per-file sidecars, `.part` temp
+On disk under the bookkeeping download-state folder: `session.json`, the `files-journal.jsonl`
+resume sidecar journal, `.part` temp
 artifacts, and `session-summary.json`. The session summary is written at session end and emitted as
 the `download.session_summary` event. In-memory: the control-channel pause/try-now
 events (singleton), the active observability session (singleton), the curl-internal-parallel-support

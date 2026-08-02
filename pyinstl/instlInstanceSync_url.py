@@ -248,8 +248,9 @@ class InstlInstanceSync_url(InstlInstanceSync):
         dl_commands += self.create_sync_folders()
         # own_progress_count must be 0: total_progress_count sums own_progress_count
         # even when report_own_progress is False, so any other value adds units to
-        # the "of N" total that are never incremented
-        dl_commands += PrepareDownloadTempFiles(own_progress_count=0, report_own_progress=False)
+        # the "of N" total that are never incremented. report_own_progress stays on so
+        # the pass, which walks every download item, is not silent for its whole duration
+        dl_commands += PrepareDownloadTempFiles(own_progress_count=0)
         # announce the session before the curl transfer starts, otherwise Central
         # gets no events during the download - no state pill, pause controls or ETA
         dl_commands += ReportDownloadStarted(files_planned=to_sync_num_files, bytes_planned=bytes_to_sync,
@@ -288,6 +289,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
                         self.instlObj.progress("create download instructions done")
                     post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
+        # a sync-only run ends here: without this it stops on verifying_downloads and
+        # never reaches a terminal state. synccopy passes straight through it to copying
+        sync_accum += ReportDownloadState("ready_to_copy", reason="sync_complete",
+                                          own_progress_count=0, report_own_progress=False)
         sync_accum += Progress("Done sync")
 
     def chown_for_synced_folders(self):

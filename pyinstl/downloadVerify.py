@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from configVar import config_vars
@@ -31,7 +31,8 @@ from pyinstl.downloadState import (
     remove_stale_temp_for_download_item,
     resolve_validated_hosts,
     resume_decision_for_download_item,
-    save_resume_sidecar_for_download_item,
+    build_resume_sidecar_record_for_download_item,
+    save_resume_sidecar_records,
     temp_path_for_download_item,
 )
 from pyinstl.downloadFailures import (
@@ -124,7 +125,10 @@ def _resume_bookkeeping_enabled():
     return config_var_bool("DOWNLOAD_RESUME_ENABLED", False)
 
 
-def save_resume_sidecar(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, source_metadata=None, retry_count=0):
+def build_resume_sidecar(info_map_table, file_item, transfer_state, received_bytes=None, last_failure_class=None, source_metadata=None, retry_count=0):
+    """The record save_resume_sidecar would write, without writing it, so the
+    pre-download pass can build one per download item and hand them all to a single
+    batched write. None when resume bookkeeping is off or the item cannot be described."""
     if not _resume_bookkeeping_enabled():
         return None
     bookkeeping_dir = config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
@@ -134,10 +138,10 @@ def save_resume_sidecar(info_map_table, file_item, transfer_state, received_byte
     if source_metadata is None:
         source_metadata = _existing_source_metadata(info_map_table, file_item, bookkeeping_dir, source_url)
     try:
-        return save_resume_sidecar_for_download_item(
+        return build_resume_sidecar_record_for_download_item(
             file_item,
             source_url,
-            bookkeeping_dir,
+            bookkeeping_dir=bookkeeping_dir,
             session_id=config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
             repository_major_version=config_var_str("TARGET_MAJOR_VERSION") or config_var_str("SYNC_BASE_URL_MAIN_ITEM"),
             transfer_state=transfer_state,
@@ -147,8 +151,31 @@ def save_resume_sidecar(info_map_table, file_item, transfer_state, received_byte
             source_metadata=source_metadata,
         )
     except Exception as ex:
-        log.warning(f"could not save download resume sidecar for {getattr(file_item, 'path', 'unknown')}: {ex}")
+        log.warning(f"could not build download resume sidecar for {getattr(file_item, 'path', 'unknown')}: {ex}")
         return None
+
+
+def save_resume_sidecars(records, replace=False):
+    """Write records through the store, one fsync for the batch. ``replace`` rewrites
+    the journal, which only the pre-download pass may do - it is the one caller that
+    enumerates every item of the session."""
+    records = [record for record in records if record is not None]
+    if not records and not replace:
+        return
+    bookkeeping_dir = config_var_str("LOCAL_REPO_BOOKKEEPING_DIR")
+    if not bookkeeping_dir:
+        return
+    try:
+        save_resume_sidecar_records(records, bookkeeping_dir, replace=replace)
+    except Exception as ex:
+        log.warning(f"could not save {len(records)} download resume sidecars: {ex}")
+
+
+def save_resume_sidecar(info_map_table, file_item, transfer_state, **kwargs):
+    record = build_resume_sidecar(info_map_table, file_item, transfer_state, **kwargs)
+    if record is not None:
+        save_resume_sidecars([record])
+    return record
 
 
 # -- failure classification and the retry decision ----------------
@@ -319,24 +346,32 @@ def bad_file_progress(cmd, report_progress, prog_msg, file_index, total_items):
         verify_progress_log(cmd, prog_msg, 0, file_index, total_items)
 
 
-def emit_verify_progress(cmd, done_bytes, planned_bytes, force=False):
-    """``verifying_downloads`` session_state tick with per-phase byte progress,
-    throttled to 1/sec so it never slows the verify loop."""
+def emit_phase_progress(cmd, state, done_bytes, planned_bytes, reason, throttle_attr, force=False):
+    """``session_state`` tick carrying per-phase byte progress, throttled to 1/sec so it
+    never slows the loop it is called from. ``throttle_attr`` names the attribute on
+    ``cmd`` holding the last emit time, so phases that share a command keep independent
+    throttles."""
     try:
         now = time.monotonic()
-        last = getattr(cmd, "_verify_last_emit", None)
+        last = getattr(cmd, throttle_attr, None)
         if not force and last is not None and (now - last) < 1.0:
             return
-        cmd._verify_last_emit = now
+        setattr(cmd, throttle_attr, now)
         _events_emit_session_state(
             session_id=config_var_str("__INVOCATION_RANDOM_ID__", "unknown"),
-            state="verifying_downloads",
+            state=state,
             phase_bytes_done=int(done_bytes),
             phase_bytes_planned=int(planned_bytes),
-            reason="verify_progress",
+            reason=reason,
         )
     except Exception as ex:  # pragma: no cover - instrumentation must never break sync
-        log.debug(f"could not emit verify progress tick: {ex}")
+        log.debug(f"could not emit {state} progress tick: {ex}")
+
+
+def emit_verify_progress(cmd, done_bytes, planned_bytes, force=False):
+    """``verifying_downloads`` tick, see emit_phase_progress."""
+    emit_phase_progress(cmd, "verifying_downloads", done_bytes, planned_bytes,
+                        "verify_progress", "_verify_last_emit", force=force)
 
 
 # -- the checksum verify pass -------------------------------------
@@ -383,20 +418,39 @@ def precompute_verify_hashes(file_item):
     return final_path_matches, temp_is_file, temp_checksum
 
 
-def precompute_all_verify_hashes(dl_file_items):
+def _serial_verify_hashes(dl_file_items, on_item_hashed):
+    results = []
+    for file_item in dl_file_items:
+        results.append(precompute_verify_hashes(file_item))
+        if on_item_hashed is not None:
+            on_item_hashed(file_item)
+    return results
+
+
+def precompute_all_verify_hashes(dl_file_items, on_item_hashed=None):
     """Hash results for every download item, a list aligned 1:1 with dl_file_items
-    whether the hashing ran on the thread pool or serially."""
+    whether the hashing ran on the thread pool or serially. ``on_item_hashed`` is called
+    on the calling thread as each item finishes - out of input order on the pool - so the
+    phase can report while this pass runs: it is where the verify phase spends its
+    minutes, the bookkeeping loop that consumes the results runs at memory speed."""
     workers = resolve_verify_workers(len(dl_file_items))
     if workers <= 1:
-        return [precompute_verify_hashes(fi) for fi in dl_file_items]
+        return _serial_verify_hashes(dl_file_items, on_item_hashed)
     try:
         with ThreadPoolExecutor(max_workers=workers,
                                 thread_name_prefix="instl-verify") as pool:
-            # executor.map preserves input order, so results stay aligned
-            return list(pool.map(precompute_verify_hashes, dl_file_items))
+            results = [None] * len(dl_file_items)
+            index_by_future = {pool.submit(precompute_verify_hashes, file_item): index
+                               for index, file_item in enumerate(dl_file_items)}
+            for future in as_completed(index_by_future):
+                index = index_by_future[future]
+                results[index] = future.result()
+                if on_item_hashed is not None:
+                    on_item_hashed(dl_file_items[index])
+            return results
     except Exception as ex:  # pragma: no cover - parallelism must never break sync
         log.warning(f"parallel verify pool failed ({ex}); falling back to serial hashing")
-        return [precompute_verify_hashes(fi) for fi in dl_file_items]
+        return _serial_verify_hashes(dl_file_items, on_item_hashed)
 
 
 # -- the budget-bounded redownload pass ---------------------------
@@ -457,12 +511,16 @@ class PauseTrackingChannel:
         return getattr(self._channel, name)
 
 
-def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progress) -> int:
+def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progress, cmd=None) -> int:
     """Redownload the bad files through ``dler``, returning how many were recovered so
     the caller can subtract that from its bad-file count. Each file gets its own bounded
     retry-with-backoff loop and is never split across iterations, so blocking between
     attempts keeps the atomicity invariant: no temp .part is promoted while paused. A
-    terminal failure on one file does not abort the pass."""
+    terminal failure on one file does not abort the pass.
+
+    ``cmd`` anchors the ``retrying`` phase ticks; the pass is unbounded by default and 16
+    large wtars at ~5 min each is over an hour, so it needs a phase of its own rather than
+    running under a verify bar already forced to full. None runs the pass without ticks."""
     control_channel = get_global_channel()
     retry_enabled = config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
     budget = None
@@ -470,6 +528,11 @@ def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progr
         budget = RedownloadBudget.from_config()
         control_channel = PauseTrackingChannel(control_channel)
     files_to_redownload = list(files_to_redownload)
+    bytes_to_recover = sum(int(getattr(fi, "size", 0) or 0) for fi in files_to_redownload)
+    bytes_recovered = 0
+    if cmd is not None:
+        emit_phase_progress(cmd, "retrying", 0, bytes_to_recover,
+                            "redownload_bad_files", "_redownload_last_emit", force=True)
     num_recovered = 0
     for file_index, file_item in enumerate(files_to_redownload):
         if budget is not None:
@@ -495,6 +558,13 @@ def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progr
             log.error(f"""giving up redownloading {download_path}, {ex}""")
             report_progress(increment_by=0,
                             prog_msg=f"""failed to redownload {download_path}, {ex}""")
+        finally:
+            # both outcomes retire the file's bytes from the pass, so a file that
+            # cannot be recovered does not freeze the bar for the rest of the pass
+            bytes_recovered += int(getattr(file_item, "size", 0) or 0)
+            if cmd is not None:
+                emit_phase_progress(cmd, "retrying", bytes_recovered, bytes_to_recover,
+                                    "redownload_progress", "_redownload_last_emit")
     return num_recovered
 
 

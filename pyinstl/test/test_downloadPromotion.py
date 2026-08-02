@@ -641,6 +641,30 @@ class TestDownloadPromotion(unittest.TestCase):
             cpp.report_copy_bytes(9999, force=True)   # overshoot -> capped at planned
             self.assertEqual(emit.call_args.kwargs["phase_bytes_done"], 1000)
 
+    def test_completed_flushes_the_copy_phase_to_full(self):
+        # the phase is over when completed is emitted, so the bar must not stop
+        # wherever the last throttled tick happened to land
+        import pybatch.copyPhaseProgress as cpp
+        import pyinstl.downloadEvents as dev
+        from pybatch import ReportDownloadState
+        self.addCleanup(lambda: cpp.begin_copy_phase(0))
+        cpp.begin_copy_phase(1000, session_id="sess")
+        cpp.report_copy_bytes(400, force=True)
+        with mock.patch.object(dev, "emit_session_state") as emit, \
+                mock.patch.object(downloadVerify, "_events_emit_session_state"):
+            ReportDownloadState("completed", own_progress_count=0, report_own_progress=False)()
+        copy_calls = [c.kwargs for c in emit.call_args_list if c.kwargs.get("state") == "copying"]
+        self.assertTrue(copy_calls, "completed did not flush the copy phase")
+        self.assertEqual(copy_calls[-1]["phase_bytes_done"], 1000)
+
+    def test_end_copy_phase_is_a_no_op_when_no_phase_is_armed(self):
+        import pybatch.copyPhaseProgress as cpp
+        import pyinstl.downloadEvents as dev
+        cpp.begin_copy_phase(0)
+        with mock.patch.object(dev, "emit_session_state") as emit:
+            cpp.end_copy_phase()
+        self.assertEqual(emit.call_count, 0)
+
     def test_report_download_state_copying_arms_copy_phase(self):
         from pybatch import ReportDownloadState
         import pybatch.copyPhaseProgress as cpp

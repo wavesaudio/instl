@@ -188,6 +188,8 @@ src/AppBundle/Contents, f, 1, 2222222222222222222222222222222222222222, 200
 src/libdir, d, 1
 src/libdir/lib.so, f, 1, 3333333333333333333333333333333333333333, 300
 src/big.tar.wtar, f, 1, 4444444444444444444444444444444444444444, 1000
+src/wtardir, d, 1
+src/wtardir/pack.tar.wtar, f, 1, 5555555555555555555555555555555555555555, 700
 """
 
 
@@ -292,6 +294,21 @@ class TestInstlClientCopyGolden(unittest.TestCase):
         self.assertEqual(
             [f'Unwtar(what_to_unwtar=r"{native_source("src/big.tar.wtar")}", where_to_unwtar=r".")'],
             _child_reprs(accum))
+
+    def test_wtar_source_plans_the_bytes_its_unwtar_will_report(self):
+        # Unwtar reports the archive's COMPRESSED size, so planning an expanded
+        # estimate left an all-wtar install topping its own bar out below 100%.
+        self.client.create_copy_instructions_for_file("src/big.tar", "Big")
+        self.assertEqual(1000, self.client.bytes_to_copy)
+
+    def test_dir_cont_of_only_wtar_items_plans_its_bytes(self):
+        # this directory emits an Unwtar and nothing else; its bytes used to be
+        # accumulated only when the directory ALSO held non-wtar items
+        accum = self.client.create_copy_instructions_for_dir_cont("src/wtardir", "Packed")
+        self.assertEqual(
+            [f'Unwtar(what_to_unwtar=r"{native_source("src/wtardir")}", where_to_unwtar=r"..")'],
+            _child_reprs(accum))
+        self.assertEqual(700, self.client.bytes_to_copy)
 
     def test_copy_instructions_for_source_dispatches_on_tag(self):
         # the (source_path, tag) tuple form used by the per-iid copy loop.
