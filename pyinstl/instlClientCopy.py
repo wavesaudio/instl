@@ -13,6 +13,7 @@ log = logging.getLogger()
 
 from configVar import config_vars
 from .instlClient import InstlClient
+from .instlException import InstlFatalException
 import svnTree
 from pybatch import *
 
@@ -37,9 +38,12 @@ class InstlClientCopy(InstlClient):
                                                 'post_copy': "post-install step",
                                                 'pre_copy_to_folder': "pre-copy step",
                                                 'post_copy_to_folder': "post-copy step"})
+        # source bytes the copy phase will process. The same unit the copy commands
+        # report back: RsyncClone.copy_file_to_file reports a copied file's size and
+        # Unwtar._report_archive_bytes reports an archive's COMPRESSED size, so scaling
+        # wtar items by an expansion ratio here would leave an all-wtar install topping
+        # out at 1/ratio of its own bar
         self.bytes_to_copy = 0
-        # ratio between wtar file and it's uncompressed contents
-        self.wtar_ratio = float(config_vars.get("WTAR_RATIO", "1.3"))
 
         # when running on MacOS AND installation targets MacOS some special cases need to be considered
         self.mac_current_and_target = 'Mac' in list(config_vars["__CURRENT_OS_NAMES__"]) and 'Mac' in list(config_vars["TARGET_OS"])
@@ -72,6 +76,18 @@ class InstlClientCopy(InstlClient):
         # Copy might be called after the sync batch file was created, but before it was executed
         if len(self.info_map_table.files_read_list) == 0:
             have_info_path = os.fspath(config_vars["HAVE_INFO_MAP_COPY_PATH"])
+            # Only pre-check local paths (a URL is read directly by the reader).
+            # The info-map describes the synced files; without it copy cannot
+            # proceed, and the previous behavior surfaced an opaque
+            # FileNotFoundError from deep inside the reader. Point the user at the
+            # likely cause (sync not run / wrong path) instead.
+            is_url = "://" in have_info_path
+            if not is_url and not os.path.isfile(have_info_path):
+                raise InstlFatalException(
+                    f"Cannot copy: the synced files manifest was not found at '{have_info_path}'",
+                    "(config var HAVE_INFO_MAP_COPY_PATH).",
+                    "This usually means the 'sync' step did not run or did not complete.",
+                    "Run sync before copy, or check the HAVE_INFO_MAP_COPY_PATH setting.")
             self.info_map_table.read_from_file(have_info_path, disable_indexes_during_read=True)
 
         self.avoid_copy_markers = list(config_vars.get('AVOID_COPY_MARKERS', []))
@@ -80,6 +96,17 @@ class InstlClientCopy(InstlClient):
         self.batch_accum.set_current_section('copy')
         self.batch_accum += self.create_sync_folder_manifest_command("before-copy", back_ground=True)
         self.batch_accum += Progress("Start copy from $(COPY_SOURCES_ROOT_DIR)")
+        # Announce the copy/install phase so
+        # Central's structured UX shows "Installing" instead of a bar frozen
+        # near 99% while files are copied and archives unwtarred (often the
+        # slowest, least-visible part of an install). copy may run in its own
+        # instl invocation (after sync), so this is emitted here, not in sync.
+        # Keep a reference so phase_bytes_planned can be filled in after the copy
+        # loop below accumulates bytes_to_copy (the command is positioned before
+        # the copies but serialized afterward, so the emitted script carries the
+        # final planned total).
+        copying_state_command = ReportDownloadState("copying", reason="copy_started",
+                                                    own_progress_count=0, report_own_progress=False)
 
         sorted_target_folder_list = sorted(self.all_iids_by_target_folder,
                                            key=lambda fold: config_vars.resolve_str(fold))
@@ -91,6 +118,13 @@ class InstlClientCopy(InstlClient):
 
         if self.mac_current_and_target:
             self.pre_copy_mac_handling()
+
+        # appended only here: folder creation and the pre_copy actions above contribute
+        # no bytes, so announcing copying before them left the phase bar at 0 through
+        # thousands of MakeDirs. The per-target-folder removal of a previous install is
+        # interleaved with the copies below and cannot be lifted out of the phase without
+        # restructuring the loop, so it stays inside it
+        self.batch_accum += copying_state_command
 
         remove_previous_sources = bool(config_vars.get("REMOVE_PREVIOUS_SOURCES",True))
         for target_folder_path in sorted_target_folder_list:
@@ -105,6 +139,12 @@ class InstlClientCopy(InstlClient):
                 folder_accum += self.create_copy_instructions_for_no_copy_folder(sync_folder_name)
 
         self.progress(self.bytes_to_copy, "bytes to copy")
+        # Now that the copy loop has accumulated the total
+        # install footprint, arm the copy-phase byte progress. Serialization
+        # happens after this returns, so the "copying" command emitted into the
+        # script carries this planned total and the copy/unwtar commands report
+        # determinate progress against it.
+        copying_state_command.phase_bytes_planned = self.bytes_to_copy
 
         self.batch_accum += self.accumulate_unique_actions_for_active_iids('post_copy')
 
@@ -121,23 +161,31 @@ class InstlClientCopy(InstlClient):
         # messages about orphan iids
         for iid in sorted(list(config_vars["__ORPHAN_INSTALL_TARGETS__"])):
             self.batch_accum += Echo(f"Don't know how to install {iid}")
+        # The install is finished -- move Central's
+        # structured UX to its terminal state so the dialog doesn't linger on
+        # "Installing" after the work is actually done.
+        self.batch_accum += ReportDownloadState("completed", reason="install_complete",
+                                                own_progress_count=0, report_own_progress=False)
         self.batch_accum += Progress("Done copy")
         self.progress("create copy instructions done")
         self.progress("")
 
-    def calc_size_of_file_item(self, a_file_item: svnTree.SVNRow) -> int:
-        """ for use with builtin function reduce to calculate the unwtarred size of a file """
-        if a_file_item.is_wtar_file():
-            item_size = int(float(a_file_item.size) * self.wtar_ratio)
-        else:
-            item_size = a_file_item.size
-        return item_size
+    @staticmethod
+    def size_of_source_items(source_items: List[svnTree.SVNRow]) -> int:
+        """ source bytes the copy phase will process, see bytes_to_copy """
+        return sum(item.size for item in source_items)
 
     def create_copy_instructions_for_file(self, source_path: str, name_for_progress_message: str, use_hard_links=True) -> PythonBatchCommandBase:
         retVal = AnonymousAccum()
         source_files = self.info_map_table.get_required_for_file(source_path)
         if not source_files:
-            log.warning(f"""no source files for {source_path}""")
+            # The index references a file that is absent from the info-map (the
+            # synced repo listing). This usually means the source was not synced,
+            # the path in index.yaml is wrong, or the repo-rev is mismatched.
+            # Nothing gets copied for it; make that visible with the owning item.
+            owning_iid = f" (item '{self.current_iid}')" if self.current_iid else ""
+            log.warning(f"no source files found for '{source_path}'{owning_iid}; "
+                        f"it will not be copied. Check that it was synced and that its path in index.yaml is correct.")
             return retVal
         num_wtars: int = functools.reduce(lambda total, item: total + item.wtarFlag, source_files, 0)
         assert (len(source_files) == 1 and num_wtars == 0) or num_wtars == len(source_files)
@@ -152,12 +200,12 @@ class InstlClientCopy(InstlClient):
                 if not source_file.path.endswith(".symlink"):
                     retVal += ChmodAndChown(path=source_file.name(), mode=source_file.chmod_spec(), user_id=int(config_vars.get("ACTING_UID", -1)), group_id=int(config_vars.get("ACTING_GID", -1)), recursive=False)
 
-            self.bytes_to_copy += self.calc_size_of_file_item(source_file)
+            self.bytes_to_copy += source_file.size
         else:  # one or more wtar files
             # do not increment retVal - unwtar_instructions will add its own instructions
             first_wtar_item = None
             for source_wtar in source_files:
-                self.bytes_to_copy += self.calc_size_of_file_item(source_wtar)
+                self.bytes_to_copy += source_wtar.size
                 if source_wtar.is_first_wtar_file():
                     first_wtar_item = source_wtar
             assert first_wtar_item is not None
@@ -173,13 +221,16 @@ class InstlClientCopy(InstlClient):
         no_wtar_items = [source_item for source_item in source_items if not source_item.wtarFlag]
         wtar_items = [source_item for source_item in source_items if source_item.wtarFlag]
 
+        # outside the no_wtar_items branch: a directory holding only wtar items still
+        # emits an Unwtar, which reports its bytes, so accumulating only under the
+        # branch left that work done-without-planned
+        self.bytes_to_copy += self.size_of_source_items(source_items)
+
         if no_wtar_items:
             retVal += CopyDirContentsToDir(source_path_abs,
                                             os.curdir,
                                             hard_links=use_hard_links,
                                             preserve_dest_files=True)  # preserve files already in destination
-
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
 
             if self.mac_current_and_target:
                 for source_item in source_items:
@@ -201,7 +252,7 @@ class InstlClientCopy(InstlClient):
             source_items: List[svnTree.SVNRow] = self.info_map_table.get_items_in_dir(dir_path=source_path)
             has_wtars = any(source_item.wtarFlag for source_item in source_items)
             source_path_abs = os.path.normpath("$(COPY_SOURCES_ROOT_DIR)/" + source_path)
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+            self.bytes_to_copy += self.size_of_source_items(source_items)
 
             source_path_dir, source_path_name = os.path.split(source_path)
 
@@ -236,7 +287,7 @@ class InstlClientCopy(InstlClient):
                                    os.curdir,
                                    hard_links=use_hard_links,
                                    delete_extraneous_files=True)
-            self.bytes_to_copy += functools.reduce(lambda total, item: total + self.calc_size_of_file_item(item), source_items, 0)
+            self.bytes_to_copy += self.size_of_source_items(source_items)
 
             source_path_dir, source_path_name = os.path.split(source_path)
 
@@ -276,7 +327,14 @@ class InstlClientCopy(InstlClient):
             case '!dir_cont':  # get all files and folders from a folder
                 retVal = self.create_copy_instructions_for_dir_cont(source[0], name_for_progress_message, use_hard_links)
             case _:
-                raise ValueError(f"unknown source type {source[1]} for {source[0]}")
+                # Unknown source tag in index.yaml. Name the offending item so
+                # whoever maintains the index can find and fix it; valid tags are
+                # !dir, !file and !dir_cont. (Kept as ValueError to preserve the
+                # established exception-type contract; only the message is richer.)
+                owning_iid = f" of item '{self.current_iid}'" if self.current_iid else ""
+                raise ValueError(
+                    f"Cannot create copy instructions: unknown source type '{source[1]}' "
+                    f"for source '{source[0]}'{owning_iid} (expected one of !dir, !file, !dir_cont).")
         return retVal
 
     # special handling when running on macOS

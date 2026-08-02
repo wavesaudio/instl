@@ -4,6 +4,7 @@ import os
 import stat
 import tarfile
 import zipfile
+import concurrent.futures
 from collections import OrderedDict
 from pathlib import Path
 from typing import List
@@ -17,6 +18,71 @@ from .fileSystemBatchCommands import SplitFile, FixAllPermissions, MakeDir
 from .removeBatchCommands import RmDir, RmFile
 
 log = logging.getLogger(__name__)
+
+
+def _unwtar_one_archive(wtar_file_path_str, destination_folder_str, no_artifacts, ignore, copy_owner):
+    """ Extract a single (possibly split) wtar archive. This is a module-level,
+        picklable function so it can run inside a ProcessPoolExecutor worker.
+
+        It receives ONLY plain picklable data (strings/tuples/bools) - never the
+        Unwtar command object nor config_vars. It performs the same extraction,
+        copy_owner (Chown) and no_artifacts removal as the serial path, but it
+        does NOT touch any process-global state (config_vars, the pybatch
+        progress/stage stack, copyPhaseProgress). Progress reporting
+        (report_copy_bytes) is intentionally left to the MAIN process which sums
+        the returned wtar-file sizes after each archive completes.
+
+        Returns the list of wtar file path strings that make up this archive so
+        the caller (main process) can stat/sum their sizes for progress and so
+        error reporting can list them.
+    """
+    wtar_file_path = Path(wtar_file_path_str)
+    destination_folder = Path(destination_folder_str)
+    if ignore is None:
+        ignore = ()
+
+    wtar_file_paths = utils.find_split_files(wtar_file_path)
+
+    log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
+
+    destination_leaf_name = utils.original_name_from_wtar_name(wtar_file_paths[0].name)
+    destination_path = destination_folder.joinpath(destination_leaf_name)
+
+    do_the_unwtarring = True
+    with utils.MultiFileReader("br", wtar_file_paths) as fd:
+        with tarfile.open(fileobj=fd) as tar:
+            tar_total_checksum = tar.pax_headers.get("total_checksum")
+            if tar_total_checksum:
+                try:
+                    if destination_path.exists():
+                        with utils.ChangeDirIfExists(destination_folder):
+                            disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
+
+                        if disk_total_checksum == tar_total_checksum:
+                            log.debug(f"{wtar_file_paths[0]} skipping unwtarring because item(s) exist and are identical to archive")
+                            do_the_unwtarring = False
+                except:
+                    # if checking checksum failed for any reason -> do the unwtarring
+                    pass
+            if do_the_unwtarring:
+                with RmDir(destination_path, report_own_progress=False, recursive=True) as dir_remover:
+                    # RmDir will also remove a file and will not raise if destination_path does not exist
+                    dir_remover()
+                tar.extractall(destination_folder)
+
+                if copy_owner:
+                    from pybatch import Chown
+                    first_wtar_file_st = wtar_file_paths[0].stat()
+                    Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
+            else:
+                log.info(f"skip uwtar of {destination_path} because it exists and matches wtar file checksum")
+
+    if no_artifacts:
+        for wtar_file in wtar_file_paths:
+            with RmFile(wtar_file, report_own_progress=False) as wtar_remover:
+                wtar_remover()
+
+    return [os.fspath(p) for p in wtar_file_paths]
 
 
 def can_skip_unwtar(what_to_work_on: Path, where_to_unwtar: Path):
@@ -192,49 +258,38 @@ class Unwtar(PythonBatchCommandBase):
         # replace plain paths with detailed info such as size, permissions, mod date, user, group
         self.wtar_file_paths = [utils.single_disk_item_listing(wtar_file_path, "PuUgGRTfC") for wtar_file_path in self.wtar_file_paths]
 
+    def _report_archive_bytes(self, wtar_file_path_strs) -> None:
+        """ Report an archive's bytes toward the
+            copy-phase progress (no-op unless an install copy phase is armed).
+            MUST run on the MAIN process - copyPhaseProgress is process-global,
+            non-reentrant state. Best-effort; never breaks a sync. The size is
+            summed from the wtar files; if no_artifacts already removed them the
+            stat will fail and we simply skip (best-effort). """
+        try:
+            from pybatch.copyPhaseProgress import report_copy_bytes
+            total = 0
+            for p in wtar_file_path_strs:
+                try:
+                    total += Path(p).stat().st_size
+                except OSError:
+                    pass
+            report_copy_bytes(total)
+        except Exception:
+            pass
+
     def unwtar_a_file(self, wtar_file_path: Path, destination_folder: Path, no_artifacts=False, ignore=None, copy_owner=False):
         if ignore is None:
             ignore = ()
+        self.wtar_file_paths = utils.find_split_files(wtar_file_path)
+        destination_leaf_name = utils.original_name_from_wtar_name(self.wtar_file_paths[0].name)
+        destination_path = destination_folder.joinpath(destination_leaf_name)
+        self.doing = f"""unwtar file '{wtar_file_path}' to '{destination_folder} ({"already exists" if destination_path.exists() else "not exists"})'"""
         try:
-            self.wtar_file_paths = utils.find_split_files(wtar_file_path)
-
-            log.debug(f"unwtar {wtar_file_path} to {destination_folder}")
-
-            destination_leaf_name = utils.original_name_from_wtar_name(self.wtar_file_paths[0].name)
-            destination_path = destination_folder.joinpath(destination_leaf_name)
-            self.doing = f"""unwtar file '{wtar_file_path}' to '{destination_folder} ({"already exists" if destination_path.exists() else "not exists"})'"""
-
-            do_the_unwtarring = True
-            with utils.MultiFileReader("br", self.wtar_file_paths) as fd:
-                with tarfile.open(fileobj=fd) as tar:
-                    tar_total_checksum = tar.pax_headers.get("total_checksum")
-                    # log.debug(f"total checksum for tarfile(s) {self.wtar_file_paths} {tar_total_checksum}")
-                    if tar_total_checksum:
-                        try:
-                            if destination_path.exists():
-                                with utils.ChangeDirIfExists(destination_folder):
-                                    disk_total_checksum = utils.get_recursive_checksums(destination_leaf_name, ignore=ignore).get("total_checksum", "disk_total_checksum_was_not_found")
-                                    # log.debug(f"total checksum for destination {destination_folder} {disk_total_checksum}")
-
-                                if disk_total_checksum == tar_total_checksum:
-                                    log.debug(f"{self.wtar_file_paths[0]} skipping unwtarring because item(s) exist and are identical to archive")
-                                    do_the_unwtarring = False
-                        except:
-                            # if checking checksum failed for any reason -> do the unwtarring
-                            pass
-                    if do_the_unwtarring:
-                        with RmDir(destination_path, report_own_progress=False, recursive=True) as dir_remover:
-                            # RmDir will also remove a file and will not raise if destination_path does not exist
-                            dir_remover()
-                        tar.extractall(destination_folder)
-
-                        if copy_owner:
-                            from pybatch import Chown
-                            first_wtar_file_st = self.wtar_file_paths[0].stat()
-                            # log.debug(f"copy_owner: {destination_folder} {first_wtar_file_st[stat.ST_UID]}:{first_wtar_file_st[stat.ST_GID]}")
-                            Chown(destination_folder, first_wtar_file_st[stat.ST_UID], first_wtar_file_st[stat.ST_GID], recursive=True)()
-                    else:
-                        log.info(f"skip uwtar of {destination_path} because it exists and matches wtar file checksum")
+            # report bytes BEFORE no_artifacts removal so the wtar files can still
+            # be stat'd; done here (main process) for both serial and parallel paths.
+            done_paths = _unwtar_one_archive(os.fspath(wtar_file_path), os.fspath(destination_folder),
+                                             no_artifacts=False, ignore=ignore, copy_owner=copy_owner)
+            self._report_archive_bytes(done_paths)
             if no_artifacts:
                 for wtar_file in self.wtar_file_paths:
                     with RmFile(wtar_file, report_own_progress=False) as wtar_remover:
@@ -247,6 +302,108 @@ class Unwtar(PythonBatchCommandBase):
         except tarfile.TarError:
             log.warning(f"tarfile error while unwtarring file {self.wtar_file_paths[0]}")
             raise
+
+    @staticmethod
+    def _resolve_worker_count() -> int:
+        """ Number of worker processes for parallel unwtar. DOWNLOAD_PARALLEL_WORKERS=0
+            means auto (os.cpu_count()). Returns >=1; 1 means "run serial". """
+        try:
+            configured = int(config_vars.get("DOWNLOAD_PARALLEL_WORKERS", 0))
+        except (ValueError, TypeError):
+            configured = 0
+        if configured <= 0:
+            configured = os.cpu_count() or 1
+        return max(1, configured)
+
+    @staticmethod
+    def _partition_independent(jobs):
+        """ jobs is a list of (wtar_file_path, destination_folder). Partition into
+            two groups: those whose destination_folder is clearly independent of
+            every other job's destination (no equal/nested/overlapping destination
+            subtree) - safe to run concurrently - and the rest, which must run
+            serially. When in doubt a job is treated as NOT independent.
+
+            Sorting by path components puts every descendant of a folder directly
+            after it, so comparing neighbours finds the same overlaps an all-pairs
+            comparison would, without being quadratic in the job count. """
+        # resolve destination folders once for comparison
+        resolved = []
+        for wtar_file_path, destination_folder in jobs:
+            try:
+                resolved.append(Path(destination_folder).resolve())
+            except OSError:
+                resolved.append(Path(destination_folder))
+
+        parts = [path.parts for path in resolved]
+        order = sorted(range(len(jobs)), key=lambda job_index: parts[job_index])
+        collides = [False] * len(jobs)
+        for earlier, later in zip(order, order[1:]):
+            # equal, or the earlier is an ancestor of the later
+            if parts[later][:len(parts[earlier])] == parts[earlier]:
+                collides[earlier] = collides[later] = True
+
+        parallel_jobs = [job for job_index, job in enumerate(jobs) if not collides[job_index]]
+        serial_jobs = [job for job_index, job in enumerate(jobs) if collides[job_index]]
+        return parallel_jobs, serial_jobs
+
+    def _unwtar_jobs_parallel(self, jobs, ignore_files):
+        """ Run a list of (wtar_file_path, destination_folder) extraction jobs.
+            Honors DOWNLOAD_PARALLEL_UNWTAR / DOWNLOAD_PARALLEL_WORKERS, falls
+            back to serial when the flag is off, workers<=1, or <2 independent
+            jobs. All progress emission and shared-state mutation
+            (self.wtar_file_paths, report_copy_bytes, no_artifacts removal) happen
+            on the MAIN process; workers only extract+chown and return paths. """
+        parallel_enabled = bool(config_vars.get("DOWNLOAD_PARALLEL_UNWTAR", "no"))
+        workers = self._resolve_worker_count()
+
+        parallel_jobs, serial_jobs = ([], jobs)
+        if parallel_enabled and workers > 1 and len(jobs) > 1:
+            parallel_jobs, serial_jobs = self._partition_independent(jobs)
+
+        if len(parallel_jobs) < 2:
+            # not worth a pool / nothing independent -> everything serial
+            serial_jobs = jobs
+            parallel_jobs = []
+
+        if parallel_jobs:
+            workers = min(workers, len(parallel_jobs))
+            futures = {}
+            try:
+                # ThreadPoolExecutor (not ProcessPoolExecutor): instl ships as a
+                # FROZEN PyInstaller binary, where a process pool uses 'spawn' on
+                # macOS/Windows -- it would re-exec the instl binary AND the
+                # workers would not inherit the parent's populated config_vars /
+                # DB state, breaking extraction. Threads run in-process (config_vars
+                # available, no pickling, no freeze_support needed) and still
+                # parallelize: tarfile's bz2 decompression and the file I/O release
+                # the GIL, so independent archives extract concurrently. Worker
+                # archives target disjoint destinations (see _partition_independent),
+                # so concurrent extraction is safe.
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                    for wtar_file_path, destination_folder in parallel_jobs:
+                        fut = executor.submit(_unwtar_one_archive,
+                                              os.fspath(wtar_file_path), os.fspath(destination_folder),
+                                              False, tuple(ignore_files), self.copy_owner)
+                        futures[fut] = (wtar_file_path, destination_folder)
+                    for fut in concurrent.futures.as_completed(futures):
+                        wtar_file_path, destination_folder = futures[fut]
+                        # re-raise worker errors so a failed extract fails the command
+                        done_paths = fut.result()
+                        # main-thread-only shared-state mutation + progress
+                        self.wtar_file_paths = utils.find_split_files(wtar_file_path)
+                        self._report_archive_bytes(done_paths)
+                        if self.no_artifacts:
+                            for wtar_file in done_paths:
+                                with RmFile(wtar_file, report_own_progress=False) as wtar_remover:
+                                    wtar_remover()
+            except Exception as pool_ex:
+                # pool unavailable -> fall back to serial for everything not yet done
+                log.warning(f"parallel unwtar thread pool unavailable, falling back to serial: {pool_ex}")
+                serial_jobs = jobs
+                parallel_jobs = []
+
+        for wtar_file_path, destination_folder in serial_jobs:
+            self.unwtar_a_file(wtar_file_path, destination_folder, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
 
     def __call__(self, *args, **kwargs) -> None:
 
@@ -271,6 +428,10 @@ class Unwtar(PythonBatchCommandBase):
                 destination_folder = self.what_to_unwtar
             self.doing = f"""unwtar folder '{self.what_to_unwtar}' to '{destination_folder}''"""
             if not can_skip_unwtar(self.what_to_unwtar, destination_folder):
+                # collect all independent archive-extraction jobs first, then
+                # dispatch them (parallel when enabled, else serial). Each job is
+                # (first_wtar_file_path, destination_folder_for_that_archive).
+                jobs = []
                 for root, dirs, files in os.walk(self.what_to_unwtar, followlinks=False):
                     # a hack to prevent unwtarring of the sync folder. Copy command might copy something
                     # to the top level of the sync folder.
@@ -285,7 +446,8 @@ class Unwtar(PythonBatchCommandBase):
                         a_file_path = root_Path.joinpath(a_file)
                         if utils.is_first_wtar_file(a_file_path):
                             where_to_unwtar_the_file = destination_folder.joinpath(tail_folder)
-                            self.unwtar_a_file(a_file_path, where_to_unwtar_the_file, no_artifacts=self.no_artifacts, ignore=ignore_files, copy_owner=self.copy_owner)
+                            jobs.append((a_file_path, where_to_unwtar_the_file))
+                self._unwtar_jobs_parallel(jobs, ignore_files)
             else:
                 log.debug(f"unwtar {self.what_to_unwtar} to {self.where_to_unwtar} skipping unwtarring because both folders have the same Info.xml file")
 
@@ -390,7 +552,8 @@ class Unwzip(PythonBatchCommandBase):
             if not target_unwzip_file:  # os.path.split might return empty string
                 target_unwzip_file = Path.cwd()
         if not target_unwzip_file.is_file():
-            # assuming it's a folder
+            # assuming it's a folder to unzip into - make the folder itself
+            # (not just its parent) so the joined target file can be written
             with MakeDir(target_unwzip_file, report_own_progress=False) as md:
                 md()
             if resolved_what_to_unwzip.name.endswith(".wzip"):
