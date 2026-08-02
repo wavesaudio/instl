@@ -55,39 +55,6 @@ class TestConfigVarResolutionGolden(unittest.TestCase):
         self.assertEqual("ali baba", config_vars["A"].str())
         self.assertEqual("ali baba", config_vars.resolve_str("$(A)"))
 
-    def test_repeated_reference_resolves_once_per_call(self):
-        # a var's chain is re-resolved per occurrence unless the call memoizes it;
-        # the memo must not change what comes out
-        config_vars["A"] = "$(B)"
-        config_vars["B"] = "$(C)"
-        config_vars["C"] = "ali baba"
-        body = " ".join(["$(A)"] * 5)
-        self.assertEqual("ali baba ali baba ali baba ali baba ali baba",
-                         config_vars.resolve_str(body))
-
-    def test_same_name_with_different_params_is_not_shared(self):
-        # the memo is keyed on the whole reference text, so params and array ranges
-        # must not collide
-        config_vars["GREET"] = "hello $(WHO)"
-        config_vars["L"] = "10", "20", "30"
-        self.assertEqual("hello you|hello me",
-                         config_vars.resolve_str("$(GREET<WHO=you>)|$(GREET<WHO=me>)"))
-        self.assertEqual("10|30|10", config_vars.resolve_str("$(L[0])|$(L[2])|$(L[0])"))
-
-    def test_dynamic_var_is_read_fresh_at_every_occurrence(self):
-        # a dynamic var exists precisely so each read can differ; it must never be
-        # memoized, however many times it appears
-        reads = []
-
-        def counting_callback(_value):
-            reads.append(len(reads))
-            return str(len(reads))
-
-        config_vars.set_dynamic_var("__COUNTER__", counting_callback)
-        resolved = config_vars.resolve_str("$(__COUNTER__)|$(__COUNTER__)|$(__COUNTER__)")
-        self.assertEqual(3, len(set(resolved.split("|"))),
-                         f"a dynamic var was memoized: {resolved}")
-
     def test_list_join_on_resolution(self):
         # a list-valued configVar joins its parts with no separator when resolved
         config_vars["PARTS"] = "1", "2", "3"

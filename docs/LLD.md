@@ -1589,28 +1589,20 @@ for each char c in f_string:
 #### 2. Resolution driver (`resolve_str_to_list_with_statistics`)
 
 ```
-resolved_by_variable_str = {}                        # memo, this call only
 for parser_retVal in var_parse_imp(str_to_resolve, self.resolve_indicator):
     if parser_retVal.literal_text:
         resolved_parts.append(literal_text); num_literals += 1
     if parser_retVal.variable_name:
         if name in self:
-            memoized_parts = resolved_by_variable_str.get(parser_retVal.variable_str)
-            if memoized_parts is None:
-                with self.push_scope_context(use_cache=False):   # temp scope
-                    array_range = self.variable_params_to_config_vars(parser_retVal)
-                    memoized_parts = list(self[name])[array_range[0]:array_range[1]]
-                if not self[name].dynamic:
-                    resolved_by_variable_str[parser_retVal.variable_str] = memoized_parts
-            resolved_parts.extend(memoized_parts)
+            with self.push_scope_context(use_cache=False):   # temp scope
+                array_range = self.variable_params_to_config_vars(parser_retVal)
+                resolved_parts.extend(list(self[name])[array_range[0]:array_range[1]])
         else:
             resolved_parts.append(parser_retVal.variable_str)  # leave $(...) unresolved
         num_variables += 1
 return resolved_parts, num_literals, num_variables
 ```
 A new scope is pushed only when the variable has params/index; temp vars injected there vanish on scope exit. Iterating `self[name]` triggers `ConfigVar.__iter__`, giving recursive/nested resolution. Undefined variables resolve to their literal `$(NAME)` text rather than erroring.
-
-**The memo.** Because iterating `self[name]` resolves that variable's own value, and the class-level cache was removed in 2.1.5.5, every occurrence of a reference used to re-resolve its whole definition chain. `PythonBatchCommandAccum.__repr__` pushes the entire generated batch script through one `resolve_str` call, so a var defined through several others was re-resolved once per command in the script. The memo lives for the duration of one call — where the stack cannot change — and is keyed on the full reference text, so `$(GREET<WHO=you>)` and `$(GREET<WHO=me>)`, and `$(L[0])` and `$(L[2])`, stay distinct. **Dynamic vars (`set_dynamic_var`, e.g. `__NOW__`) are never memoized**: a fresh value on every read is what one is for. Measured over 8,000 references in one call on one Windows dev machine, a var defined through 16 levels of other vars cost 6.0x a flat literal before the memo and 1.1x after; pinned by `test_repeated_reference_resolves_once_per_call`, `test_same_name_with_different_params_is_not_shared` and `test_dynamic_var_is_read_fresh_at_every_occurrence`.
 
 #### 3. Param materialization & array slicing (`variable_params_to_config_vars`)
 
