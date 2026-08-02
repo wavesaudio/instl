@@ -13,7 +13,7 @@ from .instlInstanceBase import InstlInstanceBase, check_version_compatibility
 from configVar import config_vars
 from pybatch import *
 from .connectionBase import connection_factory
-from . import downloadVerify
+from . import downloadEvents
 
 
 class InstlClient(InstlInstanceBase):
@@ -74,7 +74,7 @@ class InstlClient(InstlInstanceBase):
             # calculation, the sync-folder scan - emitted no structured signal at all,
             # and it is where a multi-minute stall was once recorded with nothing to
             # attribute it to
-            downloadVerify.emit_download_state("preparing", reason="instl_started")
+            downloadEvents.emit_download_state("preparing", reason="instl_started")
         active_oses: List[str] = list(config_vars["TARGET_OS_NAMES"])
         # utils.add_to_actions_stack(f"""updating DB: active oses'""")
         self.items_table.activate_specific_oses(*active_oses)

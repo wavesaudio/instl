@@ -342,7 +342,7 @@ class PythonBatchRuntime(pybatch.PythonBatchCommandBase, call__call__=False, is_
         tell apart from a hang. Lazy import: pybatch is imported while pyinstl is still
         initializing."""
         try:
-            from pyinstl.downloadVerify import emit_download_state
+            from pyinstl.downloadEvents import emit_download_state
             emit_download_state("failed", reason=exc_type.__name__ if exc_type else "unknown_error")
         except Exception as ex:  # pragma: no cover - instrumentation must never break the error path
             log.debug(f"could not emit failed session state: {ex}")

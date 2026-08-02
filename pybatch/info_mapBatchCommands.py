@@ -25,6 +25,7 @@ from db import DBManager
 
 # the download-domain helpers these commands drive
 from pyinstl import downloadVerify
+from pyinstl import downloadEvents
 from pyinstl.downloadState import (
     DownloadFileState,
     promote_verified_temp_file,
@@ -313,7 +314,7 @@ class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=
         return f'''Report download state {self.state}'''
 
     def __call__(self, *args, **kwargs) -> None:
-        downloadVerify.emit_download_state(self.state, reason=self.reason)
+        downloadEvents.emit_download_state(self.state, reason=self.reason)
         if self.state == "copying" and self.phase_bytes_planned is not None:
             try:
                 from pybatch.copyPhaseProgress import begin_copy_phase

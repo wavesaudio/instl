@@ -208,12 +208,12 @@ class TestRecoveryPassIsItsOwnPhase(unittest.TestCase):
                  f"full instl dependencies unavailable: {FULL_STACK_IMPORT_ERROR}")
 class TestStateMachineHasEntryAndExit(unittest.TestCase):
     def test_failed_is_emitted_for_a_failing_run(self):
-        with mock.patch("pyinstl.downloadVerify.emit_download_state") as emit:
+        with mock.patch("pyinstl.downloadEvents.emit_download_state") as emit:
             rbc.PythonBatchRuntime.emit_failed_session_state(ValueError)
         emit.assert_called_once_with("failed", reason="ValueError")
 
     def test_failed_emit_never_breaks_the_error_path(self):
-        with mock.patch("pyinstl.downloadVerify.emit_download_state",
+        with mock.patch("pyinstl.downloadEvents.emit_download_state",
                         side_effect=RuntimeError("no events")):
             rbc.PythonBatchRuntime.emit_failed_session_state(ValueError)  # must not raise
 

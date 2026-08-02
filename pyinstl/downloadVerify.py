@@ -60,6 +60,7 @@ from pyinstl.downloadEvents import (
     emit_session_state as _events_emit_session_state,
     set_telemetry_enabled as _events_set_telemetry_enabled,
     active_flags_from_config as _events_active_flags_from_config,
+    download_event_context as _download_event_context,
 )
 
 log = logging.getLogger(__name__)
@@ -632,16 +633,6 @@ def redownload_one_file(dler, file_item, info_map_table, control_channel, retry_
 # -- download phase session_state events --------------------------
 
 
-def _download_event_context():
-    """Session id + rollout flags for a download event, applying the telemetry kill
-    switch. Each instl invocation is its own process, so a later `copy` must re-read the
-    flag that the `sync` before it honored."""
-    rollout_flags = _events_active_flags_from_config(config_vars)
-    telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
-    _events_set_telemetry_enabled(telemetry_enabled)
-    return config_var_str("__INVOCATION_RANDOM_ID__", "unknown"), rollout_flags, telemetry_enabled
-
-
 def emit_download_started(files_planned, bytes_planned):
     """Emit the capability + ``downloading`` session_state at the start of the curl
     download phase. Must run inside ``run-process`` - that is what Central watches."""
@@ -676,17 +667,3 @@ def emit_download_started(files_planned, bytes_planned):
         log.debug(f"could not emit download started events: {ex}")
 
 
-def emit_download_state(state, reason=None, files_planned=None, bytes_planned=None):
-    """Emit a post-download ``session_state`` transition, so Central knows which phase is
-    running once curl is done - checksum verify, then copy/unwtar, can take minutes."""
-    try:
-        session_id, _rollout_flags, _telemetry_enabled = _download_event_context()
-        _events_emit_session_state(
-            session_id=session_id,
-            state=state,
-            files_planned=files_planned,
-            bytes_planned=bytes_planned,
-            reason=reason,
-        )
-    except Exception as ex:  # pragma: no cover - instrumentation must never break sync
-        log.debug(f"could not emit download state {state!r}: {ex}")

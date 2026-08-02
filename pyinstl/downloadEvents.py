@@ -108,6 +108,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Iterable, Mapping
 
+from configVar import config_vars, config_var_str
+
 DOWNLOAD_EVENT_LOG_PREFIX = "DOWNLOAD_EVENT"
 DOWNLOAD_EVENT_SCHEMA_VERSION = 1
 
@@ -461,12 +463,46 @@ def emit_retry_decision(decision, **kwargs) -> str | None:
     return emit_event(make_retry_decision_event(decision, **kwargs))
 
 
+# -- config-aware session_state emission --------------------------
+
+
+def download_event_context():
+    """Session id + rollout flags for a download event, applying the telemetry kill
+    switch. Each instl invocation is its own process, so a later `copy` must re-read the
+    flag that the `sync` before it honored."""
+    rollout_flags = active_flags_from_config(config_vars)
+    telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
+    set_telemetry_enabled(telemetry_enabled)
+    return config_var_str("__INVOCATION_RANDOM_ID__", "unknown"), rollout_flags, telemetry_enabled
+
+
+def emit_download_state(state, reason=None, files_planned=None, bytes_planned=None):
+    """Emit a session_state transition for a phase that is not the transfer itself -
+    preparing before anything runs, verify and copy/unwtar after curl is done, failed on
+    the way out. Lives here rather than next to the phase that calls it: every caller is
+    a different subsystem and none of them should have to import another to say where
+    the install has got to."""
+    try:
+        session_id, _rollout_flags, _telemetry_enabled = download_event_context()
+        emit_session_state(
+            session_id=session_id,
+            state=state,
+            files_planned=files_planned,
+            bytes_planned=bytes_planned,
+            reason=reason,
+        )
+    except Exception as ex:  # pragma: no cover - instrumentation must never break sync
+        _log.debug(f"could not emit download state {state!r}: {ex}")
+
+
 __all__ = [
     "DOWNLOAD_EVENT_LOG_PREFIX",
     "DOWNLOAD_EVENT_SCHEMA_VERSION",
     "DownloadEventType",
     "active_flags_from_config",
+    "download_event_context",
     "emit_capability",
+    "emit_download_state",
     "emit_event",
     "emit_file_state",
     "emit_retry_decision",

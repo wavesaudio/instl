@@ -713,7 +713,7 @@ class TestDownloadPromotion(unittest.TestCase):
         # the command must emit a session_state event carrying the
         # requested state so Central can show "Verifying"/"Installing".
         from pybatch import ReportDownloadState
-        with mock.patch.object(downloadVerify, "_events_emit_session_state") as emit:
+        with mock.patch("pyinstl.downloadEvents.emit_session_state") as emit:
             ReportDownloadState("copying", reason="copy_started",
                                 own_progress_count=0, report_own_progress=False)()
         emit.assert_called_once()
