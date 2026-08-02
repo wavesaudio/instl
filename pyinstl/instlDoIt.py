@@ -4,7 +4,6 @@ import logging
 log = logging.getLogger()
 
 from .instlInstanceBase import InstlInstanceBase
-from configVar import current_os, run_batch, main_input_file_str
 from pybatch import *
 
 
@@ -20,7 +19,7 @@ class InstlDoIt(InstlInstanceBase):
         # __QUIET_UNTIL_ERROR__ is set to true when command line argument "--quiet-until-error" is found
         utils.set_log_quiet_until_error(config_vars.get("__QUIET_UNTIL_ERROR__", False))
         # print("client_commands", fixed_command_name)
-        main_input_file_path = main_input_file_str()
+        main_input_file_path = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
         self.read_yaml_file(main_input_file_path)
         active_oses = list(config_vars["TARGET_OS_NAMES"])
         self.items_table.activate_specific_oses(*active_oses)
@@ -39,7 +38,7 @@ class InstlDoIt(InstlInstanceBase):
 
         self.write_config_vars_to_file(config_vars.get("__WRITE_CONFIG_VARS_TO_FILE__", None).Path())
 
-        if run_batch():
+        if bool(config_vars["__RUN_BATCH__"]):
             self.run_batch_file()
 
     def init_default_doit_vars(self):
@@ -48,7 +47,7 @@ class InstlDoIt(InstlInstanceBase):
             url_main_item = utils.main_url_item(resolved_sync_base_url)
             config_vars["SYNC_BASE_URL_MAIN_ITEM"] = url_main_item
 
-        if config_vars["TARGET_OS"].str() != current_os():
+        if config_vars["TARGET_OS"].str() != config_vars["__CURRENT_OS__"].str():
             target_os_names = list(config_vars[config_vars.resolve_str("$(TARGET_OS)_ALL_OS_NAMES")])
             config_vars["TARGET_OS_NAMES"] = target_os_names
             second_name = config_vars["TARGET_OS"].str()

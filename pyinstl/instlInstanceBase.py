@@ -16,8 +16,6 @@ import aYaml
 import utils
 
 from configVar import config_vars
-from configVar import current_os
-from configVar import instl_version
 from configVar import ConfigVarYamlReader
 
 from . import connectionBase
@@ -47,11 +45,11 @@ def check_version_compatibility():
     retVal = True
     message = ""
     if "INSTL_MINIMAL_VERSION" in config_vars:
-        cur_instl_ver = instl_version()
-        required_instl_ver = tuple(int(part) for part in list(config_vars["INSTL_MINIMAL_VERSION"]))
+        cur_instl_ver = list(map(int, list(config_vars["__INSTL_VERSION__"])))
+        required_instl_ver = list(map(int, list(config_vars["INSTL_MINIMAL_VERSION"])))
         retVal = cur_instl_ver >= required_instl_ver
         if not retVal:
-            message = f"instl version {list(cur_instl_ver)} < minimal required version {list(required_instl_ver)}"
+            message = f"instl version {cur_instl_ver} < minimal required version {required_instl_ver}"
     return retVal, message
 
 
@@ -345,7 +343,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
     def calc_user_cache_dir_var(self):
         if "USER_CACHE_DIR" not in config_vars:
-            os_family_name = current_os()
+            os_family_name = config_vars["__CURRENT_OS__"].str()
             match os_family_name:
                 case "Mac":
                     user_cache_dir_param = "$(VENDOR_NAME)/$(INSTL_EXEC_DISPLAY_NAME)"
