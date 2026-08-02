@@ -76,9 +76,6 @@ if sys.platform in ("darwin", "linux"):
     class ResHackerCompileResource(PythonBatchCommandDummy):#??
         pass
 
-if sys.platform == "darwin":
-    from .MacOnlyBatchCommands import MacDock
-
 from .new_batchCommands import *
 
 
