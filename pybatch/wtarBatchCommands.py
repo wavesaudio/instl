@@ -391,7 +391,7 @@ class Unwzip(PythonBatchCommandBase):
                 target_unwzip_file = Path.cwd()
         if not target_unwzip_file.is_file():
             # assuming it's a folder
-            with MakeDir(target_unwzip_file.parent, report_own_progress=False) as md:
+            with MakeDir(target_unwzip_file, report_own_progress=False) as md:
                 md()
             if resolved_what_to_unwzip.name.endswith(".wzip"):
                 what_to_work_on_leaf = resolved_what_to_unwzip.stem
