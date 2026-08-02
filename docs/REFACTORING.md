@@ -661,6 +661,13 @@ antivirus-sensitive, the ratios much less so.
   `Unwtar` target, and the cost only applies with `DOWNLOAD_PARALLEL_UNWTAR` on
   (the default).
 
+- **`resolve_str` memoizes a reference within one call.** `PythonBatchCommandAccum.__repr__`
+  pushes the whole generated batch script through a single `config_vars.resolve_str`, and
+  a config var defined in terms of other config vars was re-resolved from scratch at every
+  occurrence. Over 8,000 references in one call, a var defined through 16 levels of other
+  vars cost **6.0x** a flat literal before and **1.1x** after; raw throughput on a body of
+  flat references was ~6 MB/s and cleanly linear both before and after, up to a 15 MB body.
+
 Measured and **not** acted on:
 
 - `get_download_items(what="file")` costs ~0.017 s per call over 4,000 rows, so caching its

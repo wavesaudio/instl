@@ -235,15 +235,27 @@ class ConfigVarStack:
         resolved_parts = list()
         num_literals = 0
         num_variables = 0
+        # A variable's own value can reference further variables, and the cache this
+        # class used to keep was removed in 2.1.5.5, so without the memo below every
+        # occurrence in the string re-resolves that whole chain from scratch. The memo
+        # lives for this one call, where the stack cannot change, and is keyed on the
+        # full reference text so params and array ranges stay distinct. Dynamic vars are
+        # never memoized - a fresh value on every read is the whole point of one.
+        resolved_by_variable_str = dict()
         for parser_retVal in var_parse_imp(str_to_resolve, self.resolve_indicator):
             if parser_retVal.literal_text:
                 resolved_parts.append(parser_retVal.literal_text)
                 num_literals += 1
             if parser_retVal.variable_name:
                 if parser_retVal.variable_name in self:
-                    with self.push_scope_context(use_cache=False):
-                        array_range = self.variable_params_to_config_vars(parser_retVal)
-                        resolved_parts.extend(list(self[parser_retVal.variable_name])[array_range[0]:array_range[1]])
+                    memoized_parts = resolved_by_variable_str.get(parser_retVal.variable_str)
+                    if memoized_parts is None:
+                        with self.push_scope_context(use_cache=False):
+                            array_range = self.variable_params_to_config_vars(parser_retVal)
+                            memoized_parts = list(self[parser_retVal.variable_name])[array_range[0]:array_range[1]]
+                        if not self[parser_retVal.variable_name].dynamic:
+                            resolved_by_variable_str[parser_retVal.variable_str] = memoized_parts
+                    resolved_parts.extend(memoized_parts)
                 else:
                     resolved_parts.append(parser_retVal.variable_str)
                 num_variables += 1
