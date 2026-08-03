@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.12
 
+import re
 import shlex
 import threading
 from collections import namedtuple
@@ -8,6 +9,11 @@ from .instlInstanceBase import InstlInstanceBase
 from pybatch import *
 import utils
 import psutil
+
+# Basename allowlist for nested executables in run-process (LPE hardening when
+# invoked with elevated privileges via InstlHelperApplication). Matches instl / instl.exe
+# and legacy engines (instl-V9, instl-V10, …).
+_RUN_PROCESS_ALLOWED_INSTL_BASENAME_RE = re.compile(r"^instl(-V\d+)?(\.exe)?$", re.IGNORECASE)
 
 
 # noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -215,10 +221,12 @@ class InstlMisc(InstlInstanceBase):
     def do_run_process(self):
         """ run list of processes as specified in the input file
             input file can have two kinds of processes:
-            1. command line, e.g. ls /etc
-            2. echo statement, e.g. echo "a message"
+            1. instl command line (absolute or relative path to instl / legacy engines)
+            2. echo with append redirect, e.g. echo "a message" >> /path/to/file
             each line can also be followed by ">" or ">>" and path to a file, in which case
             output from the process or echo will go to that file. ">" will open the file in "w" mode, ">>" in "a" mode.
+            To prevent LPE when run-process is invoked with elevated privileges (e.g. via
+            InstlHelper), only instl and "echo >>" commands are allowed.
             if --abort-file argument is passed to run-process, the fiel specified will be watch and if and when it does not exist
             current running subprocess will be aborted and next processes will not be launched.
         """
@@ -229,7 +237,9 @@ class InstlMisc(InstlInstanceBase):
             file_with_commands = config_vars["__MAIN_INPUT_FILE__"]
             with utils.utf8_open_for_read(file_with_commands, "r") as rfd:
                 for line in rfd.readlines():
-                    list_of_argv.append(shlex.split(line))
+                    parsed = shlex.split(line)
+                    if parsed:  # skip blank / whitespace-only lines
+                        list_of_argv.append(parsed)
         else:    # read a command from argv
             list_of_argv.append(config_vars["RUN_PROCESS_ARGUMENTS"].list())
 
@@ -256,6 +266,10 @@ class InstlMisc(InstlInstanceBase):
                                                                             redirect_path=None,
                                                                             stderr_means_err=stderr_means_err))
 
+        # Fail closed before executing anything: reject disallowed commands early.
+        for run_process_info in list_of_process_to_run_with_redirects:
+            self.validate_run_process_command(run_process_info)
+
         for run_process_info in list_of_process_to_run_with_redirects:
             redirect_file = None
             if run_process_info.redirect_path:
@@ -281,6 +295,28 @@ class InstlMisc(InstlInstanceBase):
 
             if redirect_file:
                 redirect_file.close()
+
+    @staticmethod
+    def is_allowed_run_process_instl(process_name):
+        """True if process_name's basename is an allowed instl engine binary."""
+        return bool(_RUN_PROCESS_ALLOWED_INSTL_BASENAME_RE.match(os.path.basename(process_name)))
+
+    def validate_run_process_command(self, run_process_info):
+        """Allow only instl engines and echo with >> (append) redirect.
+
+        run-process may run elevated via InstlHelper; unrestricted commands would
+        be an LPE. Echo without redirect or with '>' (truncate/overwrite) is denied.
+        """
+        process_name = run_process_info.process_name
+        if self.is_allowed_run_process_instl(process_name):
+            return
+        if process_name.lower() == "echo" and run_process_info.redirect_open_mode == "a":
+            return
+
+        raise ValueError(
+            f"run-process refusing disallowed command '{process_name}' "
+            f"(only instl and 'echo >>' are permitted)"
+        )
 
     def resolve_run_process_self_invocation(self, process_name):
         """Prefer the running instl binary for nested self-invocations.

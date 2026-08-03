@@ -157,10 +157,13 @@ command:
             $() style variables in the input file will be resolved using the variable definitions and printed to output file.
 
     run-process:
-        short: Run single processes with optional abort file (utility command)
+        short: Run allowed processes with optional abort file (utility command)
         long: |
-            Usage: instl run-process [--abort-file path-to-abort-file] executable-to-run [args ...]
-            run-process will launch a single process with the supplied arguments.
+            Usage: instl run-process [--abort-file path-to-abort-file] [--in command-list-file]
+                                    [executable-to-run [args ...]]
+            run-process launches processes from --in (one command per line) or from argv.
+            Only instl (including legacy engines) and "echo >> file" commands are allowed;
+            other commands are refused to prevent privilege escalation when run elevated.
             if --abort-file is given, run-process will watch that the file exists and if not will kill the process,
 
     stage2svn:
