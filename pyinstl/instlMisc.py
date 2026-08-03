@@ -269,14 +269,37 @@ class InstlMisc(InstlInstanceBase):
                 else:
                     sys.stdout.write(f"{str_to_echo}\n")
             else:
-                log.info(f"Start running {run_process_info.process_name} with argv {run_process_info.argv}")
-                with Subprocess(run_process_info.process_name,
+                process_name = self.resolve_run_process_self_invocation(run_process_info.process_name)
+                log.info(f"Start running {process_name} with argv {run_process_info.argv}")
+                with Subprocess(process_name,
                                 *run_process_info.argv,
                                 out_file=redirect_file,
                                 stderr_means_err=run_process_info.stderr_means_err,
                                 own_progress_count=0) as sub_proc:
                     sub_proc()
-                log.info(f"Done running {run_process_info.process_name} with argv {run_process_info.argv}")
+                log.info(f"Done running {process_name} with argv {run_process_info.argv}")
 
             if redirect_file:
                 redirect_file.close()
+
+    def resolve_run_process_self_invocation(self, process_name):
+        """Prefer the running instl binary for nested self-invocations.
+
+        Central's .irl lines hardcode the original app-bundle path. When this
+        process was launched from InstlHelper's root-owned staging cache,
+        re-exec that staged copy instead of the client-writable original.
+        Basename match only (instl / instl.exe); legacy engines (instl-V9, etc.)
+        are left unchanged.
+        """
+        if "__INSTL_EXE_PATH__" not in config_vars:
+            return process_name
+        if not os.path.isabs(process_name):
+            return process_name
+
+        self_exe = os.fspath(config_vars["__INSTL_EXE_PATH__"])
+        if os.path.basename(process_name).lower() != os.path.basename(self_exe).lower():
+            return process_name
+
+        if os.path.normpath(process_name) != os.path.normpath(self_exe):
+            log.info(f"Rewriting run-process self-invocation from {process_name} to {self_exe}")
+        return self_exe
