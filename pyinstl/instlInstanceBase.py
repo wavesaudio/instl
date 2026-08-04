@@ -362,11 +362,15 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
             return LOCAL_REPO_REV_BOOKKEEPING_DIR if it's fully resolved (meaning we have values for
             S3_BUCKET_NAME, REPO_NAME, REPO_REV)
             otherwise return USER_CACHE_DIR
+            Note: doit does not load InstlClient.yaml, so LOCAL_REPO_REV_BOOKKEEPING_DIR may be absent.
         """
-        local_repo_rev_bookkeeping_dir = config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"].str()
-        if config_vars.is_str_resolved(local_repo_rev_bookkeeping_dir):
+        local_repo_rev_bookkeeping_dir = None
+        if "LOCAL_REPO_REV_BOOKKEEPING_DIR" in config_vars:
+            local_repo_rev_bookkeeping_dir = config_vars["LOCAL_REPO_REV_BOOKKEEPING_DIR"].str()
+        if local_repo_rev_bookkeeping_dir and config_vars.is_str_resolved(local_repo_rev_bookkeeping_dir):
             aux_cache_dir = Path(local_repo_rev_bookkeeping_dir)
         else:
+            self.calc_user_cache_dir_var()
             aux_cache_dir = config_vars["USER_CACHE_DIR"].Path().joinpath("cache")
         if make_dir:
             with MakeDir(aux_cache_dir, report_own_progress=False) as md:
