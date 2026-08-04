@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 3         # major version e.g. python-batch
   - 0         # new major feature e.g. new command
   - 0         # new minor feature e.g. new option to command, new python batch class
-  - 1         # bug fix, new param to pybatch class
+  - 2         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: first merge from Mata/Vitali/AI major changes
+INSTL_VERSION_CHANGE_REASON: removed MacDock code and tests
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 
