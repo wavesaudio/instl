@@ -191,6 +191,9 @@ class CurlTransfer:
         # hold budget, so a flapping network cannot hold an install forever
         self._hold_seconds_used = 0.0
         self._offline_probe_attempt = 0
+        # set by the progress poller while an offline hold is reported; read by the
+        # meter loop to freeze the files-done count it propagates (see _note_meter_files)
+        self._offline_hold_active = False
 
         self._probe_host_port_cache = None
         self._part_output_paths_cache = None
@@ -795,26 +798,26 @@ class CurlTransfer:
         last_stall_emit_monotonic = 0.0
         last_probe_monotonic = 0.0
         last_hold_emit_monotonic = 0.0
-        stall_offline_active = False
+        self._offline_hold_active = False
         while not stop_event.is_set():
             try:
                 cumulative_bytes, files_est = self._sum_downloaded_part_bytes()
                 now = time.monotonic()
                 if cumulative_bytes > last_growth_bytes:
-                    if stall_offline_active:
+                    if self._offline_hold_active:
                         # announce the resume BEFORE the first grown tick, so
                         # Central's detector resets its streak explicitly
                         log.info(f"{self.label} download progress resumed after "
                                  f"{int(now - last_growth_monotonic)}s offline stall")
                         self._emit_hold_session_state("downloading", "resuming_after_offline",
                                                       previous_state="paused")
-                        stall_offline_active = False
+                        self._offline_hold_active = False
                     last_growth_bytes = cumulative_bytes
                     last_growth_monotonic = now
                     self._maybe_emit_progress_tick(cumulative_bytes, files_est)
                 else:
                     stalled_for = now - last_growth_monotonic
-                    if not stall_offline_active:
+                    if not self._offline_hold_active:
                         # flat ticks only while NOT holding: a non-paused session
                         # state would clear Central's backend-hold flag every second
                         self._maybe_emit_progress_tick(cumulative_bytes, files_est)
@@ -822,17 +825,17 @@ class CurlTransfer:
                             and now - last_probe_monotonic >= probe_interval):
                         last_probe_monotonic = now
                         online, _probe_failure_class = self._probe_connectivity()
-                        if not online and (not stall_offline_active
+                        if not online and (not self._offline_hold_active
                                            or now - last_hold_emit_monotonic >= event_interval):
-                            if not stall_offline_active:
+                            if not self._offline_hold_active:
                                 log.info(f"{self.label} no byte progress for "
                                          f"{int(stalled_for)}s and connectivity probe failed; "
                                          f"reporting offline hold while curl transfer is stalled")
                             self._emit_hold_session_state("paused", "offline_no_network",
                                                           previous_state="downloading")
                             last_hold_emit_monotonic = now
-                            stall_offline_active = True
-                    if (stall_watchdog_seconds > 0 and not stall_offline_active
+                            self._offline_hold_active = True
+                    if (stall_watchdog_seconds > 0 and not self._offline_hold_active
                             and stalled_for >= stall_watchdog_seconds
                             and now - last_stall_emit_monotonic >= stall_watchdog_seconds):
                         log.info(f"{self.label} no download progress for "
@@ -843,6 +846,20 @@ class CurlTransfer:
             except Exception as ex:  # pragma: no cover - defensive; poller must never raise
                 log.debug(f"download progress poller tick failed: {ex}")
             stop_event.wait(_DOWNLOAD_PROGRESS_EMIT_MIN_INTERVAL_SEC)
+
+    def _note_meter_files(self, candidate_files):
+        """Fold one meter sample into the monotonic files high-water and return the
+        count to report. While the offline hold is active the high-water is FROZEN:
+        with the network down, curl burns through the queue with instant connection
+        failures (~tens of files/second observed) and its Xfers column counts a
+        failed transfer as a finished one, so an unfrozen count climbs through the
+        outage while zero bytes move -- and this count is the sole driver of
+        Central's progress-bar percentage. The burned files are recovered later by
+        the verify/redownload pass; after the hold releases, the high-water catches
+        up to curl's cumulative meter in one step."""
+        if candidate_files > self._files_high_water and not self._offline_hold_active:
+            self._files_high_water = candidate_files
+        return min(self._files_high_water, self.total_files_to_download)
 
     def _run_curl_once(self, config_file_path_fixed, pause_check):
         """Run one `curl --config` pass, logging progress; returns (returncode,
@@ -921,9 +938,7 @@ class CurlTransfer:
 
                         # FILES: monotonic only, no per-run baseline -- a re-run
                         # re-counts finished files in Xfers anyway
-                        if downloaded_files > self._files_high_water:
-                            self._files_high_water = downloaded_files
-                        downloaded_files = min(self._files_high_water, self.total_files_to_download)
+                        downloaded_files = self._note_meter_files(downloaded_files)
 
                         # BYTES: this run's Dled counts only new bytes (curl
                         # resumes via continue-at), so add the prior runs' baseline,

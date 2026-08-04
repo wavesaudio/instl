@@ -241,5 +241,50 @@ class TestCurlParallelMeterRegex(unittest.TestCase):
             self.assertIsNone(reg.match(line), f"should not parse as a meter line: {line!r}")
 
 
+@unittest.skipIf(FULL_STACK_IMPORT_ERROR is not None,
+                 f"full instl dependencies unavailable: {FULL_STACK_IMPORT_ERROR}")
+class TestMeterFilesHoldFreeze(unittest.TestCase):
+    """CurlTransfer._note_meter_files: the files-done high-water freezes while the
+    offline hold is active. With the network down curl burns the queue with instant
+    connection failures and counts them in Xfers, so an unfrozen count climbs
+    through the outage with zero bytes moving — and that count drives Central's
+    progress bar."""
+
+    def _make_transfer(self, total_files=100):
+        from pyinstl.downloadTransfer import CurlTransfer
+        return CurlTransfer(curl_path="curl", config_file_path="dl-00",
+                            total_files_to_download=total_files,
+                            previously_downloaded_files=0,
+                            total_bytes_to_download=1000)
+
+    def test_climbs_while_online(self):
+        transfer = self._make_transfer()
+        self.assertEqual(transfer._note_meter_files(10), 10)
+        self.assertEqual(transfer._note_meter_files(25), 25)
+        # monotonic: a lower sample (curl re-run restarting Xfers) never regresses
+        self.assertEqual(transfer._note_meter_files(5), 25)
+
+    def test_frozen_during_offline_hold(self):
+        transfer = self._make_transfer()
+        transfer._note_meter_files(10)
+        transfer._offline_hold_active = True
+        # the queue burns with failures during the outage; the reported count holds
+        self.assertEqual(transfer._note_meter_files(40), 10)
+        self.assertEqual(transfer._note_meter_files(90), 10)
+
+    def test_catches_up_after_hold_release(self):
+        transfer = self._make_transfer()
+        transfer._note_meter_files(10)
+        transfer._offline_hold_active = True
+        transfer._note_meter_files(60)
+        transfer._offline_hold_active = False
+        # next sample folds curl's cumulative meter back in
+        self.assertEqual(transfer._note_meter_files(65), 65)
+
+    def test_clamped_to_total(self):
+        transfer = self._make_transfer(total_files=50)
+        self.assertEqual(transfer._note_meter_files(80), 50)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=3)
