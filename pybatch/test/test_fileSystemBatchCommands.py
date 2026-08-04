@@ -702,6 +702,7 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.assertTrue(file_to_stay_2.exists(), f"file not created {file_to_stay_2}")
         self.assertEqual(united_file.stat().st_size, 100, f"united file, wrong size {united_file.stat().st_size}")
 
+    @unittest.skipUnless(running_on_Win, "Win only test")
     def test_something(self):
         the_folder = Path("C:\\Program Files (x86)\\Common Files\\WPAPI")
         # self.pbt.batch_accum.clear(section_name="doit")

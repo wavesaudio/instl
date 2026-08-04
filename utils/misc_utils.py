@@ -6,7 +6,6 @@ import os
 import platform
 import re
 import hashlib
-import base64
 import collections
 import subprocess
 import numbers
@@ -316,7 +315,7 @@ def check_file_checksum(file_path, expected_checksum):
             with open(file_path, "rb") as rfd:
                 retVal = check_buffer_checksum(rfd.read(), expected_checksum)
         except:
-            pass
+            log.debug("check_file_checksum failed for %s", file_path, exc_info=True)
     return retVal
 
 
@@ -706,8 +705,8 @@ def get_wtar_total_checksum(wtar_file_path):
             with utils.MultiFileReader("br", wtar_file_paths) as fd:
                 with tarfile.open(fileobj=fd) as tar:
                     tar_total_checksum = tar.pax_headers.get("total_checksum")
-    except Exception as ex:
-        pass  # return None if there was exception from any reason
+    except Exception as ex:  # return None if there was exception from any reason
+        log.debug(f"get_wtar_total_checksum failed for {wtar_file_path}: {ex}")
     return tar_total_checksum
 
 

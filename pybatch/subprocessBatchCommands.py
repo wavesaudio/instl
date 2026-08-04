@@ -427,7 +427,7 @@ class Subprocess(RunProcessBase):
                 else:
                     all_args.append(self.named__init__param("ignore_specific_exit_codes", self.ignore_specific_exit_codes))
         except TypeError as te:
-            pass
+            log.debug(f"Subprocess.repr_own_args failed: {te}")
 
     def progress_msg_self(self):
         if self.message:

@@ -3,7 +3,6 @@
 
 import abc
 import json
-import urllib.error
 import urllib.parse
 
 import requests
@@ -15,11 +14,6 @@ log = logging.getLogger()
 from typing import Dict
 
 have_boto = False
-# try:
-#     import boto3
-#     have_boto = True
-# except Exception:
-#     pass
 
 
 class ConnectionBase(object):

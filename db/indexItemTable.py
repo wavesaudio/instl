@@ -591,7 +591,7 @@ class IndexItemsTable(object):
                                     else:
                                         new_detail = (the_iid, the_iid, self.os_names_to_num[the_os], detail_name, value, tag)
                                         details.append(new_detail)
-        except Exception as ex:
+        except Exception:
             print(f"exception while reading details for iid {the_iid}")
             print(f"lines {the_node.start_mark.line} - {the_node.end_mark.line}")
             if detail_name:
@@ -615,11 +615,8 @@ class IndexItemsTable(object):
             template_match = self.template_re.match(IID)
             with kwargs['node-stack'](a_node[IID]):
                 if template_match:
-                    try:
-                        node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
-                        self.read_index_node_helper(node, index_items, items_details, **kwargs)
-                    except:
-                        raise
+                    node = self.read_index_template_node(template_match, a_node[IID], **kwargs)
+                    self.read_index_node_helper(node, index_items, items_details, **kwargs)
                 else:
                     item, original_item_details = self.item_from_index_node(IID, a_node[IID], **kwargs)
                     index_items.append(item)
@@ -923,8 +920,6 @@ class IndexItemsTable(object):
         retVal.extend([mm[:num_fields_to_take] for mm in results])
         return retVal
 
-        return retVal
-
     def iids_from_guids(self, guid_list):
         translated_iids = list()
         orphaned_guids = list()
@@ -1005,19 +1000,6 @@ class IndexItemsTable(object):
         """
         retVal = self.db.select_and_fetchall(query_text, query_params={'look_for_status': look_for_status})
         return retVal
-
-    def change_status_of_iids_to_another_status__(self, old_status, new_status, iid_list):
-        if iid_list:
-            query_vars = '("' + '","'.join(iid_list) + '")'
-            query_text = f"""
-                UPDATE index_item_t
-                SET install_status={new_status}
-                WHERE install_status={old_status}
-                AND iid IN {query_vars}
-                AND ignore = 0
-              """
-            with self.db.transaction() as curs:
-                curs.execute(query_text)
 
     def change_status_of_iids_to_another_status(self, old_status, new_status, iid_list, progress_callback=None):
         if iid_list:
@@ -1398,8 +1380,8 @@ class IndexItemsTable(object):
             if direct_sync_indicator is not None:
                 try:
                     retVal = utils.str_to_bool_int(config_vars.resolve_str(direct_sync_indicator))
-                except:
-                    pass
+                except Exception as ex:
+                    log.debug("could not resolve direct_sync indicator %r: %s", direct_sync_indicator, ex)
             return retVal
         self.db.create_function("get_direct_sync_status_from_indicator", 1, _get_direct_sync_status_from_indicator)
 
@@ -1555,7 +1537,7 @@ class IndexItemsTable(object):
 
         self.db.exec_script_file("short-index.ddl")
 
-        query_text = f"""
+        query_text = """
                     -- select all rows that have some version
                     SELECT * FROM short_index_t
                     WHERE version_mac IS NOT NULL

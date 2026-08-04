@@ -10,15 +10,11 @@ import logging
 import platform
 from pathlib import Path
 from functools import lru_cache
-import json
 from configVar import config_vars
 from pybatch import PythonBatchRuntime
 from pyinstl.cmdOptions import CommandLineOptions, read_command_line_options
 
-from pyinstl.instlException import InstlException
 import utils
-
-#utils.set_max_open_files(2048)
 
 from utils.log_utils import config_logger
 
@@ -108,8 +104,8 @@ class InvocationReporter(PythonBatchRuntime):
 
     def enter_self(self) -> None:
         try:
-            vendor_name = os.environ.setdefault("VENDOR_NAME", "Waves Audio")
-            app_name = os.environ.setdefault("APPLICATION_NAME", "Waves Central")
+            os.environ.setdefault("VENDOR_NAME", "Waves Audio")
+            os.environ.setdefault("APPLICATION_NAME", "Waves Central")
             config_logger(argv=self.argv, config_vars=config_vars)
             log.debug(f"===== {self.random_invocation_name} =====")
             log.debug(f"Start: {self.start_time}")
@@ -119,7 +115,6 @@ class InvocationReporter(PythonBatchRuntime):
             log.warning(f'instl log file report start failed - {e}')
 
     def exit_self(self, exit_return) -> None:
-        # self.doing = self.doing if self.doing else utils.get_latest_action_from_stack()
         try:
             end_time = datetime.datetime.now()
             log.debug(f"Run time: {self.command_time_sec}")

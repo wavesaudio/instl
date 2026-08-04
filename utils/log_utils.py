@@ -87,7 +87,6 @@ class PerLevelFormatter(logging.Formatter):
 def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_vars=None):
     """ Setting up a file logging handler """
     log_file_path = Path(log_file_path).resolve()
-    log_file_folder = log_file_path.parent
     os.makedirs(log_file_path.parent, exist_ok=True)
     top_logger = logging.getLogger()
 
@@ -96,7 +95,7 @@ def setup_file_logging(log_file_path, level=logging.DEBUG, rotate=True, config_v
     else:
         fileLogHandler =  logging.FileHandler(log_file_path, encoding='utf-8')
     fileLogHandler.setLevel(level)
-    fileLogHandler.set_name(f"(log_file_name)_log_handler")
+    fileLogHandler.set_name("(log_file_name)_log_handler")
     formatter = PerLevelFormatter(format_per_level, fmt=format_per_level[logging.CRITICAL], datefmt='%Y-%m-%d_%H:%M:%S', style='%')
 
     fileLogHandler.setFormatter(formatter)

@@ -39,36 +39,10 @@ def quoteme_single_list_for_sql(to_quote_list):
     return "".join(("('", "','".join(to_quote_list), "')"))
 
 
-#no_need_for_raw_re = re.compile('^[a-zA-Z0-9_\-\./${}%:+ ]+$')
 escape_quotations_re = re.compile("['\"\\\\]")
 def escape_quotations(simple_string):
     """ escape the characters ', '. \\ """
     retVal = escape_quotations_re.sub(lambda match_obj: r'\\'+match_obj.group(0), simple_string)
-    return retVal
-
-
-def quoteme_raw_string(simple_string):
-    assert isinstance(simple_string, str), f"{simple_string} is not of type str"
-
-    if not simple_string:
-        retVal = 'r""'
-
-    else:
-        simple_string = os.fspath(simple_string)
-
-        possible_quote_marks = ('"', "'", '"""', "'''")
-        if "\n" in simple_string:  # multiline strings need triple quotation
-            possible_quote_marks = ('"""', "'''")
-
-        for quote_mark in possible_quote_marks:
-            # 1st priority is to create a raw string. Strings that end with the quotation mark or with \ cannot be raw.
-            if quote_mark not in simple_string and quote_mark[-1] != simple_string[-1] and simple_string[-1] != '\\':
-                retVal = "".join(('r', quote_mark, simple_string, quote_mark))
-                break
-        else:
-            # if all possible quotations marks are present in the string - do proper escaping and return non-raw string
-            retVal = "".join(('"', escape_quotations(simple_string), '"'))
-
     return retVal
 
 
@@ -251,9 +225,6 @@ def str_to_float(the_str):
 
 
 if __name__ == "__main__":
-    #print(quoteme_raw_string(r'''"$(LOCAL_REPO_SYNC_DIR)/Mac/Utilities/plist/plist_creator.sh" "$(__Plist_for_native_instruments_1__)"'''))
-    #print(quoteme_raw_string("""single-single(') triple-single(''') single-double(") single-triple(\"\"\")"""))
-
     rere = re.compile(r"""['"\\]""")
     s = r"""A"B'C'''D'\\EFG"""
     rs = rere.sub(lambda matchobj: '\\'+matchobj.group(0), s)

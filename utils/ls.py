@@ -8,7 +8,7 @@ import stat
 import json
 import tarfile
 import re
-from pathlib import Path, PurePath
+from pathlib import PurePath
 
 import utils
 
@@ -356,7 +356,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                         owner_sid = sd.GetSecurityDescriptorOwner()
                         name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                         the_parts[format_char] = domain+"\\"+name  # user
-                    except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                    except Exception:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
                         the_parts[format_char] = "Unknown user"
 
                 case 'G':
@@ -365,7 +365,7 @@ def win_item_ls(the_path, ls_format, root_folder=None):
                         owner_sid = sd.GetSecurityDescriptorGroup()
                         name, domain, __type = win32security.LookupAccountSid(None, owner_sid)
                         the_parts[format_char] = domain+"\\"+name  # group
-                    except Exception as ex:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
+                    except Exception:  # we sometimes get exception: 'LookupAccountSid, No mapping between account names and security IDs was done.'
                         the_parts[format_char] = "Unknown group"
 
                 case 'C':
