@@ -15,7 +15,7 @@ from .downloadState import (
     temp_path_for_download_item,
     update_session_state,
 )
-from .downloadControlChannel import get_global_channel
+from .downloadControlChannel import get_global_channel, start_file_reader_from_config
 from . import downloadEvents
 from pybatch import *
 from configVar import config_vars, config_var_bool, config_var_int, config_var_list
@@ -117,6 +117,7 @@ class InstlInstanceSync_url(InstlInstanceSync):
             event, so Central's UI can follow the change without polling
         """
         channel = get_global_channel()
+        start_file_reader_from_config(channel)
         try:
             session_id = str(config_vars.get("__INVOCATION_RANDOM_ID__", "unknown"))
         except Exception:

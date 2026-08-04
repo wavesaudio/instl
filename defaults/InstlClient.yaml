@@ -146,6 +146,18 @@ DOWNLOAD_STALL_PROBE_SECONDS: 8
 # produced, so an old Central cannot be tripped into a pause storm.
 DOWNLOAD_CLIENT_HANDLES_BACKEND_HOLD: no
 
+# File transport for the pause/resume/try_now control channel. When the
+# driving client sets this to a file path, instl tails that file for the
+# same one-line JSON commands it accepts on stdin ({"cmd": "pause"|"resume"|
+# "try_now", "sessionId": ...}). This exists for drivers with no stdin pipe
+# to instl -- on Windows an elevated instl (UAC / Start-Process) returns no
+# stdio, so Central appends commands to this file instead. The driver owns
+# the file's lifecycle (create/truncate it before spawning instl, like the
+# abort file); instl reads from the file's current end, so commands left by
+# an earlier invocation sharing the file never replay. Empty (the default)
+# disables the file transport; the stdin transport is always available.
+DOWNLOAD_CONTROL_FILE: ""
+
 # Recovery-cliff removal in the checksum-verify phase. The verify pass used
 # to stop counting at MAX_BAD_FILES_TO_REDOWNLOAD+1 bad/missing files and
 # skip the pause-aware redownload pass entirely — e.g. 33 files missing after

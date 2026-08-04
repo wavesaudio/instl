@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.12
 
-"""Tests for the Phase 7 stdin control channel.
+"""Tests for the download control channel (stdin and file transports).
 
 Covers:
 * Malformed JSON lines are logged and ignored without crashing.
@@ -9,21 +9,30 @@ Covers:
 * Mismatched ``sessionId`` is ignored.
 * Pause/resume callbacks fire with the expected reason.
 * The ``sleep_backoff`` helper in ``downloadRetry`` returns early on try_now.
+* File transport: commands via appended lines; tail-from-EOF (no replay of
+  pre-existing content); partial lines held until their newline; truncation
+  read from the top; missing file awaited; sessionId guard; idempotent start.
+* ``start_file_reader_from_config`` arms the file transport from
+  ``DOWNLOAD_CONTROL_FILE`` and no-ops when it is empty/absent.
 """
 
 import os
+import shutil
 import sys
+import tempfile
 import threading
 import time
 import unittest
 
 sys.path.append(os.path.realpath(os.path.join(__file__, os.pardir, os.pardir)))
 
+from configVar import config_vars
 from downloadControlChannel import (
     DownloadControlChannel,
     get_global_channel,
     reset_global_channel,
     set_global_channel,
+    start_file_reader_from_config,
 )
 from downloadRetry import sleep_backoff
 
@@ -183,6 +192,130 @@ class TestGlobalChannel(unittest.TestCase):
         c3 = get_global_channel()
         self.assertIsNot(c3, c1)
         reset_global_channel()
+
+
+class TestFileTransport(unittest.TestCase):
+    """The control-file tail: same commands, same dispatch, no stdin needed."""
+
+    POLL = 0.02
+
+    def setUp(self):
+        self.tmp_dir = tempfile.mkdtemp(prefix="ctl-file-test-")
+        self.control_path = os.path.join(self.tmp_dir, "download.control")
+        self.channel = DownloadControlChannel(stream=_StubStream())
+        self.addCleanup(self.channel.stop)
+        self.addCleanup(shutil.rmtree, self.tmp_dir, ignore_errors=True)
+
+    def _append(self, line):
+        with open(self.control_path, "ab") as control_file:
+            control_file.write(line.encode("utf-8"))
+
+    def _start(self):
+        self.channel.start_file_reader(self.control_path, poll_seconds=self.POLL)
+
+    def test_commands_via_file(self):
+        open(self.control_path, "wb").close()  # driver creates/truncates before spawn
+        self._start()
+        self._append('{"cmd":"pause"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+        self._append('{"cmd":"resume"}\n')
+        self.assertTrue(_wait_for(lambda: not self.channel.is_paused()))
+        self._append('{"cmd":"try_now"}\n')
+        self.assertTrue(_wait_for(self.channel.try_now_requested))
+
+    def test_preexisting_content_is_not_replayed(self):
+        # A stale pause from an earlier invocation sharing the file must not
+        # pause this invocation: the reader starts at end-of-file.
+        self._append('{"cmd":"pause"}\n')
+        self._start()
+        time.sleep(self.POLL * 5)
+        self.assertFalse(self.channel.is_paused())
+        # ...but fresh appends are consumed.
+        self._append('{"cmd":"pause"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+
+    def test_partial_line_waits_for_newline(self):
+        open(self.control_path, "wb").close()
+        self._start()
+        self._append('{"cmd":"pau')
+        time.sleep(self.POLL * 5)
+        self.assertFalse(self.channel.is_paused())
+        self._append('se"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+
+    def test_truncated_file_is_read_from_the_top(self):
+        open(self.control_path, "wb").close()
+        self._start()
+        # Two lines so the consumed offset is comfortably larger than the
+        # recreated content below — the truncation heuristic is size-based
+        # (a recreation that happens to be >= the consumed offset is a
+        # documented blind spot; drivers only truncate before spawning).
+        self._append('{"cmd":"pause"}\n{"cmd":"pause"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+        # Driver recreates the file: smaller than the consumed offset, so the
+        # reader resets and consumes the fresh content from offset 0.
+        with open(self.control_path, "wb") as control_file:
+            control_file.write(b'{"cmd":"resume"}\n')
+        self.assertTrue(_wait_for(lambda: not self.channel.is_paused()))
+
+    def test_missing_file_is_awaited(self):
+        self._start()  # file does not exist yet
+        time.sleep(self.POLL * 5)
+        self._append('{"cmd":"pause"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+
+    def test_session_id_guard_applies_to_file_lines(self):
+        open(self.control_path, "wb").close()
+        self.channel.session_id = "expected-session"
+        self._start()
+        self._append('{"cmd":"pause","sessionId":"other-session"}\n')
+        time.sleep(self.POLL * 5)
+        self.assertFalse(self.channel.is_paused())
+        self._append('{"cmd":"pause","sessionId":"expected-session"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+
+    def test_second_start_is_ignored(self):
+        open(self.control_path, "wb").close()
+        self._start()
+        self._start()
+        readers = [t for t in threading.enumerate() if t.name == "download-control-file"]
+        self.assertEqual(len(readers), 1)
+        self._append('{"cmd":"pause"}\n')
+        self.assertTrue(_wait_for(self.channel.is_paused))
+
+
+class TestStartFileReaderFromConfig(unittest.TestCase):
+    """DOWNLOAD_CONTROL_FILE config var arms the file transport; empty leaves it off."""
+
+    def setUp(self):
+        self.tmp_dir = tempfile.mkdtemp(prefix="ctl-cfg-test-")
+        self.control_path = os.path.join(self.tmp_dir, "download.control")
+        open(self.control_path, "wb").close()
+        self.channel = DownloadControlChannel(stream=_StubStream())
+        self.addCleanup(self.channel.stop)
+        self.addCleanup(shutil.rmtree, self.tmp_dir, ignore_errors=True)
+
+    def _reader_alive(self):
+        thread = self.channel._file_thread
+        return thread is not None and thread.is_alive()
+
+    def test_var_set_starts_reader(self):
+        with config_vars.push_scope_context():
+            config_vars["DOWNLOAD_CONTROL_FILE"] = self.control_path
+            start_file_reader_from_config(self.channel)
+        self.assertTrue(_wait_for(self._reader_alive))
+
+    def test_var_empty_or_absent_is_a_no_op(self):
+        with config_vars.push_scope_context():
+            config_vars["DOWNLOAD_CONTROL_FILE"] = ""
+            start_file_reader_from_config(self.channel)
+            self.assertFalse(self._reader_alive())
+        # absent entirely (whatever outer scopes hold, the empty-string
+        # default in defaults/InstlClient.yaml resolves to "no path")
+        with config_vars.push_scope_context():
+            config_vars["DOWNLOAD_CONTROL_FILE"] = ""
+            start_file_reader_from_config(self.channel)
+            self.assertFalse(self._reader_alive())
 
 
 if __name__ == "__main__":

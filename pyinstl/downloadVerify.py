@@ -47,7 +47,7 @@ from pyinstl.downloadRetry import (
     format_retry_decision_log_line,
     sleep_backoff,
 )
-from pyinstl.downloadControlChannel import get_global_channel
+from pyinstl.downloadControlChannel import get_global_channel, start_file_reader_from_config
 from pyinstl.downloadObservability import (
     DownloadOutcome,
     record_outcome as _observability_record_outcome,
@@ -523,6 +523,9 @@ def redownload_bad_files(dler, info_map_table, files_to_redownload, report_progr
     large wtars at ~5 min each is over an hour, so it needs a phase of its own rather than
     running under a verify bar already forced to full. None runs the pass without ticks."""
     control_channel = get_global_channel()
+    # check-checksum runs the redownload loop without the sync flow's
+    # _bind_control_channel, so arm the file transport here too (idempotent)
+    start_file_reader_from_config(control_channel)
     retry_enabled = config_var_bool("DOWNLOAD_RETRY_POLICY_ENABLED", True)
     budget = None
     if count_all_bad_files():

@@ -1,13 +1,26 @@
 #!/usr/bin/env python3.12
 
-"""One-way stdin control channel for the bulk download engine.
+"""One-way control channel for the bulk download engine, with two transports.
 
-Central writes one-line JSON commands (``{"cmd":"pause"}``,
-``{"cmd":"resume"}``, ``{"cmd":"try_now"}``, each optionally tagged with
-``"sessionId":"..."``) to ``instl``'s standard input. A daemon thread reads
-stdin line by line and updates in-process shared state; the URL-sync
-scheduling loop and the retry backoff sleeper check that state between
-batches/sleeps.
+**stdin transport** — Central writes one-line JSON commands
+(``{"cmd":"pause"}``, ``{"cmd":"resume"}``, ``{"cmd":"try_now"}``, each
+optionally tagged with ``"sessionId":"..."``) to ``instl``'s standard
+input. A daemon thread reads stdin line by line and updates in-process
+shared state; the URL-sync scheduling loop and the retry backoff sleeper
+check that state between batches/sleeps.
+
+**file transport** — the same one-line JSON commands appended to the file
+named by the ``DOWNLOAD_CONTROL_FILE`` config var (see
+:meth:`DownloadControlChannel.start_file_reader`). This exists for drivers
+that have no stdin pipe to instl — on Windows an elevated instl is spawned
+through UAC (``Start-Process -Verb runAs``), which returns no stdio — and
+mirrors the abort-file pattern: the driver owns the file's lifecycle, instl
+only tails it. The reader baselines at the file's end as of reader start,
+so commands left over from an earlier invocation sharing the file are never
+replayed; a truncation (size shrinks) is treated as a fresh file and read
+from the top. Only complete (newline-terminated) lines are dispatched, and both
+transports feed the same :meth:`_handle_line`, so semantics — including the
+``sessionId`` mismatch guard — are identical.
 
 Pause is **cooperative**: callers must invoke :meth:`wait_if_paused`
 between batches/files. In-flight ``curl`` invocations are never
@@ -19,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import threading
 from typing import Callable, Optional, TextIO
@@ -57,6 +71,7 @@ class DownloadControlChannel:
         self._session_id: Optional[str] = session_id
         self._stream: TextIO = stream if stream is not None else sys.stdin
         self._thread: Optional[threading.Thread] = None
+        self._file_thread: Optional[threading.Thread] = None
         self._stopped = threading.Event()
         self.on_pause_event: Optional[Callable[[str], None]] = None
         self.on_resume_event: Optional[Callable[[str], None]] = None
@@ -115,8 +130,39 @@ class DownloadControlChannel:
         )
         self._thread.start()
 
+    def start_file_reader(self, control_file_path: str, poll_seconds: float = 0.5) -> None:
+        """Start tailing ``control_file_path`` for appended one-line JSON commands.
+
+        Idempotent — a second call while a file reader is alive is ignored (the
+        driver decides the path once per invocation). Consumption starts at the
+        file's end AS OF THIS CALL: stale commands from an earlier invocation
+        sharing the file never replay, while everything appended after this
+        call returns is consumed. A file that does not exist yet baselines at
+        offset 0 and is awaited — whatever the driver eventually writes there
+        is by definition addressed to this process.
+        """
+        if self._file_thread is not None and self._file_thread.is_alive():
+            _log.debug("control channel: file reader already running, ignoring")
+            return
+        # Baseline synchronously, not in the thread: everything appended AFTER
+        # this call returns is guaranteed to be consumed (no first-poll race),
+        # while content already present is skipped. A file that does not exist
+        # yet baselines at 0 — whatever the driver eventually writes is fresh.
+        try:
+            initial_offset = os.path.getsize(control_file_path)
+        except OSError:
+            initial_offset = 0
+        self._file_thread = threading.Thread(
+            target=self._file_reader_loop,
+            args=(control_file_path, initial_offset, poll_seconds),
+            name="download-control-file",
+            daemon=True,
+        )
+        self._file_thread.start()
+        _log.info(f"control channel: tailing control file {control_file_path} from offset {initial_offset}")
+
     def stop(self) -> None:
-        """Signal the reader to exit on its next iteration. Does not
+        """Signal the readers to exit on their next iteration. Does not
         ``close()`` stdin — the parent process owns that fd."""
         self._stopped.set()
 
@@ -136,6 +182,37 @@ class DownloadControlChannel:
             _log.debug(f"control channel reader exiting: {ex}")
         except Exception as ex:  # pragma: no cover - defensive
             _log.warning(f"control channel reader unexpected error: {ex}")
+
+    def _file_reader_loop(self, control_file_path: str, offset: int, poll_seconds: float) -> None:
+        # Byte offsets + binary reads: a poll may end mid-multibyte-character,
+        # so decoding happens per complete line, never per chunk. ``pending``
+        # holds the bytes of an unterminated final line until its newline
+        # arrives in a later poll.
+        pending = b""
+        while not self._stopped.wait(poll_seconds):
+            try:
+                with open(control_file_path, "rb") as control_file:
+                    control_file.seek(0, 2)  # end
+                    size = control_file.tell()
+                    if size < offset:
+                        # truncated/recreated by the driver: fresh content
+                        offset = 0
+                        pending = b""
+                    if size == offset:
+                        continue
+                    control_file.seek(offset)
+                    chunk = control_file.read(size - offset)
+            except FileNotFoundError:
+                continue  # driver has not created it yet (or removed it)
+            except OSError as ex:
+                _log.debug(f"control file read failed, retrying: {ex}")
+                continue
+
+            offset += len(chunk)
+            pending += chunk
+            *complete_lines, pending = pending.split(b"\n")
+            for raw in complete_lines:
+                self._handle_line(raw.decode("utf-8", errors="replace"))
 
     def _handle_line(self, raw_line: str) -> None:
         line = (raw_line or "").strip()
@@ -232,9 +309,26 @@ def reset_global_channel() -> None:
     set_global_channel(None)
 
 
+def start_file_reader_from_config(channel: Optional[DownloadControlChannel] = None) -> None:
+    """Start the file transport when the ``DOWNLOAD_CONTROL_FILE`` config var
+    names a path; no-op otherwise. Safe to call from every code path that
+    binds the channel (``start_file_reader`` is idempotent) — config vars are
+    loaded by the time any of them runs."""
+    try:
+        from configVar import config_var_str  # local import: keeps this module import-light
+        control_file_path = config_var_str("DOWNLOAD_CONTROL_FILE", "")
+    except Exception as ex:  # pragma: no cover - defensive
+        _log.debug(f"control file config lookup failed: {ex}")
+        return
+    if not control_file_path:
+        return
+    (channel if channel is not None else get_global_channel()).start_file_reader(control_file_path)
+
+
 __all__ = [
     "DownloadControlChannel",
     "get_global_channel",
     "reset_global_channel",
     "set_global_channel",
+    "start_file_reader_from_config",
 ]

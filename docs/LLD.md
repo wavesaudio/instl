@@ -985,7 +985,7 @@ Important methods:
 
 #### `DownloadControlChannel` (`pyinstl/downloadControlChannel.py`)
 
-Daemon-thread stdin reader plus shared pause/`try_now` state; a module-level singleton. Central writes one-line JSON commands (`{"cmd":"pause"|"resume"|"try_now", "sessionId":...}`) to `instl`'s stdin.
+Shared pause/`try_now` state fed by two reader transports; a module-level singleton. Central writes one-line JSON commands (`{"cmd":"pause"|"resume"|"try_now", "sessionId":...}`) either to `instl`'s **stdin** (daemon-thread line reader) or, when the `DOWNLOAD_CONTROL_FILE` config var names a path, appended to that **control file** (daemon-thread tailer). The file transport exists for drivers with no stdin pipe to instl — a Windows elevated instl (UAC / `Start-Process`) returns no stdio — and mirrors the abort-file pattern: the driver owns the file's lifecycle (create/truncate before spawn), instl only tails it.
 
 Key attributes:
 - `_run_event` (`threading.Event`): **set == running**, so `_run_event.wait(timeout)` blocks while paused and returns immediately on resume.
@@ -994,8 +994,9 @@ Key attributes:
 
 Methods:
 - `is_paused()`, `try_now_requested()` (consume-once read of the pending flag), `wait_if_paused(poll_seconds=0.5)` (polled block while paused), `sleep_or_wake(seconds) -> bool` (sleep, returns `True` if woken early by `try_now`).
-- `start()` / `stop()` (lifecycle; `stop()` only flips `_stopped`, never closes stdin), `_reader_loop()`, `_handle_line(raw_line)` (parses one JSON object; filters by `sessionId` mismatch; dispatches `_apply_pause`/`_apply_resume`/`_apply_try_now`).
-- Module accessors `get_global_channel()`, `set_global_channel()`, `reset_global_channel()` (test hook).
+- `start()` / `stop()` (lifecycle; `stop()` flips `_stopped` for both readers, never closes stdin), `_reader_loop()`, `_handle_line(raw_line)` (parses one JSON object; filters by `sessionId` mismatch; dispatches `_apply_pause`/`_apply_resume`/`_apply_try_now`). Both transports dispatch through the same `_handle_line`, so semantics — including the `sessionId` guard — are identical.
+- `start_file_reader(control_file_path, poll_seconds=0.5)` (idempotent): baselines **synchronously at call time** — an existing file is consumed from its end as of the call (commands left by an earlier invocation sharing the file never replay), a missing file baselines at offset 0 and is awaited. The poll loop reads appended bytes, dispatches only complete (newline-terminated) lines (a partial line waits for its newline; decoding is per-line so a poll ending mid-multibyte-character is safe), and treats a size shrink as a driver recreation, resetting to offset 0 (a recreation that lands at a size >= the consumed offset is a documented blind spot; drivers only truncate before spawning).
+- Module accessors `get_global_channel()`, `set_global_channel()`, `reset_global_channel()` (test hook), and `start_file_reader_from_config(channel=None)` — arms the file transport from `DOWNLOAD_CONTROL_FILE` (no-op when empty/absent); called from `instlInstanceSync_url._bind_control_channel` and `downloadVerify.redownload_bad_files` (the `check-checksum` path, which runs without the sync flow's binding).
 
 Consumed by `instlInstanceSync_url.py`, `info_mapBatchCommands.py`, the curl drivers (`ParallelRun._control_channel` in `subprocessBatchCommands.py`, `downloadTransfer.get_control_channel`), and `downloadRetry.sleep_backoff`.
 
@@ -1122,7 +1123,7 @@ Under `$(LOCAL_REPO_BOOKKEEPING_DIR)/download-state/`:
 
 In-memory shared state: control-channel `_GLOBAL_CHANNEL` singleton, observability `_active_observability` singleton, `downloadEvents._telemetry_enabled` flag, and `CUrlHelper.cached_internal_parallel` classvar.
 
-Wire formats: `DOWNLOAD_EVENT <compact-json-sorted-keys>` and the legacy `DOWNLOAD_RETRY_DECISION <json>` log lines (INFO level, captured from stdout by Central); inbound one-line JSON commands on stdin.
+Wire formats: `DOWNLOAD_EVENT <compact-json-sorted-keys>` and the legacy `DOWNLOAD_RETRY_DECISION <json>` log lines (INFO level, captured from stdout by Central); inbound one-line JSON commands on stdin, or appended to the `DOWNLOAD_CONTROL_FILE` control file for drivers with no stdin pipe (Windows elevated instl).
 
 ### Invariants, edge cases, platform branches
 
@@ -1223,7 +1224,7 @@ Abstract base for any command that spawns a subprocess. Parent of `CUrl`, `Shell
 
 #### 2.4 `CurlWithInternalParallel` (`pybatch/subprocessBatchCommands.py`) and `CurlTransfer` (`pyinstl/downloadTransfer.py`)
 
-Runs the bulk download as a single `curl --config <file>` using curl's internal `--parallel`, parsing curl's progress lines and enforcing pause/resume + offline-retry through the stdin control channel. **Not** a `RunProcessBase` subclass — the transfer drives `Popen` directly because it needs to interleave progress parsing and pause checks.
+Runs the bulk download as a single `curl --config <file>` using curl's internal `--parallel`, parsing curl's progress lines and enforcing pause/resume + offline-retry through the control channel. **Not** a `RunProcessBase` subclass — the transfer drives `Popen` directly because it needs to interleave progress parsing and pause checks.
 
 `CurlWithInternalParallel` is only the pybatch command: `__init__`, `progress_msg_self`, `repr_own_args`, `__call__`. Constructor args (unchanged — this is what `repr()` round-trips): `curl_path`, `config_file_path`, `total_files_to_download`, `previously_downloaded_files`, `total_bytes_to_download`. `kwargs_defaults`: `fallback_config_file_path=None`, `fallback_exit_codes=()`.
 

@@ -184,7 +184,7 @@ This is a **client→engine** declaration, not an event: a NEW Central injects
 generated yaml, declaring that it treats the backend-hold signals above (the
 bulk-loop network-class `retry_decision`s and the offline-hold / stall /
 reconcile `session_state`s) as **informational** — it never answers them with
-a stdin pause, because the engine is already holding and resumes itself.
+a client pause (stdin or control-file), because the engine is already holding and resumes itself.
 
 The shipped default is **`no`**, because an OLD Central's 3-streak online
 detector would respond to a burst of network-class `retry_decision`s with a
