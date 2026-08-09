@@ -8,6 +8,9 @@ import logging
 log = logging.getLogger(__name__)
 
 from configVar import config_vars
+from configVar import config_var_str
+
+from pyinstl import downloadEvents
 
 import aYaml
 import utils
@@ -130,6 +133,45 @@ class CheckDownloadFolderChecksum(DBManager, PythonBatchCommandBase):
     def is_checksum_ok(self) -> bool:
         retVal = self.num_bad_files == 0
         return retVal
+
+
+class ReportDownloadState(PythonBatchCommandBase, essential=False, call__call__=True, is_context_manager=False, kwargs_defaults={'own_progress_count': 0, 'report_own_progress': False}):
+    """Emit a post-download ``session_state`` transition (Verifying / Installing). Only
+    moves the state machine: ``own_progress_count=0`` / ``report_own_progress=False``
+    so it never perturbs the progress total."""
+
+    def __init__(self, state, reason=None, phase_bytes_planned=None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.state = state
+        self.reason = reason
+        # arms the copy-phase byte accumulator; may be assigned after construction, but
+        # must be set before the script is serialized
+        self.phase_bytes_planned = phase_bytes_planned
+
+    def repr_own_args(self, all_args: List[str]) -> None:
+        all_args.append(self.unnamed__init__param(self.state))
+        all_args.append(self.optional_named__init__param("reason", self.reason, None))
+        all_args.append(self.optional_named__init__param("phase_bytes_planned", self.phase_bytes_planned, None))
+
+    def progress_msg_self(self) -> str:
+        return f'''Report download state {self.state}'''
+
+    def __call__(self, *args, **kwargs) -> None:
+        downloadEvents.emit_download_state(self.state, reason=self.reason)
+        if self.state == "copying" and self.phase_bytes_planned is not None:
+            try:
+                from pybatch.copyPhaseProgress import begin_copy_phase
+                begin_copy_phase(self.phase_bytes_planned,
+                                 config_var_str("__INVOCATION_RANDOM_ID__", "unknown"))
+            except Exception as ex:  # pragma: no cover - instrumentation must never break copy
+                log.debug(f"could not begin copy phase: {ex}")
+        elif self.state == "completed":
+            try:
+                from pybatch.copyPhaseProgress import end_copy_phase
+                end_copy_phase()
+            except Exception as ex:  # pragma: no cover - instrumentation must never break copy
+                log.debug(f"could not end copy phase: {ex}")
+
 
 
 class SetExecPermissionsInSyncFolder(DBManager, PythonBatchCommandBase):

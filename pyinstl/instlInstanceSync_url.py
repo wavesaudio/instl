@@ -149,6 +149,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
         dl_commands += self.create_curl_download_instructions()
 
         dl_commands += self.instlObj.create_sync_folder_manifest_command("after-sync", back_ground=True)
+        # announce the verify phase, otherwise Central's bar sits frozen near 99%
+        # while checksums are recomputed over the downloaded files
+        dl_commands += ReportDownloadState("verifying_downloads", reason="checksum_verify",
+                                           own_progress_count=0, report_own_progress=False)
         dl_commands += self.create_check_checksum_instructions(to_sync_num_files)
         return dl_commands
 
@@ -175,6 +179,10 @@ class InstlInstanceSync_url(InstlInstanceSync):
                         self.instlObj.progress("create download instructions done")
                     post_sync_accum_transaction += CopyFileToFile("$(NEW_HAVE_INFO_MAP_PATH)", "$(HAVE_INFO_MAP_PATH)", hard_links=False, copy_owner=True)
 
+        # a sync-only run ends here: without this it stops on verifying_downloads and
+        # never reaches a terminal state. synccopy passes straight through it to copying
+        sync_accum += ReportDownloadState("ready_to_copy", reason="sync_complete",
+                                          own_progress_count=0, report_own_progress=False)
         sync_accum += Progress("Done sync")
 
     def chown_for_synced_folders(self):

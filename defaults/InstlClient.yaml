@@ -92,6 +92,13 @@ CONFIG_VARS_FOR_ERROR_REPORT:
     - S3_BUCKET_NAME
     - REPO_NAME
 
+# Parallel unwtar: extract wtar archives across a process pool instead of one at a
+# time - decompression is CPU-bound and was fully serial. A kill switch, so the
+# stage can fall back to the serial path if a problem surfaces.
+# DOWNLOAD_PARALLEL_WORKERS = 0 means "auto" (os.cpu_count()).
+DOWNLOAD_PARALLEL_UNWTAR: yes
+DOWNLOAD_PARALLEL_WORKERS: 0
+
 --- !define_Mac
 REMOVE_EMPTY_FOLDERS_IGNORE_FILES:
     - .DS_Store

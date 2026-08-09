@@ -86,7 +86,93 @@ class InstlMisc(InstlInstanceBase):
     def do_check_checksum(self):
         self.progress_staccato_command = True
         info_map_file = os.fspath(config_vars["__MAIN_INPUT_FILE__"])
-        CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()
+        # scope the throughput/error sampler to this in-process check-checksum
+        # invocation: CheckDownloadFolderChecksum and its re_download_bad_files
+        # retry loop both record outcomes against the active session
+        from . import downloadObservability  # local import to keep startup cheap
+        from . import downloadEvents
+        try:
+            session_id = str(config_vars.get("__INVOCATION_RANDOM_ID__", "unknown"))
+        except Exception:
+            session_id = "unknown"
+        try:
+            concurrency_planned = int(config_vars.get("PARALLEL_SYNC", 0))
+        except Exception:
+            concurrency_planned = None
+        downloadObservability.start_session(
+            session_id=session_id,
+            concurrency_planned=concurrency_planned,
+        )
+        # announce the backend capability snapshot so Central can gate
+        # pause/resume/retry-failed UI without parsing text. Errors here must
+        # not break the sync run.
+        try:
+            resume_enabled = bool(config_vars.get("DOWNLOAD_RESUME_ENABLED", False))
+        except Exception:
+            resume_enabled = False
+        # resume is a download-engine capability; nothing here can validate a host
+        # for it, so the snapshot reports none
+        validated_hosts = []
+        # read the kill-switch map once and apply the process-level switches
+        # before any emitter fires for this session. ``DOWNLOAD_TELEMETRY_ENABLED=no``
+        # disables the structured event channel; the legacy text log is unaffected.
+        rollout_flags = downloadEvents.active_flags_from_config(config_vars)
+        telemetry_enabled = bool(rollout_flags.get("DOWNLOAD_TELEMETRY_ENABLED", True))
+        retry_policy_enabled = bool(rollout_flags.get("DOWNLOAD_RETRY_POLICY_ENABLED", True))
+        central_ux_enabled = bool(rollout_flags.get("DOWNLOAD_CENTRAL_UX_ENABLED", False))
+        downloadEvents.set_telemetry_enabled(telemetry_enabled)
+        try:
+            downloadEvents.emit_capability(
+                session_id=session_id,
+                resume_enabled=resume_enabled,
+                validated_hosts=validated_hosts,
+                feature_flags=rollout_flags,
+                central_ux_enabled=central_ux_enabled,
+                telemetry_enabled=telemetry_enabled,
+                retry_policy_enabled=retry_policy_enabled,
+            )
+            downloadEvents.emit_session_state(
+                session_id=session_id,
+                state="verifying_existing_files",
+                concurrency_planned=concurrency_planned,
+                reason="check_checksum_started",
+            )
+        except Exception:
+            pass
+        try:
+            CheckDownloadFolderChecksum(info_map_file, print_report=True, raise_on_bad_checksum=True)()
+        finally:
+            try:
+                bookkeeping_dir = config_vars["LOCAL_REPO_BOOKKEEPING_DIR"].str() if "LOCAL_REPO_BOOKKEEPING_DIR" in config_vars else None
+            except Exception:
+                bookkeeping_dir = None
+            summary_snapshot = None
+            try:
+                active = downloadObservability.active()
+                if active is not None:
+                    active.mark_finished()
+                    summary_snapshot = active.snapshot()
+            except Exception:
+                summary_snapshot = None
+            downloadObservability.end_session(bookkeeping_dir)
+            try:
+                # ready_to_copy, not completed: check-checksum verifies an already
+                # downloaded tree, so its own end is not the end of an install. A
+                # terminal completed here would move a caller's state machine past
+                # every phase that still has to run
+                downloadEvents.emit_session_state(
+                    session_id=session_id,
+                    state="ready_to_copy",
+                    concurrency_planned=concurrency_planned,
+                    reason="check_checksum_finished",
+                )
+                if summary_snapshot is not None:
+                    downloadEvents.emit_session_summary(
+                        session_id=session_id,
+                        summary=summary_snapshot,
+                    )
+            except Exception:
+                pass
 
     def do_test_import(self):
         import importlib
