@@ -4,8 +4,12 @@ PARALLEL_SYNC: 50
 CURL_CONFIG_FILE_NAME: dl
 CURL_CONNECT_TIMEOUT: 64 # Maximum time in seconds that you allow curl's connection to take. This only limits the connection phase, so if curl connects within the given period it will continue - if not it will exit.
 CURL_MAX_TIME: 600       # Maximum time in seconds that you allow each transfer  to take. This is useful for preventing your batch jobs from hanging for hours due to slow networks or links going down.
-CURL_RETRIES: 12          # If a transient error is returned when curl tries to perform a transfer, it will retry this number of times before giving up. Setting the number to 0 makes curl do no retries (which is the default).
-CURL_RETRY_DELAY: 12     # Make curl sleep this amount of time before each retry when a transfer has failed with a transient error (it changes the default backoff time algorithm between retries).
+CURL_RETRIES: 20          # Number of times curl retries a failed transfer. Deliberately generous: CURL_RETRY_MAX_TIME below is the real budget. There is intentionally no CURL_RETRY_DELAY - without it curl uses its own exponential backoff (1s, 2s, 4s, ...) between retries, which a fixed delay would replace with worse behavior.
+CURL_RETRY_MAX_TIME: 300  # Total seconds curl may spend retrying a single transfer before giving up on it. This, not CURL_RETRIES, is the bound that matters: "keep trying for 5 minutes" survives a wifi blip or router reboot without stalling forever on a genuine failure.
+CURL_RETRY_ALL_ERRORS: yes # Retry any failed transfer, not only curl's "transient" set (which skips DNS failures, connection refused and partial transfers). Bounded by CURL_RETRY_MAX_TIME. Requires curl >= 7.71; set to no for older curl, where the option would be rejected as unknown.
+CURL_SPEED_LIMIT: 1       # Stall detection, with CURL_SPEED_TIME: a transfer that stayed below CURL_SPEED_LIMIT bytes/sec for CURL_SPEED_TIME seconds is aborted with a transient error, which curl's own retry then retries. Without this a silently dead TCP connection (dropped VPN, NAT timeout) waits until CURL_MAX_TIME.
+CURL_SPEED_TIME: 30       # See CURL_SPEED_LIMIT. At 1 byte/sec over 30 seconds only a connection that moved essentially nothing gets aborted - no healthy slow network triggers this.
+DOWNLOAD_MAX_PASSES: 4    # How many times to run the whole curl download (all config files) until every output file exists and curl exits 0. Re-running is idempotent and cheap: every transfer carries continue-at = -, so done files are skipped and partial files resume. When passes are exhausted and files are still missing, the batch exits with code 75 (EX_TEMPFAIL): re-running the same batch file later resumes the download.
 
 
 LOCAL_SYNC_DIR: $(USER_CACHE_DIR)/$(S3_BUCKET_NAME)

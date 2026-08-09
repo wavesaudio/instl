@@ -1,6 +1,7 @@
 import abc
 import collections
 import collections.abc
+import json
 import logging
 import os
 import re
@@ -20,6 +21,110 @@ from configVar import config_vars
 from .baseClasses import PythonBatchCommandBase
 
 log = logging.getLogger(__name__)
+
+
+# EX_TEMPFAIL from sysexits.h. The download did not complete after all passes -
+# the network is probably down. The same batch file can simply be run again:
+# every step is idempotent, so finished work is skipped and partial downloads
+# resume (continue-at = - in the curl configs, checksum-skip in Unwtar, etc.).
+DOWNLOAD_INCOMPLETE_RESUMABLE_EXIT_CODE = 75
+
+
+def emit_download_event(event_type, **fields):
+    """ Write one machine-readable 'DOWNLOAD_EVENT {json}' log line for Central to
+        consume instead of parsing free-text progress. Fields with None values are
+        dropped. Best-effort - reporting must never break a download. """
+    try:
+        payload = {"event": event_type}
+        session_id = str(config_vars.get("__INVOCATION_RANDOM_ID__", ""))
+        if session_id:
+            payload["sessionId"] = session_id
+        payload.update({key: value for key, value in fields.items() if value is not None})
+        log.info("DOWNLOAD_EVENT " + json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    except Exception:
+        pass
+
+
+# an output line in a curl config file: output = "/path/to/file"
+curl_config_output_line_re = re.compile(r'^\s*output\s*=\s*"?(?P<path>[^"\r\n]+?)"?\s*$')
+
+
+def outputs_in_curl_config(config_file_path):
+    """ The output files a curl config file will produce, parsed from its own
+        'output = ...' lines - no knowledge of curl internals needed, we wrote
+        the file ourselves (CUrlHelper.create_config_files). """
+    retVal = []
+    with utils.utf8_open_for_read(os.fspath(config_file_path), "r") as rfd:
+        for line in rfd:
+            match = curl_config_output_line_re.match(line)
+            if match:
+                # on Windows paths were written with escaped backslashes
+                retVal.append(match.group("path").replace("\\\\", "\\"))
+    return retVal
+
+
+def missing_outputs_of_curl_configs(config_file_paths):
+    """ Which of the output files promised by these curl configs do not exist yet.
+        A partial file counts as existing - completing it is the job of the next
+        pass (continue-at = -) and of the checksum stage, which remains the final
+        gate for content correctness. """
+    retVal = []
+    for config_file_path in config_file_paths:
+        for output_path in outputs_in_curl_config(config_file_path):
+            if not os.path.isfile(output_path):
+                retVal.append(output_path)
+    return retVal
+
+
+def run_download_passes(run_one_pass, config_file_paths, label):
+    """ The whole download recovery strategy: run curl, and if anything is still
+        missing, run it again. No exit-code interpretation - re-running the same
+        config is idempotent and cheap because every transfer carries
+        continue-at = - (done files are skipped, partial files resume), so the
+        only question that matters is "are all the files on disk yet".
+        run_one_pass: callable running the full curl invocation, returns exit code.
+        Loops up to DOWNLOAD_MAX_PASSES. On exhaustion: files still missing ->
+        SystemExit(75), the resumable failure Central can offer a Retry for;
+        all files present but curl still complaining -> fall through to the
+        checksum stage, which verifies content anyway. """
+    max_passes = max(1, int(config_vars.get("DOWNLOAD_MAX_PASSES", 4)))
+    return_code = 0
+    for pass_num in range(1, max_passes + 1):
+        return_code = run_one_pass()
+        num_missing = len(missing_outputs_of_curl_configs(config_file_paths))
+        if return_code == 0 and num_missing == 0:
+            if pass_num > 1:
+                log.info(f"{label}: download complete after pass {pass_num}")
+            return
+        if pass_num < max_passes:
+            delay_seconds = min(15 * pass_num, 60)
+            emit_download_event("download.session_state",
+                                state="downloading",
+                                reason="retry_pass",
+                                attempt=pass_num,
+                                maxAttempts=max_passes,
+                                nextDelaySeconds=delay_seconds,
+                                missingFiles=num_missing)
+            log.warning(f"{label}: pass {pass_num}/{max_passes} incomplete"
+                        f" (curl exit {return_code}, {num_missing} files missing);"
+                        f" retrying in {delay_seconds}s")
+            time.sleep(delay_seconds)
+    still_missing = missing_outputs_of_curl_configs(config_file_paths)
+    if still_missing:
+        emit_download_event("download.session_state",
+                            state="failed",
+                            reason="download_incomplete_resumable",
+                            attempt=max_passes,
+                            missingFiles=len(still_missing))
+        log.error(f"{label}: {len(still_missing)} files still missing after {max_passes} passes;"
+                  f" exiting {DOWNLOAD_INCOMPLETE_RESUMABLE_EXIT_CODE} -"
+                  f" running the same batch file again will resume the download")
+        raise SystemExit(DOWNLOAD_INCOMPLETE_RESUMABLE_EXIT_CODE)
+    # curl kept exiting non-zero but every output exists, e.g. an old curl (< 7.76)
+    # answering 416 for files completed by an earlier pass. Content correctness is
+    # the checksum stage's call, not curl's exit code's.
+    log.warning(f"{label}: curl exit {return_code} but all output files exist;"
+                f" continuing to checksum verification")
 
 
 class RunProcessBase(PythonBatchCommandBase, call__call__=True, is_context_manager=True,
@@ -302,17 +407,31 @@ class ParallelRun(PythonBatchCommandBase, kwargs_defaults={'action_name': None, 
                 if line and line[0] != "#":
                     args = shlex.split(line)
                     commands.append(args)
-        try:
 
+        # the curl download run: every command is 'curl --config <file>'. Collect the
+        # config files so run_download_passes can re-run the whole set until all
+        # their output files exist - each pass resumes partials via continue-at = -
+        curl_config_paths = [command[arg_i + 1]
+                             for command in commands
+                             for arg_i, arg in enumerate(command[:-1])
+                             if arg == "--config" and "curl" in os.path.basename(command[0]).lower()]
+
+        try:
             self.doing = f"""{self.get_action_name()}, config file '{resolved_config_file}', running with {len(commands)} processes in parallel"""
-            utils.run_processes_in_parallel(commands, self.shell)
-        except SystemExit as sys_exit:
-            if sys_exit.code != 0:
-                if "curl" in commands[0]:
-                    err_msg = utils.get_curl_err_msg(sys_exit.code)
-                    raise Exception(err_msg)
-                else:
-                    raise
+            if curl_config_paths:
+                def one_pass() -> int:
+                    try:
+                        utils.run_processes_in_parallel(commands, self.shell)
+                    except SystemExit as sys_exit:
+                        return sys_exit.code if sys_exit.code else 0
+                    return 0
+                run_download_passes(one_pass, curl_config_paths, self.get_action_name())
+            else:
+                try:
+                    utils.run_processes_in_parallel(commands, self.shell)
+                except SystemExit as sys_exit:
+                    if sys_exit.code != 0:
+                        raise
         finally:
             self.increment_progress()
 
@@ -598,6 +717,14 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
             import win32api
             config_file_path_fixed = win32api.GetShortPathName(config_file_path_fixed)
 
+        run_download_passes(lambda: self.run_curl_once(config_file_path_fixed, working_dir),
+                            [self.config_file_path],
+                            "curl parallel download")
+        self.increment_progress()
+
+    def run_curl_once(self, config_file_path_fixed, working_dir) -> int:
+        """ one full run of curl over the config file, echoing curl's progress-bar
+            output as instl progress messages; returns curl's exit code """
         process = subprocess.Popen([os.fspath(self.curl_path), "--config", config_file_path_fixed],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
@@ -647,5 +774,5 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
 
         process.stdout.close()
         process.wait()
-        print(f"Curl ended {process.returncode}")
-        self.increment_progress()
+        log.info(f"Curl ended {process.returncode}")
+        return process.returncode

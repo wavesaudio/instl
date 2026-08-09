@@ -41,6 +41,22 @@ class CUrlHelper(object, metaclass=abc.ABCMeta):
     # for debugging:
     curl_extra_write_out_str = r'    num_connects:%{num_connects}, time_namelookup: %{time_namelookup}, time_connect: %{time_connect}, time_pretransfer: %{time_pretransfer}, time_redirect: %{time_redirect}, time_starttransfer: %{time_starttransfer}\n\n'
 
+    # Transient-failure recovery is curl's job, not instl's (the "curl can do it" approach):
+    # - no retry-delay: leaving it unset re-enables curl's own exponential backoff
+    #   (1s, 2s, 4s, ...); a fixed retry-delay would replace that with a worse flat wait
+    # - retry-max-time is the real retry budget: total seconds of retrying per transfer,
+    #   so retry (the count) can be generous without risking unbounded stalls
+    # - {extra_retry_lines} adds retry-connrefused, retry-all-errors (gated, curl >= 7.71)
+    #   and speed-limit/speed-time stall detection - a silent TCP stall (dropped VPN, NAT
+    #   timeout) otherwise leaves curl waiting until max-time with nothing to retry
+    # - continue-at = - makes every transfer resume from its output file's current size,
+    #   so re-running the SAME config file is idempotent: done files are skipped
+    #   (curl >= 7.76 treats the 416 answer for an already-complete file as success),
+    #   partial files resume, missing files start from zero. The re-running itself is
+    #   done by the download pybatch commands, see subprocessBatchCommands.py.
+    #   Never write a numeric continue-at offset: with a missing output file curl would
+    #   write bytes N.. at offset 0, silently corrupting the file.
+
     # text for curl config file in case instl is running curl copies in parallel
     external_parallel_header_text = """
 raw
@@ -52,7 +68,9 @@ create-dirs
 connect-timeout = {connect_time_out}
 max-time = {max_time}
 retry = {retries}
-retry-delay = {retry_delay}
+retry-max-time = {retry_max_time}
+{extra_retry_lines}
+continue-at = -
 cookie = {cookie_text}
 write-out = "Progress: ... of ...; {basename}: {curl_output_format_str}"
 
@@ -70,7 +88,9 @@ create-dirs
 connect-timeout = {connect_time_out}
 max-time = {max_time}
 retry = {retries}
-retry-delay = {retry_delay}
+retry-max-time = {retry_max_time}
+{extra_retry_lines}
+continue-at = -
 cookie = {cookie_text}
 parallel-max = {max_parallel_downloads}
 
@@ -178,11 +198,22 @@ parallel-max = {max_parallel_downloads}
         if self.get_num_urls_to_download() <= 0:
             return config_file_list
 
+        # see the comment above external_parallel_header_text for why these options
+        extra_retry_lines = ["retry-connrefused"]
+        if str(config_vars.setdefault("CURL_RETRY_ALL_ERRORS", "yes")).strip().lower() in ("yes", "true", "1"):
+            # retry any failed transfer, not only curl's "transient" set (which skips
+            # DNS failures and partial transfers). Bounded by retry-max-time. Safe with
+            # continue-at = - ; requires curl >= 7.71, hence the config-var gate.
+            extra_retry_lines.append("retry-all-errors")
+        extra_retry_lines.append(f"""speed-limit = {config_vars.setdefault("CURL_SPEED_LIMIT", "1")}""")
+        extra_retry_lines.append(f"""speed-time = {config_vars.setdefault("CURL_SPEED_TIME", "30")}""")
+
         config_options = {
             "connect_time_out": str(config_vars.setdefault("CURL_CONNECT_TIMEOUT", "16")),
             "max_time": str(config_vars.setdefault("CURL_MAX_TIME", "180")),
-            "retries": str(config_vars.setdefault("CURL_RETRIES", "2")),
-            "retry_delay": str(config_vars.setdefault("CURL_RETRY_DELAY", "8")),
+            "retries": str(config_vars.setdefault("CURL_RETRIES", "20")),
+            "retry_max_time": str(config_vars.setdefault("CURL_RETRY_MAX_TIME", "300")),
+            "extra_retry_lines": "\n".join(extra_retry_lines),
             "cookie_text": str(config_vars.get("COOKIE_FOR_SYNC_URLS", "")),
             "max_parallel_downloads": str(config_vars.get("PARALLEL_SYNC", "50")),
             "curl_output_format_str": self.curl_output_format_str
