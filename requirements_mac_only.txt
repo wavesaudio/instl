@@ -1,3 +1,6 @@
 # Mac only
+# Native packages must be built from source (universal2) for PyInstaller target_arch=universal2.
 psutil --no-binary=psutil
 charset-normalizer --no-binary=charset-normalizer
+cffi --no-binary=cffi
+cryptography --no-binary=cryptography

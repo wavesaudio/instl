@@ -3,3 +3,4 @@ pypiwin32
 pywin32
 pywin32-ctypes
 psutil
+cryptography
