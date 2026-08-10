@@ -10,12 +10,20 @@ Verification uses an embedded PKCS#1 public key so Instl does not need Azure cre
 from __future__ import annotations
 
 import base64
+import re
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 MAIN_DOIT_MARKER = "MAIN_DOIT_ITEMS"
+# Section/key declaration only — not variable refs like $(MAIN_DOIT_ITEMS).
+_MAIN_DOIT_SECTION_RE = re.compile(rf"(?m)^\s*{MAIN_DOIT_MARKER}\s*:")
+
+
+def declares_main_doit_items(text: str) -> bool:
+    """True when *text* defines a MAIN_DOIT_ITEMS YAML key/section."""
+    return _MAIN_DOIT_SECTION_RE.search(text) is not None
 
 # PKCS#1 DER public key (Base64), from Encryptor export_public_key_pkcs1_b64()
 # for certificate_key central-urlsign-pfx.
@@ -83,10 +91,12 @@ def verify_signed_text(signed_text: str) -> bool:
 
 def prepare_yaml_buffer_for_doit(buffer: str, path_for_error: str = "") -> str:
     """
-    If *buffer* declares MAIN_DOIT_ITEMS, require a valid Encryptor signature and
-    return the unsigned payload for YAML parsing. Otherwise return *buffer* unchanged.
+    If *buffer* declares a MAIN_DOIT_ITEMS section (``MAIN_DOIT_ITEMS:``), require a
+    valid Encryptor signature and return the unsigned payload for YAML parsing.
+    Variable references such as ``$(MAIN_DOIT_ITEMS)`` do not require a signature.
+    Otherwise return *buffer* unchanged.
     """
-    if MAIN_DOIT_MARKER not in buffer:
+    if not declares_main_doit_items(buffer):
         return buffer
 
     where = f" ({path_for_error})" if path_for_error else ""
@@ -97,7 +107,7 @@ def prepare_yaml_buffer_for_doit(buffer: str, path_for_error: str = "") -> str:
         )
 
     text, _sig = parts
-    if MAIN_DOIT_MARKER not in text:
+    if not declares_main_doit_items(text):
         raise ValueError(
             f"YAML contains {MAIN_DOIT_MARKER} but signature payload is missing the marker{where}"
         )

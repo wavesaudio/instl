@@ -103,7 +103,7 @@ class YamlReader(object):
                 if os.fspath(actual_file_path) != os.fspath(file_path) and os.fspath(actual_file_path) != os.fspath(kwargs['original-path-to-file']):
                     prog_message += f" [{actual_file_path}]"
                 self.progress(prog_message)
-                # In doit mode, MAIN_DOIT_ITEMS YAMLs must carry a valid Encryptor signature.
+                # In doit mode, YAMLs that declare a MAIN_DOIT_ITEMS: section must be signed.
                 main_command = self.config_vars.get("__MAIN_COMMAND__", "").str()
                 if main_command == "doit" and not os.fspath(file_path).lower().endswith(".json"):
                     from utils.yaml_signature import prepare_yaml_buffer_for_doit
