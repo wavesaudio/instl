@@ -10,3 +10,5 @@ xmltodict
 certifi
 jaraco.text
 platformdirs
+# 48.0.1 is the last release with an official macosx universal2 wheel (needed for PyInstaller target_arch=universal2).
+cryptography==48.0.1

@@ -14,9 +14,9 @@ echo ---* now python is: $(which python3.12) *---
 
 echo ---* pip installing *---
 
-# Build native extensions as universal2 so PyInstaller target_arch=universal2 succeeds.
-# cryptography (and cffi) ship only thin macOS wheels; --no-binary + ARCHFLAGS rebuilds fat .so files.
-# Requires Rust (rustc/cargo) on the Mac build agent.
+# ARCHFLAGS for C extensions built from source in requirements_mac_only.txt
+# (psutil, charset-normalizer). cryptography uses a pinned universal2 wheel;
+# cffi is fattened via make_universal2_ext.sh after install.
 export ARCHFLAGS="-arch x86_64 -arch arm64"
 
 # pip install mac requirements first, so universal binaries will get priority
@@ -24,13 +24,26 @@ python3.12 -m pip install --upgrade pip  --no-user
 python3.12 -m pip install -r requirements_mac_only.txt  --no-user
 python3.12 -m pip install -r requirements.txt  --no-user
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPT_DIR}/make_universal2_ext.sh" cffi
+
+require_universal2() {
+    local label="$1"
+    local path="$2"
+    local archs
+    archs="$(lipo -archs "${path}")"
+    echo ---* ${label} archs: ${archs} *---
+    if ! echo " ${archs} " | grep -q ' x86_64 ' || ! echo " ${archs} " | grep -q ' arm64 '; then
+        echo "ERROR: ${path} is not universal2 (archs: ${archs})." >&2
+        echo "Expected cryptography==48.0.1 universal2 wheel and lipo-merged cffi." >&2
+        exit 1
+    fi
+}
+
 CRYPTO_SO="$(python3.12 -c 'import cryptography.hazmat.bindings._rust as m; print(m.__file__)')"
-CRYPTO_ARCHS="$(lipo -archs "${CRYPTO_SO}")"
-echo ---* cryptography native extension archs: ${CRYPTO_ARCHS} *---
-if ! echo " ${CRYPTO_ARCHS} " | grep -q ' x86_64 ' || ! echo " ${CRYPTO_ARCHS} " | grep -q ' arm64 '; then
-    echo "ERROR: ${CRYPTO_SO} is not universal2 (archs: ${CRYPTO_ARCHS})." >&2
-    echo "Install Rust and use a universal2 Python (python.org), then re-run." >&2
-    exit 1
-fi
+require_universal2 "cryptography _rust.abi3.so" "${CRYPTO_SO}"
+
+CFFI_SO="$(python3.12 -c 'import _cffi_backend as m; print(m.__file__)')"
+require_universal2 "cffi _cffi_backend" "${CFFI_SO}"
 
 echo ---* creating virtual env done *---
