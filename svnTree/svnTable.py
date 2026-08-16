@@ -771,46 +771,74 @@ class SVNTable(object):
             create_table_text = """CREATE TEMP TABLE cache_folder_file_paths_t (path TEXT, remove BOOLEAN DEFAULT 1);"""
             curs.execute(create_table_text)
 
-            # each partial path is inserted with it's index in the list
+            # each partial path is inserted with its index in the list
             list_of_inserts = [(p,) for p in files_to_check]
             insert_q = """INSERT INTO cache_folder_file_paths_t (path) VALUES (?);"""
             curs.executemany(insert_q, list_of_inserts)
 
-            # create a list of files that should stay in the cache folder.
-            # the list is a combination of:
-            # - all files in known info_map files
-            # - all files appearing in IIDs that have custom info_map files.
-            # Since we do not know the exact path of such files, we append % to the folder names and later use LIKE
+            # Create two lookup tables for files that should stay in the cache folder:
+            # 1. do_not_remove_file_paths_exact_t: all known files from info_map files (exact matches)
+            # 2. do_not_remove_file_paths_prefix_t: folder prefixes for IIDs with custom info_map files
+            #
+            # The algorithm uses SQL's B-tree index for efficient lookups:
+            # - Exact matches use indexed equality comparisons
+            # - Prefix matches use indexed range scans (c.path >= prefix AND c.path < prefix || char(0x10FFFF))
+            #   where 0x10FFFF is the maximum valid Unicode code point. Appending this character creates
+            #   an upper bound that's lexicographically greater than any string starting with the prefix.
+            #   This range query leverages the index's search tree instead of slower LIKE operations
 
-            create_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_t (path TEXT);"""
-            curs.execute(create_table_text)
+            create_exact_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_exact_t (path TEXT PRIMARY KEY);"""
+            create_prefix_table_text = """CREATE TEMP TABLE do_not_remove_file_paths_prefix_t (path TEXT PRIMARY KEY);"""
+            curs.execute(create_exact_table_text)
+            curs.execute(create_prefix_table_text)
 
-            path_that_should_stay_q = """
-                    INSERT INTO do_not_remove_file_paths_t (path)  
-                    SELECT install_sources_t.detail_value||"%" as __path
+            path_that_should_stay_prefix_q = """
+                    INSERT INTO do_not_remove_file_paths_prefix_t (path)  
+                    SELECT DISTINCT install_sources_t.detail_value as __path
                     FROM index_item_detail_t AS install_sources_t, index_item_detail_t as info_map_t
                     WHERE install_sources_t.detail_name == "install_sources"
                             AND info_map_t.detail_name == "info_map"
                             AND info_map_t.owner_iid == install_sources_t.owner_iid
                             AND install_sources_t.detail_value NOT IN (SELECT path FROM svn_item_t)
-                   UNION 
-                    SELECT svn_item_t.path as __path from svn_item_t
-                    ORDER BY __path
                     """
-            curs.execute(path_that_should_stay_q)
+            path_that_should_stay_exact_q = """
+                    INSERT INTO do_not_remove_file_paths_exact_t (path)
+                    SELECT svn_item_t.path as __path from svn_item_t
+                    ORDER BY __path;
+                    """
+            curs.execute(path_that_should_stay_prefix_q)
+            curs.execute(path_that_should_stay_exact_q)
 
-            # this query will mark not to remove all files found in the sync folder that are not in the info_map
-            # database, BUT will exclude those files in folders that have their own info_map for
-            # items that are not currently being installed.
+            exact_create_index_q = """CREATE INDEX IF NOT EXISTS idx_dnr_exact  ON do_not_remove_file_paths_exact_t(path);"""
+            prefix_create_index_q = """CREATE INDEX IF NOT EXISTS idx_dnr_prefix  ON do_not_remove_file_paths_prefix_t(path);"""
 
-            update_paths_q = f"""
-                UPDATE cache_folder_file_paths_t
-                SET remove = 0
-                WHERE cache_folder_file_paths_t.path  in
-                (SELECT cache_folder_file_paths_t.path FROM cache_folder_file_paths_t, do_not_remove_file_paths_t
-                WHERE cache_folder_file_paths_t.path LIKE do_not_remove_file_paths_t.path)
-                """
-            curs.execute(update_paths_q)
+            curs.execute(exact_create_index_q)
+            curs.execute(prefix_create_index_q)
+
+            # Mark files to keep (remove=0) in two phases:
+            # 1. Exact match: files that exist in the info_map database (indexed equality)
+            # 2. Prefix match: files under folders with custom info_maps not currently being installed
+            #    Uses range scan: path >= prefix AND path < prefix || char(0x10FFFF)
+            #    The Unicode max code point (0x10FFFF) creates a tight upper bound for prefix matching,
+            #    allowing the B-tree index to efficiently find all paths starting with the prefix
+
+            update_paths_exact_q = f"""
+                    UPDATE cache_folder_file_paths_t AS c
+                    SET remove = 0
+                    WHERE EXISTS (SELECT 1 FROM do_not_remove_file_paths_exact_t d WHERE d.path = c.path);
+                    """
+            update_paths_prefix_q = f"""
+                    UPDATE cache_folder_file_paths_t AS c
+                    SET remove = 0
+                    WHERE EXISTS (
+                      SELECT 1
+                      FROM do_not_remove_file_paths_prefix_t p
+                      WHERE c.path >= p.path
+                        AND c.path <  p.path || char(0x10FFFF)
+                    );
+                    """
+            curs.execute(update_paths_exact_q)
+            curs.execute(update_paths_prefix_q)
 
             get_to_remove_q = """
                 SELECT path from cache_folder_file_paths_t

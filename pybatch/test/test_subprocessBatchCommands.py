@@ -373,7 +373,6 @@ class TestPythonBatchSubprocess(unittest.TestCase):
         config_file_text = f"""
             parallel
             progress-bar
-            insecure
             raw
             fail
             show-error
