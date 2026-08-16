@@ -85,7 +85,6 @@ class TestBatchFileExecution(unittest.TestCase):
     def test_run_batch_file_requires_in_memory_text(self):
         # make sure write_batch_file() is triggered before run_batch_file(), otherwise an exception is raised
         self.instance.out_file_realpath = "/tmp/test-batch.py"
-        self.instance.batch_file_text = None
         with self.assertRaisesRegex(RuntimeError, "before write_batch_file"):
             self.instance.run_batch_file()
 
@@ -117,7 +116,6 @@ class TestBatchFileExecution(unittest.TestCase):
 
     def test_run_batch_file_rejects_non_py_extension(self):
         self.instance.out_file_realpath = "/tmp/test-batch.command"
-        self.instance.batch_file_text = "print('noop')"
         with self.assertRaisesRegex(RuntimeError, "Unsupported batch file extension"):
             self.instance.run_batch_file()
 

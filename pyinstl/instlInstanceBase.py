@@ -112,7 +112,7 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         self.dl_tool = CUrlHelper()
 
         self.out_file_realpath = None
-        self.batch_file_text = None
+        self.batch_file_checksum = None
         self.internal_progress = 0  # progress of preparing installer NOT of the installation
         self.num_digits_repo_rev_hierarchy=None
         self.num_digits_per_folder_repo_rev_hierarchy=None
@@ -420,7 +420,8 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
         exit_on_errors = self.the_command != 'uninstall'  # in case of uninstall, go on with batch file even if some operations failed
 
         final_repr = repr(in_batch_accum)
-        self.batch_file_text = final_repr + '\n'
+        final_repr += '\n'
+        self.batch_file_checksum = utils.get_buffer_checksum(final_repr)
 
         out_file: Path = config_vars.get("__MAIN_OUT_FILE__", None).Path()
         if out_file:
@@ -433,20 +434,23 @@ class InstlInstanceBase(IndexYamlReaderBase, metaclass=abc.ABCMeta):
 
         with utils.write_to_file_or_stdout(out_file) as fd:
             fd.write(final_repr)
-            fd.write('\n')
 
-        msg = " ".join(
-            (self.out_file_realpath, str(in_batch_accum.total_progress_count()), "progress items"))
+        msg = f"{self.out_file_realpath} {in_batch_accum.total_progress_count()} progress items"
         log.info(msg)
 
     def run_batch_file(self):
         if not self.out_file_realpath.endswith(".py"):
             raise RuntimeError(f"Unsupported batch file extension for {self.out_file_realpath}")
-        if self.batch_file_text is None:
-            raise RuntimeError(
-                "run_batch_file() called before write_batch_file() populated in-memory batch text")
+
+        with utils.utf8_open_for_read(self.out_file_realpath, 'r') as rfd:
+            py_text = rfd.read()
+            # if member batch_file_checksum has value, it should match the checksum of the file
+            if self.batch_file_checksum:
+                if not utils.check_buffer_checksum(py_text, self.batch_file_checksum):
+                    raise RuntimeError("file checksum and buffer checksum do not match")
+
         py_compiled = compile(
-            self.batch_file_text,
+            py_text,
             os.fspath(self.out_file_realpath),
             mode='exec',
             flags=0,

@@ -603,7 +603,7 @@ class CurlWithInternalParallel(PythonBatchCommandBase):
                                     stderr=subprocess.STDOUT,
                                    universal_newlines=True,
                                    bufsize=1,
-                                   env=utils.build_sanitized_env(config_vars=config_vars))
+                                   env=utils.build_sanitized_env(config_vars=config_vars),
                                    cwd=working_dir)
         reg = re.compile(r"""^\s*
            (?P<DL_percent>[\d.-]+)\s+

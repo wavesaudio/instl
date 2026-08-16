@@ -84,7 +84,7 @@ class InstlClient(InstlInstanceBase):
 
         self.items_table.resolve_inheritance()
 
-        # is not longer active, will probably skip this phase
+        # is no longer active, will probably skip this phase
         if self.should_check_for_binary_versions():
             self.progress("check versions of installed binaries")
             self.get_version_of_installed_binaries()
@@ -108,7 +108,7 @@ class InstlClient(InstlInstanceBase):
         self.items_table.config_var_list_to_db(config_vars)
 
     def command_output(self):
-        # utils.add_to_actions_stack("writing batch file..")
+        # utils.add_to_actions_stack("writing batch file...")
         self.write_batch_file(self.batch_accum)
         self.write_config_vars_to_file(config_vars.get("__WRITE_CONFIG_VARS_TO_FILE__", None).Path())
         if bool(config_vars["__RUN_BATCH__"]):

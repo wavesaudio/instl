@@ -4,9 +4,9 @@ __INSTL_VERSION__:
   - 2         # major version e.g. python-batch
   - 5         # new major feature e.g. new command
   - 3         # new minor feature e.g. new option to command, new python batch class
-  - 9         # bug fix, new param to pybatch class
+  - 10         # bug fix, new param to pybatch class
 
-INSTL_VERSION_CHANGE_REASON: added cwd parameter to curl invocation, CEN2-3679
+INSTL_VERSION_CHANGE_REASON: checksum for produced batch file, sanitized environment variables, CEN2-3678
 
 __INSTL_VERSION_STR_SHORT__: $(__INSTL_VERSION__[0]).$(__INSTL_VERSION__[1]).$(__INSTL_VERSION__[2]).$(__INSTL_VERSION__[3])
 

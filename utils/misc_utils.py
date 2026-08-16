@@ -292,6 +292,8 @@ def ParallelContinuationIter(*iterables):
 
 
 def get_buffer_checksum(buff):
+    if isinstance(buff, str):
+        buff = buff.encode("utf-8")
     sha1ner = hashlib.sha1()
     sha1ner.update(buff)
     retVal = sha1ner.hexdigest()
