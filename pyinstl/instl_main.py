@@ -119,7 +119,6 @@ class InvocationReporter(PythonBatchRuntime):
             log.warning(f'instl log file report start failed - {e}')
 
     def exit_self(self, exit_return) -> None:
-        # self.doing = self.doing if self.doing else utils.get_latest_action_from_stack()
         try:
             end_time = datetime.datetime.now()
             log.debug(f"Run time: {self.command_time_sec}")
@@ -234,6 +233,13 @@ def instl_own_main(argv):
                 instance = InstlGui(initial_vars)
                 instance.init_from_cmd_line_options(options)
                 instance.do_command()
+            case "server", _:
+                from pyinstl.instlServer import run_instl_server
+                if getattr(sys, 'frozen', False):
+                    launch_prefix = [os.fspath(get_path_to_instl_app())]
+                else:
+                    launch_prefix = [sys.executable, os.fspath(get_path_to_instl_app())]
+                run_instl_server(options, launch_prefix)
 
         # make sure instance's dispose functions are called
         if instance is not None:

@@ -90,6 +90,11 @@ class CommandLineOptions(object):
         self.mode = None
         self.which_revision = None
         self.define = None
+        self.server_secure = True
+        self.server_port = 0
+        self.server_discovery_file = None
+        self.server_token_file = None
+        self.server_history_limit = 25
 
     def __str__(self):
         return "\n".join([''.join((n, ": ", str(v))) for n, v in sorted(vars(self).items())])
@@ -126,6 +131,7 @@ def prepare_args_parser(in_command):
             'parallel-run':         {'mode': 'do_something', 'options': ('in', ), 'help':  'Run processes in parallel'},
             'resolve':              {'mode': 'do_something', 'options': ('in', 'out', 'conf'), 'help':  'read --in file resolve $() style variables and write result to --out, definitions are given in --config-file'},
             'run-process':          {'mode': 'do_something', 'options': ('in_opt',), 'help':  'Run a processes with optional abort file'},
+            'server':               {'mode': 'server', 'options': (), 'help':  'run a local JSON-RPC command server'},
             'test-import':          {'mode': 'do_something', 'options': (), 'help':  'test the import of required modules'},
             'translate_url':        {'mode': 'do_something', 'options': ('in',  'cred'), 'help':  'translate a url to be compatible with current connection'},
             'unwtar':               {'mode': 'do_something', 'options': ('in_opt', 'prog', 'out'), 'help':  'uncompress .wtar files in current (or in the --out) folder'},
@@ -432,6 +438,38 @@ def prepare_args_parser(in_command):
             run_process_options.add_argument(dest='RUN_PROCESS_ARGUMENTS',
                                 nargs='...',
                                 )
+        case 'server':
+            server_options = command_parser.add_argument_group(description='server:')
+            security_options = server_options.add_mutually_exclusive_group()
+            security_options.add_argument('--secure',
+                                action='store_true',
+                                dest='server_secure',
+                                default=True,
+                                help='require the per-user bearer token (default)')
+            security_options.add_argument('--insecure',
+                                action='store_false',
+                                dest='server_secure',
+                                help='allow unauthenticated local connections')
+            server_options.add_argument('--port',
+                                type=int,
+                                default=0,
+                                dest='server_port',
+                                metavar='port',
+                                help='loopback TCP port; 0 selects a free port')
+            server_options.add_argument('--discovery-file',
+                                dest='server_discovery_file',
+                                metavar='path',
+                                help='override the per-user discovery file path')
+            server_options.add_argument('--token-file',
+                                dest='server_token_file',
+                                metavar='path',
+                                help='override the per-user authentication token path')
+            server_options.add_argument('--history-limit',
+                                type=int,
+                                default=25,
+                                dest='server_history_limit',
+                                metavar='count',
+                                help='number of completed jobs retained in memory')
         case 'exec':
             exec_options = command_parser.add_argument_group(description='exec:')
             exec_options.add_argument('args', nargs=argparse.REMAINDER)
@@ -496,7 +534,10 @@ def prepare_args_parser(in_command):
 def read_command_line_options(name_space_obj, arg_list=None):
     """ parse command line options """
 
-    command_name = arg_list[0] if arg_list else None
+    if arg_list:
+        command_name = arg_list[0]
+    else:
+        command_name = None
     parser, command_names = prepare_args_parser(command_name)
     if parser:
         # Command line options were given or auto run file was found
