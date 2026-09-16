@@ -705,10 +705,10 @@ class ChmodAndChown(PythonBatchCommandBase):
         resolved_path = utils.ExpandAndResolvePath(self.path)
         self.doing = f"""Chmod and Chown {self.mode} '{resolved_path}' {self.user_id}:{self.group_id}"""
         with Chown(path=resolved_path, user_id=self.user_id, group_id=self.group_id, recursive=self.recursive,
-                   skip_chmod=self.skip_chmod, own_progress_count=0) as owner_chaner:
+                   skip_chmod=self.skip_chmod, ignore_all_errors=self.ignore_all_errors, own_progress_count=0) as owner_chaner:
             owner_chaner()
         with Chmod(path=resolved_path, mode=self.mode, recursive=self.recursive,
-                   skip_chown=self.skip_chown, own_progress_count=0) as mode_changer:
+                   skip_chown=self.skip_chown, ignore_all_errors=self.ignore_all_errors, own_progress_count=0) as mode_changer:
             mode_changer()
 
 
