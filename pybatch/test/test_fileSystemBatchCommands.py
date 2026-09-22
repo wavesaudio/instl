@@ -529,10 +529,51 @@ class TestPythonBatchFileSystem(unittest.TestCase):
         self.pbt.exec_and_capture_output("Chmod_recursive_parse_stderr_Mac")
 
     def test_ChmodAndChown_repr(self):
-        pass
+        self.pbt.reprs_test_runner(ChmodAndChown("/a/file/to/append", "a+rw", 123, 456),
+                                   ChmodAndChown("/a/file/to/append", "a+rw", None, None, recursive=True),
+                                   ChmodAndChown("/a/file/to/append", "a+rw", 123, 456, ignore_all_errors=True))
 
-    def test_ChmodAndChown(self):
-        pass
+    @unittest.skipUnless(running_on_Mac, "chflags uchg / recursive chmod -f semantics are Mac-specific")
+    def test_ChmodAndChown_ignore_all_errors_forwarded_to_inner_chmod(self):
+        """ ChmodAndChown(..., ignore_all_errors=True) must forward ignore_all_errors to the inner
+            Chmod it runs, not only the inner Chown. Note the exception itself is swallowed either
+            way, by ChmodAndChown's own __exit__ (its ignore_all_errors is set) - so "does it raise"
+            cannot tell the two apart. What forwarding actually buys: the inner Chmod shells out with
+            '-f', so a single unfixable file (here: one with the uchg flag set, which even its owner
+            cannot chmod without first clearing the flag) is silently skipped by chmod itself, instead
+            of failing loudly and having RunProcessBase log.error() the stderr before the exception is
+            discarded upstream - log noise that makes an unrelated failure look like this pass failed.
+        """
+        container = self.pbt.path_inside_test_folder("chmod-and-chown-uchg")
+        self.pbt.batch_accum.clear(section_name="doit")
+        self.pbt.batch_accum += MakeDir(container)
+        with self.pbt.batch_accum.sub_accum(Cd(container)) as cd_accum:
+            cd_accum += Touch("normal.txt")
+            cd_accum += Touch("locked.txt")
+        self.pbt.exec_and_capture_output("create test files")
+
+        locked_file = container.joinpath("locked.txt")
+        subprocess.run(["chflags", "uchg", os.fspath(locked_file)], check=True)
+        try:
+            # ignore_all_errors=True: the inner Chmod should shell out with '-f' and swallow the
+            # uchg failure itself, so nothing should be logged as an error at all.
+            self.pbt.batch_accum.clear(section_name="doit")
+            self.pbt.batch_accum += ChmodAndChown(path=container, mode="a+rw", user_id=None, group_id=None,
+                                                  recursive=True, ignore_all_errors=True)
+            with self.assertNoLogs("pybatch.subprocessBatchCommands", level="ERROR"):
+                self.pbt.exec_and_capture_output("ChmodAndChown ignore_all_errors=True logs nothing")
+
+            # without ignore_all_errors, the same failure is still surfaced as an error log (and
+            # still raises internally) - confirming the assertNoLogs above is a real negative,
+            # not just an inert assertion.
+            self.pbt.batch_accum.clear(section_name="doit")
+            self.pbt.batch_accum += ChmodAndChown(path=container, mode="a+rw", user_id=None, group_id=None,
+                                                  recursive=True)
+            with self.assertLogs("pybatch.subprocessBatchCommands", level="ERROR"):
+                self.pbt.exec_and_capture_output("ChmodAndChown without ignore_all_errors logs an error",
+                                                 expected_exception=subprocess.CalledProcessError)
+        finally:
+            subprocess.run(["chflags", "nouchg", os.fspath(locked_file)], check=False)
 
     def test_Ls_repr(self):
         self.pbt.reprs_test_runner(Ls('rumba', out_file="empty.txt"),
