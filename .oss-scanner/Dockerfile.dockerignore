@@ -1,0 +1,10 @@
+.git
+.idea
+.DS_Store
+.oss-scanner
+venv
+build
+dist
+python_batch_test_results
+**/__pycache__
+**/*.pyc
