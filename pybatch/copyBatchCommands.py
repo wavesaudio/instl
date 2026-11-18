@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 from collections import defaultdict
 from packaging.version import Version
@@ -11,6 +12,10 @@ log = logging.getLogger(__name__)
 
 info_xml_version_re = re.compile(r'<Version>(?P<version>\d+\.\d+\.\d+(\.\d+)?)</Version>')
 info_plist_version_re = re.compile(r'<key>CFBundleShortVersionString</key>\s+<string>(?P<version>\d+\.\d+\.\d+(\.\d+)?)</string>', re.DOTALL)
+
+# text that is recognized by the application running instl as a request to restart the computer when done.
+# Same text is echoed by Restart_required_IID in index.yaml
+RESTART_REQUIRED_MESSAGE = "This installation requires that you restart your computer."
 
 def _fast_copy_file(src, dst):
     # since python3.8 shutil.copyfile uses the fastest file copy available each specific operating system
@@ -257,6 +262,28 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                 retVal = True
         return retVal
 
+    def replace_file_on_restart(self, src: Path, dst: Path, copy_exception: Exception) -> bool:
+        """ WINDOWS ONLY - called when copying src to dst has failed.
+            If dst could not be replaced because it is in use by a running process (e.g. a dll loaded
+            by a process that cannot be closed), stage the new file and let Windows replace dst during
+            the next restart. A message asking for restart is written to the progress output.
+            return True if replacement was registered and the copy should not be considered as failed
+        """
+        retVal = False
+        if sys.platform == 'win32' and isinstance(copy_exception, PermissionError) and not self.dry_run:
+            try:
+                if dst.is_file():
+                    staged_path = utils.replace_file_on_reboot(src, dst)
+                    if staged_path:
+                        retVal = True
+                        self.statistics['replace_on_restart'] += 1
+                        # should_copy_file might have recorded who locks dst, but this is no longer an error
+                        self._error_dict.pop("locked_file_info", None)
+                        log.info(f"{self.progress_msg()} {RESTART_REQUIRED_MESSAGE} '{os.path.abspath(dst)}' is in use and will be replaced by '{staged_path.name}' when the computer is restarted")
+            except Exception:
+                retVal = False
+        return retVal
+
     def should_copy_dir(self, src: Path, dst: Path, src_file_names):
         retVal = self.top_destination_does_not_exist
         if not retVal:
@@ -305,8 +332,9 @@ no_flags_patterns: if a file matching one of these patterns exists in the destin
                     src_st = src.stat()
                     os.chown(dst, src_st[stat.ST_UID], src_st[stat.ST_GID])
             except Exception as ex:
-                self.who_locks_file_error_dict(_fast_copy_file, dst)
-                raise
+                if not self.replace_file_on_restart(src, dst, ex):
+                    self.who_locks_file_error_dict(_fast_copy_file, dst)
+                    raise
         else:
             self.statistics['skipped_files'] += 1
         return dst
@@ -681,6 +709,11 @@ class ShouldCopySource(RsyncClone):
             elif top_src.is_file():
                 if top_src.stat().st_ino == top_trg.stat().st_ino:
                     self.reason_not_to_copy = f"source and target have same inode"  # type: ignore
+                    should_copy = False
+                elif utils.compare_files_by_checksum(top_trg, top_src):
+                    # same contents but not a hard link, e.g. source was downloaded again to the cache.
+                    # Copying would change nothing, and if target is in use would needlessly require a restart
+                    self.reason_not_to_copy = f"source and target have same checksum"  # type: ignore
                     should_copy = False
         except:  # if checking failed for any reason, just return True
             pass

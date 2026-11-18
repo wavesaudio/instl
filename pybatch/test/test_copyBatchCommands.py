@@ -305,6 +305,101 @@ class TestPythonBatchCopy(unittest.TestCase):
             dir_comp_with_hard_links = filecmp.dircmp(dir_to_copy_from, dir_to_copy_to_with_hard_links)
             self.assertTrue(is_hard_linked(dir_comp_with_hard_links), f"{self.pbt.which_test} (with hard links): source and target files are not hard links to the same file")
 
+    def test_ShouldCopySource_file_same_checksum(self):
+        """ a single file whose target has the same contents but is not a hard link of the source
+            (e.g. source was downloaded again to the cache) should not be copied
+        """
+        file_name = "same-contents.dll"
+        dir_to_copy_from = self.pbt.path_inside_test_folder("should-copy-source")
+        dir_to_copy_to = self.pbt.path_inside_test_folder("should-copy-target")
+        dir_to_copy_from.mkdir(parents=True)
+        dir_to_copy_to.mkdir(parents=True)
+        file_to_copy = dir_to_copy_from.joinpath(file_name)
+        target_file = dir_to_copy_to.joinpath(file_name)
+        file_to_copy.write_bytes(b"same contents")
+        target_file.write_bytes(b"same contents")
+        os.utime(target_file, (1_000_000_000, 1_000_000_000))  # so only the checksum can tell they are the same
+        target_stat_before = target_file.stat()
+
+        self.pbt.batch_accum.clear(section_name="doit")
+        with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_to)) as cd_accum:
+            with cd_accum.sub_accum(ShouldCopySource(file_to_copy, dir_to_copy_to)) as should_copy_accum:
+                should_copy_accum += CopyFileToDir(file_to_copy, ".", hard_links=False)
+        self.pbt.exec_and_capture_output()
+
+        target_stat_after = target_file.stat()
+        self.assertEqual(target_stat_before.st_mtime, target_stat_after.st_mtime, f"{self.pbt.which_test}: target with same checksum should not have been copied")
+        self.assertEqual(target_stat_before.st_ino, target_stat_after.st_ino, f"{self.pbt.which_test}: target with same checksum should not have been replaced")
+
+        # different contents should be copied
+        file_to_copy.write_bytes(b"new contents")
+        self.pbt.batch_accum.clear(section_name="doit")
+        with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_to)) as cd_accum:
+            with cd_accum.sub_accum(ShouldCopySource(file_to_copy, dir_to_copy_to)) as should_copy_accum:
+                should_copy_accum += CopyFileToDir(file_to_copy, ".", hard_links=False)
+        self.pbt.exec_and_capture_output()
+        self.assertEqual(target_file.read_bytes(), b"new contents", f"{self.pbt.which_test}: target with different checksum should have been copied")
+
+    @unittest.skipUnless(sys.platform == 'win32', "replacing a file that is in use is a Windows only issue")
+    def test_CopyFileToDir_target_in_use(self):
+        """ a dll that is loaded by a running process cannot be deleted or overwritten.
+            Copy should leave it untouched, stage the new file next to it, ask Windows to replace
+            it on the next restart and report that restart is required.
+            Registering the operation with Windows is mocked so the test does not need admin rights
+            and does not leave pending operations in the registry.
+        """
+        from unittest import mock
+        file_name = "in-use.dll"
+        system32 = Path(os.environ["SystemRoot"], "System32")
+        dir_to_copy_from = self.pbt.path_inside_test_folder("in-use-source")
+        dir_to_copy_to = self.pbt.path_inside_test_folder("in-use-target")
+        dir_to_copy_from.mkdir(parents=True)
+        dir_to_copy_to.mkdir(parents=True)
+        file_to_copy = dir_to_copy_from.joinpath(file_name)
+        target_file = dir_to_copy_to.joinpath(file_name)
+        shutil.copyfile(system32.joinpath("version.dll"), target_file)
+        old_contents = target_file.read_bytes()
+        staged_glob = f"{file_name}.*{utils.STAGED_REPLACEMENT_SUFFIX}"
+
+        def run_copy(hard_links):
+            self.pbt.batch_accum.clear(section_name="doit")
+            with self.pbt.batch_accum.sub_accum(Cd(dir_to_copy_to)) as cd_accum:
+                with cd_accum.sub_accum(ShouldCopySource(file_to_copy, dir_to_copy_to)) as should_copy_accum:
+                    should_copy_accum += CopyFileToDir(file_to_copy, ".", hard_links=hard_links)
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.FreeLibrary.argtypes = [ctypes.c_void_p]
+        loaded_dll = ctypes.WinDLL(os.fspath(target_file))
+        try:
+            with self.assertRaises(PermissionError):  # make sure the file is really locked
+                target_file.unlink()
+
+            for hard_links in (False, True):
+                new_contents = f"new version of the dll, hard_links={hard_links}".encode()
+                file_to_copy.write_bytes(new_contents)
+                run_copy(hard_links)
+                with mock.patch("utils.files._register_move_on_reboot") as register_mock:
+                    with self.assertLogs(level="INFO") as captured_logs:
+                        self.pbt.exec_and_capture_output()
+
+                self.assertEqual(target_file.read_bytes(), old_contents, f"{self.pbt.which_test}: in-use target should not be touched before restart (hard_links={hard_links})")
+                staged_files = list(dir_to_copy_to.glob(staged_glob))
+                self.assertEqual(len(staged_files), 1, f"{self.pbt.which_test}: exactly one replacement should be staged, previous ones should be removed (hard_links={hard_links})")
+                self.assertEqual(staged_files[0].read_bytes(), new_contents, f"{self.pbt.which_test}: staged file should be the new file (hard_links={hard_links})")
+                register_mock.assert_called_once_with(staged_files[0], target_file)
+                restart_messages = [msg for msg in captured_logs.output if "This installation requires that you restart your computer" in msg]
+                self.assertEqual(len(restart_messages), 1, f"{self.pbt.which_test}: restart should be requested (hard_links={hard_links})")
+                self.assertIn("Progress", restart_messages[0], f"{self.pbt.which_test}: restart request should be a progress message")
+
+            # if replacing on restart cannot be registered (e.g. no admin rights) the copy fails as before
+            run_copy(False)
+            with mock.patch("utils.files._register_move_on_reboot", side_effect=PermissionError("Access is denied")):
+                self.pbt.exec_and_capture_output(expected_exception=PermissionError)
+            self.assertEqual(target_file.read_bytes(), old_contents, f"{self.pbt.which_test}: in-use target should not be touched when copy fails")
+            self.assertEqual(list(dir_to_copy_to.glob(staged_glob)), [], f"{self.pbt.which_test}: no staged file should be left when registration fails")
+        finally:
+            kernel32.FreeLibrary(loaded_dll._handle)
+
     def test_MoveFileToDir_repr(self):
         pass
 

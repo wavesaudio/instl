@@ -716,6 +716,77 @@ def safe_getcwd(return_on_error="os.getcwd() failed", ignore_exceptions=True):
     return retVal
 
 
+STAGED_REPLACEMENT_SUFFIX = ".instl_new"
+MOVEFILE_REPLACE_EXISTING = 0x1
+MOVEFILE_DELAY_UNTIL_REBOOT = 0x4
+
+
+def _register_move_on_reboot(in_existing_path, in_new_path) -> None:
+    """ WINDOWS ONLY - ask Windows to rename in_existing_path to in_new_path (replacing it) during the next restart.
+        The operation is stored in HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\PendingFileRenameOperations
+        and is performed by Windows before any application is started - so no process can have the target in use.
+        Both paths must be absolute and on the same volume. Requires an administrator or LocalSystem account.
+        :except OSError if the operation could not be registered
+    """
+    import ctypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.MoveFileExW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    kernel32.MoveFileExW.restype = ctypes.c_int
+    if not kernel32.MoveFileExW(os.fspath(in_existing_path), os.fspath(in_new_path), MOVEFILE_REPLACE_EXISTING | MOVEFILE_DELAY_UNTIL_REBOOT):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def remove_staged_replacements(in_file_path) -> None:
+    """ remove files that were staged by previous calls to replace_file_on_reboot for the same target
+        and were not used, e.g. because the install was repeated before the system was restarted.
+        A pending rename whose source is missing is silently skipped by Windows.
+        :except function never raises exception
+    """
+    try:
+        file_path = Path(in_file_path)
+        for staged_path in file_path.parent.glob(f"{file_path.name}.*{STAGED_REPLACEMENT_SUFFIX}"):
+            try:
+                staged_path.chmod(staged_path.stat().st_mode | stat.S_IWRITE)
+                staged_path.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def replace_file_on_reboot(in_src_path, in_dst_path) -> Optional[Path]:
+    """ WINDOWS ONLY - does nothing and returns None on other platforms.
+        A file that is in use by a running process (e.g. a loaded .dll) cannot be overwritten.
+        Instead the new file is copied next to the target (staged) and Windows is asked to put it
+        in place of the target during the next restart. Until then the target is left untouched,
+        so running processes and newly started ones keep using the same, old, file.
+        :param in_src_path: the new file
+        :param in_dst_path: the file that is in use and should be replaced
+        :return: path to the staged file or None if replacement could not be staged or registered
+        :except function never raises exception
+    """
+    retVal = None
+    if sys.platform == 'win32':
+        staged_path = None
+        try:
+            dst_path = Path(os.path.abspath(in_dst_path))
+            remove_staged_replacements(dst_path)
+            # staged file must be on the same volume as the target, so it is created in the same folder
+            staged_path = dst_path.with_name(f"{dst_path.name}.{os.getpid()}.{time.time_ns()}{STAGED_REPLACEMENT_SUFFIX}")
+            shutil.copyfile(in_src_path, staged_path, follow_symlinks=False)
+            _register_move_on_reboot(staged_path, dst_path)
+            retVal = staged_path
+        except Exception as ex:
+            log.debug(f"could not register replacing '{in_dst_path}' on restart: {ex}")
+            if staged_path is not None:
+                try:
+                    staged_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            retVal = None
+    return retVal
+
+
 def who_locks_file(in_file_path, in_dll_path):
     """ windows only function to return the process that locks a file
         :param in_file_path: file to check
