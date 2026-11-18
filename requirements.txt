@@ -1,4 +1,4 @@
-setuptools==68.2.2
+setuptools==84.1.0
 appdirs
 future
 networkx
